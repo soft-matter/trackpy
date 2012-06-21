@@ -23,6 +23,8 @@ class Hash_table(object):
     '''
     Basic hash table to fast look up of 
     '''
+    class Out_of_hash_excpt(Exception):
+        pass
     def __init__(self,dims,box_size):
         self.dims = dims                  # the dimensions of the data
         self.box_size = box_size          # the size of boxes to use in the units of the data
@@ -32,8 +34,16 @@ class Hash_table(object):
         self.spat_dims = len(dims)        # how many spatial dimensions
         self.cached_shifts = None
         self.cached_rrange = None
-    def get_region(self,center, rrange):
-        center = np.asarray(center)       # make sure center is an array
+    def get_region(self,point, rrange):
+        '''
+        Returns all the particles with in the region of minimum radius
+        rrange in data units
+        '''
+        
+        center = np.floor(point.pos/self.box_size)
+
+        rrange = int(np.ceil(rrange/ self.box_size))
+
         # check if we have already computed the shifts
         if rrange == self.cached_rrange and self.cached_shifts is not None:
             shifts = self.cached_shifts   # if we have, use them
@@ -54,12 +64,29 @@ class Hash_table(object):
             self.cached_shifts = shifts
         region = []
         for s in shifts:
-            region.extend(self.hash_table[cord_to_indx(center + s,self.hash_dims)])
+            try:
+                region.extend(self.hash_table[self.cord_to_indx(center + s)])
+            except Hash_table.Out_of_hash_excpt:
+                pass
         return region
     
-    def add_particle(self,cord):
-        self.hash_table[hash_fun(cord,self.box_size,self.hash_dims)].append(cord)
-        
+    def add_particle(self,point):
+        self.hash_table[self.hash_fun(point.pos)].append(point)
+
+    def hash_fun(self,cord):
+        return self.cord_to_indx(np.floor(np.array(cord)/self.box_size))
+
+    def cord_to_indx(self,cord):
+        """Converts coordinate position to an index.  """
+        assert len(cord) == len(self.hash_dims)
+        hash_size = self.hash_dims
+        cord = np.asarray(cord)
+        if any(cord  >= hash_size) or any(cord < 0):
+            raise Hash_table.Out_of_hash_excpt("cord out of range")
+        indx = int(sum(cord * np.cumprod(np.concatenate(([1],hash_size[1:])))))
+
+        return indx
+
     
 class Track(object):
     '''
@@ -118,7 +145,7 @@ class Point(object):
     count = 0
     def __init__(self):
         self.tracks = None
-        self.uuid = point.count         # unique id for __hash__
+        self.uuid = Point.count         # unique id for __hash__
 
 
     def __hash__(self):
