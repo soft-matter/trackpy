@@ -70,7 +70,7 @@ class Hash_table(object):
                 pass
         return region
     
-    def add_particle(self,point):
+    def add_point(self,point):
         self.hash_table[self.hash_fun(point.pos)].append(point)
 
     def hash_fun(self,cord):
@@ -99,7 +99,7 @@ class Track(object):
         if not point is None:
             self.add_point(point)
                                         
-        self.indx = track.count           #unique id
+        self.indx = Track.count           #unique id
         Track.count +=1
 
     def __len__(self):
@@ -115,7 +115,7 @@ class Track(object):
     def add_point(self,point):
         '''Adds a point to this track '''
         self.points.append(point)
-        point.add_track(self)
+        point.add_to_track(self)
     def remove_point(self,point):
         '''removes a point from this track'''
         self.points.remove(point)
@@ -124,7 +124,7 @@ class Track(object):
         '''Returns the last point on the track'''
         return self.points[-1]
     def merge_track(self,to_merge_track):
-        '''Merges the track add_track into the current track.
+        '''Merges the track add_to_track into the current track.
         Progressively moves points from the other track to this one.
         '''
     
@@ -144,9 +144,9 @@ class Point(object):
     '''
     count = 0
     def __init__(self):
-        self.tracks = None
+        self.track = None
         self.uuid = Point.count         # unique id for __hash__
-
+        Point.count +=1
 
     def __hash__(self):
         return self.uuid
@@ -197,7 +197,7 @@ class PointND(Point):
         return np.sqrt(np.sum((self.pos - point.pos)**2))
     
 
-def link_full(levels,search_range,hash_obj,memory=0):
+def link_full(levels,dims,search_range,hash_obj,memory=0):
     '''    Does proper linking, dealing with the forward and backward
     networks.  This should work with any dimension, so long and the
     hash object and the point objects behave as expected.
@@ -210,12 +210,19 @@ def link_full(levels,search_range,hash_obj,memory=0):
 
     expect particles to know what track they are in (p.track -> track)
     and know how far apart they are from another particle (p.distance(p2)
-    returns absolute distance)'''
+    returns absolute distance)
+
+    dims is the dimension of the data in data units
+    '''
     # initial source set    
     prev_set  = set(levels[0])
     # assume everything in first level starts a track
     # initialize the master track list with the points in the first level
-    track_lst = [track(p) for p in prev_set]
+    track_lst = [Track(p) for p in prev_set]
+    print len(levels)
+    print len(levels[0])
+    print len(prev_set)
+    print len(track_lst)
     mem_set = set()
     # fill in first 'prev' hash
 
@@ -229,8 +236,8 @@ def link_full(levels,search_range,hash_obj,memory=0):
     
     for cur_level in levels[1:]:
         # make a new hash object
-        cur_hash = hash_obj(search_range)
-        prev_hash = hash_obj(search_range)
+        cur_hash = hash_obj(dims,search_range)
+        prev_hash = hash_obj(dims,search_range)
         # create the set for the destination level
         cur_set = set(cur_level)
         # create a second copy that will be used as the source in
@@ -256,7 +263,7 @@ def link_full(levels,search_range,hash_obj,memory=0):
         # sort out what can go to what
         for p in cur_level:
             # get 
-            work_box = prev_hash.get_region(p)
+            work_box = prev_hash.get_region(p,search_range)
             for wp in work_box:
                 # this should get changed to deal with squared values
                 # to save an eventually square root
@@ -276,7 +283,7 @@ def link_full(levels,search_range,hash_obj,memory=0):
             # no backwards candidates
             if bc_c ==  0:
                 # add a new track
-                track_lst.append(track(p))
+                track_lst.append(Track(p))
                 # clean up tracking apparatus 
                 del p.back_cands
                 # short circuit loop
@@ -333,7 +340,7 @@ def link_full(levels,search_range,hash_obj,memory=0):
                 del sp.forward_cands
             for dp in d_remain:
                 # if unclaimed destination particle, a track in born!
-                track_lst.append(track(dp))
+                track_lst.append(Track(dp))
                 # clean up
                 del dp.back_cands
             # tack all of the unmatched source particles into the new
