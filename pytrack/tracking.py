@@ -83,7 +83,7 @@ class Track(object):
 
     def __neq__(self,other):
         return not self.__eq__(other)
-    def __hash__ = None
+    __hash__ = None
         
     def add_point(self,point):
         '''Adds a point to this track '''
@@ -170,7 +170,7 @@ class PointND(Point):
         return np.sqrt(np.sum((self.pos - point.pos)**2))
     
 
-def link_full(levels,search_range = .02,memory=0,hash_obj=hash_line_angular):
+def link_full(levels,search_range,hash_obj,memory=0):
     '''    Does proper linking, dealing with the forward and backward
     networks.  This should work with any dimension, so long and the
     hash object and the point objects behave as expected.
