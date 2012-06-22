@@ -197,7 +197,7 @@ class PointND(Point):
         return np.sqrt(np.sum((self.pos - point.pos)**2))
     
 
-def link_full(levels,dims,search_range,hash_obj,memory=0):
+def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
     '''    Does proper linking, dealing with the forward and backward
     networks.  This should work with any dimension, so long and the
     hash object and the point objects behave as expected.
@@ -205,7 +205,7 @@ def link_full(levels,dims,search_range,hash_obj,memory=0):
     levels is a list of lists of points.  The linking in done between
     the inner lists.
 
-    Expect hash_obj to have constructor that takes a single value and
+    Expect hash_cls to have constructor that takes a single value and
     support add_particle and get_region
 
     expect particles to know what track they are in (p.track -> track)
@@ -218,11 +218,7 @@ def link_full(levels,dims,search_range,hash_obj,memory=0):
     prev_set  = set(levels[0])
     # assume everything in first level starts a track
     # initialize the master track list with the points in the first level
-    track_lst = [Track(p) for p in prev_set]
-    print len(levels)
-    print len(levels[0])
-    print len(prev_set)
-    print len(track_lst)
+    track_lst = [track_cls(p) for p in prev_set]
     mem_set = set()
     # fill in first 'prev' hash
 
@@ -236,8 +232,8 @@ def link_full(levels,dims,search_range,hash_obj,memory=0):
     
     for cur_level in levels[1:]:
         # make a new hash object
-        cur_hash = hash_obj(dims,search_range)
-        prev_hash = hash_obj(dims,search_range)
+        cur_hash = hash_cls(dims,search_range)
+        prev_hash = hash_cls(dims,search_range)
         # create the set for the destination level
         cur_set = set(cur_level)
         # create a second copy that will be used as the source in
@@ -283,7 +279,7 @@ def link_full(levels,dims,search_range,hash_obj,memory=0):
             # no backwards candidates
             if bc_c ==  0:
                 # add a new track
-                track_lst.append(Track(p))
+                track_lst.append(track_cls(p))
                 # clean up tracking apparatus 
                 del p.back_cands
                 # short circuit loop
@@ -340,7 +336,7 @@ def link_full(levels,dims,search_range,hash_obj,memory=0):
                 del sp.forward_cands
             for dp in d_remain:
                 # if unclaimed destination particle, a track in born!
-                track_lst.append(Track(dp))
+                track_lst.append(track_cls(dp))
                 # clean up
                 del dp.back_cands
             # tack all of the unmatched source particles into the new
