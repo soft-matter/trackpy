@@ -74,7 +74,7 @@ class Hash_table(object):
         self.hash_table[self.hash_fun(point.pos)].append(point)
 
     def hash_fun(self,cord):
-        return self.cord_to_indx(np.floor(np.array(cord)/self.box_size))
+        return self.cord_to_indx(np.floor(np.asarray(cord)/self.box_size))
 
     def cord_to_indx(self,cord):
         """Converts coordinate position to an index.  """
@@ -216,6 +216,14 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
     '''
     # initial source set    
     prev_set  = set(levels[0])
+    prev_hash = hash_cls(dims,search_range)
+    # set up the particles in the previous level for
+    # linking
+    for p in prev_set:
+        prev_hash.add_point(p)
+        p.forward_cands = []
+
+
     # assume everything in first level starts a track
     # initialize the master track list with the points in the first level
     track_lst = [track_cls(p) for p in prev_set]
@@ -228,12 +236,13 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
     mem_history = []
     for j in range(memory):
         mem_history.append(set())
-    
+
+
     
     for cur_level in levels[1:]:
         # make a new hash object
         cur_hash = hash_cls(dims,search_range)
-        prev_hash = hash_cls(dims,search_range)
+
         # create the set for the destination level
         cur_set = set(cur_level)
         # create a second copy that will be used as the source in
@@ -248,14 +257,7 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
         for p in cur_set:
             cur_hash.add_point(p)
             p.back_cands = []
-
-        # set up the particles in the previous level for
-        # linking
-        for p in prev_set:
-            prev_hash.add_point(p)
             p.forward_cands = []
-
-
         # sort out what can go to what
         for p in cur_level:
             # get 
@@ -356,9 +358,15 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
             # add the memory particles to what will be the next source
             # set
             tmp_set |=mem_set
-            
+            # add memory points to prev_hash (to be used as the next source)
+            for m in mem_set:
+                # add points to the hash
+                prev_hash.add_point(m)
+                # re-create the forward_cands list
+                m.forward_cands = []
         prev_set = tmp_set
 
+        
         # add in the memory points
         # store the current level for use in next loop
 
