@@ -101,7 +101,8 @@ class Track(object):
                                         
         self.indx = Track.count           #unique id
         Track.count +=1
-
+    def __iter__(self):
+        return self.points.__iter__()
     def __len__(self):
         return len(self.points)
 
@@ -214,6 +215,7 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
 
     dims is the dimension of the data in data units
     '''
+    #    print "starting linking"
     # initial source set    
     prev_set  = set(levels[0])
     prev_hash = hash_cls(dims,search_range)
