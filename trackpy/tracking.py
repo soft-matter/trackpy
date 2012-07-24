@@ -374,10 +374,14 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
 
     return track_lst
 
+class SubnetOversizeException(Exception):
+    pass
 
 class sub_net_linker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
+    MAX_SUB_NET_SIZE = 50
+    
     def __init__(self,s_sn,search_range):
         self.s_sn = s_sn
         self.s_lst = [s for s in s_sn]
@@ -389,7 +393,8 @@ class sub_net_linker(object):
         self.d_taken = set()
         self.cur_sum = 0
 
-
+        if self.MAX > sub_net_linker.MAX_SUB_NET_SIZE:
+            raise SubnetOversizeException('sub net contains %d points'%self.MAX)
         # do the computation
         self.do_recur(0)
     def do_recur(self,j):
