@@ -1,0 +1,37 @@
+Band pass
+>>> timeit.Timer(setup='import feature as f; image=1-f.imread("sample.png")', stmt='f.bandpass(image,1,9)').timeit(10)
+2.5743801593780518
+
+Image type conversion
+>>> timeit.Timer(setup='import feature as f; image=f.bandpass(1-f.imread("sample.png"), 1, 9)', stmt='image=(255./image.max()*image.clip(min=0.)).astype(f.uint8)').timeit(10)
+0.13431096076965332
+
+local_maxima
+>>> timeit.Timer(setup='import feature as f; image=f.bandpass(1-f.imread("sample.png"), 1, 9); image=(255./image.max()*image.clip(min=0.)).astype(f.uint8); bigmask=f.binary_circular_mask(9, 10)', stmt='peaks = f.local_maxima(image, 9, 10, percentile=64, bigmask=bigmask)').timeit(10)
+22.557085037231445
+
+estimate_mass
+>>> timeit.Timer(setup='import feature as f; image=f.bandpass(1-f.imread("sample.png"), 1, 9); image=(255./image.max()*image.clip(min=0.)).astype(f.uint8); bigmask=f.binary_circular_mask(9, 10); tightmask=f.binary_circular_mask(9, 9); peaks = f.local_maxima(image, 9, 10, percentile=64, bigmask=bigmask)', stmt='massive_peaks = [(x, y) for x, y in peaks if f.estimate_mass(image, x, y, 9, tightmask=tightmask) > 1000]').timeit(10)
+2.3716058731079102
+
+refine_centroids
+>>> timeit.Timer(setup='import feature as f; image=f.bandpass(1-f.imread("sample.png"), 1, 9); image=(255./image.max()*image.clip(min=0.)).astype(f.uint8); bigmask=f.binary_circular_mask(9, 10); tightmask=f.binary_circular_mask(9, 9); rgmask=tightmask*f.fromfunction(lambda x, y: x**2 + y**2 + 1/6., (9, 9)); peaks = f.local_maxima(image, 9, 10, percentile=64, bigmask=bigmask); massive_peaks = [(x, y) for x, y in peaks if f.estimate_mass(image, x, y, 9, tightmask=tightmask) > 1000]', stmt='centroids=[f.refine_centroid(image, x, y, 9, minmass=1000, tightmask=tightmask, rgmask=rgmask) for x, y in massive_peaks]').timeit(10)
+6.4541921615600586
+
+BREAKING DOWN LOCAL_MAXIMA:
+
+threshold
+>>> timeit.Timer(setup='from feature import *; from pieces import *; image=bandpass(1-imread("sample.png"), 1, 9); image=(255./image.max()*image.clip(min=0.)).astype(uint8); bigmask=binary_circular_mask(9, 10)', stmt='threshold(image)').timeit(10)
+0.28516507148742676
+
+dilation and intersection
+>>> timeit.Timer(setup='from feature import *; from pieces import *; image=bandpass(1-imread("sample.png"), 1, 9); image=(255./image.max()*image.clip(min=0.)).astype(uint8); bigmask=binary_circular_mask(9, 10); threshold=threshold(image)', stmt='intersection(image, bigmask, threshold)').timeit(10)
+2.0771830081939697
+
+eliminate redundant peaks using generic_filter
+>>> timeit.Timer(setup='from feature import *; from pieces import *; image=bandpass(1-imread("sample.png"), 1, 9); image=(255./image.max()*image.clip(min=0.)).astype(uint8); bigmask=binary_circular_mask(9, 10); threshold=threshold(image); maxima = intersection(image, bigmask, threshold)', stmt='peak_map = redundancies(image, maxima, 10)').timeit(10)
+18.922976970672607
+
+nullify margins
+>>> timeit.Timer(setup='from feature import *; from pieces import *; image=bandpass(1-imread("sample.png"), 1, 9); image=(255./image.max()*image.clip(min=0.)).astype(uint8); bigmask=binary_circular_mask(9, 10); threshold=threshold(image); maxima = intersection(image, bigmask, threshold); peak_map = redundancies(image, maxima, 9); ', stmt='edges(peak_map, 10)').timeit(10)
+0.18409991264343262
