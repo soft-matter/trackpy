@@ -200,8 +200,9 @@ def locate(image_file, diameter, separation=None,
 def batch(trial, stack, image_file_list, diameter, separation=None,
           noise_size=1, smoothing_size=None, invert=True,
           percentile=64, minmass=1., pickN=None):
-    conn = MySQLdb.connect(host='localhost', user='scientist',
-                           passwd='scientist', db='exp3')
+    """Analyze a list of image files, and insert the centroids into
+    the database."""
+    conn = connect()
     for frame, image_file in enumerate(image_file_list):
         centroids = locate(image_file, diameter, separation, noise_size,
                smoothing_size, invert, percentile, minmass, pickN)
@@ -211,12 +212,15 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
 def insert(trial, stack, frame, centroids, conn):
     "Insert centroid information into the MySQL database."
     try:
-        c = conn.cursor()
+        # Load the data in a small temporary table.
         c.execute("DROP TEMPORARY TABLE IF EXISTS NewFeatures")
         c.execute("CREATE TEMPORARY TABLE NewFeatures"
                   "(x float, y float, mass float, size float, ecc float)")
         c.executemany("INSERT INTO NewFeatures (x, y, mass, size, ecc) "
                       "VALUES (%s, %s, %s, %s, %s)", centroids)
+        # In one step, tag all the rows with identifiers (trial, stack, frame).
+        # Copy the temporary table into the big table of features.
+        c = conn.cursor()
         c.execute("INSERT INTO UFeature (trial, stack, frame, x, y, mass, size, ecc) "
                   "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" % (trial, stack, frame))
         c.close()
@@ -225,10 +229,11 @@ def insert(trial, stack, frame, centroids, conn):
         return False
     return True
 
-def overlay(image, positions, output_file=None, circlesize=100):
+def overlay(image, positions, output_file=None, circle_size=100):
     "Draw white circles on the image, like Eric Weeks' fover2d."
+    # The parameter image can be an image object or a filename.
     if type(image) is str:
-	image = bandpass(1-imread(image),1,9)
+	image = 1-imread(image)
     x, y = array(positions)[:,0:2].T
     clf()
     imshow(image, origin='upper', shape=image.shape, cmap=cm.gray)
@@ -237,8 +242,13 @@ def overlay(image, positions, output_file=None, circlesize=100):
         savefig(output_file)
     show() 
 
-def listimg(path):
+def list_images(path):
+    "List the path to all image files in a directory."
     files = os.listdir(path)
     images = [os.path.join(path, f) for f in files if os.path.isfile(os.path.join(path, f)) and re.match('.*\.png', f)]
     return sorted(images)
 
+def connect():
+    return MySQLdb.connect(host='localhost', user='scientist',
+                           passwd='scientist', db='exp3')
+   
