@@ -5,6 +5,61 @@ from datetime import datetime, date, time, timedelta
 from dallantools import ParseTime, dtparse
 from ConfigParser import ConfigParser
 
+def extract(pattern, string, group, convert=None):
+    """Extract a pattern from a string. Optionally, convert it
+    to a desired type (float, timestamp, etc.) by specifying a function.
+    When the pattern is not found, gracefully return None (unlike re)."""
+    # group may be 1, (1,) or (1, 2).
+    if type(group) is int:
+        grp = (group,)
+    elif type(group) is tuple:
+        grp = group
+    assert type(grp) is tuple, "group should be an int or a tuple."
+    try:
+        result = re.search(pattern, string, re.DOTALL).group(*grp)
+    except AttributeError:
+        # For easy unpacking, when a tuple is expected, return a tuple of Nones.
+        return None if type(group) is int else (None,)*len(group)
+    return convert(result) if convert else result
+
+def timestamp(ts_string):
+    "Convert a timestamp string to a datetime type."
+    return datetime.strptime(ts_string, '%Y-%m-%d %H:%M:%S')
+
+def video_info(filepath):
+    "Return video meta information by spawning ffmpeg and parsing its output."
+    p = subprocess.Popen("ffmpeg -i " + filepath, shell=True, stderr=subprocess.PIPE)
+    info = p.communicate()[1] # Read the stderr from FFmpeg.
+    creation_time = extract('creation_time[ ]+: ([0-9-]* [0-9:]*)', info, 1, timestamp)
+    duration = extract('Duration: ([0-9:\.]*)', info, 1)
+    fps = extract('([0-9]*.?[0-9]*) fps,', info, 1, float)
+    w, h = extract('Stream.*, ([0-9]+)x([0-9]+)', info, (1,2), 
+                   lambda (x,y): (int(x),int(y)))
+    return creation_time, duration, fps, w, h
+
+def ls(path, t0=None):
+    "List some meta info for the videos in a directory."
+    FIELD_LENGTHS = (20, 12, 20, 12, 6, 10) # 80 characters wide
+    for filename in sorted(os.listdir(path)):
+        filepath = os.path.join(path, filename)
+        creation_time, duration, fps, w, h = video_info(filepath)
+        age = creation_time - t0 if t0 else None
+        dim = str(w)+'x'+str(h)
+        fields = (filename, age, creation_time, duration, fps, dim)
+        str_fields = map(lambda (field, length): string.ljust(str(field), length),
+                         zip(fields, FIELD_LENGTHS))
+        line = ''.join(str_fields)
+        print line
+
+def summary(args):
+    """SUBCOMMAND: Call ls."""
+    # This wrapper, while stupid, keeps ls simple and general
+    # by handling the object-y command-line arguments here.
+    if args.t0:
+        ls(args.path, args.t0)
+    else:
+        ls(args.path)
+
 def connect():
     "Return an open connection to the database."
     try:
@@ -16,46 +71,6 @@ def connect():
         print "Error message:", e.args[1]
         exit(1)
     return conn
-
-def extract(pattern, string):
-    """Extract a given pattern from a string.
-    If the sought pattern is not found, return None."""
-    try:
-        return re.search(pattern, string, re.DOTALL).group(1)
-    except AttributeError:
-        return None
-
-def video_info(filepath):
-    "Return video meta information by spawning ffmpeg and parsing output."
-    p = subprocess.Popen("ffmpeg -i " + filepath, shell=True, stderr=subprocess.PIPE)
-    info = p.communicate()[1] # Read the stderr from FFmpeg
-    duration = extract('Duration: ([0-9:\.]*)', info)
-    fps = extract('([0-9]*.?[0-9]*) fps,', info)
-    creation_time = extract('creation_time[ ]+: ([0-9-]* [0-9:]*)', info)
-    if fps:
-        fps = float(fps)
-    if creation_time:
-        creation_time = datetime.strptime(creation_time, '%Y-%m-%d %H:%M:%S')
-    return {'duration': duration, 'creation_time': creation_time, 'fps': fps}
-
-def summary(args):
-    "SUBCOMMAND: List some video_info for the videos in a directory."
-    output = []
-    for filename in os.listdir(args.path):
-        info = video_info(os.path.join(args.path, filename))
-        if (not info['creation_time']):
-            info['creation_time'] = 'Unknown'
-            age = 'Unknown'
-        if args.zeromark:
-            age = info['creation_time'] - args.zeromark
-        else:
-            age = 'Unknown' 
-        if (not info['duration']):
-            info['duration'] = 'Unknown'
-        print string.rjust(filename, 25), \
-                       string.rjust(str(info['creation_time']), 22), \
-                       string.rjust(str(info['duration']), 13), \
-                       string.rjust(str(age), 13)
 
 def video(args):
     "SUBCOMMAND: Mux a video, referring to a timespan in the video's timeframe."
@@ -77,8 +92,8 @@ def video(args):
         else:
             # Compute duration from start & end times.
             duration = end - start
-        if args.zeromark:
-            age = info['creation_time'] - args.zeromark
+        if args.t0:
+            age = info['creation_time'] - args.t0
         else:
             age = None
 
@@ -126,9 +141,9 @@ def video(args):
 parser = argparse.ArgumentParser(prog='mux')
 subparsers = parser.add_subparsers()
 
-parser_s = subparsers.add_parser('summary', help='Summarize timecodes of videos in a directory.')
+parser_s = subparsers.add_parser('ls', help='List videos with their metadata.')
 parser_s.add_argument('path', nargs='?', default='.')
-parser_s.add_argument('-z', '--zeromark', default=None, action=ParseTime)
+parser_s.add_argument('-z', '--t0', default=None, action=ParseTime)
 parser_s.set_defaults(func=summary)
 
 parser_v = subparsers.add_parser('video', help='Turn a portion of a video into an image stack, referring to a timespan in the video\'s timeframe.')
@@ -141,18 +156,18 @@ group_v.add_argument('-e', '--end', action=ParseTime)
 parser_v.add_argument('-cb', '--crop_blackmagic', action='store_const', const='in_w-160-170:in_h-18-67:160:18')
 parser_v.add_argument('-r', '--fps')
 parser_v.add_argument('--FRAME_REPOSITORY', default=os.environ['FRAME_REPOSITORY'])
-parser_v.add_argument('-z', '--zeromark', default=None, action=ParseTime)
+parser_v.add_argument('-z', '--t0', default=None, action=ParseTime)
 parser_v.set_defaults(func=video)
 
 parser_m = subparsers.add_parser('age', help='Specify a span of time in the timeframe of the experiment (layer age). A image stack will be created from the apporpriate video.')
 
 
-if os.path.isfile('zeromark'):
+if os.path.isfile('t0'):
     config = ConfigParser()
-    config.read('zeromark')
-    zeromark = dtparse(config.get('Time', 'zeromark'))
-    parser_s.set_defaults(zeromark=zeromark)
-    parser_v.set_defaults(zeromark=zeromark)
+    config.read('t0')
+    t0 = dtparse(config.get('Time', 't0'))
+    parser_s.set_defaults(t0=t0)
+    parser_v.set_defaults(t0=t0)
     #parser_v.set_defaults(fps=fps)
 args = parser.parse_args()
 args.func(args)
