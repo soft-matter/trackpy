@@ -241,8 +241,15 @@ def list_images(directory):
 
 def connect():
     "Return an open connection to the database."
-    return MySQLdb.connect(host='localhost', user='scientist',
-                           passwd='scientist', db='exp3')
+    try:
+        conn = MySQLdb.connect(host='localhost', user='scientist',
+                               passwd='scientist', db='exp3')
+    except MySQLdb.Error, e:
+        print "Cannot connect to database."
+        print "Error code:", e.args[0]
+        print "Error message:", e.args[1]
+        exit(1)
+    return conn
 
 def batch_annotate(trial, stack, directory, new_directory):
     """Save annotated copies of analyzed frames, referring to the database

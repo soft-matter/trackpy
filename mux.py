@@ -2,8 +2,20 @@
 
 import os, subprocess, re, argparse, string
 from datetime import datetime, date, time, timedelta
-from dallantools import ParseTime, dtparse, connect
+from dallantools import ParseTime, dtparse
 from ConfigParser import ConfigParser
+
+def connect():
+    "Return an open connection to the database."
+    try:
+        conn = MySQLdb.connect(host='localhost', user='scientist',
+                               passwd='scientist', db='exp3')
+    except MySQLdb.Error, e:
+        print "Cannot connect to database."
+        print "Error code:", e.args[0]
+        print "Error message:", e.args[1]
+        exit(1)
+    return conn
 
 def extract(pattern, string):
     """Extract a given pattern from a string.
@@ -43,7 +55,7 @@ def summary(args):
         print string.rjust(filename, 25), \
                        string.rjust(str(info['creation_time']), 22), \
                        string.rjust(str(info['duration']), 13), \
-                       string.rjust(age, 13)
+                       string.rjust(str(age), 13)
 
 def video(args):
     "SUBCOMMAND: Mux a video, referring to a timespan in the video's timeframe."
