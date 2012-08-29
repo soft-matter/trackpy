@@ -203,8 +203,9 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
     """Analyze a list of image files, and insert the centroids into
     the database."""
     conn = connect()
-    for frame, image_file in enumerate(image_file_list):
-        centroids = locate(image_file, diameter, separation, noise_size,
+    for frame, filepath in enumerate(image_file_list):
+        frame += 1 # Start at 1, not 0.
+        centroids = locate(filepath, diameter, separation, noise_size,
                smoothing_size, invert, percentile, minmass, pickN)
         insert(trial, stack, frame, centroids, conn)
     conn.close()
@@ -229,7 +230,7 @@ def insert(trial, stack, frame, centroids, conn):
         return False
     return True
 
-def overlay(image, positions, output_file=None, circle_size=100):
+def annotate(image, positions, output_file=None, circle_size=100):
     "Draw white circles on the image, like Eric Weeks' fover2d."
     # The parameter image can be an image object or a filename.
     if type(image) is str:
@@ -237,18 +238,34 @@ def overlay(image, positions, output_file=None, circle_size=100):
     x, y = array(positions)[:,0:2].T
     clf()
     imshow(image, origin='upper', shape=image.shape, cmap=cm.gray)
-    scatter(x, y, s=circlesize, facecolors='none', edgecolors='w')
+    scatter(x, y, s=circle_size, facecolors='none', edgecolors='w')
     if output_file:
         savefig(output_file)
-    show() 
+    else:
+        show() 
 
-def list_images(path):
+def list_images(directory):
     "List the path to all image files in a directory."
-    files = os.listdir(path)
-    images = [os.path.join(path, f) for f in files if os.path.isfile(os.path.join(path, f)) and re.match('.*\.png', f)]
+    files = os.listdir(directory)
+    images = [os.path.join(directory, f) for f in files if \
+        os.path.isfile(os.path.join(directory, f)) and re.match('.*\.png', f)]
     return sorted(images)
 
 def connect():
     return MySQLdb.connect(host='localhost', user='scientist',
                            passwd='scientist', db='exp3')
-   
+
+def batch_annotate(trial, stack, directory, new_directory):
+    """Annotate a directory of analyzed frames, referring to the database
+    to retrieve feature positions."""
+    imlist = list_images(directory)
+    conn = connect()
+    for frame, filepath in enumerate(imlist):
+        frame += 1 # Start at 1, not 0.
+        c = conn.cursor()
+        c.execute("SELECT x, y FROM UFeature WHERE trial=%s AND stack=%s AND "
+                  "frame=%s", (trial, stack, frame))
+        positions = array(c.fetchall())
+        filename = os.path.basename(filepath)
+        output_file = os.path.join(new_directory, filename)
+        annotate(filepath, positions, output_file=output_file)
