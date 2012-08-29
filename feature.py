@@ -136,7 +136,7 @@ def refine_centroid(image, x, y, diameter, minmass=1, iterations=10,
     mass = sum(neighborhood)    
     if rgmask is None:
         rgmask = tightmask*fromfunction(lambda x, y: x**2 + y**2 + 1/6., (diameter, diameter))
-    Rg2= sum(rgmask*image[y0:y1, x0:x1])/mass  # square of the radius of gyration
+    Rg2= sum(rgmask*image[y0:y1, x0:x1])/mass  # square of Rg 
     Rg = sqrt(Rg2)
     if thetamask is None or sinmask is None or cosmask is None:
         thetamask = tightmask*fromfunction(lambda y, x: arctan2(r-y,x-r), (diameter, diameter)) 
@@ -152,10 +152,10 @@ def merge_unit_squares(positions, separation, img_width):
     groups = []
     centroids = sorted(positions, 
                        key=lambda c: int(floor(c[0]/separation)) + 
-                                     img_width * int(floor(c[1]/separation)))
+                                     img_width*int(floor(c[1]/separation)))
     for key, group in groupby(positions, 
                               lambda c: int(floor(c[0]/separation)) + 
-                                        img_width * int(floor(c[1]/separation))):
+                                        img_width*int(floor(c[1]/separation))):
         groups.append(list(group))
     return [group[0] for group in groups]
 
@@ -164,7 +164,7 @@ def feature(image, diameter, separation=None,
             percentile=64, minmass=1., pickN=None):
     "Locate circular Gaussian blobs of a given diameter."
     # Check parameters.
-    assert diameter & 1, "Feature diameter must be an odd number. Try rounding up."
+    assert diameter & 1, "Feature diameter must be an odd number. Round up."
     if not separation: separation = diameter + 1
 
     bigmask = circular_mask(diameter, separation)
@@ -222,8 +222,10 @@ def insert(trial, stack, frame, centroids, conn):
         # In one step, tag all the rows with identifiers (trial, stack, frame).
         # Copy the temporary table into the big table of features.
         c = conn.cursor()
-        c.execute("INSERT INTO UFeature (trial, stack, frame, x, y, mass, size, ecc) "
-                  "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" % (trial, stack, frame))
+        c.execute("INSERT INTO UFeature "
+                  "(trial, stack, frame, x, y, mass, size, ecc) "
+                  "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" 
+                  % (trial, stack, frame))
         c.close()
     except:
         print sys.exc_info()
@@ -252,11 +254,12 @@ def list_images(directory):
     return sorted(images)
 
 def connect():
+    "Return an open connection to the database."
     return MySQLdb.connect(host='localhost', user='scientist',
                            passwd='scientist', db='exp3')
 
 def batch_annotate(trial, stack, directory, new_directory):
-    """Annotate a directory of analyzed frames, referring to the database
+    """Save annotated copies of analyzed frames, referring to the database
     to retrieve feature positions."""
     imlist = list_images(directory)
     conn = connect()
@@ -269,3 +272,4 @@ def batch_annotate(trial, stack, directory, new_directory):
         filename = os.path.basename(filepath)
         output_file = os.path.join(new_directory, filename)
         annotate(filepath, positions, output_file=output_file)
+    conn.close()
