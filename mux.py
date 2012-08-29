@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 import os, subprocess, re, argparse, string
-from datetime import datetime, date, time, timedelta
+import logging
+from datetime import datetime
 from dallantools import ParseTime, dtparse
 from ConfigParser import ConfigParser
 
@@ -14,7 +15,7 @@ def extract(pattern, string, group, convert=None):
         grp = (group,)
     elif type(group) is tuple:
         grp = group
-    assert type(grp) is tuple, "group should be an int or a tuple."
+    assert type(grp) is tuple, "The arg 'group' should be an int or a tuple."
     try:
         result = re.search(pattern, string, re.DOTALL).group(*grp)
     except AttributeError:
@@ -72,9 +73,76 @@ def connect():
         exit(1)
     return conn
 
+def build_command(video_file, start, t0
+                  duration=None, end=None, crop=None, manual_fps=None):
+    creation_time, duration, detected_fps, w, h = video_info(filepath)
+    command = ['ffmpeg', '-ss', str(start), '-i', video_file]
+    if crop:
+        command.extend(['-vf', 'crop=', crop])
+    assert (manual_fps or detected_fps), """I need either a manual_fps or
+                                            a detected_fps."""
+    if not manual_fps:
+        fps = detected_fps
+    command.extend(['-r', str(fps)]) 
+    command.extend(['-t', str(duration)]
+    command.extend(['-f', 'image2', '-pix_fmt', 'gray', output_template])
+    return command
+
+def new_stack(trial, video_file, vstart, duration, age=None):
+    "Insert a stack into the database, and return its id number."
+    conn = connect()
+    c = conn.cursor()
+    c.execute("""INSERT INTO Stack (trial, video, start, end, """
+              """vstart, vduration, status) VALUES """
+              """(%s, %s, %s, %s, %s, %s, %s)""", 
+              (trial, video_file, start, end, vstart, duration, 'reserved'))
+    stack = c.lastrowid
+    c.close()
+    conn.close()
+    logging.info('New stack: trial=%s, stack=%s' % (trial, stack))
+    return stack
+
+def new_directory(trial, stack, base_directory):
+    """Make a directory for the muxed images. Return its path as a
+    format template, which will direct the output of FFmpeg."""
+    stackcode = 'T' + str(trial) + 'S' + str(stack) 
+    path = os.path.join(base_directory, stackcode)
+    assert not os.path.exists(path) \
+        "GADS! The directory " + path + "already exists. Aborting."
+    os.makedirs(path)
+    logging.info('New directory: ' + path)
+    output_template = os.path.join(path, stackcode + 'F%05d.png')
+    return output_template
+
+def build_command(video_file, output_template, start, duration,
+                  crop=None, manual_fps=None):
+    creation_time, duration, detected_fps, w, h = video_info(filepath)
+    command = ['ffmpeg', '-ss', str(start), '-i', video_file]
+    if crop:
+        command.extend(['-vf', 'crop=', crop])
+    assert (manual_fps or detected_fps), """I need either a manual_fps or
+                                            a detected_fps."""
+    if not manual_fps:
+        fps = detected_fps
+    command.extend(['-r', str(fps)]) 
+    command.extend(['-t', str(duration)]
+    command.extend(['-f', 'image2', '-pix_fmt', 'gray', output_template])
+    return command
+
+def spawn_ffmpeg(command, conn):
+    logging.info('Command: ' + ' '.join(command))
+    command = map(str, command) # to be sure
+    muxer = subprocess.Popen(command, shell=False, stderr=subprocess.PIPE)
+    logging.warning("FFmpeg is running. It began at " + str(datetime.now()) + ".")
+    logging.info(muxer.communicate())
+    # This will wait for muxer to terminate.
+    # Do not replace it with muxer.wait(). The stream from stderr can block 
+    # the pipe, which deadlocks the process. Happily, communicate() relieves it.
+
 def video(args):
     "SUBCOMMAND: Mux a video, referring to a timespan in the video's timeframe."
     for video_file in args.video_file:
+        muxer(video_file, args.start, 
         info = video_info(video_file)
         if (not info):
             print 'Skipping', video_file
