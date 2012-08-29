@@ -4,7 +4,7 @@ from numpy import *
 from numpy import fft
 from scipy.ndimage.morphology import grey_dilation, grey_closing
 from scipy.ndimage.filters import uniform_filter, generic_filter
-from _Cfilters import nullify_secondary_maxima
+from _Cfilters import nullify_secondary_maxima # custom-made
 from scipy.ndimage.fourier import fourier_gaussian
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.interpolation import shift
@@ -18,11 +18,9 @@ from matplotlib import cm
 # BIG IDEA: Get uncertainy as part of the result.
 
 def bandpass(image, lshort, llong):
-    """
-    Convolve with a Gaussian to remove short-wavelength noise,
+    """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
-    retaining features of intermediate scale.
-    """
+    retaining features of intermediate scale."""
     assert 2*lshort < llong, """The smoothing length scale must be more 
                               than twice the noise length scale."""
     smoothed_background = uniform_filter(image, 2*llong+1)
@@ -33,10 +31,8 @@ def bandpass(image, lshort, llong):
 
 
 def circular_mask(diameter, side_length):
-    """
-    A circle of 1's inscribed in a square of 0's,
-    the 'footprint' of the features we seek.
-    """
+    """A circle of 1's inscribed in a square of 0's,
+    the 'footprint' of the features we seek."""
     r = int(diameter/2)
     L = int(side_length)
     mask = fromfunction(lambda x, y: sqrt((x-r)**2 + (y-r)**2), (L, L))
@@ -47,11 +43,9 @@ def circular_mask(diameter, side_length):
 
 def local_maxima(image, diameter, separation, percentile=64, 
                  bigmask=None):
-    """
-    Local maxima whose brightness is above a given percentile.
+    """Local maxima whose brightness is above a given percentile.
     Passing masks to this function will improve performance of 
-    repeated calls. (Otherwise, the masks are created for each call.)
-    """
+    repeated calls. (Otherwise, the masks are created for each call.)"""
     # Find the threshold brightness, representing the given
     # percentile among all NON-ZERO pixels in the image.
     flat = ravel(image)
@@ -88,7 +82,7 @@ def local_maxima(image, diameter, separation, percentile=64,
 
 
 def estimate_mass(image, x, y, diameter, tightmask=None):
-    """Find the total brightness in the neighborhood of a local maximum."""
+    "Find the total brightness in the neighborhood of a local maximum."
     # Define the square neighborhood of (x, y).
     r = int(floor(diameter/2))
     x0 = x - r; x1 = x + r + 1
@@ -103,10 +97,8 @@ def estimate_mass(image, x, y, diameter, tightmask=None):
 def refine_centroid(image, x, y, diameter, minmass=1, iterations=10,
                     tightmask=None, rgmask=None, thetamask=None,
                     sinmask=None, cosmask=None):
-    """
-    Characterize the neighborhood of a local 
-    maximum to refine its center-of-brightness.
-    """
+    """Characterize the neighborhood of a local 
+    maximum to refine its center-of-brightness."""
     # Define the square neighborhood of (x, y).
     r = int(floor(diameter/2))
     x0 = x - r; x1 = x + r + 1
@@ -155,10 +147,8 @@ def refine_centroid(image, x, y, diameter, minmass=1, iterations=10,
 
 
 def merge_unit_squares(positions, separation, img_width):
-    """
-    Group all positions that are within the same square,
-    sized by separation. Return one.
-    """
+    """Group all positions that are within the same square,
+    sized by separation. Return one."""
     groups = []
     centroids = sorted(positions, 
                        key=lambda c: int(floor(c[0]/separation)) + 
@@ -172,7 +162,7 @@ def merge_unit_squares(positions, separation, img_width):
 
 def feature(image, diameter, separation=None, 
             percentile=64, minmass=1., pickN=None):
-    """Locate circular Gaussian blobs of a given diameter."""
+    "Locate circular Gaussian blobs of a given diameter."
     # Check parameters.
     assert diameter & 1, "Feature diameter must be an odd number. Try rounding up."
     if not separation: separation = diameter + 1
@@ -197,7 +187,7 @@ def feature(image, diameter, separation=None,
 def locate(image_file, diameter, separation=None, 
            noise_size=1, smoothing_size=None, invert=True,
            percentile=64, minmass=1., pickN=None):
-    """Wraps feature with image reader, black-white inversion, and bandpass."""
+    "Wraps feature with image reader, black-white inversion, and bandpass."
     if not smoothing_size: smoothing_size = diameter
     image = imread(image_file)
     if invert:
@@ -211,39 +201,41 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
           noise_size=1, smoothing_size=None, invert=True,
           percentile=64, minmass=1., pickN=None):
     conn = MySQLdb.connect(host='localhost', user='scientist',
-                           passwd='scientist', db='exp4')
-    for image_file in image_file_list:
+                           passwd='scientist', db='exp3')
+    for frame, image_file in enumerate(image_file_list):
         centroids = locate(image_file, diameter, separation, noise_size,
                smoothing_size, invert, percentile, minmass, pickN)
         insert(trial, stack, frame, centroids, conn)
     conn.close()
 
 def insert(trial, stack, frame, centroids, conn):
-    """Insert centroid information into the MySQL database."""
+    "Insert centroid information into the MySQL database."
     try:
         c = conn.cursor()
-        c.execute("""CREATE TEMPORARY TABLE NewFeatures"""
-                  """(x float, y float, mass float, size float, ecc float)""")
-        c.executemany("""INSERT INTO NewFeatures (x, y, mass, size, ecc) """
-                      """VALUES (%s, %s, %s, %s, %s)""", centroids)
-        c.execute("""INSERT INTO UFeature (trial, stack, frame, x, y, mass, size, ecc) """
-                  """SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures""" % (trial, stack, frame))
+        c.execute("DROP TEMPORARY TABLE IF EXISTS NewFeatures")
+        c.execute("CREATE TEMPORARY TABLE NewFeatures"
+                  "(x float, y float, mass float, size float, ecc float)")
+        c.executemany("INSERT INTO NewFeatures (x, y, mass, size, ecc) "
+                      "VALUES (%s, %s, %s, %s, %s)", centroids)
+        c.execute("INSERT INTO UFeature (trial, stack, frame, x, y, mass, size, ecc) "
+                  "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" % (trial, stack, frame))
         c.close()
     except:
         print sys.exc_info()
         return False
     return True
 
-def overlay(image, positions, output_file, circlesize=100):
-    """Draw white circles on the image, like Eric Weeks' fover2d."""
+def overlay(image, positions, output_file=None, circlesize=100):
+    "Draw white circles on the image, like Eric Weeks' fover2d."
     if type(image) is str:
 	image = bandpass(1-imread(image),1,9)
     x, y = array(positions)[:,0:2].T
     clf()
     imshow(image, origin='upper', shape=image.shape, cmap=cm.gray)
     scatter(x, y, s=circlesize, facecolors='none', edgecolors='w')
-    savefig(output_file)
-
+    if output_file:
+        savefig(output_file)
+    show() 
 
 def listimg(path):
     files = os.listdir(path)
