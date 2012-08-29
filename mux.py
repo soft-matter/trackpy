@@ -5,41 +5,45 @@ from datetime import datetime, date, time, timedelta
 from dallantools import ParseTime, dtparse, connect
 from ConfigParser import ConfigParser
 
-def video_info(filepath):
-    "Get video meta information by opening ffmpeg and parsing output."
-    p = subprocess.Popen("ffmpeg -i " + filepath, shell=True, stderr=subprocess.PIPE)
-    rawinfo = p.communicate()[1] # Read the stderr from FFmpeg
+def extract(pattern, string):
+    """Extract a given pattern from a string.
+    If the sought pattern is not found, return None."""
     try:
-        duration = re.match('.*Duration: ([0-9:\.]*).*', rawinfo, re.DOTALL).group(1)
+        return re.search(pattern, string, re.DOTALL).group(1)
     except AttributeError:
-        print 'Cannot detect duration of', filepath
         return None
-    try:
-        fps = float(re.match('.* ([0-9]*.?[0-9]*) fps,.*', rawinfo, re.DOTALL).group(1))
-    except AttributeError:
-        print 'Assuming fps=30 for', filepath
-        fps = 30.
-    try:
-        creation_time = datetime.strptime(re.match(
-                        '.*creation_time   : ([0-9-]* [0-9:]*).*', 
-                        rawinfo, re.DOTALL).group(1),
-                        "%Y-%m-%d %H:%M:%S")
-    except AttributeError:
-        creation_time = None
-    return {'duration': duration, 'creation_time': creation_time, 'fps': fps, 'rawinfo': rawinfo}
+
+def video_info(filepath):
+    "Return video meta information by spawning ffmpeg and parsing output."
+    p = subprocess.Popen("ffmpeg -i " + filepath, shell=True, stderr=subprocess.PIPE)
+    info = p.communicate()[1] # Read the stderr from FFmpeg
+    duration = extract('Duration: ([0-9:\.]*)', info)
+    fps = extract('([0-9]*.?[0-9]*) fps,', info)
+    creation_time = extract('creation_time[ ]+: ([0-9-]* [0-9:]*)', info)
+    if fps:
+        fps = float(fps)
+    if creation_time:
+        creation_time = datetime.strptime(creation_time, '%Y-%m-%d %H:%M:%S')
+    return {'duration': duration, 'creation_time': creation_time, 'fps': fps}
 
 def summary(args):
     "SUBCOMMAND: List some video_info for the videos in a directory."
-    print 'V  Creation            Duration    Age'
-    for filename in sorted(os.listdir(args.path)):
+    output = []
+    for filename in os.listdir(args.path):
         info = video_info(os.path.join(args.path, filename))
-        if (not info):
-            continue
+        if (not info['creation_time']):
+            info['creation_time'] = 'Unknown'
+            age = 'Unknown'
         if args.zeromark:
             age = info['creation_time'] - args.zeromark
         else:
-            age = None
-        print filename, info['creation_time'], info['duration'], age
+            age = 'Unknown' 
+        if (not info['duration']):
+            info['duration'] = 'Unknown'
+        print string.rjust(filename, 25), \
+                       string.rjust(str(info['creation_time']), 22), \
+                       string.rjust(str(info['duration']), 13), \
+                       string.rjust(age, 13)
 
 def video(args):
     "SUBCOMMAND: Mux a video, referring to a timespan in the video's timeframe."
