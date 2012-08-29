@@ -1,7 +1,6 @@
 import re, os
 import MySQLdb
-from numpy import *
-from numpy import fft
+from numpy import *, fft
 from scipy.ndimage.morphology import grey_dilation, grey_closing
 from scipy.ndimage.filters import uniform_filter, generic_filter
 from _Cfilters import nullify_secondary_maxima # custom-made
@@ -29,7 +28,6 @@ def bandpass(image, lshort, llong):
     # Where result < 0 that pixel is definitely not a feature. Zero to simplify.
     return result.clip(min=0.)
 
-
 def circular_mask(diameter, side_length):
     """A circle of 1's inscribed in a square of 0's,
     the 'footprint' of the features we seek."""
@@ -40,7 +38,6 @@ def circular_mask(diameter, side_length):
     mask[mask > r] = False
     return mask
 
-
 def local_maxima(image, diameter, separation, percentile=64, 
                  bigmask=None):
     """Local maxima whose brightness is above a given percentile.
@@ -50,7 +47,6 @@ def local_maxima(image, diameter, separation, percentile=64,
     # percentile among all NON-ZERO pixels in the image.
     flat = ravel(image)
     threshold = scoreatpercentile(flat[flat > 0], percentile)
-
     # The intersection of the image with its dilation gives local maxima.
     if bigmask is None:
         bigmask = circular_mask(diameter, separation)
@@ -59,7 +55,6 @@ def local_maxima(image, diameter, separation, percentile=64,
     maxima = where((image == dilation) & (image > threshold))
     assert size(maxima) > 0, "Found zero maxima above the " + str(percentile) + \
                             "-percentile treshold at " + str(treshold) + "."
-
     # Flat peaks, for example, return multiple maxima.
     # Eliminate redundancies within the separation distance.
     berth = circular_mask(separation, separation)
@@ -69,7 +64,6 @@ def local_maxima(image, diameter, separation, percentile=64,
         maxima_map, nullify_secondary_maxima(), 
         footprint=berth, mode='constant')
     # generic_filter calls a custom-built C function, for speed
-
     # Also, do not accept peaks near the edges.
     margin = int(floor(separation/2))
     peak_map[..., :margin] = 0
@@ -79,7 +73,6 @@ def local_maxima(image, diameter, separation, percentile=64,
     peaks = where(peak_map != 0)
     assert size(peaks) > 0, "All maxima were in the margins."
     return [(x, y) for y, x in zip(*peaks)]
-
 
 def estimate_mass(image, x, y, diameter, tightmask=None):
     "Find the total brightness in the neighborhood of a local maximum."
@@ -92,7 +85,6 @@ def estimate_mass(image, x, y, diameter, tightmask=None):
     # Take the circular neighborhood of (x, y).
     neighborhood = tightmask*image[y0:y1, x0:x1]
     return sum(neighborhood)
-
 
 def refine_centroid(image, x, y, diameter, minmass=1, iterations=10,
                     tightmask=None, rgmask=None, thetamask=None,
@@ -109,7 +101,6 @@ def refine_centroid(image, x, y, diameter, minmass=1, iterations=10,
     neighborhood = tightmask*image[y0:y1, x0:x1]
     yc, xc = center_of_mass(neighborhood)  # neighborhood coordinates
     yc, xc = yc + y0, xc + x0  # image coordinates
-
     # Initially, the neighborhood is centered on the local max.
     # Shift it to the centroid, iteratively.
     ybounds = (0, image.shape[0] - 1 - 2*r)
@@ -142,9 +133,9 @@ def refine_centroid(image, x, y, diameter, minmass=1, iterations=10,
         thetamask = tightmask*fromfunction(lambda y, x: arctan2(r-y,x-r), (diameter, diameter)) 
         sinmask = tightmask*sin(2*thetamask)
         cosmask = tightmask*cos(2*thetamask)
-    ecc = sqrt((sum(neighborhood*cosmask))**2 + (sum(neighborhood*sinmask))**2) / (mass - neighborhood[r, r] + 1e-6)
+    ecc = sqrt((sum(neighborhood*cosmask))**2 + 
+               (sum(neighborhood*sinmask))**2) / (mass - neighborhood[r, r] + 1e-6)
     return (xc, yc, mass, Rg2, ecc)
-
 
 def merge_unit_squares(positions, separation, img_width):
     """Group all positions that are within the same square,
@@ -159,20 +150,16 @@ def merge_unit_squares(positions, separation, img_width):
         groups.append(list(group))
     return [group[0] for group in groups]
 
-
 def feature(image, diameter, separation=None, 
             percentile=64, minmass=1., pickN=None):
     "Locate circular Gaussian blobs of a given diameter."
     # Check parameters.
     assert diameter & 1, "Feature diameter must be an odd number. Round up."
     if not separation: separation = diameter + 1
-
     bigmask = circular_mask(diameter, separation)
     tightmask = circular_mask(diameter, diameter)
     rgmask = tightmask*fromfunction(lambda x, y: x**2 + y**2 + 1/6., (diameter, diameter))
-
     image = (255./image.max()*image.clip(min=0.)).astype(uint8)
-
     peaks = local_maxima(image, diameter, separation, percentile=percentile,
                          bigmask=bigmask)
     massive_peaks = [(x, y) for x, y in peaks if 
@@ -182,7 +169,6 @@ def feature(image, diameter, separation=None,
                  for x, y in massive_peaks]
     print len(peaks), 'local maxima', '  ', len(centroids), 'centroids'
     return centroids 
-
 
 def locate(image_file, diameter, separation=None, 
            noise_size=1, smoothing_size=None, invert=True,
