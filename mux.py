@@ -183,9 +183,9 @@ def video(args):
 
 def which_video(directory, t0, target_start, 
                 target_end=None, target_duration=None):
-    """You give me a directory of videos and a range of time (relative to t0);
-    I give you give a video that spans that time, and I tell you when to
-    start relative to video's timecode."""
+    """Takes a directory of videos and a desired range of time (relative to t0).
+    Returns a video that spans that time and when to start relative to the
+    timeline of the video."""
     if target_duration:
         target_end = target_start + target_duration
     table = {}
