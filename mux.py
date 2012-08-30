@@ -2,8 +2,7 @@
 
 import os, subprocess, re, argparse, string
 import logging
-from datetime import datetime
-from dallantools import ParseTime, dtparse
+from datetime import datetime, timedelta
 from ConfigParser import ConfigParser
 import MySQLdb
 
@@ -27,6 +26,16 @@ def extract(pattern, string, group, convert=None):
 def timestamp(ts_string):
     "Convert a timestamp string to a datetime type."
     return datetime.strptime(ts_string, '%Y-%m-%d %H:%M:%S')
+
+def dtparse(raw):
+    m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
+    if m:
+        # time only, returned as timedelta
+        h, m, s = map(int, m.group(1,2,3))
+        return timedelta(hours=h, minutes=m, seconds=s)
+    else:
+        # full datetime, returned as such
+        return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
 
 def video_info(filepath):
     "Return video meta information by spawning ffmpeg and parsing its output."
@@ -120,7 +129,7 @@ def spawn_ffmpeg(command):
     logging.info('Command: ' + ' '.join(command))
     command = map(str, command) # to be sure
     muxer = subprocess.Popen(command, shell=False, stderr=subprocess.PIPE)
-    logging.warning("FFmpeg is running. It began at " + str(datetime.now()) + ".")
+    logging.info("FFmpeg is running. It began at " + str(datetime.now()) + ".")
     logging.debug(muxer.communicate())
     # This will wait for muxer to terminate.
     # Do not replace it with muxer.wait(). The stream from stderr can block 
@@ -138,12 +147,11 @@ def video(args):
     for video_file in args.video_file:
         creation_time, video_duration, \
             detected_fps, w, h = video_info(video_file)
-        logging.info("Video file: " + video_file)
+        logging.info("User-specified video file: " + video_file)
         if args.age_zero:
-            age = creation_time - args.age_zero
-            start = age + vstart
-            end = age + vstart + duration
-            logging.info("Video age: " + str(age))
+            video_age = creation_time - args.age_zero
+            start = video_age + vstart
+            end = video_age + vstart + duration
             logging.info("Ages to be muxed: " + str(start) + ' - ' + str(end))
         else:
             start, end = None, None
@@ -163,19 +171,15 @@ def which_video(directory, t0, target_start,
     if target_duration:
         target_end = target_start + target_duration
     duration = target_duration if target_duration else target_start - target_end
-    target_start = dtparse(target_start)
-    target_end = dtparse(target_end)
     table = {}
     for filename in sorted(os.listdir(directory)):
         filepath = os.path.join(directory, filename)
         creation_time, video_duration, detected_fps, w, h = video_info(filepath)
+        if not (creation_time and video_duration):
+            continue
         video_duration = dtparse(video_duration) # TO DO: Do this in video_info()
-        if not creation_time: continue
         start = creation_time - t0
         table[filepath] = (start, start + video_duration)
-    print target_start
-    print target_end
-    print table
     for filepath, age_range in table.iteritems():
         start, end = age_range
         if start < target_start and end > target_start:
@@ -183,6 +187,8 @@ def which_video(directory, t0, target_start,
             if end > target_end:
                 # This video also covers the end.
                 vstart = target_start - start
+                creation_time, video_duration, detected_fps, \
+                    w, h = video_info(filepath) # need fresh detected_fps
                 return filepath, vstart, duration, detected_fps 
     return None
 
@@ -191,13 +197,17 @@ def age(args):
     with reference to t0."""
     base_directory = args.FRAME_REPOSITORY
     trial = args.trial
-    age = args.age
+    start = args.age
     end, duration = args.end, args.duration # One is None.
-    video = which_video(args.video_directory, args.age_zero, target_start=age,
+    video = which_video(args.video_directory, args.age_zero, target_start=start,
                         target_end=end, target_duration=duration)
     assert video, "No video in " + base_directory + " covers that age range."
     video_file, vstart, duration, detected_fps = video
-    stack = new_stack(trial, video_file, vstart, duration, age)
+    if not end:
+        end = start + duration
+    logging.info("Matched video file: " + video_file)
+    logging.info("Ages to be muxed: " + str(start) + ' - ' + str(end))
+    stack = new_stack(trial, video_file, vstart, duration, start, end)
     output_template = new_directory(trial, stack, base_directory)
     command = build_command(video_file, output_template, vstart, duration,
                             detected_fps, args.fps, args.crop_blackmagic) 
@@ -205,7 +215,61 @@ def age(args):
     assert returncode == 0, \
         "FFmpeg returned " + str(returncode) + ". See log."
 
-logging.basicConfig(filename='example.log', format='%(levelname)s:  %(message)s', level=logging.INFO)
+class ParseTime(argparse.Action):
+    def __init__(self,
+                 option_strings,
+                 dest,
+                 nargs=None,
+                 const=None,
+                 default=None,
+                 type=None,
+                 choices=None,
+                 required=False,
+                 help=None,
+                 metavar=None):
+        argparse.Action.__init__(self,
+                                 option_strings=option_strings,
+                                 dest=dest,
+                                 nargs=nargs,
+                                 const=const,
+                                 default=default,
+                                 type=type,
+                                 choices=choices,
+                                 required=required,
+                                 help=help,
+                                 metavar=metavar,
+                                 )
+    def __call__(self, parser, namespace, values, option_string=None):
+        if isinstance(values, list):
+            values = [ self.parse(v) for v in values ]
+        else:
+            values = self.parse(values)
+        # Save the results in the namespace using the destination
+        # variable given to our constructor.
+        setattr(namespace, self.dest, values)
+    def parse(self, raw):
+        m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
+        if m:
+            # time only, returned as timedelta
+            h, m, s = map(int, m.group(1,2,3))
+            return timedelta(hours=h, minutes=m, seconds=s)
+        else:
+            # full datetime, returned as such
+            return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M',
+                    filename='example.log')
+# define a Handler which writes INFO messages or higher to the sys.stderr
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+# set a format which is simpler for console use
+formatter = logging.Formatter('%(levelname)-8s %(message)s')
+# tell the handler to use this format
+console.setFormatter(formatter)
+# add the handler to the root logger
+logging.getLogger('').addHandler(console)
 
 parser = argparse.ArgumentParser(prog='mux')
 subparsers = parser.add_subparsers()
