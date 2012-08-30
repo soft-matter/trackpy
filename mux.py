@@ -135,7 +135,7 @@ def build_command(video_file, output_template, vstart, duration,
 def count_files(path):
     """Count the files in a directory. Arg 'path' can be output_template.
     I call this to verify that FFmpeg actually made files."""
-    directory = os.dirname(path)
+    directory = os.path.dirname(path)
     return len(os.listdir(directory))
 
 def spawn_ffmpeg(command):
