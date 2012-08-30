@@ -112,9 +112,14 @@ def new_directory(trial, stack, base_directory):
     return output_template
 
 def build_command(video_file, output_template, vstart, duration,
-                  detected_fps, manual_fps=None, crop=None):
+                  detected_fps, manual_fps=None, crop=None,
+                  safe_mode=False):
     "Assemble the specifications into a list of command-line arguments."
-    command = ['ffmpeg', '-ss', str(vstart), '-i', video_file]
+    command = ['ffmpeg']
+    if safe_mode:
+        command.extend(['-i', video_file, '-ss', str(vstart)])
+    else: 
+        command.extend(['-ss', str(vstart), '-i', video_file])
     if crop:
         command.extend(['-vf', 'crop=', crop])
     assert (manual_fps or detected_fps), \
@@ -160,7 +165,8 @@ def video(args):
         stack = new_stack(trial, video_file, vstart, duration, start, end)
         output_template = new_directory(trial, stack, base_directory)
         command = build_command(video_file, output_template, vstart, duration,
-                                detected_fps, args.fps, args.crop_blackmagic) 
+                                detected_fps, args.fps, args.crop_blackmagic,
+                                args.safe_mode) 
         returncode = spawn_ffmpeg(command)
         assert returncode == 0, \
             "FFmpeg returned " + str(returncode) + ". See log."
@@ -215,7 +221,8 @@ def age(args):
     stack = new_stack(trial, video_file, vstart, duration, start, end)
     output_template = new_directory(trial, stack, base_directory)
     command = build_command(video_file, output_template, vstart, duration,
-                            detected_fps, args.fps, args.crop_blackmagic) 
+                            detected_fps, args.fps, args.crop_blackmagic,
+                            args.safe_mode) 
     returncode = spawn_ffmpeg(command)
     assert returncode == 0, \
         "FFmpeg returned " + str(returncode) + ". See log."
@@ -326,6 +333,7 @@ group_v.add_argument('-e', '--end', action=ParseTime)
 parser_v.add_argument('-cb', '--crop_blackmagic', action='store_const', 
                       const='in_w-160-170:in_h-18-67:160:18')
 parser_v.add_argument('-r', '--fps')
+parser_v.add_argument('--safe_mode', action='store_const', const=True)
 parser_v.add_argument('--FRAME_REPOSITORY', 
                       default=os.environ['FRAME_REPOSITORY'])
 parser_v.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
@@ -345,6 +353,7 @@ group_a.add_argument('-e', '--end', action=ParseTime)
 parser_a.add_argument('-cb', '--crop_blackmagic', action='store_const', 
                       const='in_w-160-170:in_h-18-67:160:18')
 parser_a.add_argument('-r', '--fps')
+parser_a.add_argument('--safe_mode', action='store_const', const=True)
 parser_a.add_argument('--FRAME_REPOSITORY', 
                       default=os.environ['FRAME_REPOSITORY'])
 parser_a.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
