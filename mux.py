@@ -221,6 +221,35 @@ def age(args):
     assert returncode == 0, \
         "FFmpeg returned " + str(returncode) + ". See log."
 
+def set_t0(args):
+    """SUBCOMMAND: Save a plain file with age zero."
+    It can be computed with reference to the first video (offset) or
+    given absolutely (age_zero)."""
+    directory = args.video_directory
+    if args.offset:
+        table = {}
+        for filename in sorted(os.listdir(directory)):
+            filepath = os.path.join(directory, filename)
+            creation_time, video_duration, detected_fps, w, h = \
+                video_info(filepath)
+            if not creation_time:
+                continue
+            table[filename] = creation_time
+        first_video = min(table)
+        age_zero = table[first_video] - args.offset
+        logging.info("age_zero computed with reference to first video: " \
+                     + str(age_zero))
+    elif args.age_zero:
+        age_zero = args.age_zero
+        logging.info("age_zero given explicitly by user: " + str(age_zero))
+    else:
+        print 'ahhh'
+        exit(1)
+    filepath = os.path.join(directory, 'age_zero')
+    f = open(filepath, 'w')
+    f.write(str(age_zero))
+    f.close()
+
 class ParseTime(argparse.Action):
     def __init__(self,
                  option_strings,
@@ -279,46 +308,69 @@ logging.getLogger('').addHandler(console)
 
 parser = argparse.ArgumentParser(prog='mux')
 subparsers = parser.add_subparsers()
-
-parser_s = subparsers.add_parser('ls', help="List videos with select meta info.")
+# mux ls ...
+parser_s = subparsers.add_parser('ls', 
+                                 help="List videos with select meta info.")
 parser_s.add_argument('path', nargs='?', default='.')
 parser_s.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
 parser_s.set_defaults(func=summary)
-
-parser_v = subparsers.add_parser('video', help="Generate a folder of images from a specified time span of video.")
+# mux video ...
+parser_v = subparsers.add_parser('video', 
+                                 help="Generate a folder of images from a "
+                                      "specified time span of video.")
 parser_v.add_argument('video_file', nargs='*')
 parser_v.add_argument('-T', '--trial', required=True)
 parser_v.add_argument('-ss', '-s', '--start', required=True, action=ParseTime)
 group_v = parser_v.add_mutually_exclusive_group(required=True)
 group_v.add_argument('-d', '--duration', action=ParseTime)
 group_v.add_argument('-e', '--end', action=ParseTime)
-parser_v.add_argument('-cb', '--crop_blackmagic', action='store_const', const='in_w-160-170:in_h-18-67:160:18')
+parser_v.add_argument('-cb', '--crop_blackmagic', action='store_const', 
+                      const='in_w-160-170:in_h-18-67:160:18')
 parser_v.add_argument('-r', '--fps')
-parser_v.add_argument('--FRAME_REPOSITORY', default=os.environ['FRAME_REPOSITORY'])
+parser_v.add_argument('--FRAME_REPOSITORY', 
+                      default=os.environ['FRAME_REPOSITORY'])
 parser_v.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
 parser_v.add_argument('--no_sql') # TO DO: Allow user to explicitly specify directory.
 parser_v.set_defaults(func=video)
-
-parser_a = subparsers.add_parser('age', help="Generate a folder of images from a specified age range, with reference to age zero, t0.")
+# mux age ...
+parser_a = subparsers.add_parser('age', 
+                                 help="Generate a folder of images from a "
+                                      "specified age range, with reference to "
+                                      "age zero, t0.")
 parser_a.add_argument('video_directory', nargs='?', default='.')
 parser_a.add_argument('-T', '--trial', required=True)
 parser_a.add_argument('-a', '--age', required=True, action=ParseTime)
 group_a = parser_a.add_mutually_exclusive_group(required=True)
 group_a.add_argument('-d', '--duration', action=ParseTime)
 group_a.add_argument('-e', '--end', action=ParseTime)
-parser_a.add_argument('-cb', '--crop_blackmagic', action='store_const', const='in_w-160-170:in_h-18-67:160:18')
+parser_a.add_argument('-cb', '--crop_blackmagic', action='store_const', 
+                      const='in_w-160-170:in_h-18-67:160:18')
 parser_a.add_argument('-r', '--fps')
-parser_a.add_argument('--FRAME_REPOSITORY', default=os.environ['FRAME_REPOSITORY'])
+parser_a.add_argument('--FRAME_REPOSITORY', 
+                      default=os.environ['FRAME_REPOSITORY'])
 parser_a.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
-parser_a.add_argument('--no_sql') # TO DO: Allow user to explicitly specify directory.
+parser_a.add_argument('--no_sql') # TO DO: Allow user to explicitly 
+                                  # specify directory.
 parser_a.set_defaults(func=age)
+# mux set_t0 ...
+parser_t = subparsers.add_parser('set_t0',
+                                help="Save a plain file with age_zero, t0.")
+parser_t.add_argument('video_directory', nargs='?', default='.')
+group_t = parser_t.add_mutually_exclusive_group(required=True)
+group_t.add_argument('-o', '--offset', action=ParseTime)
+group_t.add_argument('-t0', '--age-zero', action=ParseTime)
+parser_t.set_defaults(func=set_t0)
 
 if os.path.isfile('age_zero'):
-    line = open('age_zero').readline()
-    age_zero = dtparse(line[:19]) # chop off the line break, I guess
-    parser_s.set_defaults(age_zero=age_zero)
-    parser_v.set_defaults(age_zero=age_zero)
-    parser_a.set_defaults(age_zero=age_zero)
+    try:
+        line = open('age_zero').readline()
+        age_zero = dtparse(line[:19]) # chop off the line break, I guess
+        parser_s.set_defaults(age_zero=age_zero)
+        parser_v.set_defaults(age_zero=age_zero)
+        parser_a.set_defaults(age_zero=age_zero)
+        parser_t.set_defaults()
+    except:
+        pass
 args = parser.parse_args()
 args.func(args)
 
