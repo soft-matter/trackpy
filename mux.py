@@ -119,8 +119,7 @@ def build_command(video_file, output_template, vstart, duration,
         command.extend(['-vf', 'crop=', crop])
     assert (manual_fps or detected_fps), \
         "I need either a manual_fps or a detected_fps."
-    if not manual_fps:
-        fps = detected_fps
+    fps = detected_fps if detected_fps else manual_fps
     command.extend(['-r', str(fps)]) 
     command.extend(['-t', str(duration)])
     command.extend(['-f', 'image2', '-pix_fmt', 'gray', output_template])
