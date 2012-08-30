@@ -178,17 +178,16 @@ def video(args):
                                 detected_fps, args.fps, args.crop_blackmagic,
                                 args.safe_mode) 
         returncode = spawn_ffmpeg(command)
-        assert returncode == 0, \
-            "FFmpeg returned " + str(returncode) + ". See log."
+        if not returncode == 0:
+            logging.error("FFmpeg returned " + str(returncode) + ". See log.")
 
 def which_video(directory, t0, target_start, 
                 target_end=None, target_duration=None):
-    """Examine the videos in a directory and find one that covers a
-    target range in age with reference to age zero, t0.
-    The range can be given in terms of an end point or a duration."""
+    """You give me a directory of videos and a range of time (relative to t0);
+    I give you give a video that spans that time, and I tell you when to
+    start relative to video's timecode."""
     if target_duration:
         target_end = target_start + target_duration
-    duration = target_duration if target_duration else target_end - target_start
     table = {}
     for filename in sorted(os.listdir(directory)):
         filepath = os.path.join(directory, filename)
@@ -207,7 +206,7 @@ def which_video(directory, t0, target_start,
                 vstart = target_start - start
                 creation_time, video_duration, detected_fps, \
                     w, h = video_info(filepath) # need fresh detected_fps
-                return filepath, vstart, duration, detected_fps 
+                return filepath, vstart
     return None
 
 def age(args):
@@ -222,10 +221,17 @@ def age(args):
     end, duration = args.end, args.duration # One is None.
     video = which_video(args.video_directory, args.age_zero, target_start=start,
                         target_end=end, target_duration=duration)
-    assert video, "No video in " + base_directory + " covers that age range."
-    video_file, vstart, duration, detected_fps = video
+    if not video:
+        logging.critical("No video in " + base_directory + \
+                        " covers that age range.")
+        return False
+    video_file, vstart = video
+    # We call video_info, somewhat redundantly, to get dectected_fps.
+    creation_time, video_duration, detected_fps, w, h = video_info(video_file)
     if not end:
         end = start + duration
+    elif not duration:
+        duration = end - start
     logging.info("Matched video file: " + video_file)
     logging.info("Ages to be muxed: " + str(start) + ' - ' + str(end))
     stack = new_stack(trial, video_file, vstart, duration, start, end)
@@ -234,8 +240,10 @@ def age(args):
                             detected_fps, args.fps, args.crop_blackmagic,
                             args.safe_mode) 
     returncode = spawn_ffmpeg(command)
-    assert returncode == 0, \
-        "FFmpeg returned " + str(returncode) + ". See log."
+    if not returncode == 0:
+        logging.error("FFmpeg returned " + str(returncode) + ". See log.")
+        return False
+    return True
 
 def set_t0(args):
     """SUBCOMMAND: Save a plain file with age zero."
