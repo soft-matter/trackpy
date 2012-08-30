@@ -5,11 +5,12 @@ import logging
 from datetime import datetime
 from dallantools import ParseTime, dtparse
 from ConfigParser import ConfigParser
+import MySQLdb
 
 def extract(pattern, string, group, convert=None):
     """Extract a pattern from a string. Optionally, convert it
     to a desired type (float, timestamp, etc.) by specifying a function.
-    When the pattern is not found, gracefully return None (unlike re)."""
+    When the pattern is not found, gracefully return None."""
     # group may be 1, (1,) or (1, 2).
     if type(group) is int:
         grp = (group,)
@@ -32,21 +33,21 @@ def video_info(filepath):
     p = subprocess.Popen("ffmpeg -i " + filepath, shell=True, stderr=subprocess.PIPE)
     info = p.communicate()[1] # Read the stderr from FFmpeg.
     creation_time = extract('creation_time[ ]+: ([0-9-]* [0-9:]*)', info, 1, timestamp)
-    duration = extract('Duration: ([0-9:\.]*)', info, 1)
+    video_duration = extract('Duration: ([0-9:\.]*)', info, 1)
     fps = extract('([0-9]*.?[0-9]*) fps,', info, 1, float)
     w, h = extract('Stream.*, ([0-9]+)x([0-9]+)', info, (1,2), 
                    lambda (x,y): (int(x),int(y)))
-    return creation_time, duration, fps, w, h
+    return creation_time, video_duration, fps, w, h
 
-def ls(path, t0=None):
+def ls(directory, t0=None):
     "List some meta info for the videos in a directory."
     FIELD_LENGTHS = (20, 12, 20, 12, 6, 10) # 80 characters wide
-    for filename in sorted(os.listdir(path)):
-        filepath = os.path.join(path, filename)
-        creation_time, duration, fps, w, h = video_info(filepath)
+    for filename in sorted(os.listdir(directory)):
+        filepath = os.path.join(directory, filename)
+        creation_time, video_duration, fps, w, h = video_info(filepath)
         age = creation_time - t0 if t0 else None
         dim = str(w)+'x'+str(h)
-        fields = (filename, age, creation_time, duration, fps, dim)
+        fields = (filename, age, creation_time, video_duration, fps, dim)
         str_fields = map(lambda (field, length): string.ljust(str(field), length),
                          zip(fields, FIELD_LENGTHS))
         line = ''.join(str_fields)
@@ -73,23 +74,12 @@ def connect():
         exit(1)
     return conn
 
-def build_command(video_file, start, t0
-                  duration=None, end=None, crop=None, manual_fps=None):
-    creation_time, duration, detected_fps, w, h = video_info(filepath)
-    command = ['ffmpeg', '-ss', str(start), '-i', video_file]
-    if crop:
-        command.extend(['-vf', 'crop=', crop])
-    assert (manual_fps or detected_fps), """I need either a manual_fps or
-                                            a detected_fps."""
-    if not manual_fps:
-        fps = detected_fps
-    command.extend(['-r', str(fps)]) 
-    command.extend(['-t', str(duration)]
-    command.extend(['-f', 'image2', '-pix_fmt', 'gray', output_template])
-    return command
-
 def new_stack(trial, video_file, vstart, duration, age=None):
     "Insert a stack into the database, and return its id number."
+    # We have vstart, the start time with reference to this video.
+    # But we also want the start time relative to t0.
+    start = age + vstart if age else None
+    end = age + vstart + duration if age else None
     conn = connect()
     c = conn.cursor()
     c.execute("""INSERT INTO Stack (trial, video, start, end, """
@@ -107,29 +97,28 @@ def new_directory(trial, stack, base_directory):
     format template, which will direct the output of FFmpeg."""
     stackcode = 'T' + str(trial) + 'S' + str(stack) 
     path = os.path.join(base_directory, stackcode)
-    assert not os.path.exists(path) \
+    assert not os.path.exists(path), \
         "GADS! The directory " + path + "already exists. Aborting."
     os.makedirs(path)
     logging.info('New directory: ' + path)
     output_template = os.path.join(path, stackcode + 'F%05d.png')
     return output_template
 
-def build_command(video_file, output_template, start, duration,
-                  crop=None, manual_fps=None):
-    creation_time, duration, detected_fps, w, h = video_info(filepath)
-    command = ['ffmpeg', '-ss', str(start), '-i', video_file]
+def build_command(video_file, output_template, vstart, duration,
+                  detected_fps, manual_fps=None, crop=None):
+    command = ['ffmpeg', '-ss', str(vstart), '-i', video_file]
     if crop:
         command.extend(['-vf', 'crop=', crop])
-    assert (manual_fps or detected_fps), """I need either a manual_fps or
-                                            a detected_fps."""
+    assert (manual_fps or detected_fps), \
+        "I need either a manual_fps or a detected_fps."
     if not manual_fps:
         fps = detected_fps
     command.extend(['-r', str(fps)]) 
-    command.extend(['-t', str(duration)]
+    command.extend(['-t', str(duration)])
     command.extend(['-f', 'image2', '-pix_fmt', 'gray', output_template])
     return command
 
-def spawn_ffmpeg(command, conn):
+def spawn_ffmpeg(command):
     logging.info('Command: ' + ' '.join(command))
     command = map(str, command) # to be sure
     muxer = subprocess.Popen(command, shell=False, stderr=subprocess.PIPE)
@@ -138,80 +127,66 @@ def spawn_ffmpeg(command, conn):
     # This will wait for muxer to terminate.
     # Do not replace it with muxer.wait(). The stream from stderr can block 
     # the pipe, which deadlocks the process. Happily, communicate() relieves it.
+    logging.info("FFmpeg returned at " + str(datetime.now()) + \
+                 " with the code " + str(muxer.returncode) + ".")
+    return muxer.returncode
 
 def video(args):
     "SUBCOMMAND: Mux a video, referring to a timespan in the video's timeframe."
+    base_directory = args.FRAME_REPOSITORY
+    trial = args.trial
+    vstart = args.start
+    duration = args.duration if args.duration else args.end - vstart
     for video_file in args.video_file:
-        muxer(video_file, args.start, 
-        info = video_info(video_file)
-        if (not info):
-            print 'Skipping', video_file
-            continue
-        trial = args.trial
-        command = ['ffmpeg', '-ss', str(args.start), '-i', video_file]
-        if args.crop_blackmagic:
-            command.extend(['-vf', 'crop=' + args.crop_blackmagic])
-        if args.fps:
-            command.extend(['-r', args.fps])
-        else:
-            command.extend(['-r', str(info['fps'])])
-        if args.duration:
-            duration = args.duration 
-        else:
-            # Compute duration from start & end times.
-            duration = end - start
-        if args.t0:
-            age = info['creation_time'] - args.t0
-        else:
-            age = None
+        creation_time, video_duration, \
+            detected_fps, w, h = video_info(video_file)
+        age = creation_time - args.t0 if args.t0 else None
+        stack = new_stack(trial, video_file, vstart, duration, age)
+        output_template = new_directory(trial, stack, base_directory)
+        command = build_command(video_file, output_template, vstart, duration,
+                                detected_fps, args.fps, args.crop_blackmagic) 
+        returncode = spawn_ffmpeg(command)
+        assert returncode == 0, \
+            "FFmpeg returned " + str(returncode) + ". See log."
 
-        # Log this stack-to-be in the database, and make a directory for it.
-        conn = connect('mux')
-        c = conn.cursor()
-        c.execute("SELECT * FROM Stack")
-        if age:
-            c.execute("INSERT INTO Stack (trial, video, start, end, vstart, vduration, status) VALUES (%s, %s, %s, %s, %s, %s, %s)", (trial, video_file, age + args.start, age + args.start + duration, args.start, duration, 'reserved' ))
-        else:
-            c.execute("INSERT INTO Stack (trial, video, vstart, vduration, status) VALUES (%s, %s, %s, %s, %s)", (trial, video_file, args.start, duration, 'reserved' ))
-            c.execute("SELECT LAST_INSERT_ID()")
-            stack, = c.fetchone() # type is long int
-            c.close()
-            stackcode = 'T' + trial + 'S' + str(stack) 
-            path = os.path.join(args.FRAME_REPOSITORY, stackcode)
-            output_template = os.path.join(path, stackcode + 'F%05d.png')
+def which_video(directory, t0, target_start, target_end, target_duration=None):
+    """Examine the videos in a directory and find one that covers a
+    target range in age with reference to age zero, t0.
+    The range can be given in terms of an end point or a duration."""
+    if target_duration:
+        target_end = target_start + target_duration
+    duration = target_duration if target_duration else target_start - target_end
+    table = {}
+    for filename in sorted(os.listdir(directory)):
+        filepath = os.path.join(directory, filename)
+        creation_time, video_duration, fps, w, h = video_info(filepath)
+        start = creation_time - t0
+        table[filepath] = (start, start + video_duration)
+    for filepath, age_range in table.iteritems():
+        start, end = age_range
+        if start < target_start and end > target_start:
+            # This video covers the beginning of our target range.
+            if end > target_end:
+                # This video also covers the end.
+                vstart = target_start - start
+                return filepath, vstart, duration 
+    return None
 
-            if os.path.exists(path):
-                print 'The path to', stackcode, 'already exists. Looks like trouble.'
-                exit(1)
-            else:
-                os.makedirs(path)
-                command.extend(['-t', str(duration), '-f', 'image2', '-pix_fmt', 'gray', output_template])
-
-                # Start the muxing process, and update the log.
-                print 'Command:', ' '.join(command)
-                muxer = subprocess.Popen(map(str, command), shell=False, stderr=subprocess.PIPE)
-                c = conn.cursor()
-                c.execute("UPDATE Stack SET status='muxing started' WHERE trial=%s AND stack=%s", (trial, stack))
-                c.execute("SELECT * FROM Stack WHERE trial=%s AND stack=%s", (trial, stack))
-                print 'Row:', ' '.join(map(str, list(c.fetchone())))
-                c.close()
-                print 'Muxing into ' + path + '. Waiting for process termination.'
-                muxer.wait()
-
-                # The muxer is done. Update the log.
-                c = conn.cursor()
-                c.execute("UPDATE Stack SET status='muxed' WHERE trial=%s AND stack=%s", (trial, stack))
-                c.execute("SELECT * FROM Stack WHERE trial=%s AND stack=%s", (trial, stack))
-                print 'Row:', ' '.join(map(str, list(c.fetchone())))
-                c.close()
-                conn.close()
+def age(args):
+    """SUBCOMMAND: Mux a video, referring to a timespan of age 
+    with reference to t0."""
+    base_directory = args.FRAME_REPOSITORY
+    trial = args.trial
+    filepath, vstart, duration = which_video(base_directory, t0, target_start,
+                                             target_end, target_duration)
+    
 
 parser = argparse.ArgumentParser(prog='mux')
 subparsers = parser.add_subparsers()
 
 parser_s = subparsers.add_parser('ls', help='List videos with their metadata.')
 parser_s.add_argument('path', nargs='?', default='.')
-parser_s.add_argument('-z', '--t0', default=None, action=ParseTime)
+parser_s.add_argument('-t0', '--age-zero', default=None, action=ParseTime)
 parser_s.set_defaults(func=summary)
 
 parser_v = subparsers.add_parser('video', help='Turn a portion of a video into an image stack, referring to a timespan in the video\'s timeframe.')
@@ -219,7 +194,7 @@ parser_v.add_argument('video_file', nargs='*')
 parser_v.add_argument('-T', '--trial', required=True)
 parser_v.add_argument('-ss', '-s', '--start', required=True, action=ParseTime)
 group_v = parser_v.add_mutually_exclusive_group(required=True)
-group_v.add_argument('-t', '-d', '--duration', action=ParseTime)
+group_v.add_argument('-d', '-t', '--duration', action=ParseTime)
 group_v.add_argument('-e', '--end', action=ParseTime)
 parser_v.add_argument('-cb', '--crop_blackmagic', action='store_const', const='in_w-160-170:in_h-18-67:160:18')
 parser_v.add_argument('-r', '--fps')
