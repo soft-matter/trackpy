@@ -113,6 +113,7 @@ def new_directory(trial, stack, base_directory):
 
 def build_command(video_file, output_template, vstart, duration,
                   detected_fps, manual_fps=None, crop=None):
+    "Assemble the specifications into a list of command-line arguments."
     command = ['ffmpeg', '-ss', str(vstart), '-i', video_file]
     if crop:
         command.extend(['-vf', 'crop=', crop])
@@ -126,6 +127,8 @@ def build_command(video_file, output_template, vstart, duration,
     return command
 
 def spawn_ffmpeg(command):
+    """Open an FFmpeg process, log its output, wait for it to finish,
+    and return the process's return code."""
     logging.info('Command: ' + ' '.join(command))
     command = map(str, command) # to be sure
     muxer = subprocess.Popen(command, shell=False, stderr=subprocess.PIPE)
@@ -147,12 +150,12 @@ def video(args):
     for video_file in args.video_file:
         creation_time, video_duration, \
             detected_fps, w, h = video_info(video_file)
-        logging.info("User-specified video file: " + video_file)
+        logging.info("User-specified video file " + video_file)
         if args.age_zero:
             video_age = creation_time - args.age_zero
             start = video_age + vstart
             end = video_age + vstart + duration
-            logging.info("Ages to be muxed: " + str(start) + ' - ' + str(end))
+            logging.info("Ages to be muxed " + str(start) + ' - ' + str(end))
         else:
             start, end = None, None
         stack = new_stack(trial, video_file, vstart, duration, start, end)
@@ -303,16 +306,16 @@ group_a.add_argument('-e', '--end', action=ParseTime)
 parser_a.add_argument('-cb', '--crop_blackmagic', action='store_const', const='in_w-160-170:in_h-18-67:160:18')
 parser_a.add_argument('-r', '--fps')
 parser_a.add_argument('--FRAME_REPOSITORY', default=os.environ['FRAME_REPOSITORY'])
-parser_a.add_argument('-t0', '--age_zero', required=True, action=ParseTime)
+parser_a.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
 parser_a.add_argument('--no_sql') # TO DO: Allow user to explicitly specify directory.
 parser_a.set_defaults(func=age)
 
-if os.path.isfile('age-zero'):
-    pass
-    # Read that line.
-    # parser_s.set_defaults(t0=t0)
-    # parser_v.set_defaults(t0=t0)
-    # parser_a.set_defaults(t0=t0)
+if os.path.isfile('age_zero'):
+    line = open('age_zero').readline()
+    age_zero = dtparse(line[:19]) # chop off the line break, I guess
+    parser_s.set_defaults(age_zero=age_zero)
+    parser_v.set_defaults(age_zero=age_zero)
+    parser_a.set_defaults(age_zero=age_zero)
 args = parser.parse_args()
 args.func(args)
 
