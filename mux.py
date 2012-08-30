@@ -132,6 +132,12 @@ def build_command(video_file, output_template, vstart, duration,
     command.extend(['-f', 'image2', '-pix_fmt', 'gray', output_template])
     return command
 
+def count_files(path):
+    """Count the files in a directory. Arg 'path' can be output_template.
+    I call this to verify that FFmpeg actually made files."""
+    directory = os.dirname(path)
+    return len(os.listdir(directory))
+
 def spawn_ffmpeg(command):
     """Open an FFmpeg process, log its output, wait for it to finish,
     and return the process's return code."""
@@ -145,6 +151,8 @@ def spawn_ffmpeg(command):
     # the pipe, which deadlocks the process. Happily, communicate() relieves it.
     logging.info("FFmpeg returned at " + str(datetime.now()) + \
                  " with the code " + str(muxer.returncode) + ".")
+    logging.info("The output directory contains " + \
+                 str(count_files(command[-1])) + " files.")
     return muxer.returncode
 
 def video(args):

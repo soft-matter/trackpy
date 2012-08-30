@@ -1,6 +1,6 @@
 import re, os
 import MySQLdb
-from numpy import *, fft
+from numpy import *
 from scipy.ndimage.morphology import grey_dilation, grey_closing
 from scipy.ndimage.filters import uniform_filter, generic_filter
 from _Cfilters import nullify_secondary_maxima # custom-made
@@ -199,6 +199,7 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
 def insert(trial, stack, frame, centroids, conn):
     "Insert centroid information into the MySQL database."
     try:
+        c = conn.cursor()
         # Load the data in a small temporary table.
         c.execute("DROP TEMPORARY TABLE IF EXISTS NewFeatures")
         c.execute("CREATE TEMPORARY TABLE NewFeatures"
@@ -207,7 +208,6 @@ def insert(trial, stack, frame, centroids, conn):
                       "VALUES (%s, %s, %s, %s, %s)", centroids)
         # In one step, tag all the rows with identifiers (trial, stack, frame).
         # Copy the temporary table into the big table of features.
-        c = conn.cursor()
         c.execute("INSERT INTO UFeature "
                   "(trial, stack, frame, x, y, mass, size, ecc) "
                   "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" 
