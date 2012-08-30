@@ -116,6 +116,8 @@ def build_command(video_file, output_template, vstart, duration,
                   safe_mode=False):
     "Assemble the specifications into a list of command-line arguments."
     command = ['ffmpeg']
+    # Putting -ss before -i is much faster, but it can fail.
+    # Example: From one raw AVI I got a folder of plain gray images.
     if safe_mode:
         command.extend(['-i', video_file, '-ss', str(vstart)])
     else: 
