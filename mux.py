@@ -173,7 +173,7 @@ def which_video(directory, t0, target_start,
     The range can be given in terms of an end point or a duration."""
     if target_duration:
         target_end = target_start + target_duration
-    duration = target_duration if target_duration else target_start - target_end
+    duration = target_duration if target_duration else target_end - target_start
     table = {}
     for filename in sorted(os.listdir(directory)):
         filepath = os.path.join(directory, filename)
