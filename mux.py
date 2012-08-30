@@ -45,7 +45,7 @@ def ls(directory, t0=None):
     for filename in sorted(os.listdir(directory)):
         filepath = os.path.join(directory, filename)
         creation_time, video_duration, fps, w, h = video_info(filepath)
-        age = creation_time - t0 if t0 else None
+        age = creation_time - t0 if (t0 and creation_time) else None
         dim = str(w)+'x'+str(h)
         fields = (filename, age, creation_time, video_duration, fps, dim)
         str_fields = map(lambda (field, length): string.ljust(str(field), length),
@@ -57,8 +57,8 @@ def summary(args):
     """SUBCOMMAND: Call ls."""
     # This wrapper, while stupid, keeps ls simple and general
     # by handling the object-y command-line arguments here.
-    if args.t0:
-        ls(args.path, args.t0)
+    if args.age_zero:
+        ls(args.path, args.age_zero)
     else:
         ls(args.path)
 
@@ -74,12 +74,10 @@ def connect():
         exit(1)
     return conn
 
-def new_stack(trial, video_file, vstart, duration, age=None):
+def new_stack(trial, video_file, vstart, duration, start, end):
     "Insert a stack into the database, and return its id number."
-    # We have vstart, the start time with reference to this video.
-    # But we also want the start time relative to t0.
-    start = age + vstart if age else None
-    end = age + vstart + duration if age else None
+    # Args start, end are relative to age_zero. If unknown or N/A,
+    # do not call them, or call them as None.
     conn = connect()
     c = conn.cursor()
     c.execute("""INSERT INTO Stack (trial, video, start, end, """
@@ -123,7 +121,7 @@ def spawn_ffmpeg(command):
     command = map(str, command) # to be sure
     muxer = subprocess.Popen(command, shell=False, stderr=subprocess.PIPE)
     logging.warning("FFmpeg is running. It began at " + str(datetime.now()) + ".")
-    logging.info(muxer.communicate())
+    logging.debug(muxer.communicate())
     # This will wait for muxer to terminate.
     # Do not replace it with muxer.wait(). The stream from stderr can block 
     # the pipe, which deadlocks the process. Happily, communicate() relieves it.
@@ -140,8 +138,16 @@ def video(args):
     for video_file in args.video_file:
         creation_time, video_duration, \
             detected_fps, w, h = video_info(video_file)
-        age = creation_time - args.t0 if args.t0 else None
-        stack = new_stack(trial, video_file, vstart, duration, age)
+        logging.info("Video file: " + video_file)
+        if args.age_zero:
+            age = creation_time - args.age_zero
+            start = age + vstart
+            end = age + vstart + duration
+            logging.info("Video age: " + str(age))
+            logging.info("Ages to be muxed: " + str(start) + ' - ' + str(end))
+        else:
+            start, end = None, None
+        stack = new_stack(trial, video_file, vstart, duration, start, end)
         output_template = new_directory(trial, stack, base_directory)
         command = build_command(video_file, output_template, vstart, duration,
                                 detected_fps, args.fps, args.crop_blackmagic) 
@@ -149,19 +155,27 @@ def video(args):
         assert returncode == 0, \
             "FFmpeg returned " + str(returncode) + ". See log."
 
-def which_video(directory, t0, target_start, target_end, target_duration=None):
+def which_video(directory, t0, target_start, 
+                target_end=None, target_duration=None):
     """Examine the videos in a directory and find one that covers a
     target range in age with reference to age zero, t0.
     The range can be given in terms of an end point or a duration."""
     if target_duration:
         target_end = target_start + target_duration
     duration = target_duration if target_duration else target_start - target_end
+    target_start = dtparse(target_start)
+    target_end = dtparse(target_end)
     table = {}
     for filename in sorted(os.listdir(directory)):
         filepath = os.path.join(directory, filename)
-        creation_time, video_duration, fps, w, h = video_info(filepath)
+        creation_time, video_duration, detected_fps, w, h = video_info(filepath)
+        video_duration = dtparse(video_duration) # TO DO: Do this in video_info()
+        if not creation_time: continue
         start = creation_time - t0
         table[filepath] = (start, start + video_duration)
+    print target_start
+    print target_end
+    print table
     for filepath, age_range in table.iteritems():
         start, end = age_range
         if start < target_start and end > target_start:
@@ -169,7 +183,7 @@ def which_video(directory, t0, target_start, target_end, target_duration=None):
             if end > target_end:
                 # This video also covers the end.
                 vstart = target_start - start
-                return filepath, vstart, duration 
+                return filepath, vstart, duration, detected_fps 
     return None
 
 def age(args):
@@ -177,41 +191,64 @@ def age(args):
     with reference to t0."""
     base_directory = args.FRAME_REPOSITORY
     trial = args.trial
-    filepath, vstart, duration = which_video(base_directory, t0, target_start,
-                                             target_end, target_duration)
-    
+    age = args.age
+    end, duration = args.end, args.duration # One is None.
+    video = which_video(args.video_directory, args.age_zero, target_start=age,
+                        target_end=end, target_duration=duration)
+    assert video, "No video in " + base_directory + " covers that age range."
+    video_file, vstart, duration, detected_fps = video
+    stack = new_stack(trial, video_file, vstart, duration, age)
+    output_template = new_directory(trial, stack, base_directory)
+    command = build_command(video_file, output_template, vstart, duration,
+                            detected_fps, args.fps, args.crop_blackmagic) 
+    returncode = spawn_ffmpeg(command)
+    assert returncode == 0, \
+        "FFmpeg returned " + str(returncode) + ". See log."
+
+logging.basicConfig(filename='example.log', format='%(levelname)s:  %(message)s', level=logging.INFO)
 
 parser = argparse.ArgumentParser(prog='mux')
 subparsers = parser.add_subparsers()
 
-parser_s = subparsers.add_parser('ls', help='List videos with their metadata.')
+parser_s = subparsers.add_parser('ls', help="List videos with select meta info.")
 parser_s.add_argument('path', nargs='?', default='.')
-parser_s.add_argument('-t0', '--age-zero', default=None, action=ParseTime)
+parser_s.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
 parser_s.set_defaults(func=summary)
 
-parser_v = subparsers.add_parser('video', help='Turn a portion of a video into an image stack, referring to a timespan in the video\'s timeframe.')
+parser_v = subparsers.add_parser('video', help="Generate a folder of images from a specified time span of video.")
 parser_v.add_argument('video_file', nargs='*')
 parser_v.add_argument('-T', '--trial', required=True)
 parser_v.add_argument('-ss', '-s', '--start', required=True, action=ParseTime)
 group_v = parser_v.add_mutually_exclusive_group(required=True)
-group_v.add_argument('-d', '-t', '--duration', action=ParseTime)
+group_v.add_argument('-d', '--duration', action=ParseTime)
 group_v.add_argument('-e', '--end', action=ParseTime)
 parser_v.add_argument('-cb', '--crop_blackmagic', action='store_const', const='in_w-160-170:in_h-18-67:160:18')
 parser_v.add_argument('-r', '--fps')
 parser_v.add_argument('--FRAME_REPOSITORY', default=os.environ['FRAME_REPOSITORY'])
-parser_v.add_argument('-z', '--t0', default=None, action=ParseTime)
+parser_v.add_argument('-t0', '--age_zero', default=None, action=ParseTime)
+parser_v.add_argument('--no_sql') # TO DO: Allow user to explicitly specify directory.
 parser_v.set_defaults(func=video)
 
-parser_m = subparsers.add_parser('age', help='Specify a span of time in the timeframe of the experiment (layer age). A image stack will be created from the apporpriate video.')
+parser_a = subparsers.add_parser('age', help="Generate a folder of images from a specified age range, with reference to age zero, t0.")
+parser_a.add_argument('video_directory', default='.')
+parser_a.add_argument('-T', '--trial', required=True)
+parser_a.add_argument('-a', '--age', required=True, action=ParseTime)
+group_a = parser_a.add_mutually_exclusive_group(required=True)
+group_a.add_argument('-d', '--duration', action=ParseTime)
+group_a.add_argument('-e', '--end', action=ParseTime)
+parser_a.add_argument('-cb', '--crop_blackmagic', action='store_const', const='in_w-160-170:in_h-18-67:160:18')
+parser_a.add_argument('-r', '--fps')
+parser_a.add_argument('--FRAME_REPOSITORY', default=os.environ['FRAME_REPOSITORY'])
+parser_a.add_argument('-t0', '--age_zero', required=True, action=ParseTime)
+parser_a.add_argument('--no_sql') # TO DO: Allow user to explicitly specify directory.
+parser_a.set_defaults(func=age)
 
-
-if os.path.isfile('t0'):
-    config = ConfigParser()
-    config.read('t0')
-    t0 = dtparse(config.get('Time', 't0'))
-    parser_s.set_defaults(t0=t0)
-    parser_v.set_defaults(t0=t0)
-    #parser_v.set_defaults(fps=fps)
+if os.path.isfile('age-zero'):
+    pass
+    # Read that line.
+    # parser_s.set_defaults(t0=t0)
+    # parser_v.set_defaults(t0=t0)
+    # parser_a.set_defaults(t0=t0)
 args = parser.parse_args()
 args.func(args)
 
