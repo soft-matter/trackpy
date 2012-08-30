@@ -297,7 +297,7 @@ parser_v.add_argument('--no_sql') # TO DO: Allow user to explicitly specify dire
 parser_v.set_defaults(func=video)
 
 parser_a = subparsers.add_parser('age', help="Generate a folder of images from a specified age range, with reference to age zero, t0.")
-parser_a.add_argument('video_directory', default='.')
+parser_a.add_argument('video_directory', nargs='?', default='.')
 parser_a.add_argument('-T', '--trial', required=True)
 parser_a.add_argument('-a', '--age', required=True, action=ParseTime)
 group_a = parser_a.add_mutually_exclusive_group(required=True)
