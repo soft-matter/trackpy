@@ -198,6 +198,9 @@ def which_video(directory, t0, target_start,
 def age(args):
     """SUBCOMMAND: Mux a video, referring to a timespan of age 
     with reference to t0."""
+    assert args.age_zero, \
+       "To use mux age..., t0 must be set, either in the command line " \
+       "or in a plain file called age_zero in the working directory."
     base_directory = args.FRAME_REPOSITORY
     trial = args.trial
     start = args.age
