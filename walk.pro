@@ -4,16 +4,44 @@ function checkpoint, prompt_text
 	if (rp eq '') then return, 1 else return, 0
 end
 
+function check_for_existing, trial, stack, version
+    ; Are there any entries in RFeature with this trial, stack, version?
+    ; If so, return 1.
+    rowcount = get_sql("SELECT COUNT(*) FROM RFeature WHERE trial=" + $
+                         strcompress(string(trial),/remove_all) + $
+                         " AND stack=" + $
+                         strcompress(string(stack),/remove_all) + $
+                         " AND version=" + $
+                         strcompress(string(version),/remove_all))
+    if (rowcount ne 0) then return, 1 else return, 0
+end
+
 pro inserttrack, tm, trial, stack, version
-	conn = openconn()
-	s = size(tm)
-	for j=0, s[2]-1 do begin
-		conn->fast_exec_sql, $
-                	"INSERT INTO RFeature (trial, stack, version, x, y, mass, size, ecc, frame, probe) VALUES (" + $
-			trial + ", " + stack + ", " + version + ", " + $
-			strjoin(tm[0:4,j], ", ") + ", " + strjoin(uint(tm[5:6,j]), ", ") + ")"
-	endfor
-	closeconn, conn
+    ; Insert tm into the database, after checking for duplicates.
+    if (check_for_existing(trial, stack, version) eq 1) then $
+        message, "The RFeature table already contains data with that ID.\n" + $
+                 "Choose new version number, or delete the old data."
+    conn = openconn()
+    s = size(tm)
+    ; Insert just the data into a temp table.
+    ; Then transfer it into the main table while filling in IDs.
+    conn->fast_exec_sql, "DROP TABLE IF EXISTS NewRegisteredFeatures"
+    conn->fast_exec_sql, "CREATE TEMPORARY TABLE NewRegisteredFeatures (" + $
+                         "x float, y float, mass float, size float, " + $
+                         "ecc float, frame smallint unsigned, probe int unsigned)"
+    for j=0, s[2]-1 do begin
+        conn->fast_exec_sql, $
+            "INSERT INTO NewRegisteredFeatures " + $
+            "(x, y, mass, size, ecc, frame, probe) VALUES (" + $
+            strjoin(tm[0:4,j], ", ") + ", " + $
+            strjoin(uint(tm[5:6,j]), ", ") + ")"
+    endfor
+    conn->fast_exec_sql, "INSERT INTO RFeature (trial, stack, version, " + $
+                          "probe, frame, x, y, mass, size, ecc) SELECT " + $ 
+                          strjoin(uint([trial, stack, version]), ", ") + ", " + $
+                          "probe, frame, x, y, mass, size, ecc " + $
+                          "FROM NewRegisteredFeatures"
+    closeconn, conn
 end
 
 pro insertfits, fits, trial, stack, version
