@@ -216,7 +216,6 @@ def insert(trial, stack, frame, centroids, conn, override=False):
     try:
         c = conn.cursor()
         # Load the data in a small temporary table.
-        c.execute("DROP TEMPORARY TABLE IF EXISTS NewFeatures")
         c.execute("CREATE TEMPORARY TABLE NewFeatures"
                   "(x float, y float, mass float, size float, ecc float)")
         c.executemany("INSERT INTO NewFeatures (x, y, mass, size, ecc) "
@@ -227,6 +226,7 @@ def insert(trial, stack, frame, centroids, conn, override=False):
                   "(trial, stack, frame, x, y, mass, size, ecc) "
                   "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" 
                   % (trial, stack, frame))
+        c.execute("DROP TEMPORARY TABLE NewFeatures")
         c.close()
     except:
         print sys.exc_info()
