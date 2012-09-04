@@ -1,14 +1,17 @@
-1. Choose interesting sections of videos.
+Usage
 =====
 
-Create folders of videos from 
+Choose interesting sections of video
+------------------------------------
 
-To see your inventory, list the videos in a folder::
+To review the inventory of videos in a folder, we have a variant of the Unix
+list command, ``ls``. It shows select video meta data.
 
 $ mux ls
 
-Generate a folder of frames from a section of video. 
-Specify the starting and ending times::
+To analyze a section of video, first convert it into a folder of frames. For convenience,
+there are several ways to use this.
+You may specify the starting and ending times::
 
 $ mux video -s 00:01:00 -e 00:02:00 -T trial DSC0001.MOV
 
@@ -16,12 +19,11 @@ or the starting time and the duration::
 
 $ mux video -s 00:01:00 -d 00:01:00 -T trial DSC0001.MOV
 
-where trial is a number chosen by you.
+where trial is a number chosen by you. It is used to name the folder where the frames are output.
 
-For a static system, slicing videos as above is the simplest approach. 
-For an aging system, it's easier to refer to the age of the experiment, the time recorded
-in your lab notebook. Conveniently, mux converts between age time and the timecode of
-any video. It only needs one reference: when did the first video start?
+Sometimes, when many videos are taken in one experiment, video timecodes becoming confusing.
+It is more convenient to refer to the age of the system, the time logged in your notebook.
+If you tell ``mux`` the age of the first video, it will convert between age time and video time.
 For example, if the first video was started 1 minute 16 seconds into the experiment, type::
 
 $ mux set_t0 --offset 00:01:16
@@ -32,17 +34,20 @@ $ mux set_t0 -o 00:01:16
 
 Now you can slice videos by starting age and ending age::
 
-$ mux age -a 00:01:00 -e 00:02:00a -T trial
+$ mux age -a 00:01:00 -e 00:02:00 -T trial
 
 or by starting age and duration::
 
 $ mux age -a 00:01:00 -d 00:01:00 -T trial
 
-2. Find probes.
-==
+Note that we use ``-a`` in place of ``-s`` when we slice by age.
+
+Locate probes in the frames.
+----------------------------
 
 Import the feature module in the mr package::
 
+$ python
 >>>> from mr.feature import *
 
 List the images in a directory -- probably a directory just created by mux::
@@ -54,4 +59,11 @@ size and minimum 'mass' (integrated brightness)::
 
 >>>> sample(imlist, 9, minmass=1000)
 
+Specifically, ``sample`` locates features in the first, middle, and last frame,
+and displays each one in turn. Press f to enter (and exit) fullscreen mode. Close the display
+window to proceed to the next one.
 
+``sample`` is a convenience function: it wraps around a couple deeper functions, any of which
+may we used individually.
+
+>>>>
