@@ -40,7 +40,7 @@ $ mux age -a 00:15:00 -d 00:01:00 -T trial
 Locate probes.
 --------------
 
-Import the feature module in the mr package::
+Import the ``feature`` module in the ``mr`` package::
 
 >>>> from mr.feature import *
 
@@ -92,7 +92,9 @@ where trial and stack are numbers, of course. ``batch`` also accepts all the opt
 Link features into trajectories.
 --------------------------------
 
->>>> import mr.track
+Import the ``track`` module from the ``mr`` package.
+
+>>>> from mr.track import * 
 
 Build a query that will fetch the features you found above. You can take them all::
 
