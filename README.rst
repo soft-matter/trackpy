@@ -25,6 +25,7 @@ Suppose we want the first minute of several videos. We can get them all one comm
 $ mux video -s 00:00:00 -e 00:01:00 -T trial DSC0001.MOV DSC0002.MOV DSC0003.MOV
 
 Or even all the videos in a directory::
+
 $ mux video -s 00:00:00 -e 00:01:00 -T trial *
 
 Sometimes, when many videos are taken in one experiment, video timecodes becoming confusing.
@@ -73,6 +74,7 @@ To get the features from a image, use ``locate``::
 >>>> features = locate(first_image, 9, minmass=1000)
 
 The full list of parameters, with their default values, is::
+
 >>>> locate (image_file, diameter, separation=None, noise_size=1, smoothing_size=None, invert=True, percentile=64, minmass=1.):
 
 To superimpose circles on the original image, use ``annotate``::
