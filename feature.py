@@ -185,18 +185,33 @@ def locate(image_file, diameter, separation=None,
 
 def batch(trial, stack, image_file_list, diameter, separation=None,
           noise_size=1, smoothing_size=None, invert=True,
-          percentile=64, minmass=1., pickN=None):
+          percentile=64, minmass=1., pickN=None, override=False):
     """Analyze a list of image files, and insert the centroids into
     the database."""
     conn = connect()
+    if duplicate_check(trial, stack, conn):
+        if override:
+            print 'Overriding'
+        else:
+            print 'There are entries for this trial and stack already.'
+            conn.close()
+            return False
     for frame, filepath in enumerate(image_file_list):
         frame += 1 # Start at 1, not 0.
         centroids = locate(filepath, diameter, separation, noise_size,
                smoothing_size, invert, percentile, minmass, pickN)
-        insert(trial, stack, frame, centroids, conn)
+        insert(trial, stack, frame, centroids, conn, override)
     conn.close()
 
-def insert(trial, stack, frame, centroids, conn):
+def duplicate_check(trial, stack, conn):
+    "Return false if the database has no entries for this trial and stack."
+    c = conn.cursor()
+    c.execute("SELECT COUNT(1) FROM UFeature WHERE trial=%s AND stack=%s",
+              (trial, stack))
+    count, = c.fetchone()
+    return count != 0.0
+
+def insert(trial, stack, frame, centroids, conn, override=False):
     "Insert centroid information into the MySQL database."
     try:
         c = conn.cursor()
@@ -218,7 +233,8 @@ def insert(trial, stack, frame, centroids, conn):
         return False
     return True
 
-def annotate(image, positions, output_file=None, circle_size=100):
+def annotate(image, positions, output_file=None, 
+             circle_size=100, delay_show=False):
     "Draw white circles on the image, like Eric Weeks' fover2d."
     # The parameter image can be an image object or a filename.
     if type(image) is str:
@@ -229,8 +245,24 @@ def annotate(image, positions, output_file=None, circle_size=100):
     scatter(x, y, s=circle_size, facecolors='none', edgecolors='w')
     if output_file:
         savefig(output_file)
-    else:
+    elif not delay_show:
         show() 
+
+def sample(image_file_list, diameter, separation=None,
+           noise_size=1, smoothing_size=None, invert=True,
+           percentile=64, minmass=1., pickN=None):
+    """Try parameters on a small sampling of images (out of potenitally huge
+    list). Show annotated images."""
+    samples = [image_file_list[0], 
+               image_file_list[len(image_file_list)/2], 
+               image_file_list[-1]] # first, middle, last
+    for i, image_file in enumerate(samples):
+        print "Sample " + str(1+i) + " of " + str(len(samples)) + "..."
+        f = locate(image_file, diameter, separation,
+                   noise_size, smoothing_size, invert,
+                   percentile, minmass, pickN)
+        annotate(image_file, f, delay_show=True)
+        show()
 
 def list_images(directory):
     "List the path to all image files in a directory."
