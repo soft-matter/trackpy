@@ -234,7 +234,7 @@ def insert(trial, stack, frame, centroids, conn, override=False):
     return True
 
 def annotate(image, positions, output_file=None, 
-             circle_size=100, delay_show=False):
+             circle_size=170, delay_show=False):
     "Draw white circles on the image, like Eric Weeks' fover2d."
     # The parameter image can be an image object or a filename.
     if type(image) is str:
