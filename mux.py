@@ -27,15 +27,11 @@ def timestamp(ts_string):
     "Convert a timestamp string to a datetime type."
     return datetime.strptime(ts_string, '%Y-%m-%d %H:%M:%S')
 
-def dtparse(raw):
+def time_interval(raw):
+    "Convert a time interval string into a timedelta type."
     m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
-    if m:
-        # time only, returned as timedelta
-        h, m, s = map(int, m.group(1,2,3))
-        return timedelta(hours=h, minutes=m, seconds=s)
-    else:
-        # full datetime, returned as such
-        return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
+    h, m, s = map(int, m.group(1,2,3))
+    return timedelta(hours=h, minutes=m, seconds=s)
 
 def video_info(filepath):
     "Return video meta information by spawning ffmpeg and parsing its output."
@@ -194,7 +190,7 @@ def which_video(directory, t0, target_start,
         creation_time, video_duration, detected_fps, w, h = video_info(filepath)
         if not (creation_time and video_duration):
             continue
-        video_duration = dtparse(video_duration) # TO DO: Do this in video_info()
+        video_duration = time_interval(video_duration) # TO DO: Do this in video_info()
         start = creation_time - t0
         table[filepath] = (start, start + video_duration)
     for filepath, age_range in table.iteritems():
@@ -306,6 +302,15 @@ class ParseTime(argparse.Action):
         # Save the results in the namespace using the destination
         # variable given to our constructor.
         setattr(namespace, self.dest, values)
+    def timestamp(self, ts_string):
+        "Convert a timestamp string to a datetime type."
+        return datetime.strptime(ts_string, '%Y-%m-%d %H:%M:%S')
+
+    def time_interval(self, raw):
+        "Convert a time interval string into a timedelta type."
+        m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
+        h, m, s = map(int, m.group(1,2,3))
+        return timedelta(hours=h, minutes=m, seconds=s)
     def parse(self, raw):
         m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
         if m:
@@ -390,7 +395,7 @@ parser_t.set_defaults(func=set_t0)
 if os.path.isfile('age_zero'):
     try:
         line = open('age_zero').readline()
-        age_zero = dtparse(line[:19]) # chop off the line break, I guess
+        age_zero = timestamp(line[:19]) # chop off the line break, I guess
         parser_s.set_defaults(age_zero=age_zero)
         parser_v.set_defaults(age_zero=age_zero)
         parser_a.set_defaults(age_zero=age_zero)
