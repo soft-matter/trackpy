@@ -98,4 +98,25 @@ Link features into trajectories.
 
 Build a query that will fetch the features you found above. You can take them all::
 
->>>> 
+>>>> q = query(trial, stack)
+
+or you can filter, by a giving a SQL ``WHERE`` clause. Examples::
+
+>>>> q = query(trial, stack, where='mass < 10000')
+>>>> q = query(trial, stack, where='ecc < 0.1')
+>>>> q = query(trial, stack, where='x between 100 and 200')
+
+You can chain conditions explicitly, as in SQL, or pass them as a list for ``query`` to join::
+
+>>>> q = query(trial, stack, where=['mass < 10000', 'ecc < 0.1', 'x between 100 and 200'])
+
+To link the features together into trajectories,
+ we'll pass this query and some parameters to the function ``track``. These parameters are::
+
+>>>> track(query, max_displacement, min_appearances, memory)
+
+Here is an example::
+
+>>>> t=track(q, 5, 100, 3)
+
+
