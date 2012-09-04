@@ -26,9 +26,11 @@ pro inserttrack, tm, trial, stack, version
     ; Insert just the data into a temp table.
     ; Then transfer it into the main table while filling in IDs.
     conn->fast_exec_sql, "DROP TABLE IF EXISTS NewRegisteredFeatures"
+    wait, 1
     conn->fast_exec_sql, "CREATE TEMPORARY TABLE NewRegisteredFeatures (" + $
                          "x float, y float, mass float, size float, " + $
                          "ecc float, frame smallint unsigned, probe int unsigned)"
+    wait, 1
     for j=0, s[2]-1 do begin
         conn->fast_exec_sql, $
             "INSERT INTO NewRegisteredFeatures " + $
