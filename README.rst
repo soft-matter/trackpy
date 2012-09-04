@@ -4,13 +4,13 @@ Usage
 Choose interesting sections of video
 ------------------------------------
 
-To review the inventory of videos in a folder, use::
+To review the inventory of videos in a directory, use::
 
 $ mux ls
 
 It lists video files along with select meta information, like the creation time recorded by the camera.
 
-To analyze a section of video, first convert it into a folder of frames. For convenience, you may slice it by the starting and ending times::
+To analyze a section of video, first convert it into a folder of frames. The jargon term for this is **muxing**. For convenience, you may slice it by the starting and ending times::
 
 $ mux video -s 00:01:00 -e 00:02:00 -T trial DSC0001.MOV
 
@@ -19,6 +19,13 @@ or by the starting time and the duration::
 $ mux video -s 00:01:00 -d 00:01:00 -T trial DSC0001.MOV
 
 The argument ``trial`` is a number chosen by you.
+
+Suppose we want the first minute of several videos. We can get them all one command::
+
+$ mux video -s 00:00:00 -e 00:01:00 -T trial DSC0001.MOV DSC0002.MOV DSC0003.MOV
+
+Or even all the videos in a directory::
+$ mux video -s 00:00:00 -e 00:01:00 -T trial *
 
 Sometimes, when many videos are taken in one experiment, video timecodes becoming confusing.
 It is more convenient to refer to the age of the system -- the time logged in your notebook.
@@ -35,7 +42,7 @@ or by starting age and duration::
 
 $ mux age -a 00:15:00 -d 00:01:00 -T trial
 
-``mux`` automatically find the corresponding video that spans this age, and slices the appropriate section. Note that we use ``-a`` in place of ``-s`` when we slice by age.
+In these examples, we didn't specify a video file. ``mux`` automatically selects the video that spans the age times we requested, and it slices the appropriate section. Note that we use ``-a`` in place of ``-s`` when we slice by age.
 
 Locate probes.
 --------------
