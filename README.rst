@@ -42,7 +42,6 @@ Locate probes.
 
 Import the feature module in the mr package::
 
-$ python
 >>>> from mr.feature import *
 
 List the images in a directory -- probably a directory just created by mux::
@@ -54,11 +53,49 @@ size and minimum 'mass' (integrated brightness)::
 
 >>>> sample(imlist, 9, minmass=1000)
 
-Specifically, ``sample`` locates features in the first, middle, and last frame,
-and displays each one in turn. Press f to enter (and exit) fullscreen mode. Close the display
+Specifically, ``sample`` locates features in the first, middle, and last frames,
+and it displays each one in turn. Press f to toggle fullscreen mode. Close the display
 window to proceed to the next one.
 
-``sample`` is a convenience function: it wraps around a couple deeper functions, any of which
-may we used individually.
+``sample`` is a convenience function: it chains together several deeper functions. Sometimes
+you may want to use them individually.
 
->>>>
+To get the features from a image, use ``locate``::
+
+>>>> first_image = imlist[0]
+>>>> features = locate(first_image, 9, minmass=1000)
+
+The full list of parameters, with their default values, is::
+>>>> locate (image_file, diameter, separation=None,
+             noise_size=1, smoothing_size=None, invert=True,
+             percentile=64, minmass=1.):
+
+To superimpose circles on the original image, use ``annotate``::
+
+>>>> annotate(first_image, features)
+
+To save the output, instead of displaying it::
+
+>>>> annotate(first_image, features, output_file='some_filename.png')
+
+Locate all the probes.
+----------------------
+
+Having setted on good parameters using ``sample``, process the whole folder of images using ``batch``.
+The features will be saved to the database, so you'll need a trial number and a stack number. If you used mux, a stack number
+was automatically assigned and incorporated into the folder name.
+
+A typical call to batch looks like::
+
+>>>> batch(trial, stack, imlist, 9, minmass=1000)
+
+where trial and stack are numbers, of course. ``batch`` also accepts all the optional parameters shown for ``locate`` above.
+
+Link features into trajectories.
+--------------------------------
+
+>>>> import mr.track
+
+Build a query that will fetch the features you found above. You can take them all::
+
+>>>> 
