@@ -4,46 +4,41 @@ Usage
 Choose interesting sections of video
 ------------------------------------
 
-To review the inventory of videos in a folder, we have a variant of the Unix
-list command, ``ls``. It shows select video meta data.
+To review the inventory of videos in a folder, use::
 
 $ mux ls
 
-To analyze a section of video, first convert it into a folder of frames. For convenience,
-there are several ways to use this.
-You may specify the starting and ending times::
+It lists video files along with select meta information, like the creation time recorded by the camera.
+
+To analyze a section of video, first convert it into a folder of frames. For convenience, you may slice it by the starting and ending times::
 
 $ mux video -s 00:01:00 -e 00:02:00 -T trial DSC0001.MOV
 
-or the starting time and the duration::
+or by the starting time and the duration::
 
 $ mux video -s 00:01:00 -d 00:01:00 -T trial DSC0001.MOV
 
-where trial is a number chosen by you. It is used to name the folder where the frames are output.
+The argument ``trial`` is a number chosen by you.
 
 Sometimes, when many videos are taken in one experiment, video timecodes becoming confusing.
-It is more convenient to refer to the age of the system, the time logged in your notebook.
-If you tell ``mux`` the age of the first video, it will convert between age time and video time.
+It is more convenient to refer to the age of the system -- the time logged in your notebook.
+If you specify the age of the first video once, ``mux`` can translate age time into video time.
 For example, if the first video was started 1 minute 16 seconds into the experiment, type::
 
 $ mux set_t0 --offset 00:01:16
 
-or in shorthand::
-
-$ mux set_t0 -o 00:01:16
-
 Now you can slice videos by starting age and ending age::
 
-$ mux age -a 00:01:00 -e 00:02:00 -T trial
+$ mux age -a 00:15:00 -e 00:16:00 -T trial
 
 or by starting age and duration::
 
-$ mux age -a 00:01:00 -d 00:01:00 -T trial
+$ mux age -a 00:15:00 -d 00:01:00 -T trial
 
-Note that we use ``-a`` in place of ``-s`` when we slice by age.
+``mux`` automatically find the corresponding video that spans this age, and slices the appropriate section. Note that we use ``-a`` in place of ``-s`` when we slice by age.
 
-Locate probes in the frames.
-----------------------------
+Locate probes.
+--------------
 
 Import the feature module in the mr package::
 
