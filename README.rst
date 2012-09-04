@@ -66,9 +66,7 @@ To get the features from a image, use ``locate``::
 >>>> features = locate(first_image, 9, minmass=1000)
 
 The full list of parameters, with their default values, is::
->>>> locate (image_file, diameter, separation=None,
-             noise_size=1, smoothing_size=None, invert=True,
-             percentile=64, minmass=1.):
+>>>> locate (image_file, diameter, separation=None, noise_size=1, smoothing_size=None, invert=True, percentile=64, minmass=1.):
 
 To superimpose circles on the original image, use ``annotate``::
 
@@ -110,8 +108,7 @@ You can chain conditions explicitly, as in SQL, or pass them as a list for ``que
 
 >>>> q = query(trial, stack, where=['mass < 10000', 'ecc < 0.1', 'x between 100 and 200'])
 
-To link the features together into trajectories,
- we'll pass this query and some parameters to the function ``track``. These parameters are::
+To link the features together into trajectories, we'll pass this query and some parameters to the function ``track``. These parameters are::
 
 >>>> track(query, max_displacement, min_appearances, memory)
 
