@@ -206,7 +206,7 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
 def duplicate_check(trial, stack, conn):
     "Return false if the database has no entries for this trial and stack."
     c = conn.cursor()
-    c.execute("SELECT COUNT(1) FROM UFeature WHERE trial=%s AND stack=%s",
+    c.execute("SELECT COUNT(1) FROM Features WHERE trial=%s AND stack=%s",
               (trial, stack))
     count, = c.fetchone()
     return count != 0.0
@@ -222,7 +222,7 @@ def insert(trial, stack, frame, centroids, conn, override=False):
                       "VALUES (%s, %s, %s, %s, %s)", centroids)
         # In one step, tag all the rows with identifiers (trial, stack, frame).
         # Copy the temporary table into the big table of features.
-        c.execute("INSERT INTO UFeature "
+        c.execute("INSERT INTO Features "
                   "(trial, stack, frame, x, y, mass, size, ecc) "
                   "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" 
                   % (trial, stack, frame))
@@ -291,7 +291,7 @@ def batch_annotate(trial, stack, directory, new_directory):
     for frame, filepath in enumerate(imlist):
         frame += 1 # Start at 1, not 0.
         c = conn.cursor()
-        c.execute("SELECT x, y FROM UFeature WHERE trial=%s AND stack=%s AND "
+        c.execute("SELECT x, y FROM Features WHERE trial=%s AND stack=%s AND "
                   "frame=%s", (trial, stack, frame))
         positions = array(c.fetchall())
         filename = os.path.basename(filepath)

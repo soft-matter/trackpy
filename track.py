@@ -3,6 +3,7 @@ from scipy.interpolate import interp1d
 from scipy.stats import nanmean
 import pidly
 from feature import connect
+from matplotlib.pyplot import *
 
 def fetch(query):
     "Return SQL result set as a numpy array."
@@ -53,23 +54,34 @@ def slice_by_probe(track_array):
               probe_id in xrange(probe_count)]
     return probes
 
-def interpolate(original_domain, trajectory, target_domain):
+def interpolate(old_domain, trajectory, target_domain):
     """Linearly interpolate through gaps in the trajectory
     where the probe was not observed."""
-    interpolator = interp1d(probe[:, 5], probe[:, 0:2], bounds_error=False)
+    interpolator = interp1d(old_domain, trajectory, axis=0, bounds_error=False)
     return interpolator(target_domain)
 
 def msd(probe, max_interval):
     max_frame = max(probe[:, 5])
-    max_interval = min(max_frame, max_interval)
-    domain = arange(0, max_frame)
-    interpolated_xy = interpolator(probe[:, 5], probe[:, 0:2], domain)
-    msd = []
-    for step in xrange(1, max_interval):
-        d = diff(interpolated_xy, step, axis=0) \
-        sd = d[:,0]**2 + d[1]**2
+    min_frame = min(probe[:, 5])
+    max_interval = min(max_frame - min_frame, max_interval)
+    domain = arange(min_frame, 1 + max_frame)
+    interpolating_func = interp1d(probe[:, 5], probe[:, 0:2], axis=0)
+    interpolated_xy = interpolating_func(domain)
+    msd_values = []
+    msd_domain = range(1, max_interval)
+    for step in msd_domain:
+        d = diff(interpolated_xy, n=step, axis=0)
+        print d.shape, average(abs(d.flatten()))
+        sd = d[:,0]**2 + d[:, 1]**2
         msd = nanmean(sd)
-        msd_list.append(msd)
+        msd_values.append(msd)
+    return msd_domain, msd_values
+
+def plot_msds(probes, max_interval=50):
+    for probe in probes:
+        msd_domain, msd_values = msd(probe, max_interval)
+        plot(log(msd_domain), log(msd_values), '-o')
+    show()
 
 def subtract_drift(probes): 
     pass

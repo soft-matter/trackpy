@@ -85,7 +85,7 @@ def new_stack(trial, video_file, vstart, duration, start, end):
     # do not call them, or call them as None.
     conn = connect()
     c = conn.cursor()
-    c.execute("""INSERT INTO Stack (trial, video, start, end, """
+    c.execute("""INSERT INTO Stacks (trial, video, start, end, """
               """vstart, vduration, status) VALUES """
               """(%s, %s, %s, %s, %s, %s, %s)""", 
               (trial, video_file, start, end, vstart, duration, 'reserved'))
