@@ -56,11 +56,18 @@ def split_by_probe(track_array):
 def interpolate(probe):
     """Linearly interpolate through gaps in the trajectory
     where the probe was not observed."""
-    interpolator = interp1d(old_domain, trajectory, axis=0, bounds_error=False)
-    return interpolator(target_domain)
+    # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame
+    first_frame, last_frame = probe[:, 5][[0,-1]]
+    full_domain = arange(first_frame, 1 + last_frame)
+    interpolator = interp1d(probe[:, 5], probe[:, 0:2], axis=0)
+    return column_stack((full_domain, interpolator(full_domain)))
 
 def dx_dstep(a, step):
     return a[step:]-a[:-step]
+
+# def msd (probe, max_interval):
+
+
 
 def msd1(probe, max_interval):
     max_frame = max(probe[:, 5])
