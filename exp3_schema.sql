@@ -111,9 +111,8 @@ CREATE TABLE `Stacks` (
   `start` time DEFAULT NULL,
   `end` time DEFAULT NULL,
   `vstart` time DEFAULT NULL,
-  `vduration` time DEFAULT NULL,
+  `duration` time DEFAULT NULL,
   `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `status` enum('reserved','muxing started','muxed') DEFAULT NULL,
   `video` varchar(31) DEFAULT NULL,
   `comment` varchar(1023) DEFAULT NULL,
   PRIMARY KEY (`trial`,`stack`)
@@ -170,4 +169,4 @@ CREATE TABLE `Trials` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2012-09-05 16:40:04
+-- Dump completed on 2012-09-06 15:42:03
