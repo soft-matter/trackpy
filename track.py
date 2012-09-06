@@ -19,11 +19,11 @@ def fetch(query):
 def query(trial, stack, version=None, where=None):
     "Return a query for features from UFeature."
     if version:
-        query = ("SELECT x, y, mass, size, ecc, frame FROM UFeature WHERE "
+        query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
                  "trial=%s AND stack=%s AND version=%s " 
                  % tuple(map(str, (trial, stack, version)))) 
     else:
-        query = ("SELECT x, y, mass, size, ecc, frame FROM UFeature WHERE "
+        query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
                  "trial=%s AND stack=%s " 
                  % tuple(map(str, (trial, stack))))
     if where:
@@ -44,29 +44,32 @@ def track(query, max_disp, min_appearances, memory=3):
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return idl.ev('t')
 
-def slice_by_probe(track_array):
-    """Slice the big IDL-style track array into a list of arrays,
+def split_by_probe(track_array):
+    """Split the big IDL-style track array into a list of arrays,
     where each array coresponds is a separate probe."""
-    probes = []
-    probe_count = int(max(track_array[:, 6]))
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
-    probes = [track_array[track_array[:, 6] == probe_id][:, 0:6] for \
-              probe_id in xrange(probe_count)]
+    indicies, = where(diff(track_array[:, 6], axis=0) == 1.0)
+    indicies += 1 # diff offsets indicies to the left by one 
+    probes = split(track_array[:, :6], indicies)
     return probes
 
-def interpolate(old_domain, trajectory, target_domain):
+def interpolate(probe):
     """Linearly interpolate through gaps in the trajectory
     where the probe was not observed."""
     interpolator = interp1d(old_domain, trajectory, axis=0, bounds_error=False)
     return interpolator(target_domain)
 
-def msd(probe, max_interval):
+def dx_dstep(a, step):
+    return a[step:]-a[:-step]
+
+def msd1(probe, max_interval):
     max_frame = max(probe[:, 5])
     min_frame = min(probe[:, 5])
     max_interval = min(max_frame - min_frame, max_interval)
     domain = arange(min_frame, 1 + max_frame)
     interpolating_func = interp1d(probe[:, 5], probe[:, 0:2], axis=0)
     interpolated_xy = interpolating_func(domain)
+    print interpolated_xy.shape
     msd_values = []
     msd_domain = range(1, max_interval)
     for step in msd_domain:
