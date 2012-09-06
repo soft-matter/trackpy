@@ -188,8 +188,8 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
           percentile=64, minmass=1., pickN=None, override=False):
     """Analyze a list of image files, and insert the centroids into
     the database."""
-    conn = connect()
-    if duplicate_check(trial, stack, conn):
+    conn = sql_connect()
+    if sql_duplicate_check(trial, stack, conn):
         if override:
             print 'Overriding'
         else:
@@ -200,10 +200,10 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
         frame += 1 # Start at 1, not 0.
         centroids = locate(filepath, diameter, separation, noise_size,
                smoothing_size, invert, percentile, minmass, pickN)
-        insert(trial, stack, frame, centroids, conn, override)
+        sql_insert(trial, stack, frame, centroids, conn, override)
     conn.close()
 
-def duplicate_check(trial, stack, conn):
+def sql_duplicate_check(trial, stack, conn):
     "Return false if the database has no entries for this trial and stack."
     c = conn.cursor()
     c.execute("SELECT COUNT(1) FROM Features WHERE trial=%s AND stack=%s",
@@ -211,7 +211,7 @@ def duplicate_check(trial, stack, conn):
     count, = c.fetchone()
     return count != 0.0
 
-def insert(trial, stack, frame, centroids, conn, override=False):
+def sql_insert(trial, stack, frame, centroids, conn, override=False):
     "Insert centroid information into the MySQL database."
     try:
         c = conn.cursor()
@@ -271,7 +271,7 @@ def list_images(directory):
         os.path.isfile(os.path.join(directory, f)) and re.match('.*\.png', f)]
     return sorted(images)
 
-def connect():
+def sql_connect():
     "Return an open connection to the database."
     try:
         conn = MySQLdb.connect(host='localhost', user='scientist',

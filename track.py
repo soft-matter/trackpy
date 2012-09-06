@@ -2,22 +2,22 @@ from numpy import *
 from scipy.interpolate import interp1d
 from scipy.stats import nanmean
 import pidly
-from feature import connect
+from feature import sql_connect
 from matplotlib.pyplot import *
 
-def fetch(query):
+def sql_fetch(query):
     "Return SQL result set as a numpy array."
-    conn = connect()
+    conn = sql_connect()
     c = conn.cursor()
     c.execute(query)
-    features = array(c.fetchall())
+    results = array(c.fetchall())
     c.close()
     conn.close()
     print c.rowcount
-    return features
+    return results 
 
 def query(trial, stack, version=None, where=None):
-    "Return a query for features from UFeature."
+    "Return a query for features from Features."
     if version:
         query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
                  "trial=%s AND stack=%s AND version=%s " 
@@ -43,6 +43,47 @@ def track(query, max_disp, min_appearances, memory=3):
             tuple(map(str, (max_disp, min_appearances, memory))))
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return idl.ev('t')
+
+def sql_insert(trial, stack, track_array, override=False):
+    "Insert a track array into the MySQL database."
+    conn = sql_connect()
+    if sql_duplicate_check(trial, stack, conn):
+        if override:
+            print 'Overriding'
+        else:
+            print 'There are entries for this trial and stack already.'
+            conn.close()
+            return False
+    try:
+        c = conn.cursor()
+        # Load the data in a small temporary table.
+        c.execute("CREATE TEMPORARY TABLE NewTrajectories"
+                  "(probe int unsigned, frame int unsigned, "
+                  "x float, y float, mass float, size float, ecc float)")
+        c.executemany("INSERT INTO NewTrajectories "
+                      "(x, y, mass, size, ecc, frame, probe) "
+                      "VALUES (%s, %s, %s, %s, %s, %s, %s)", 
+                      map(tuple, list(track_array)))
+        # In one step, tag all the rows with identifiers (trial, stack, frame).
+        # Copy the temporary table into the big table of features.
+        c.execute("INSERT INTO Trajectories "
+                  "(trial, stack, probe, frame, x, y, mass, size, ecc) "
+                  "SELECT %s, %s, probe, frame, x, y, mass, size, ecc "
+                  "FROM NewTrajectories", (trial, stack))
+        c.execute("DROP TEMPORARY TABLE NewTrajectories")
+        c.close()
+    except:
+        print sys.exc_info()
+        return False
+    return True
+
+def sql_duplicate_check(trial, stack, conn):
+    "Return false if the database has no entries for this trial and stack."
+    c = conn.cursor()
+    c.execute("SELECT COUNT(1) FROM Trajectories WHERE trial=%s AND stack=%s",
+              (trial, stack))
+    count, = c.fetchone()
+    return count != 0.0
 
 def split_by_probe(track_array, traj_only=True):
     """Split the big IDL-style track array into a list of arrays,
@@ -110,7 +151,8 @@ def plot_msds(track_array, max_interval=None,
             for traj in split_by_probe(track_array)]
     for m in msds:
         loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), '-o')
-    # gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: 10**x))
+    gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     xlabel('lag time [s]')
     ylabel('msd [um]')
     show()
