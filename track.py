@@ -44,12 +44,12 @@ def track(query, max_disp, min_appearances, memory=3):
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return idl.ev('t')
 
-def split_by_probe(track_array, keep_traj_only=True):
+def split_by_probe(track_array, traj_only=True):
     """Split the big IDL-style track array into a list of arrays,
     where each array coresponds is a separate probe."""
     boundaries, = where(diff(track_array[:, 6], axis=0) == 1.0)
     boundaries += 1
-    if keep_traj_only:
+    if traj_only:
         traj = split(track_array[:, [5, 0, 1]], boundaries)
         # 0: frame, 1: x, 2: y
         return traj
@@ -104,9 +104,16 @@ def _simple_msd(traj, interval):
     msd = mean(sum(sd, axis=1), axis=0)
     return array([interval, msd]) 
 
-def plot_msds(track_array, max_interval=50):
-    msds = [msd(traj, detail=False) for traj in track_array]
-    print msds
+def plot_msds(track_array, max_interval=None,
+              microns_per_px=100/427., fps=30.):
+    msds = [msd(traj, max_interval, detail=False) \
+            for traj in split_by_probe(track_array)]
+    for m in msds:
+        loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), '-o')
+    # gca().xaxis.set_major_formatter(FuncFormatter(lambda x, pos: 10**x))
+    xlabel('lag time [s]')
+    ylabel('msd [um]')
+    show()
 
 def subtract_drift(probes): 
     pass
