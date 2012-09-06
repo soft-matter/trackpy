@@ -44,54 +44,69 @@ def track(query, max_disp, min_appearances, memory=3):
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return idl.ev('t')
 
-def split_by_probe(track_array):
+def split_by_probe(track_array, keep_traj_only=True):
     """Split the big IDL-style track array into a list of arrays,
     where each array coresponds is a separate probe."""
-    # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
-    indicies, = where(diff(track_array[:, 6], axis=0) == 1.0)
-    indicies += 1 # diff offsets indicies to the left by one 
-    probes = split(track_array[:, :6], indicies)
-    return probes
+    boundaries, = where(diff(track_array[:, 6], axis=0) == 1.0)
+    boundaries += 1
+    if keep_traj_only:
+        traj = split(track_array[:, [5, 0, 1]], boundaries)
+        # 0: frame, 1: x, 2: y
+        return traj
+    else: 
+        probes = split(track_array[:, :6], boundaries)
+        # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
+        return probes
 
-def interpolate(probe):
+def interpolate(traj):
     """Linearly interpolate through gaps in the trajectory
     where the probe was not observed."""
-    # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame
-    first_frame, last_frame = probe[:, 5][[0,-1]]
+    # 0: frame, 1: x, 2: y
+    first_frame, last_frame = traj[:, 0][[0,-1]]
     full_domain = arange(first_frame, 1 + last_frame)
-    interpolator = interp1d(probe[:, 5], probe[:, 0:2], axis=0)
+    interpolator = interp1d(traj[:, 0], traj[:, 1:3], axis=0)
     return column_stack((full_domain, interpolator(full_domain)))
 
-def dx_dstep(a, step):
-    return a[step:]-a[:-step]
+def displacement(a, n):
+    """Return difference between nth-order neighbors.
+    This is not the same as numpy.diff(a, n), the nth-order derivative."""
+    return a[n:]-a[:-n]
 
-# def msd (probe, max_interval):
+def msd(traj, max_interval=None, detail=True):
+    """Compute the mean displacement and mean squared displacement of a
+    trajectory over a range of time intervals (measured in elapsed frames)."""
+    # 0: frame, 1: x, 2: y
+    max_interval = max_interval if max_interval else 30 # default
+    max_interval = min(max_interval, traj.shape[0])
+    intervals = xrange(1, 1 + max_interval)
+    traj = interpolate(traj)
+    _msd = _detailed_msd if detail else _simple_msd
+    results = [_msd(traj, i) for i in intervals]
+    return vstack(results)
+     
+def _detailed_msd(traj, interval):
+    """Given a continuous trajectory and a time interval (in frames), 
+    return t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, N."""
+    d = displacement(traj[:, 1:], interval) # [[dx, dy], ...]
+    sd = d**2
+    stuff = column_stack((d, sum(d, axis=1), sd, sum(sd, axis=1)))
+    # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
+    mean_stuff = mean(stuff, axis=0)
+    # Estimate statistically independent measurements:
+    N = round(2*stuff.shape[0]/float(interval))
+    return append(array([interval]), mean_stuff, array([N])) 
 
+def _simple_msd(traj, interval):
+    """Given a continuous trajectory and a time interval (in frames),
+    return t, <r^2>."""
+    d = displacement(traj[:, 1:], interval) # [[dx, dy], ...]
+    sd = d**2
+    msd = mean(sum(sd, axis=1), axis=0)
+    return array([interval, msd]) 
 
-
-def msd1(probe, max_interval):
-    max_frame = max(probe[:, 5])
-    min_frame = min(probe[:, 5])
-    max_interval = min(max_frame - min_frame, max_interval)
-    domain = arange(min_frame, 1 + max_frame)
-    interpolating_func = interp1d(probe[:, 5], probe[:, 0:2], axis=0)
-    interpolated_xy = interpolating_func(domain)
-    print interpolated_xy.shape
-    msd_values = []
-    msd_domain = range(1, max_interval)
-    for step in msd_domain:
-        d = diff(interpolated_xy, n=step, axis=0)
-        print d.shape, average(abs(d.flatten()))
-        sd = d[:,0]**2 + d[:, 1]**2
-        msd = nanmean(sd)
-        msd_values.append(msd)
-    return msd_domain, msd_values
-
-def plot_msds(probes, max_interval=50):
-    for probe in probes:
-        msd_domain, msd_values = msd(probe, max_interval)
-        plot(log(msd_domain), log(msd_values), '-o')
-    show()
+def plot_msds(track_array, max_interval=50):
+    msds = [msd(traj, detail=False) for traj in track_array]
+    print msds
 
 def subtract_drift(probes): 
     pass
