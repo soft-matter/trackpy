@@ -2,7 +2,7 @@ from numpy import *
 from scipy.interpolate import interp1d
 from scipy.stats import nanmean
 import pidly
-from feature import sql_connect
+from connect import sql_connect
 from matplotlib.pyplot import *
 
 def sql_fetch(query):
@@ -108,10 +108,10 @@ def interpolate(traj):
     interpolator = interp1d(traj[:, 0], traj[:, 1:3], axis=0)
     return column_stack((full_domain, interpolator(full_domain)))
 
-def displacement(a, n):
-    """Return difference between nth-order neighbors.
-    This is not the same as numpy.diff(a, n), the nth-order derivative."""
-    return a[n:]-a[:-n]
+def displacement(x, dt):
+    """Return difference between neighbors separated by dt steps (frames).
+    This is not the same as numpy.diff(x, n), the nth-order derivative."""
+    return x[dt:]-x[:-dt]
 
 def msd(traj, max_interval=None, detail=True):
     """Compute the mean displacement and mean squared displacement of a
@@ -142,15 +142,29 @@ def _simple_msd(traj, interval):
     return t, <r^2>."""
     d = displacement(traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
-    msd = mean(sum(sd, axis=1), axis=0)
-    return array([interval, msd]) 
+    msd_result = mean(sum(sd, axis=1), axis=0)
+    return array([interval, msd_result]) 
 
-def plot_msds(track_array, max_interval=None,
-              microns_per_px=100/427., fps=30.):
+def ensemble_msd(track_array):
+    "Return ensemble mean squared displacement."
+    m = vstack([msd(traj, detail=False) \
+                   for traj in split_by_probe(track_array)])
+    m = m[m[:,0].argsort()] # sort by dt 
+    boundaries, = where(diff(m[:, 0], axis=0) > 0.0)
+    boundaries += 1
+    m = split(m, boundaries) # list of arrays, one for each dt
+    ensm_m= vstack([mean(this_m, axis=0) for this_m in m])
+    return ensm_m
+
+def plot_msd(track_array, max_interval=None,
+              microns_per_px=100/427., fps=30., ens=False):
     msds = [msd(traj, max_interval, detail=False) \
             for traj in split_by_probe(track_array)]
     for m in msds:
-        loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), '-o')
+        loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), 'k.-')
+    if ens:
+        m = ensemble_msd(track_array)
+        loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), 'ro-')
     gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     xlabel('lag time [s]')
