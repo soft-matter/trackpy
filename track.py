@@ -149,15 +149,52 @@ def ensemble_msd(track_array):
     "Return ensemble mean squared displacement."
     m = vstack([msd(traj, detail=False) \
                    for traj in split_by_probe(track_array)])
-    m = m[m[:,0].argsort()] # sort by dt 
+    m = m[m[:, 0].argsort()] # sort by dt 
     boundaries, = where(diff(m[:, 0], axis=0) > 0.0)
     boundaries += 1
     m = split(m, boundaries) # list of arrays, one for each dt
-    ensm_m= vstack([mean(this_m, axis=0) for this_m in m])
+    ensm_m = vstack([mean(this_m, axis=0) for this_m in m])
     return ensm_m
+
+def drift(track_array, suppress_plot=False):
+    "Return the ensemble drift, dx(t)."
+    x_list = [interpolate(traj) for traj in split_by_probe(track_array)]
+    # t, x, y
+    dx_list = [column_stack((x[:, 0], x[:, 1:] - x[0, 1:])) for x in x_list]
+    # t, v_x, v_y
+    dx = vstack(dx_list)
+    dx = dx[dx[:, 0].argsort()] # sort by t
+    boundaries, = where(diff(dx[:, 0], axis=0) > 0.0)
+    boundaries += 1
+    dx_list = split(dx, boundaries) # list of arrays, one for each t
+    ensm_dx = vstack([mean(dx, axis=0) for dx in dx_list])
+    plot(ensm_dx[:, 0], ensm_dx[:, 1], '-', label='X')
+    plot(ensm_dx[:, 0], ensm_dx[:, 2], '-', label='Y')
+    legend(loc='upper left')
+    show()
+    return ensm_dx
+
+def subtract_drift(track_array, d=None):
+    "Modify the track_array in place, subtracting overall drift"
+    if not d:
+        d=drift(track_array)
+    new_ta = copy(track_array)
+    for t, x, y in d:
+        new_ta[new_ta[:, 5] == t, 1:3] -= [x, y] 
+    # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
+    return new_ta
+
+def plot_traj(track_array, microns_per_px=100/427.):
+    "Plot traces of trajectories for each probe."
+    for traj in split_by_probe(track_array):
+        plot(traj[:, 1], traj[:, 2])
+    xlabel('x [um]')
+    ylabel('y [um]')
+    show()
 
 def plot_msd(track_array, max_interval=None,
               microns_per_px=100/427., fps=30., ens=False):
+    "Plot individual MSDs for each probe. Optionally overlay ensemble MSD."
     msds = [msd(traj, max_interval, detail=False) \
             for traj in split_by_probe(track_array)]
     for m in msds:
@@ -170,6 +207,3 @@ def plot_msd(track_array, max_interval=None,
     xlabel('lag time [s]')
     ylabel('msd [um]')
     show()
-
-def subtract_drift(probes): 
-    pass
