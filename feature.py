@@ -11,6 +11,7 @@ from scipy.stats import scoreatpercentile
 from itertools import groupby
 from matplotlib.pyplot import *
 from matplotlib import cm
+from connect import sql_connect
 
 # Make it possible to emulate Crocker/Grier/Weeks exactly.
 # Whip up a few test cases to be sure that this is working.
@@ -270,18 +271,6 @@ def list_images(directory):
     images = [os.path.join(directory, f) for f in files if \
         os.path.isfile(os.path.join(directory, f)) and re.match('.*\.png', f)]
     return sorted(images)
-
-def sql_connect():
-    "Return an open connection to the database."
-    try:
-        conn = MySQLdb.connect(host='localhost', user='scientist',
-                               passwd='scientist', db='exp3')
-    except MySQLdb.Error, e:
-        print "Cannot connect to database."
-        print "Error code:", e.args[0]
-        print "Error message:", e.args[1]
-        exit(1)
-    return conn
 
 def batch_annotate(trial, stack, directory, new_directory):
     """Save annotated copies of analyzed frames, referring to the database

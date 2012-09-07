@@ -4,7 +4,7 @@ import os, subprocess, re, argparse, string
 import logging
 from datetime import datetime, timedelta
 from ConfigParser import ConfigParser
-import MySQLdb
+from connect import sql_connect
 
 def extract(pattern, string, group, convert=None):
     """Extract a pattern from a string. Optionally, convert it
@@ -67,23 +67,11 @@ def summary(args):
     else:
         ls(args.path)
 
-def connect():
-    "Return an open connection to the database."
-    try:
-        conn = MySQLdb.connect(host='localhost', user='scientist',
-                               passwd='scientist', db='exp3')
-    except MySQLdb.Error, e:
-        print "Cannot connect to database."
-        print "Error code:", e.args[0]
-        print "Error message:", e.args[1]
-        exit(1)
-    return conn
-
 def new_stack(trial, video_file, vstart, duration, start, end):
     "Insert a stack into the database, and return its id number."
     # Args start, end are relative to age_zero. If unknown or N/A,
     # do not call them, or call them as None.
-    conn = connect()
+    conn = sql_connect()
     c = conn.cursor()
     c.execute("""INSERT INTO Stacks (trial, video, start, end, """
               """vstart, duration) VALUES """
