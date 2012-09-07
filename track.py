@@ -16,15 +16,15 @@ def sql_fetch(query):
     print c.rowcount
     return results 
 
-def query(trial, stack, version=None, where=None):
+def query_feat(trial, stack, version=None, where=None):
     "Return a query for features from Features."
     if version:
         query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
-                 "trial=%s AND stack=%s AND version=%s " 
-                 % tuple(map(str, (trial, stack, version)))) 
+                 "trial=%s AND stack=%s AND version=%s"
+                 % tuple(map(str, (trial, stack, version))))
     else:
         query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
-                 "trial=%s AND stack=%s " 
+                 "trial=%s AND stack=%s"
                  % tuple(map(str, (trial, stack))))
     if where:
         if type(where) is str:
@@ -32,6 +32,19 @@ def query(trial, stack, version=None, where=None):
         elif type(where) is list:
             query += ' AND ' + ' AND '.join(where)
     query += " ORDER BY frame"
+    return query 
+
+def query_traj(trial, stack, where=None):
+    "Return a query for trajectories from Trajecotires."
+    query = ("SELECT x, y, mass, size, ecc, frame, probe FROM Trajectories "
+              "WHERE trial=%s AND stack=%s" %
+              tuple(map(str, (trial, stack))))
+    if where:
+        if type(where) is str:
+            query += ' AND ' + where
+        elif type(where) is list:
+            query += ' AND ' + ' AND '.join(where)
+    query += " ORDER BY probe, frame"
     return query 
 
 def track(query, max_disp, min_appearances, memory=3):
@@ -168,26 +181,27 @@ def drift(track_array, suppress_plot=False):
     boundaries += 1
     dx_list = split(dx, boundaries) # list of arrays, one for each t
     ensm_dx = vstack([mean(dx, axis=0) for dx in dx_list])
-    plot(ensm_dx[:, 0], ensm_dx[:, 1], '-', label='X')
-    plot(ensm_dx[:, 0], ensm_dx[:, 2], '-', label='Y')
-    legend(loc='upper left')
-    show()
+    if not suppress_plot:
+        plot(ensm_dx[:, 0], ensm_dx[:, 1], '-', label='X')
+        plot(ensm_dx[:, 0], ensm_dx[:, 2], '-', label='Y')
+        legend(loc='best')
+        show()
     return ensm_dx
 
 def subtract_drift(track_array, d=None):
-    "Modify the track_array in place, subtracting overall drift"
-    if not d:
-        d=drift(track_array)
+    "Return a copy of the track_array with the overall drift subtracted out."
+    if d is None: 
+        d=drift(track_array, suppress_plot=True)
     new_ta = copy(track_array)
     for t, x, y in d:
-        new_ta[new_ta[:, 5] == t, 1:3] -= [x, y] 
+        new_ta[new_ta[:, 5] == t, 0:2] -= [x, y] 
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return new_ta
 
 def plot_traj(track_array, microns_per_px=100/427.):
     "Plot traces of trajectories for each probe."
     for traj in split_by_probe(track_array):
-        plot(traj[:, 1], traj[:, 2])
+        plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
     xlabel('x [um]')
     ylabel('y [um]')
     show()
