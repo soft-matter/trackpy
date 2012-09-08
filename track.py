@@ -184,6 +184,8 @@ def drift(track_array, suppress_plot=False):
     if not suppress_plot:
         plot(ensm_dx[:, 0], ensm_dx[:, 1], '-', label='X')
         plot(ensm_dx[:, 0], ensm_dx[:, 2], '-', label='Y')
+        xlabel('time [frames]')
+        ylabel('drift [px]')
         legend(loc='best')
         show()
     return ensm_dx
