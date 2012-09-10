@@ -243,6 +243,8 @@ def annotate(image, positions, output_file=None,
     x, y = array(positions)[:,0:2].T
     clf()
     imshow(image, origin='upper', shape=image.shape, cmap=cm.gray)
+    xlim(0, image.shape[1])
+    ylim(0, image.shape[0]) 
     scatter(x, y, s=circle_size, facecolors='none', edgecolors='w')
     if output_file:
         savefig(output_file)
