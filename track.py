@@ -101,7 +101,7 @@ def sql_duplicate_check(trial, stack, conn):
 def split_by_probe(track_array, traj_only=True):
     """Split the big IDL-style track array into a list of arrays,
     where each array coresponds is a separate probe."""
-    boundaries, = where(diff(track_array[:, 6], axis=0) == 1.0)
+    boundaries, = where(diff(track_array[:, 6], axis=0) > 0.0)
     boundaries += 1
     if traj_only:
         traj = split(track_array[:, [5, 0, 1]], boundaries)
@@ -170,25 +170,29 @@ def ensemble_msd(track_array):
     return ensm_m
 
 def drift(track_array, suppress_plot=False):
-    "Return the ensemble drift, dx(t)."
-    x_list = [interpolate(traj) for traj in split_by_probe(track_array)]
-    # t, x, y
-    dx_list = [column_stack((x[:, 0], x[:, 1:] - x[0, 1:])) for x in x_list]
-    # t, v_x, v_y
-    dx = vstack(dx_list)
+    "Return the ensemble drift, x(t)."
+    x_list = split_by_probe(track_array) # t, x, y
+    dx_list = [column_stack(
+               (diff(x[:, 0]), x[1:, 0], diff(x[:, 1:], axis=0))
+               ) for x in x_list] # dt, t, dx, dy
+    dx = vstack(dx_list) # dt, t, dx, dy
+    dx = dx[dx[:, 0] == 1.0, 1:] # Drop entries where dt > 1 ( gap).
     dx = dx[dx[:, 0].argsort()] # sort by t
     boundaries, = where(diff(dx[:, 0], axis=0) > 0.0)
     boundaries += 1
     dx_list = split(dx, boundaries) # list of arrays, one for each t
-    ensm_dx = vstack([mean(dx, axis=0) for dx in dx_list])
+    ensemble_dx = vstack([mean(dx, axis=0) for dx in dx_list])
+    ensemble_dx = interpolate(ensemble_dx) # Fill in any gaps.
+    # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
+    x = column_stack((ensemble_dx[:, 0], cumsum(ensemble_dx[:, 1:], axis=0)))
     if not suppress_plot:
-        plot(ensm_dx[:, 0], ensm_dx[:, 1], '-', label='X')
-        plot(ensm_dx[:, 0], ensm_dx[:, 2], '-', label='Y')
+        plot(x[:, 0], x[:, 1], '-', label='X')
+        plot(x[:, 0], x[:, 2], '-', label='Y')
         xlabel('time [frames]')
         ylabel('drift [px]')
         legend(loc='best')
         show()
-    return ensm_dx
+    return x 
 
 def subtract_drift(track_array, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
@@ -218,6 +222,7 @@ def plot_msd(track_array, max_interval=None,
     if ens:
         m = ensemble_msd(track_array)
         loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), 'ro-')
+    # Label ticks with plain numbers, not scientific notation:
     gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     xlabel('lag time [s]')
