@@ -161,11 +161,18 @@ def _simple_msd(traj, interval, microns_per_px, fps):
     msd_result = mean(sum(sd, axis=1), axis=0)
     return array([interval/float(fps), msd_result]) 
 
-def ensemble_msd(track_array, microns_per_px=100/427., fps=30.):
+def ensemble_msd(probes, microns_per_px=100/427., fps=30.):
     """Return ensemble mean squared displacement. Input in units of px
     and frames. Output in units of microns and seconds."""
+    if type(probes) is ndarray:
+        probes = split_by_probe(probes)
+    elif type(probes) is list:
+        pass
+    else:
+        raise TypeError, ('ensemble_msd accepts the ndarray track_array '
+                          'or the list of probes.')
     m = vstack([msd(traj, microns_per_px, fps, detail=False) \
-                for traj in split_by_probe(track_array)])
+                for traj in probes])
     m = m[m[:, 0].argsort()] # sort by dt 
     boundaries, = where(diff(m[:, 0], axis=0) > 0.0)
     boundaries += 1
@@ -217,6 +224,22 @@ def subtract_drift(track_array, d=None):
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return new_ta
 
+def split_branches(probes, threshold=0.85, lower_threshold=0.4):
+    "Sort list of probes into two lists: diffusive and subdiffusive."
+    upper_branch, lower_branch, middle_branch = [], [], []
+    for probe in probes:
+        m = msd(probe)
+        power, coeff = powerlaw_fit(m)
+        if power > threshold:
+            upper_branch.append(probe)
+        elif lower_threshold is None:
+            lower_branch.append(probe)
+        elif power < lower_threshold:
+            lower_branch.append(probe)
+        else:
+            middle_branch.append(probe)
+    return upper_branch, lower_branch, middle_branch 
+
 def plot_traj(track_array, microns_per_px=100/427.):
     "Plot traces of trajectories for each probe."
     for traj in split_by_probe(track_array):
@@ -225,32 +248,64 @@ def plot_traj(track_array, microns_per_px=100/427.):
     ylabel('y [um]')
     show()
 
-def plot_msd(track_array, max_interval=None,
+def plot_msd(probes, max_interval=None,
              microns_per_px=100/427., fps=30., 
-             indv=True, ensm=False, powerlaw=True):
+             indv=True, ensm=False, branch=False, powerlaw=True,
+             defer=False, suppress_labels=False):
     "Plot individual MSDs for each probe, or ensemble MSD, or both."
+    if type(probes) is ndarray:
+        probes = split_by_probe(probes)
+    elif type(probes) is list:
+        pass
+    else:
+        raise TypeError, ('plot_msd accepts the ndarray track_array '
+                          'or the list of probes.')
     if indv:
         msds = [msd(traj, microns_per_px, fps, max_interval, detail=False) \
-                for traj in split_by_probe(track_array)]
+                for traj in probes] 
         for counter, m in enumerate(msds):
             # Label only one instance for the plot legend.
             if counter == 0:
-                loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
-                       label='individual probe MSDs')
+                if not suppress_labels:
+                    loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
+                           label='individual probe MSDs')
             else:
                 loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
     if ensm:
-        m = ensemble_msd(track_array)
-        loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
+        m = ensemble_msd(probes)
+        if not suppress_labels:
+            loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
+        else:
+            loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3)
         if powerlaw:
             power, coeff = powerlaw_fit(m)
-            loglog(m[:, 0], coeff*m[:, 0]**power, 'g--', linewidth=2,
-                   label=('power law fit\nn=' + '{:.2f}'.format(power) + \
-                          '  D=' + '{:.3f}'.format(coeff/4) + ' um$^2$/s'))
+            loglog(m[:, 0], coeff*m[:, 0]**power, '-', color='#019AD2', linewidth=2,
+                   label=powerlaw_label(power, coeff))
+    if branch:
+        upper_branch, lower_branch, middle_branch = split_branches(probes)
+        plot_msd(upper_branch, indv=True, ensm=True, powerlaw=True, 
+                 defer=True)
+        plot_msd(middle_branch, indv=True, ensm=False, powerlaw=False, 
+                 defer=True, suppress_labels=True)
+        plot_msd(lower_branch, indv=True, ensm=True, powerlaw=True,
+                 suppress_labels=True)
+        return
     # Label ticks with plain numbers, not scientific notation:
     gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     xlabel('lag time [s]')
     ylabel('msd [um]')
-    legend(loc='best')
-    show()
+    if not defer:
+        legend(loc='upper left')
+        show()
+
+def powerlaw_label(power, coeff):
+    """Return a string suitable for a legend label, including power
+    and D if motion is diffusive, but only power if it is subdiffusive."""
+    DIFFUSIVE_THRESHOLD = 0.90
+    label = 'power law fit\nn=' + '{:.2f}'.format(power)
+    if power >= DIFFUSIVE_THRESHOLD:
+        label += '  D=' + '{:.3f}'.format(coeff/4) + ' um$^2$/s'
+    return label
+    
+    
