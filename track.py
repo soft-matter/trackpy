@@ -240,12 +240,22 @@ def split_branches(probes, threshold=0.85, lower_threshold=0.4):
             middle_branch.append(probe)
     return upper_branch, lower_branch, middle_branch 
 
-def plot_traj(track_array, microns_per_px=100/427.):
+def plot_traj(track_array, microns_per_px=100/427.,
+              superimpose=None):
     "Plot traces of trajectories for each probe."
+    if superimpose:
+        image = 1-imread(superimpose)
+        imshow(image, cmap=cm.gray)
+        xlim(0, image.shape[1])
+        ylim(0, image.shape[0])
+        microns_per_px = 1
+        xlabel('x [px]')
+        ylabel('y [px]')
+    else:
+        xlabel('x [um]')
+        ylabel('y [um]')
     for traj in split_by_probe(track_array):
         plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
-    xlabel('x [um]')
-    ylabel('y [um]')
     show()
 
 def plot_msd(probes, max_interval=None,
@@ -260,7 +270,7 @@ def plot_msd(probes, max_interval=None,
     else:
         raise TypeError, ('plot_msd accepts the ndarray track_array '
                           'or the list of probes.')
-    if indv:
+    if (indv and not branch):
         msds = [msd(traj, microns_per_px, fps, max_interval, detail=False) \
                 for traj in probes] 
         for counter, m in enumerate(msds):
