@@ -4,6 +4,7 @@ from scipy.stats import nanmean
 import pidly
 from connect import sql_connect
 from matplotlib.pyplot import *
+from scipy.stats import linregress
 
 def sql_fetch(query):
     "Return SQL result set as a numpy array."
@@ -126,48 +127,60 @@ def displacement(x, dt):
     This is not the same as numpy.diff(x, n), the nth-order derivative."""
     return x[dt:]-x[:-dt]
 
-def msd(traj, max_interval=None, detail=True):
+def msd(traj, microns_per_px=100/427., fps=30., 
+        max_interval=None, detail=False):
     """Compute the mean displacement and mean squared displacement of a
-    trajectory over a range of time intervals (measured in elapsed frames)."""
+    trajectory over a range of time intervals. Input in units of px and frames;
+    output in units of microns and seconds."""
     # 0: frame, 1: x, 2: y
-    max_interval = max_interval if max_interval else 30 # default
+    max_interval = max_interval if max_interval else 50 # default
     max_interval = min(max_interval, traj.shape[0])
     intervals = xrange(1, 1 + max_interval)
     traj = interpolate(traj)
     _msd = _detailed_msd if detail else _simple_msd
-    results = [_msd(traj, i) for i in intervals]
+    results = [_msd(traj, i, microns_per_px, fps) for i in intervals]
     return vstack(results)
      
-def _detailed_msd(traj, interval):
+def _detailed_msd(traj, interval, microns_per_px, fps):
     """Given a continuous trajectory and a time interval (in frames), 
     return t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, N."""
-    d = displacement(traj[:, 1:], interval) # [[dx, dy], ...]
+    d = displacement(microns_per_px*traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
     stuff = column_stack((d, sum(d, axis=1), sd, sum(sd, axis=1)))
     # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
     mean_stuff = mean(stuff, axis=0)
     # Estimate statistically independent measurements:
     N = round(2*stuff.shape[0]/float(interval))
-    return append(array([interval]), mean_stuff, array([N])) 
+    return append(array([interval])/float(fps), mean_stuff, array([N])) 
 
-def _simple_msd(traj, interval):
+def _simple_msd(traj, interval, microns_per_px, fps):
     """Given a continuous trajectory and a time interval (in frames),
     return t, <r^2>."""
-    d = displacement(traj[:, 1:], interval) # [[dx, dy], ...]
+    d = displacement(microns_per_px*traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
     msd_result = mean(sum(sd, axis=1), axis=0)
-    return array([interval, msd_result]) 
+    return array([interval/float(fps), msd_result]) 
 
-def ensemble_msd(track_array):
-    "Return ensemble mean squared displacement."
-    m = vstack([msd(traj, detail=False) \
-                   for traj in split_by_probe(track_array)])
+def ensemble_msd(track_array, microns_per_px=100/427., fps=30.):
+    """Return ensemble mean squared displacement. Input in units of px
+    and frames. Output in units of microns and seconds."""
+    m = vstack([msd(traj, microns_per_px, fps, detail=False) \
+                for traj in split_by_probe(track_array)])
     m = m[m[:, 0].argsort()] # sort by dt 
     boundaries, = where(diff(m[:, 0], axis=0) > 0.0)
     boundaries += 1
     m = split(m, boundaries) # list of arrays, one for each dt
     ensm_m = vstack([mean(this_m, axis=0) for this_m in m])
+    power, coeff = powerlaw_fit(ensm_m)
+    print 'Power Law n =', power
+    print 'D =', coeff/4.
     return ensm_m
+
+def powerlaw_fit(a):
+    "Fit a power law to MSD data. Return the power and the coefficient."
+    # This is not a generic power law. We assume no additive constant.
+    slope, intercept, r, p, stderr =  linregress(log(a[:, 0]), log(a[:, 1]))
+    return slope, exp(intercept)
 
 def drift(track_array, suppress_plot=False):
     "Return the ensemble drift, x(t)."
@@ -213,18 +226,31 @@ def plot_traj(track_array, microns_per_px=100/427.):
     show()
 
 def plot_msd(track_array, max_interval=None,
-              microns_per_px=100/427., fps=30., ens=False):
-    "Plot individual MSDs for each probe. Optionally overlay ensemble MSD."
-    msds = [msd(traj, max_interval, detail=False) \
-            for traj in split_by_probe(track_array)]
-    for m in msds:
-        loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), 'k.-')
-    if ens:
+             microns_per_px=100/427., fps=30., 
+             indv=True, ensm=False, powerlaw=True):
+    "Plot individual MSDs for each probe, or ensemble MSD, or both."
+    if indv:
+        msds = [msd(traj, microns_per_px, fps, max_interval, detail=False) \
+                for traj in split_by_probe(track_array)]
+        for counter, m in enumerate(msds):
+            # Label only one instance for the plot legend.
+            if counter == 0:
+                loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
+                       label='individual probe MSDs')
+            else:
+                loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
+    if ensm:
         m = ensemble_msd(track_array)
-        loglog(microns_per_px*m[:, 0], m[:, 1]/float(fps), 'ro-')
+        loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
+        if powerlaw:
+            power, coeff = powerlaw_fit(m)
+            loglog(m[:, 0], coeff*m[:, 0]**power, 'g--', linewidth=2,
+                   label=('power law fit\nn=' + '{:.2f}'.format(power) + \
+                          '  D=' + '{:.3f}'.format(coeff/4) + ' um$^2$/s'))
     # Label ticks with plain numbers, not scientific notation:
     gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     xlabel('lag time [s]')
     ylabel('msd [um]')
+    legend(loc='best')
     show()
