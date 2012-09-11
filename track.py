@@ -56,7 +56,9 @@ def track(query, max_disp, min_appearances, memory=3):
     idl('t=track(pt, %s, goodenough=%s, memory=%s)' % 
             tuple(map(str, (max_disp, min_appearances, memory))))
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
-    return idl.ev('t')
+    t = idl.ev('t')
+    idl.close()
+    return t
 
 def sql_insert(trial, stack, track_array, override=False):
     "Insert a track array into the MySQL database."
