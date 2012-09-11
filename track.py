@@ -226,6 +226,27 @@ def subtract_drift(track_array, d=None):
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return new_ta
 
+def is_localized(probe, threshold=0.4):
+    "Is this probe's motion localized?"
+    m = msd(probe)
+    power, coeff = powerlaw_fit(m)
+    if power < threshold: return True
+    return False
+
+def is_diffusive(probe, threshold=0.85):
+    "Is this probe's motion diffusive?"
+    m = msd(probe)
+    power, coeff = powerlaw_fit(m)
+    if power > threshold: return True
+    return False
+
+def is_unphysical(probe, threshold=0.08):
+    """Is the first MSD datapoint unphysically high? (This is sometimes an
+    artifact of uneven drift.)"""
+    m = msd(probe)
+    if m[0, 1] >  threshold: return True
+    return False
+
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     "Sort list of probes into two lists: diffusive and subdiffusive."
     upper_branch, lower_branch, middle_branch = [], [], []
@@ -308,7 +329,7 @@ def plot_msd(probes, max_interval=None,
     ylim(0.01, 100)
     print 'Limits of y range are manually set to {} - {}.'.format(*ylim())
     xlabel('lag time [s]')
-    ylabel('msd [um$^2$/s]')
+    ylabel('msd [um$^2$]')
     if not defer:
         legend(loc='upper left')
         show()
