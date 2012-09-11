@@ -75,7 +75,7 @@ def new_stack(trial, video_file, vstart, duration, start, end):
     c = conn.cursor()
     c.execute("""INSERT INTO Stacks (trial, video, start, end, """
               """vstart, duration) VALUES """
-              """(%s, %s, %s, %s, %s, %s, %s)""", 
+              """(%s, %s, %s, %s, %s, %s)""", 
               (trial, video_file, start, end, vstart, duration))
     stack = c.lastrowid
     c.close()
