@@ -163,16 +163,10 @@ def _simple_msd(traj, interval, microns_per_px, fps):
     msd_result = mean(sum(sd, axis=1), axis=0)
     return array([interval/float(fps), msd_result]) 
 
-def ensemble_msd(probes, microns_per_px=100/427., fps=30.):
+def ensemble_msd(flexible_input, microns_per_px=100/427., fps=30.):
     """Return ensemble mean squared displacement. Input in units of px
     and frames. Output in units of microns and seconds."""
-    if type(probes) is ndarray:
-        probes = split_by_probe(probes)
-    elif type(probes) is list:
-        pass
-    else:
-        raise TypeError, ('ensemble_msd accepts the ndarray track_array '
-                          'or the list of probes.')
+    probes = _validate_input(flexible_input)
     m = vstack([msd(traj, microns_per_px, fps, detail=False) \
                 for traj in probes])
     m = m[m[:, 0].argsort()] # sort by dt 
@@ -192,9 +186,9 @@ def fit_powerlaw(a):
     slope, intercept, r, p, stderr =  linregress(log(a[:, 0]), log(a[:, 1]))
     return slope, exp(intercept)
 
-def drift(track_array, suppress_plot=False):
+def drift(flexible_input, suppress_plot=False):
     "Return the ensemble drift, x(t)."
-    x_list = split_by_probe(track_array) # t, x, y
+    x_list = _validate_input(flexible_input, output_style='probes')
     dx_list = [column_stack(
                (diff(x[:, 0]), x[1:, 0], diff(x[:, 1:], axis=0))
                ) for x in x_list] # dt, t, dx, dy
@@ -217,8 +211,9 @@ def drift(track_array, suppress_plot=False):
         show()
     return x 
 
-def subtract_drift(track_array, d=None):
+def subtract_drift(flexible_input, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
+    track_array = _validate_input(flexible_input, 'track array')
     if d is None: 
         d=drift(track_array, suppress_plot=True)
     new_ta = copy(track_array)
@@ -250,15 +245,18 @@ def is_unphysical(probe, threshold=0.08):
 
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     "Sort list of probes into three lists, sorted by mobility."
+    probes = _validate_input(probes)
     diffusive_branch = [p for p in probes if is_diffusive(p)]
     localized_branch = [p for p in probes if is_localized(p)]
     subdiffusive_branch = [p for p in probes if ((not is_localized(p)) and \
                            (not is_diffusive(p)))]
+    print len(diffusive_branch), len(localized_branch), \
+          len(subdiffusive_branch)
     return diffusive_branch, localized_branch, subdiffusive_branch
 
-def plot_traj(probes, microns_per_px=100/427.,
-              superimpose=None):
-    "Plot traces of trajectories for each probe."
+def plot_traj(probes, superimpose=None, microns_per_px=100/427.):
+    """Plot traces of trajectories for each probe.
+    Optionally superimpose it on a fram from the video."""
     probes = _validate_input(probes)
     if superimpose:
         image = 1-imread(superimpose)
@@ -275,17 +273,27 @@ def plot_traj(probes, microns_per_px=100/427.,
         plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
     show()
 
-def _validate_input(flexible_input):
+def _validate_input(flexible_input, output_style='probes'):
     """Accept either the IDL-style track_array or a list of probes,
-    and return a list of probes. If receiving neither, raise exception."""
-    if type(flexible_input) is ndarray:
-        probes = split_by_probe(flexible_input)
-        return probes
-    elif type(flexible_input) is list:
-        return flexible_input
+    and return one or the other."""
+    if output_style == 'track array':
+        if type(flexible_input) is ndarray:
+            return flexible_input
+        elif type(flexible_input) is list:
+            return vstack(probes)
+        else:
+            raise TypeError, ('Input must be either the ndarray track_array '
+                              'or the list of probes.')
+    elif output_style == 'probes':
+        if type(flexible_input) is list:
+            return flexible_input
+        elif type(flexible_input) is ndarray:
+            return split_by_probe(flexible_input)
+        else:
+            raise TypeError, ("Input must be either the ndarray track_array "
+                              "or the list of probes.")
     else:
-        raise TypeError, ('Input must be either the ndarray track_array '
-                          'or the list of probes.')
+        raise ValueError, "output_style must be 'track array' or 'probes'."
 
 def plot_msd(probes, max_interval=None,
              microns_per_px=100/427., fps=30., 
