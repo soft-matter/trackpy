@@ -303,8 +303,9 @@ def plot_msd(probes, max_interval=None,
     # Label ticks with plain numbers, not scientific notation:
     gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    ylim(0.01, 100)
     xlabel('lag time [s]')
-    ylabel('msd [um]')
+    ylabel('msd [um$^2$/s]')
     if not defer:
         legend(loc='upper left')
         show()
