@@ -304,6 +304,7 @@ def plot_msd(probes, max_interval=None,
     gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     ylim(0.01, 100)
+    print 'Limits of y range are manually set to {} - {}.'.format(*ylim())
     xlabel('lag time [s]')
     ylabel('msd [um$^2$/s]')
     if not defer:
