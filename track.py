@@ -180,14 +180,15 @@ def ensemble_msd(probes, microns_per_px=100/427., fps=30.):
     boundaries += 1
     m = split(m, boundaries) # list of arrays, one for each dt
     ensm_m = vstack([mean(this_m, axis=0) for this_m in m])
-    power, coeff = powerlaw_fit(ensm_m)
+    power, coeff = fit_powerlaw(ensm_m)
     print 'Power Law n =', power
     print 'D =', coeff/4.
     return ensm_m
 
-def powerlaw_fit(a):
+def fit_powerlaw(a):
     "Fit a power law to MSD data. Return the power and the coefficient."
-    # This is not a generic power law. We assume no additive constant.
+    # This is not a generic power law. By treating it as a linear regression in
+    # log space, we assume no additive constant: y = 0 + coeff*x**power.
     slope, intercept, r, p, stderr =  linregress(log(a[:, 0]), log(a[:, 1]))
     return slope, exp(intercept)
 
@@ -229,14 +230,14 @@ def subtract_drift(track_array, d=None):
 def is_localized(probe, threshold=0.4):
     "Is this probe's motion localized?"
     m = msd(probe)
-    power, coeff = powerlaw_fit(m)
+    power, coeff = fit_powerlaw(m)
     if power < threshold: return True
     return False
 
 def is_diffusive(probe, threshold=0.85):
     "Is this probe's motion diffusive?"
     m = msd(probe)
-    power, coeff = powerlaw_fit(m)
+    power, coeff = fit_powerlaw(m)
     if power > threshold: return True
     return False
 
@@ -248,24 +249,17 @@ def is_unphysical(probe, threshold=0.08):
     return False
 
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
-    "Sort list of probes into two lists: diffusive and subdiffusive."
-    upper_branch, lower_branch, middle_branch = [], [], []
-    for probe in probes:
-        m = msd(probe)
-        power, coeff = powerlaw_fit(m)
-        if power > threshold:
-            upper_branch.append(probe)
-        elif lower_threshold is None:
-            lower_branch.append(probe)
-        elif power < lower_threshold:
-            lower_branch.append(probe)
-        else:
-            middle_branch.append(probe)
-    return upper_branch, lower_branch, middle_branch 
+    "Sort list of probes into three lists, sorted by mobility."
+    diffusive_branch = [p for p in probes if is_diffusive(p)]
+    localized_branch = [p for p in probes if is_localized(p)]
+    subdiffusive_branch = [p for p in probes if ((not is_localized(p)) and \
+                           (not is_diffusive(p)))]
+    return diffusive_branch, localized_branch, subdiffusive_branch
 
-def plot_traj(track_array, microns_per_px=100/427.,
+def plot_traj(probes, microns_per_px=100/427.,
               superimpose=None):
     "Plot traces of trajectories for each probe."
+    probes = _validate_input(probes)
     if superimpose:
         image = 1-imread(superimpose)
         imshow(image, cmap=cm.gray)
@@ -277,22 +271,28 @@ def plot_traj(track_array, microns_per_px=100/427.,
     else:
         xlabel('x [um]')
         ylabel('y [um]')
-    for traj in split_by_probe(track_array):
+    for traj in probes:
         plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
     show()
+
+def _validate_input(flexible_input):
+    """Accept either the IDL-style track_array or a list of probes,
+    and return a list of probes. If receiving neither, raise exception."""
+    if type(flexible_input) is ndarray:
+        probes = split_by_probe(flexible_input)
+        return probes
+    elif type(flexible_input) is list:
+        return flexible_input
+    else:
+        raise TypeError, ('Input must be either the ndarray track_array '
+                          'or the list of probes.')
 
 def plot_msd(probes, max_interval=None,
              microns_per_px=100/427., fps=30., 
              indv=True, ensm=False, branch=False, powerlaw=True,
              defer=False, suppress_labels=False):
     "Plot individual MSDs for each probe, or ensemble MSD, or both."
-    if type(probes) is ndarray:
-        probes = split_by_probe(probes)
-    elif type(probes) is list:
-        pass
-    else:
-        raise TypeError, ('plot_msd accepts the ndarray track_array '
-                          'or the list of probes.')
+    probes = _validate_input(probes)
     if (indv and not branch):
         msds = [msd(traj, microns_per_px, fps, max_interval, detail=False) \
                 for traj in probes] 
@@ -311,9 +311,9 @@ def plot_msd(probes, max_interval=None,
         else:
             loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3)
         if powerlaw:
-            power, coeff = powerlaw_fit(m)
+            power, coeff = fit_powerlaw(m)
             loglog(m[:, 0], coeff*m[:, 0]**power, '-', color='#019AD2', linewidth=2,
-                   label=powerlaw_label(power, coeff))
+                   label=_powerlaw_label(power, coeff))
     if branch:
         upper_branch, lower_branch, middle_branch = split_branches(probes)
         plot_msd(upper_branch, indv=True, ensm=True, powerlaw=True, 
@@ -334,7 +334,7 @@ def plot_msd(probes, max_interval=None,
         legend(loc='upper left')
         show()
 
-def powerlaw_label(power, coeff):
+def _powerlaw_label(power, coeff):
     """Return a string suitable for a legend label, including power
     and D if motion is diffusive, but only power if it is subdiffusive."""
     DIFFUSIVE_THRESHOLD = 0.90
