@@ -1,4 +1,4 @@
-from numpy import *
+import numpy as np
 from scipy.interpolate import interp1d
 from scipy.stats import nanmean
 import pidly
@@ -30,12 +30,11 @@ def query_feat(trial, stack, version=None, where=None):
     "Return a query for features from Features."
     if version:
         query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
-                 "trial=%s AND stack=%s AND version=%s"
-                 % tuple(map(str, (trial, stack, version))))
+                 "trial={} AND stack={} AND version={}".format(
+                 trial, stack, version))
     else:
         query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
-                 "trial=%s AND stack=%s"
-                 % tuple(map(str, (trial, stack))))
+                 "trial={} AND stack={}".format(trial, stack))
     if where:
         if type(where) is str:
             query += ' AND ' + where
@@ -47,8 +46,7 @@ def query_feat(trial, stack, version=None, where=None):
 def query_traj(trial, stack, where=None):
     "Return a query for trajectories from Trajecotires."
     query = ("SELECT x, y, mass, size, ecc, frame, probe FROM Trajectories "
-              "WHERE trial=%s AND stack=%s" %
-              tuple(map(str, (trial, stack))))
+              "WHERE trial={} AND stack={}".format(trial, stack))
     if where:
         if type(where) is str:
             query += ' AND ' + where
@@ -61,9 +59,8 @@ def track(query, max_disp, min_appearances, memory=3):
     """Call Crocker/Weeks track.pro from IDL using pidly module.
     Returns one big array, where the last column is the probe ID."""
     idl = pidly.IDL()
-    idl('pt = get_sql("%s")' % query)
-    idl('t=track(pt, %s, goodenough=%s, memory=%s)' % 
-            tuple(map(str, (max_disp, min_appearances, memory))))
+    idl('pt = get_sql("{}")'.format(query))
+    idl('t=track(pt, {}, goodenough={}, memory={})'.format(max_disp, min_appearances, memory))
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     t = idl.ev('t')
     idl.close()
