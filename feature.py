@@ -168,7 +168,8 @@ def feature(image, diameter, separation=None,
     centroids = [refine_centroid(image, x, y, diameter,
                  minmass=minmass, tightmask=tightmask, rgmask=rgmask) 
                  for x, y in massive_peaks]
-    print len(peaks), 'local maxima', '  ', len(centroids), 'centroids'
+    print "{:7d} local maxima, {:5d} of qualifying mass".format(
+            len(massive_peaks), len(centroids))
     return centroids 
 
 def locate(image_file, diameter, separation=None, 
@@ -184,11 +185,12 @@ def locate(image_file, diameter, separation=None,
                    percentile=percentile, minmass=minmass,
                    pickN=pickN)
 
-def batch(trial, stack, image_file_list, diameter, separation=None,
+def batch(trial, stack, images, diameter, separation=None,
           noise_size=1, smoothing_size=None, invert=True,
           percentile=64, minmass=1., pickN=None, override=False):
     """Analyze a list of image files, and insert the centroids into
     the database."""
+    images = _validate_images(images)
     conn = sql_connect()
     if sql_duplicate_check(trial, stack, conn):
         if override:
@@ -197,11 +199,12 @@ def batch(trial, stack, image_file_list, diameter, separation=None,
             print 'There are entries for this trial and stack already.'
             conn.close()
             return False
-    for frame, filepath in enumerate(image_file_list):
+    for frame, filepath in enumerate(images):
         frame += 1 # Start at 1, not 0.
         centroids = locate(filepath, diameter, separation, noise_size,
-               smoothing_size, invert, percentile, minmass, pickN)
+                           smoothing_size, invert, percentile, minmass, pickN)
         sql_insert(trial, stack, frame, centroids, conn, override)
+        print "Completed frame {}".format(frame)
     conn.close()
 
 def sql_duplicate_check(trial, stack, conn):
@@ -251,28 +254,48 @@ def annotate(image, positions, output_file=None,
     elif not delay_show:
         show() 
 
-def sample(image_file_list, diameter, separation=None,
-           noise_size=1, smoothing_size=None, invert=True,
-           percentile=64, minmass=1., pickN=None):
-    """Try parameters on a small sampling of images (out of potenitally huge
-    list). Show annotated images."""
-    samples = [image_file_list[0], 
-               image_file_list[len(image_file_list)/2], 
-               image_file_list[-1]] # first, middle, last
-    for i, image_file in enumerate(samples):
-        print "Sample " + str(1+i) + " of " + str(len(samples)) + "..."
-        f = locate(image_file, diameter, separation,
-                   noise_size, smoothing_size, invert,
-                   percentile, minmass, pickN)
-        annotate(image_file, f, delay_show=True)
-        show()
+def _validate_images(images):
+    """Accept a list of image files, a directory of image files, 
+    or a single image file. Return contents as a list of strings."""
+    if type(images) is list:
+        return images
+    elif type(images) is str:
+        if os.path.isfile(images):
+            return list(images) # a single-element list
+        elif os.path.isdir(images):
+            images = list_images(images)
+            return images
+    else:
+        raise TypeError, ("images must be a directory path, a file path, or "
+                          "a list of file paths.")
 
 def list_images(directory):
     "List the path to all image files in a directory."
     files = os.listdir(directory)
     images = [os.path.join(directory, f) for f in files if \
         os.path.isfile(os.path.join(directory, f)) and re.match('.*\.png', f)]
+    if not images: print 'WARNING: No images!'
     return sorted(images)
+
+def sample(images, diameter, separation=None,
+           noise_size=1, smoothing_size=None, invert=True,
+           percentile=64, minmass=1., pickN=None):
+    """Try parameters on a small sampling of images (out of potenitally huge
+    list). For images, accept a list of filepaths, a single filepath, or a 
+    directory path. Show annotated images."""
+    images = _validate_images(images)
+    get_elem = lambda x, indicies: [x[i] for i in indicies]
+    if len(images) < 3:
+        samples = images
+    else:
+        samples = get_elem(images, [0, len(images), -1]) # first, middle, last
+    for i, image_file in enumerate(samples):
+        print "Sample {} of {}...".format((1+i), len(samples))
+        f = locate(image_file, diameter, separation,
+                   noise_size, smoothing_size, invert,
+                   percentile, minmass, pickN)
+        annotate(image_file, f, delay_show=True)
+        show()
 
 def batch_annotate(trial, stack, directory, new_directory):
     """Save annotated copies of analyzed frames, referring to the database
