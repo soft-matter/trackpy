@@ -6,6 +6,15 @@ from connect import sql_connect
 from matplotlib.pyplot import *
 from scipy.stats import linregress
 
+def autolog(message):
+    "Write a message to the log, with the calling function's name."
+    import inspect, logging
+    func = inspect.currentframe().f_back.f_code
+    logging.info("%s: %s" % (
+        func.co_name, 
+        message
+    ))
+
 def sql_fetch(query):
     "Return SQL result set as a numpy array."
     conn = sql_connect()
@@ -14,7 +23,7 @@ def sql_fetch(query):
     results = array(c.fetchall())
     c.close()
     conn.close()
-    print c.rowcount
+    autolog("Fetched {} rows".format(c.rowcount))
     return results 
 
 def query_feat(trial, stack, version=None, where=None):
@@ -65,11 +74,11 @@ def sql_insert(trial, stack, track_array, override=False):
     conn = sql_connect()
     if sql_duplicate_check(trial, stack, conn):
         if override:
-            print 'Overriding'
+            autolog('Overriding')
         else:
-            print 'There are entries for this trial and stack already.'
+            raise ValueError, ("There is data in the database for this track"
+                              "and stack. Set keyword override=True to proceed.")
             conn.close()
-            return False
     try:
         c = conn.cursor()
         # Load the data in a small temporary table.
@@ -246,13 +255,13 @@ def is_unphysical(probe, threshold=0.08):
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     "Sort list of probes into three lists, sorted by mobility."
     probes = _validate_input(probes)
-    diffusive_branch = [p for p in probes if is_diffusive(p)]
-    localized_branch = [p for p in probes if is_localized(p)]
-    subdiffusive_branch = [p for p in probes if ((not is_localized(p)) and \
+    diffusive = [p for p in probes if is_diffusive(p)]
+    localized = [p for p in probes if is_localized(p)]
+    subdiffusive = [p for p in probes if ((not is_localized(p)) and \
                            (not is_diffusive(p)))]
-    print len(diffusive_branch), len(localized_branch), \
-          len(subdiffusive_branch)
-    return diffusive_branch, localized_branch, subdiffusive_branch
+    autolog("{} diffusive, {} localized, {} subdiffusive".format(
+                 len(diffusive), len(localized), len(subdiffusive)))
+    return diffusive, localized, subdiffusive
 
 def plot_traj(probes, superimpose=None, microns_per_px=100/427.):
     """Plot traces of trajectories for each probe.
@@ -263,6 +272,7 @@ def plot_traj(probes, superimpose=None, microns_per_px=100/427.):
         imshow(image, cmap=cm.gray)
         xlim(0, image.shape[1])
         ylim(0, image.shape[0])
+        autolog("Using units of px, not microns.")
         microns_per_px = 1
         xlabel('x [px]')
         ylabel('y [px]')
@@ -282,8 +292,8 @@ def _validate_input(flexible_input, output_style='probes'):
         elif type(flexible_input) is list:
             return vstack(probes)
         else:
-            raise TypeError, ('Input must be either the ndarray track_array '
-                              'or the list of probes.')
+            raise TypeError, ("Input must be either the ndarray track_array"
+                              "or the list of probes.")
     elif output_style == 'probes':
         if type(flexible_input) is list:
             return flexible_input

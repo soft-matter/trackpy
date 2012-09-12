@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from ConfigParser import ConfigParser
 from connect import sql_connect
+import logging
 
 def extract(pattern, string, group, convert=None):
     """Extract a pattern from a string. Optionally, convert it
