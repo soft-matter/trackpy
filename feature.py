@@ -169,7 +169,7 @@ def feature(image, diameter, separation=None,
                  minmass=minmass, tightmask=tightmask, rgmask=rgmask) 
                  for x, y in massive_peaks]
     print "{:7d} local maxima, {:5d} of qualifying mass".format(
-            len(massive_peaks), len(centroids))
+            len(peaks), len(centroids))
     return centroids 
 
 def locate(image_file, diameter, separation=None, 
