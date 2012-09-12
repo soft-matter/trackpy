@@ -282,7 +282,7 @@ def sample(images, diameter, separation=None,
            percentile=64, minmass=1., pickN=None):
     """Try parameters on a small sampling of images (out of potenitally huge
     list). For images, accept a list of filepaths, a single filepath, or a 
-    directory path. Show annotated images."""
+    directory path. Show annotated images and sub-pixel histogram."""
     images = _validate_images(images)
     get_elem = lambda x, indicies: [x[i] for i in indicies]
     if len(images) < 3:
@@ -294,21 +294,15 @@ def sample(images, diameter, separation=None,
         f = locate(image_file, diameter, separation,
                    noise_size, smoothing_size, invert,
                    percentile, minmass, pickN)
-        annotate(image_file, f, delay_show=True)
-        show()
+        annotate(image_file, f)
+        subpx_hist(f)
 
-def batch_annotate(trial, stack, directory, new_directory):
-    """Save annotated copies of analyzed frames, referring to the database
-    to retrieve feature positions."""
-    imlist = list_images(directory)
-    conn = connect()
-    for frame, filepath in enumerate(imlist):
-        frame += 1 # Start at 1, not 0.
-        c = conn.cursor()
-        c.execute("SELECT x, y FROM Features WHERE trial=%s AND stack=%s AND "
-                  "frame=%s", (trial, stack, frame))
-        positions = array(c.fetchall())
-        filename = os.path.basename(filepath)
-        output_file = os.path.join(new_directory, filename)
-        annotate(filepath, positions, output_file=output_file)
-    conn.close()
+def subpx_hist(positions):
+    """Historgram the decimal parts of x and y. They should be flat.
+    If not, you probably do not have good sub-pixel accuracy."""
+    x, y = array(positions)[:, 0:2].T
+    fracx, fracy = modf(x)[0], modf(y)[0]
+    hist(fracx, bins=arange(0, 1.1, 0.1), color='#667788', label='x mod 1.0')
+    hist(fracy, bins=arange(0, 1.1, 0.1), color='#994433', alpha=0.5, label='y mod 1.0')
+    legend()
+    show()
