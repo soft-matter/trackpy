@@ -288,7 +288,7 @@ def sample(images, diameter, separation=None,
     if len(images) < 3:
         samples = images
     else:
-        samples = get_elem(images, [0, len(images), -1]) # first, middle, last
+        samples = get_elem(images, [0, len(images)/2, -1]) # first, middle, last
     for i, image_file in enumerate(samples):
         print "Sample {} of {}...".format((1+i), len(samples))
         f = locate(image_file, diameter, separation,
