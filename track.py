@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
-from scipy import interpolate as interp # I name a function interpolate.
+from scipy import interpolate
 import pidly
+import diagnostics
 
 def autolog(message):
     "Write a message to the log, with the calling function's name."
@@ -13,7 +14,7 @@ def autolog(message):
         message
     ))
 
-def track(query, max_disp, min_appearances, memory=3):
+def idl_track(query, max_disp, min_appearances, memory=3):
     """Call Crocker/Weeks track.pro from IDL using pidly module.
     Returns one big array, where the last column is the probe ID."""
     idl = pidly.IDL()
@@ -38,13 +39,13 @@ def split_by_probe(track_array, traj_only=True):
         # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
         return probes
 
-def interpolate(traj):
+def interp(traj):
     """Linearly interpolate through gaps in the trajectory
     where the probe was not observed."""
     # 0: frame, 1: x, 2: y
     first_frame, last_frame = traj[:, 0][[0,-1]]
     full_domain = np.arange(first_frame, 1 + last_frame)
-    interpolator = interp.interp1d(traj[:, 0], traj[:, 1:3], axis=0)
+    interpolator = interpolate.interp1d(traj[:, 0], traj[:, 1:3], axis=0)
     return np.column_stack((full_domain, interpolator(full_domain)))
 
 def displacement(x, dt):
@@ -61,7 +62,7 @@ def msd(traj, microns_per_px=100/427., fps=30.,
     max_interval = max_interval if max_interval else 50 # default
     max_interval = min(max_interval, traj.shape[0])
     intervals = xrange(1, 1 + max_interval)
-    traj = interpolate(traj)
+    traj = interp(traj)
     _msd = _detailed_msd if detail else _simple_msd
     results = [_msd(traj, i, microns_per_px, fps) for i in intervals]
     return np.vstack(results)
@@ -122,7 +123,7 @@ def drift(flexible_input, suppress_plot=False):
     boundaries += 1
     dx_list = np.split(dx, boundaries) # list of arrays, one for each t
     ensemble_dx = np.vstack([np.mean(dx, axis=0) for dx in dx_list])
-    ensemble_dx = interpolate(ensemble_dx) # Fill in any gaps.
+    ensemble_dx = interp(ensemble_dx) # Fill in any gaps.
     # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
     x = np.column_stack((ensemble_dx[:, 0], 
                          np.cumsum(ensemble_dx[:, 1:], axis=0)))
