@@ -85,8 +85,11 @@ def feature_duplicate_check(trial, stack, conn):
 
 def insert_traj(trial, stack, track_array, override=False):
     "Insert a track array into the MySQL database."
+    if (type(trial) is not int or type(stack) is not int):
+        raise TypeError, ("The first two arguments of insert_traj must be the"
+                         "trial and stack numbers.")
     conn = connect()
-    if sql.traj_duplicate_check(trial, stack, conn):
+    if traj_duplicate_check(trial, stack, conn):
         if override:
             autolog('Overriding')
         else:
@@ -111,10 +114,8 @@ def insert_traj(trial, stack, track_array, override=False):
                   "FROM NewTrajectories", (trial, stack))
         c.execute("DROP TEMPORARY TABLE NewTrajectories")
         c.close()
-    except:
-        print sys.exc_info()
-        return False
-    return True
+    except MySQLdb.Error, e:
+        print e
 
 def traj_duplicate_check(trial, stack, conn):
     "Return false if the database has no entries for this trial and stack."
