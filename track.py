@@ -1,10 +1,9 @@
 import numpy as np
-from scipy.interpolate import interp1d
-from scipy.stats import nanmean
-import pidly
-from connect import sql_connect
 from matplotlib.pyplot import *
-from scipy.stats import linregress
+from scipy import stats
+from scipy import interpolate as interp # I name a function interpolate.
+from connect import sql_connect
+import pidly
 
 def autolog(message):
     "Write a message to the log, with the calling function's name."
@@ -20,7 +19,7 @@ def sql_fetch(query):
     conn = sql_connect()
     c = conn.cursor()
     c.execute(query)
-    results = array(c.fetchall())
+    results = np.array(c.fetchall())
     c.close()
     conn.close()
     autolog("Fetched {} rows".format(c.rowcount))
@@ -110,14 +109,14 @@ def sql_duplicate_check(trial, stack, conn):
 def split_by_probe(track_array, traj_only=True):
     """Split the big IDL-style track array into a list of arrays,
     where each array coresponds is a separate probe."""
-    boundaries, = where(diff(track_array[:, 6], axis=0) > 0.0)
+    boundaries, = np.where(np.diff(track_array[:, 6], axis=0) > 0.0)
     boundaries += 1
     if traj_only:
-        traj = split(track_array[:, [5, 0, 1]], boundaries)
+        traj = np.split(track_array[:, [5, 0, 1]], boundaries)
         # 0: frame, 1: x, 2: y
         return traj
     else: 
-        probes = split(track_array[:, :6], boundaries)
+        probes = np.split(track_array[:, :6], boundaries)
         # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
         return probes
 
@@ -126,9 +125,9 @@ def interpolate(traj):
     where the probe was not observed."""
     # 0: frame, 1: x, 2: y
     first_frame, last_frame = traj[:, 0][[0,-1]]
-    full_domain = arange(first_frame, 1 + last_frame)
-    interpolator = interp1d(traj[:, 0], traj[:, 1:3], axis=0)
-    return column_stack((full_domain, interpolator(full_domain)))
+    full_domain = np.arange(first_frame, 1 + last_frame)
+    interpolator = interp.interp1d(traj[:, 0], traj[:, 1:3], axis=0)
+    return np.column_stack((full_domain, interpolator(full_domain)))
 
 def displacement(x, dt):
     """Return difference between neighbors separated by dt steps (frames).
@@ -147,39 +146,39 @@ def msd(traj, microns_per_px=100/427., fps=30.,
     traj = interpolate(traj)
     _msd = _detailed_msd if detail else _simple_msd
     results = [_msd(traj, i, microns_per_px, fps) for i in intervals]
-    return vstack(results)
+    return np.vstack(results)
      
 def _detailed_msd(traj, interval, microns_per_px, fps):
     """Given a continuous trajectory and a time interval (in frames), 
     return t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, N."""
     d = displacement(microns_per_px*traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
-    stuff = column_stack((d, sum(d, axis=1), sd, sum(sd, axis=1)))
+    stuff = np.column_stack((d, np.sum(d, axis=1), sd, np.sum(sd, axis=1)))
     # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
-    mean_stuff = mean(stuff, axis=0)
+    mean_stuff = np.mean(stuff, axis=0)
     # Estimate statistically independent measurements:
-    N = round(2*stuff.shape[0]/float(interval))
-    return append(array([interval])/float(fps), mean_stuff, array([N])) 
+    N = np.round(2*stuff.shape[0]/float(interval))
+    return np.append(np.array([interval])/float(fps), mean_stuff, np.array([N])) 
 
 def _simple_msd(traj, interval, microns_per_px, fps):
     """Given a continuous trajectory and a time interval (in frames),
     return t, <r^2>."""
     d = displacement(microns_per_px*traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
-    msd_result = mean(sum(sd, axis=1), axis=0)
-    return array([interval/float(fps), msd_result]) 
+    msd_result = np.mean(np.sum(sd, axis=1), axis=0)
+    return np.array([interval/float(fps), msd_result]) 
 
 def ensemble_msd(flexible_input, microns_per_px=100/427., fps=30.):
     """Return ensemble mean squared displacement. Input in units of px
     and frames. Output in units of microns and seconds."""
     probes = _validate_input(flexible_input)
-    m = vstack([msd(traj, microns_per_px, fps, detail=False) \
+    m = np.vstack([msd(traj, microns_per_px, fps, detail=False) \
                 for traj in probes])
     m = m[m[:, 0].argsort()] # sort by dt 
-    boundaries, = where(diff(m[:, 0], axis=0) > 0.0)
+    boundaries, = np.where(np.diff(m[:, 0], axis=0) > 0.0)
     boundaries += 1
-    m = split(m, boundaries) # list of arrays, one for each dt
-    ensm_m = vstack([mean(this_m, axis=0) for this_m in m])
+    m = np.split(m, boundaries) # list of arrays, one for each dt
+    ensm_m = np.vstack([np.mean(this_m, axis=0) for this_m in m])
     power, coeff = fit_powerlaw(ensm_m)
     print 'Power Law n =', power
     print 'D =', coeff/4.
@@ -189,25 +188,26 @@ def fit_powerlaw(a):
     "Fit a power law to MSD data. Return the power and the coefficient."
     # This is not a generic power law. By treating it as a linear regression in
     # log space, we assume no additive constant: y = 0 + coeff*x**power.
-    slope, intercept, r, p, stderr =  linregress(log(a[:, 0]), log(a[:, 1]))
+    slope,intercept,r,p,stderr = stats.linregress(log(a[:, 0]), log(a[:, 1]))
     return slope, exp(intercept)
 
 def drift(flexible_input, suppress_plot=False):
     "Return the ensemble drift, x(t)."
     x_list = _validate_input(flexible_input, output_style='probes')
-    dx_list = [column_stack(
-               (diff(x[:, 0]), x[1:, 0], diff(x[:, 1:], axis=0))
+    dx_list = [np.column_stack(
+               (np.diff(x[:, 0]), x[1:, 0], np.diff(x[:, 1:], axis=0))
                ) for x in x_list] # dt, t, dx, dy
-    dx = vstack(dx_list) # dt, t, dx, dy
+    dx = np.vstack(dx_list) # dt, t, dx, dy
     dx = dx[dx[:, 0] == 1.0, 1:] # Drop entries where dt > 1 ( gap).
     dx = dx[dx[:, 0].argsort()] # sort by t
-    boundaries, = where(diff(dx[:, 0], axis=0) > 0.0)
+    boundaries, = np.where(np.diff(dx[:, 0], axis=0) > 0.0)
     boundaries += 1
-    dx_list = split(dx, boundaries) # list of arrays, one for each t
-    ensemble_dx = vstack([mean(dx, axis=0) for dx in dx_list])
+    dx_list = np.split(dx, boundaries) # list of arrays, one for each t
+    ensemble_dx = np.vstack([np.mean(dx, axis=0) for dx in dx_list])
     ensemble_dx = interpolate(ensemble_dx) # Fill in any gaps.
     # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
-    x = column_stack((ensemble_dx[:, 0], cumsum(ensemble_dx[:, 1:], axis=0)))
+    x = np.column_stack((ensemble_dx[:, 0], 
+                         np.cumsum(ensemble_dx[:, 1:], axis=0)))
     if not suppress_plot: plot_drift(x)
     return x 
 
@@ -227,7 +227,7 @@ def subtract_drift(flexible_input, d=None):
     track_array = _validate_input(flexible_input, 'track array')
     if d is None: 
         d=drift(track_array, suppress_plot=True)
-    new_ta = copy(track_array)
+    new_ta = np.copy(track_array)
     for t, x, y in d:
         new_ta[new_ta[:, 5] == t, 0:2] -= [x, y] 
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
@@ -289,20 +289,20 @@ def _validate_input(flexible_input, output_style='probes'):
     """Accept either the IDL-style track_array or a list of probes,
     and return one or the other."""
     if output_style == 'track array':
-        if type(flexible_input) is ndarray:
+        if type(flexible_input) is np.ndarray:
             return flexible_input
         elif type(flexible_input) is list:
-            return vstack(flexible_input)
+            return np.vstack(flexible_input)
         else:
-            raise TypeError, ("Input must be either the ndarray track_array "
+            raise TypeError, ("Input must be either the np.ndarray track_array "
                               "or the list of probes.")
     elif output_style == 'probes':
         if type(flexible_input) is list:
             return flexible_input
-        elif type(flexible_input) is ndarray:
+        elif type(flexible_input) is np.ndarray:
             return split_by_probe(flexible_input)
         else:
-            raise TypeError, ("Input must be either the ndarray track_array "
+            raise TypeError, ("Input must be either the np.ndarray track_array "
                               "or the list of probes.")
     else:
         raise ValueError, "output_style must be 'track array' or 'probes'."
