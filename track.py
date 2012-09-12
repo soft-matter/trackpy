@@ -1,5 +1,5 @@
 import numpy as np
-from matplotlib.pyplot import *
+import matplotlib.pyplot as plt
 from scipy import stats
 from scipy import interpolate as interp # I name a function interpolate.
 from connect import sql_connect
@@ -214,13 +214,13 @@ def drift(flexible_input, suppress_plot=False):
 def plot_drift(x, finish=True, label=''):
     """Plot ensemble drift. To compare drifts of subsets, call multiple times
     with finish=False for all but the last call."""
-    plot(x[:, 0], x[:, 1], '-', label=label + ' X')
-    plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
+    plt.plot(x[:, 0], x[:, 1], '-', label=label + ' X')
+    plt.plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
     if finish:
-        xlabel('time [frames]')
-        ylabel('drift [px]')
-        legend(loc='best')
-        show()
+        plt.xlabel('time [frames]')
+        plt.ylabel('drift [px]')
+        plt.legend(loc='best')
+        plt.show()
 
 def subtract_drift(flexible_input, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
@@ -270,19 +270,19 @@ def plot_traj(probes, superimpose=None, microns_per_px=100/427.):
     Optionally superimpose it on a fram from the video."""
     probes = _validate_input(probes)
     if superimpose:
-        image = 1-imread(superimpose)
-        imshow(image, cmap=cm.gray)
-        xlim(0, image.shape[1])
-        ylim(0, image.shape[0])
+        image = 1-plt.imread(superimpose)
+        plt.imshow(image, cmap=cm.gray)
+        plt.xlim(0, image.shape[1])
+        plt.ylim(0, image.shape[0])
         autolog("Using units of px, not microns.")
         microns_per_px = 1
-        xlabel('x [px]')
-        ylabel('y [px]')
+        plt.xlabel('x [px]')
+        plt.ylabel('y [px]')
     else:
-        xlabel('x [um]')
-        ylabel('y [um]')
+        plt.xlabel('x [um]')
+        plt.ylabel('y [um]')
     for traj in probes:
-        plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
+        plt.plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
     show()
 
 def _validate_input(flexible_input, output_style='probes'):
@@ -320,19 +320,19 @@ def plot_msd(probes, max_interval=None,
             # Label only one instance for the plot legend.
             if counter == 0:
                 if not suppress_labels:
-                    loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
+                    plt.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
                            label='individual probe MSDs')
             else:
-                loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
+                plt.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
     if ensm:
         m = ensemble_msd(probes)
         if not suppress_labels:
-            loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
+            plt.loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
         else:
-            loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3)
+            plt.loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3)
         if powerlaw:
             power, coeff = fit_powerlaw(m)
-            loglog(m[:, 0], coeff*m[:, 0]**power, '-', color='#019AD2', linewidth=2,
+            plt.loglog(m[:, 0], coeff*m[:, 0]**power, '-', color='#019AD2', linewidth=2,
                    label=_powerlaw_label(power, coeff))
     if branch:
         upper_branch, lower_branch, middle_branch = split_branches(probes)
@@ -344,15 +344,15 @@ def plot_msd(probes, max_interval=None,
                  suppress_labels=True)
         return
     # Label ticks with plain numbers, not scientific notation:
-    gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
-    gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
-    ylim(0.01, 100)
+    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    plt.gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    plt.ylim(0.01, 100)
     print 'Limits of y range are manually set to {} - {}.'.format(*ylim())
-    xlabel('lag time [s]')
-    ylabel('msd [um$^2$]')
+    plt.xlabel('lag time [s]')
+    plt.ylabel('msd [um$^2$]')
     if not defer:
-        legend(loc='upper left')
-        show()
+        plt.legend(loc='upper left')
+        plt.show()
 
 def _powerlaw_label(power, coeff):
     """Return a string suitable for a legend label, including power
