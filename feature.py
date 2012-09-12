@@ -11,7 +11,7 @@ from scipy.stats import scoreatpercentile
 from itertools import groupby
 from matplotlib.pyplot import *
 from matplotlib import cm
-from connect import sql_connect
+import sql
 
 # Make it possible to emulate Crocker/Grier/Weeks exactly.
 # Whip up a few test cases to be sure that this is working.
@@ -191,8 +191,8 @@ def batch(trial, stack, images, diameter, separation=None,
     """Analyze a list of image files, and insert the centroids into
     the database."""
     images = _validate_images(images)
-    conn = sql_connect()
-    if sql_duplicate_check(trial, stack, conn):
+    conn = sql.connect()
+    if sql.feature_duplicate_check(trial, stack, conn):
         if override:
             print 'Overriding'
         else:
@@ -203,39 +203,9 @@ def batch(trial, stack, images, diameter, separation=None,
         frame += 1 # Start at 1, not 0.
         centroids = locate(filepath, diameter, separation, noise_size,
                            smoothing_size, invert, percentile, minmass, pickN)
-        sql_insert(trial, stack, frame, centroids, conn, override)
+        sql.insert(trial, stack, frame, centroids, conn, override)
         print "Completed frame {}".format(frame)
     conn.close()
-
-def sql_duplicate_check(trial, stack, conn):
-    "Return false if the database has no entries for this trial and stack."
-    c = conn.cursor()
-    c.execute("SELECT COUNT(1) FROM Features WHERE trial=%s AND stack=%s",
-              (trial, stack))
-    count, = c.fetchone()
-    return count != 0.0
-
-def sql_insert(trial, stack, frame, centroids, conn, override=False):
-    "Insert centroid information into the MySQL database."
-    try:
-        c = conn.cursor()
-        # Load the data in a small temporary table.
-        c.execute("CREATE TEMPORARY TABLE NewFeatures"
-                  "(x float, y float, mass float, size float, ecc float)")
-        c.executemany("INSERT INTO NewFeatures (x, y, mass, size, ecc) "
-                      "VALUES (%s, %s, %s, %s, %s)", centroids)
-        # In one step, tag all the rows with identifiers (trial, stack, frame).
-        # Copy the temporary table into the big table of features.
-        c.execute("INSERT INTO Features "
-                  "(trial, stack, frame, x, y, mass, size, ecc) "
-                  "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" 
-                  % (trial, stack, frame))
-        c.execute("DROP TEMPORARY TABLE NewFeatures")
-        c.close()
-    except:
-        print sys.exc_info()
-        return False
-    return True
 
 def annotate(image, positions, output_file=None, 
              circle_size=170, delay_show=False):

@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
 from scipy import interpolate as interp # I name a function interpolate.
-from connect import sql_connect
 import pidly
 
 def autolog(message):
@@ -14,46 +13,6 @@ def autolog(message):
         message
     ))
 
-def sql_fetch(query):
-    "Return SQL result set as a numpy array."
-    conn = sql_connect()
-    c = conn.cursor()
-    c.execute(query)
-    results = np.array(c.fetchall())
-    c.close()
-    conn.close()
-    autolog("Fetched {} rows".format(c.rowcount))
-    return results 
-
-def query_feat(trial, stack, version=None, where=None):
-    "Return a query for features from Features."
-    if version:
-        query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
-                 "trial={} AND stack={} AND version={}".format(
-                 trial, stack, version))
-    else:
-        query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
-                 "trial={} AND stack={}".format(trial, stack))
-    if where:
-        if type(where) is str:
-            query += ' AND ' + where
-        elif type(where) is list:
-            query += ' AND ' + ' AND '.join(where)
-    query += " ORDER BY frame"
-    return query 
-
-def query_traj(trial, stack, where=None):
-    "Return a query for trajectories from Trajecotires."
-    query = ("SELECT x, y, mass, size, ecc, frame, probe FROM Trajectories "
-              "WHERE trial={} AND stack={}".format(trial, stack))
-    if where:
-        if type(where) is str:
-            query += ' AND ' + where
-        elif type(where) is list:
-            query += ' AND ' + ' AND '.join(where)
-    query += " ORDER BY probe, frame"
-    return query 
-
 def track(query, max_disp, min_appearances, memory=3):
     """Call Crocker/Weeks track.pro from IDL using pidly module.
     Returns one big array, where the last column is the probe ID."""
@@ -64,47 +23,6 @@ def track(query, max_disp, min_appearances, memory=3):
     t = idl.ev('t')
     idl.close()
     return t
-
-def sql_insert(trial, stack, track_array, override=False):
-    "Insert a track array into the MySQL database."
-    conn = sql_connect()
-    if sql_duplicate_check(trial, stack, conn):
-        if override:
-            autolog('Overriding')
-        else:
-            raise ValueError, ("There is data in the database for this track"
-                              "and stack. Set keyword override=True to proceed.")
-            conn.close()
-    try:
-        c = conn.cursor()
-        # Load the data in a small temporary table.
-        c.execute("CREATE TEMPORARY TABLE NewTrajectories"
-                  "(probe int unsigned, frame int unsigned, "
-                  "x float, y float, mass float, size float, ecc float)")
-        c.executemany("INSERT INTO NewTrajectories "
-                      "(x, y, mass, size, ecc, frame, probe) "
-                      "VALUES (%s, %s, %s, %s, %s, %s, %s)", 
-                      map(tuple, list(track_array)))
-        # In one step, tag all the rows with identifiers (trial, stack, frame).
-        # Copy the temporary table into the big table of features.
-        c.execute("INSERT INTO Trajectories "
-                  "(trial, stack, probe, frame, x, y, mass, size, ecc) "
-                  "SELECT %s, %s, probe, frame, x, y, mass, size, ecc "
-                  "FROM NewTrajectories", (trial, stack))
-        c.execute("DROP TEMPORARY TABLE NewTrajectories")
-        c.close()
-    except:
-        print sys.exc_info()
-        return False
-    return True
-
-def sql_duplicate_check(trial, stack, conn):
-    "Return false if the database has no entries for this trial and stack."
-    c = conn.cursor()
-    c.execute("SELECT COUNT(1) FROM Trajectories WHERE trial=%s AND stack=%s",
-              (trial, stack))
-    count, = c.fetchone()
-    return count != 0.0
 
 def split_by_probe(track_array, traj_only=True):
     """Split the big IDL-style track array into a list of arrays,
