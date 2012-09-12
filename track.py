@@ -211,14 +211,19 @@ def drift(flexible_input, suppress_plot=False):
     ensemble_dx = interpolate(ensemble_dx) # Fill in any gaps.
     # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
     x = column_stack((ensemble_dx[:, 0], cumsum(ensemble_dx[:, 1:], axis=0)))
-    if not suppress_plot:
-        plot(x[:, 0], x[:, 1], '-', label='X')
-        plot(x[:, 0], x[:, 2], '-', label='Y')
+    if not suppress_plot: plot_drift(x)
+    return x 
+
+def plot_drift(x, finish=True, label=''):
+    """Plot ensemble drift. To compare drifts of subsets, call multiple times
+    with finish=False for all but the last call."""
+    plot(x[:, 0], x[:, 1], '-', label=label + ' X')
+    plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
+    if finish:
         xlabel('time [frames]')
         ylabel('drift [px]')
         legend(loc='best')
         show()
-    return x 
 
 def subtract_drift(flexible_input, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
@@ -290,9 +295,9 @@ def _validate_input(flexible_input, output_style='probes'):
         if type(flexible_input) is ndarray:
             return flexible_input
         elif type(flexible_input) is list:
-            return vstack(probes)
+            return vstack(flexible_input)
         else:
-            raise TypeError, ("Input must be either the ndarray track_array"
+            raise TypeError, ("Input must be either the ndarray track_array "
                               "or the list of probes.")
     elif output_style == 'probes':
         if type(flexible_input) is list:
