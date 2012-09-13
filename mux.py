@@ -4,7 +4,7 @@ import os, subprocess, re, argparse, string
 import logging
 from datetime import datetime, timedelta
 from ConfigParser import ConfigParser
-from connect import sql_connect
+import sql
 import logging
 
 def extract(pattern, string, group, convert=None):
@@ -72,7 +72,7 @@ def new_stack(trial, video_file, vstart, duration, start, end):
     "Insert a stack into the database, and return its id number."
     # Args start, end are relative to age_zero. If unknown or N/A,
     # do not call them, or call them as None.
-    conn = sql_connect()
+    conn = sql.connect()
     c = conn.cursor()
     c.execute("""INSERT INTO Stacks (trial, video, start, end, """
               """vstart, duration) VALUES """

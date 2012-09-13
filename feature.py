@@ -10,7 +10,7 @@ from scipy import stats
 import itertools
 import sql, diagnostics, _Cfilters
 
-logging = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 def bandpass(image, lshort, llong):
     """Convolve with a Gaussian to remove short-wavelength noise,
