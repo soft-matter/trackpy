@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
@@ -5,21 +6,18 @@ from scipy import interpolate
 import pidly
 import diagnostics
 
-def autolog(message):
-    "Write a message to the log, with the calling function's name."
-    import inspect, logging
-    func = inspect.currentframe().f_back.f_code
-    logging.info("%s: %s" % (
-        func.co_name, 
-        message
-    ))
+logger = logging.getLogger(__name__)
 
 def idl_track(query, max_disp, min_appearances, memory=3):
     """Call Crocker/Weeks track.pro from IDL using pidly module.
     Returns one big array, where the last column is the probe ID."""
     idl = pidly.IDL()
+    logger.info("Opened IDL process.")
     idl('pt = get_sql("{}")'.format(query))
-    idl('t=track(pt, {}, goodenough={}, memory={})'.format(max_disp, min_appearances, memory))
+    logger.info("IDL is done loading features from the database. Now tracking....")
+    idl('t=track(pt, {}, goodenough={}, memory={})'.format(
+        max_disp, min_appearances, memory))
+    logger.info("IDL finished tracking. Now piping data into Python....")
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     t = idl.ev('t')
     idl.close()
@@ -64,6 +62,7 @@ def msd(traj, microns_per_px=100/427., fps=30.,
     intervals = xrange(1, 1 + max_interval)
     traj = interp(traj)
     _msd = _detailed_msd if detail else _simple_msd
+    logger.info("%.3f microns per pixel, %d fps", microns_per_px, fps)
     results = [_msd(traj, i, microns_per_px, fps) for i in intervals]
     return np.vstack(results)
      
@@ -107,8 +106,9 @@ def fit_powerlaw(a):
     "Fit a power law to MSD data. Return the power and the coefficient."
     # This is not a generic power law. By treating it as a linear regression in
     # log space, we assume no additive constant: y = 0 + coeff*x**power.
-    slope,intercept,r,p,stderr = stats.linregress(log(a[:, 0]), log(a[:, 1]))
-    return slope, exp(intercept)
+    slope, intercept, r, p, stderr = \
+        stats.linregress(np.log(a[:, 0]), np.log(a[:, 1]))
+    return slope, np.exp(intercept)
 
 def drift(flexible_input, suppress_plot=False):
     "Return the ensemble drift, x(t)."
@@ -180,8 +180,8 @@ def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     localized = [p for p in probes if is_localized(p)]
     subdiffusive = [p for p in probes if ((not is_localized(p)) and \
                            (not is_diffusive(p)))]
-    autolog("{} diffusive, {} localized, {} subdiffusive".format(
-                 len(diffusive), len(localized), len(subdiffusive)))
+    logger.info("{} diffusive, {} localized, {} subdiffusive",
+             len(diffusive), len(localized), len(subdiffusive))
     return diffusive, localized, subdiffusive
 
 def plot_traj(probes, superimpose=None, microns_per_px=100/427.):
@@ -193,7 +193,7 @@ def plot_traj(probes, superimpose=None, microns_per_px=100/427.):
         plt.imshow(image, cmap=cm.gray)
         plt.xlim(0, image.shape[1])
         plt.ylim(0, image.shape[0])
-        autolog("Using units of px, not microns.")
+        logger.info("Using units of px, not microns.")
         microns_per_px = 1
         plt.xlabel('x [px]')
         plt.ylabel('y [px]')
@@ -202,7 +202,7 @@ def plot_traj(probes, superimpose=None, microns_per_px=100/427.):
         plt.ylabel('y [um]')
     for traj in probes:
         plt.plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
-    show()
+    plt.show()
 
 def _validate_input(flexible_input, output_style='probes'):
     """Accept either the IDL-style track_array or a list of probes,
@@ -263,10 +263,10 @@ def plot_msd(probes, max_interval=None,
                  suppress_labels=True)
         return
     # Label ticks with plain numbers, not scientific notation:
-    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
-    plt.gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    plt.gca().xaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
+    plt.gca().yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
     plt.ylim(0.01, 100)
-    print 'Limits of y range are manually set to {} - {}.'.format(*ylim())
+    logger.info('Limits of y range are manually set to %f - %f.', *plt.ylim())
     plt.xlabel('lag time [s]')
     plt.ylabel('msd [um$^2$]')
     if not defer:

@@ -1,5 +1,8 @@
 import MySQLdb
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 def connect():
     "Return an open connection to the database."
@@ -21,7 +24,7 @@ def fetch(query):
     results = np.array(c.fetchall())
     c.close()
     conn.close()
-    autolog("Fetched {} rows".format(c.rowcount))
+    logger.info("Fetched %d rows", c.rowcount)
     return results 
 
 def query_feat(trial, stack, version=None, where=None):
@@ -91,7 +94,7 @@ def insert_traj(trial, stack, track_array, override=False):
     conn = connect()
     if traj_duplicate_check(trial, stack, conn):
         if override:
-            autolog('Overriding')
+            logger.info("Overriding, and appending on duplicates in database.")
         else:
             raise ValueError, ("There is data in the database for this track"
                               "and stack. Set keyword override=True to proceed.")

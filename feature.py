@@ -1,4 +1,4 @@
-import re, os
+import re, os, logging
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import morphology
@@ -10,9 +10,7 @@ from scipy import stats
 import itertools
 import sql, diagnostics, _Cfilters
 
-# Make it possible to emulate Crocker/Grier/Weeks exactly.
-# Whip up a few test cases to be sure that this is working.
-# BIG IDEA: Get uncertainy as part of the result.
+logging = logging.getLogger(__name__)
 
 def bandpass(image, lshort, llong):
     """Convolve with a Gaussian to remove short-wavelength noise,
@@ -172,8 +170,8 @@ def feature(image, diameter, separation=None,
     centroids = [refine_centroid(image, x, y, diameter,
                  minmass=minmass, tightmask=tightmask, rgmask=rgmask) 
                  for x, y in massive_peaks]
-    print "{:7d} local maxima, {:5d} of qualifying mass".format(
-            len(peaks), len(centroids))
+    logger.info("%s local maxima, %s of qualifying mass", len(peaks),
+                len(centroids))
     return centroids 
 
 def locate(image_file, diameter, separation=None, 
@@ -198,9 +196,9 @@ def batch(trial, stack, images, diameter, separation=None,
     conn = sql.connect()
     if sql.feature_duplicate_check(trial, stack, conn):
         if override:
-            print 'Overriding'
+            logger.info('Overriding')
         else:
-            print 'There are entries for this trial and stack already.'
+            logging.error('There are entries for this trial and stack already.')
             conn.close()
             return False
     for frame, filepath in enumerate(images):
@@ -208,7 +206,7 @@ def batch(trial, stack, images, diameter, separation=None,
         centroids = locate(filepath, diameter, separation, noise_size,
                            smoothing_size, invert, percentile, minmass, pickN)
         sql.insert(trial, stack, frame, centroids, conn, override)
-        print "Completed frame {}".format(frame)
+        logger.info("Completed frame %s", frame)
     conn.close()
 
 def sample(images, diameter, separation=None,
@@ -224,7 +222,7 @@ def sample(images, diameter, separation=None,
     else:
         samples = get_elem(images, [0, len(images)/2, -1]) # first, middle, last
     for i, image_file in enumerate(samples):
-        print "Sample {} of {}...".format((1+i), len(samples))
+        logger.info("Sample %s of %s...", 1+i, len(samples))
         f = locate(image_file, diameter, separation,
                    noise_size, smoothing_size, invert,
                    percentile, minmass, pickN)
@@ -251,6 +249,6 @@ def list_images(directory):
     files = os.listdir(directory)
     images = [os.path.join(directory, f) for f in files if \
         os.path.isfile(os.path.join(directory, f)) and re.match('.*\.png', f)]
-    if not images: print 'WARNING: No images!'
+    if not images: logging.error('No images!')
     return sorted(images)
 
