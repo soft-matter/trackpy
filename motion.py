@@ -51,8 +51,8 @@ def displacement(x, dt):
     This is not the same as numpy.diff(x, n), the nth-order derivative."""
     return x[dt:]-x[:-dt]
 
-def msd(traj, microns_per_px=100/427., fps=30., 
-        max_interval=None, detail=False):
+def msd(traj, microns_per_px=100/427., fps=30., max_interval=None, 
+        detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
     output in units of microns and seconds."""
@@ -62,7 +62,6 @@ def msd(traj, microns_per_px=100/427., fps=30.,
     intervals = xrange(1, 1 + max_interval)
     traj = interp(traj)
     _msd = _detailed_msd if detail else _simple_msd
-    logger.info("%.3f microns per pixel, %d fps", microns_per_px, fps)
     results = [_msd(traj, i, microns_per_px, fps) for i in intervals]
     return np.vstack(results)
      
@@ -89,6 +88,7 @@ def _simple_msd(traj, interval, microns_per_px, fps):
 def ensemble_msd(flexible_input, microns_per_px=100/427., fps=30.):
     """Return ensemble mean squared displacement. Input in units of px
     and frames. Output in units of microns and seconds."""
+    logger.info("%.3f microns per pixel, %d fps", microns_per_px, fps)
     probes = _validate_input(flexible_input)
     m = np.vstack([msd(traj, microns_per_px, fps, detail=False) \
                 for traj in probes])
@@ -231,6 +231,7 @@ def plot_msd(probes, max_interval=None,
              indv=True, ensm=False, branch=False, powerlaw=True,
              defer=False, suppress_labels=False):
     "Plot individual MSDs for each probe, or ensemble MSD, or both."
+    logger.info("%.3f microns per pixel, %d fps", microns_per_px, fps)
     probes = _validate_input(probes)
     if (indv and not branch):
         msds = [msd(traj, microns_per_px, fps, max_interval, detail=False) \
