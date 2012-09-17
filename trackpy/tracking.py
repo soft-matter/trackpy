@@ -34,13 +34,16 @@ class Hash_table(object):
         self.spat_dims = len(dims)        # how many spatial dimensions
         self.cached_shifts = None
         self.cached_rrange = None
+        self.strides = np.cumprod(np.concatenate(([1],self.hash_dims[1:])))
     def get_region(self,point, rrange):
         '''
         Returns all the particles with in the region of minimum radius
         rrange in data units
         '''
-        
+        hash_size = self.hash_dims        
         center = np.floor(point.pos/self.box_size)
+        if any(center  >= hash_size) or any(center < 0):
+            raise Hash_table.Out_of_hash_excpt("cord out of range")
 
         rrange = int(np.ceil(rrange/ self.box_size))
 
@@ -63,29 +66,32 @@ class Hash_table(object):
             self.cached_rrange = rrange   # and save them
             self.cached_shifts = shifts
         region = []
+
         for s in shifts:
-            try:
-                region.extend(self.hash_table[self.cord_to_indx(center + s)])
-            except Hash_table.Out_of_hash_excpt:
-                pass
+            cord = center + s
+            if any(cord  >= hash_size) or any(cord < 0):
+                continue
+            indx = int(sum(cord * self.strides))
+            region.extend(self.hash_table[indx])
         return region
     
     def add_point(self,point):
-        self.hash_table[self.hash_fun(point.pos)].append(point)
+        """Adds the `point` to the hash table.  Assumes that :py:attr:`point.pos` exists and
+        is the correct type to be handed to :py:func:`hash_fun`
 
-    def hash_fun(self,cord):
-        return self.cord_to_indx(np.floor(np.asarray(cord)/self.box_size))
+        :param point: object representing the feature to add to the hash table
 
-    def cord_to_indx(self,cord):
-        """Converts coordinate position to an index.  """
-        assert len(cord) == len(self.hash_dims)
+
+        can raise :py:exc:`~Hash_table.Out_of_hash_excpt`
+    
+        """
+        cord = np.floor(np.asarray(point.pos)/self.box_size)
         hash_size = self.hash_dims
-        cord = np.asarray(cord)
         if any(cord  >= hash_size) or any(cord < 0):
             raise Hash_table.Out_of_hash_excpt("cord out of range")
-        indx = int(sum(cord * np.cumprod(np.concatenate(([1],hash_size[1:])))))
+        indx = int(sum(cord * self.strides))
+        self.hash_table[indx].append(point)
 
-        return indx
 
     
 class Track(object):
