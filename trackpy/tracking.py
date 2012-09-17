@@ -197,11 +197,11 @@ class PointND(Point):
         self.t = t                            # time
         self.pos = np.asarray(pos)            # position in ND space 
 
-    def distance(self,point):
+    def distance(self,other_point):
         '''
         Returns the absolute distance between two points
         '''
-        return np.sqrt(np.sum((self.pos - point.pos)**2))
+        return np.sqrt(np.sum((self.pos - other_point.pos)**2))
     
 
 def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
