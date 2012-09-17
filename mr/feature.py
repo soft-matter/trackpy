@@ -9,7 +9,6 @@ from scipy.ndimage import fourier
 from scipy.ndimage import measurements
 from scipy.ndimage import interpolation
 from scipy import stats
-import itertools
 from utils import memo
 import sql
 import diagnostics
@@ -61,9 +60,7 @@ def _cosmask(diameter):
     return circular_mask(diameter)*np.cos(2*_thetamask(diameter))
 
 def _local_maxima(image, diameter, separation, percentile=64):
-    """Local maxima whose brightness is above a given percentile.
-    Passing masks to this function will improve performance of 
-    repeated calls. (Otherwise, the masks are created for each call.)"""
+    "Find local maxima whose brightness is above a given percentile."
     # Find the threshold brightness, representing the given
     # percentile among all NON-ZERO pixels in the image.
     flat = np.ravel(image)
@@ -96,7 +93,7 @@ def _local_maxima(image, diameter, separation, percentile=64):
     return [(x, y) for y, x in zip(*peaks)]
 
 def _estimate_mass(image, x, y, diameter):
-    "Find the total brightness in the neighborhood of a local maximum."
+    "Compute the total brightness in the neighborhood of a local maximum."
     r = int(diameter)/2
     x0 = x - r
     x1 = x + r + 1
@@ -107,7 +104,8 @@ def _estimate_mass(image, x, y, diameter):
 
 def _refine_centroid(image, x, y, diameter, minmass=1, iterations=10):
     """Characterize the neighborhood of a local maximum, and iteratively
-    determine its center-of-brightness."""
+    hone in on its center-of-brightness. Return its coordinates, integrated
+    brightness, size (Rg), and eccentricity (0=circular)."""
     # Define the square neighborhood of (x, y).
     r = int(diameter)/2
     x0, y0 = x - r, y - r
@@ -143,20 +141,6 @@ def _refine_centroid(image, x, y, diameter, minmass=1, iterations=10):
                   (np.sum(neighborhood*_sinmask(diameter)))**2) / \
                   (mass - neighborhood[r, r] + 1e-6)
     return (xc, yc, mass, Rg, ecc)
-
-def merge_unit_squares(positions, separation, img_width):
-    """Group all positions that are within the same square,
-    sized by separation. Return one. This is used by Grier, but 
-    I never call it in this code."""
-    groups = []
-    centroids = sorted(positions, 
-                       key=lambda c: int(np.floor(c[0]/separation)) + 
-                                     img_width*int(np.floor(c[1]/separation)))
-    for key, group in itertools.groupby(positions, 
-                              lambda c: int(np.floor(c[0]/separation)) + 
-                                        img_width*int(np.floor(c[1]/separation))):
-        groups.append(list(group))
-    return [group[0] for group in groups]
 
 def _locate_centroids(image, diameter, separation=None, 
                       percentile=64, minmass=1., pickN=None):
