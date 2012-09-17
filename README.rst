@@ -15,7 +15,7 @@ Main Features
       Python. Much is accomplished using the standard scipy and numpy modules,
       and each logical step is broken into a single-purpose function,
       rendering a succinct and modular code that is easy to customize. Key
-      array-intensive steps that are not available from the standard scientific modules are
+      array-intensive steps that are not available from Python's standard scientific modules are
       imported from C.
     - The trajectories of colloidal probes can be characteristized, grouped, and
       plotted using a suite of simple, convenient functions.
