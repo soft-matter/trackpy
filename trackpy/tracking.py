@@ -203,35 +203,56 @@ class PointND(Point):
         '''
         return np.sqrt(np.sum((self.pos - other_point.pos)**2))
     
-
 def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
-    '''    Does proper linking, dealing with the forward and backward
-    networks.  This should work with any dimension, so long and the
-    hash object and the point objects behave as expected.
+    '''   
+    :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
+    :type levels: Iterable of iterables
+    :param dims: The dimensions of the data
+    :param hash_cls: A class that provides :py:func:`add_particle` and 
+                :py:func:`get_region` and has a two argument constructor
+    :param search_range: the maximum distance features can move between frames
+    :param memory: the maximum number of frames that a feature can skip along a track
+    :param track_cls: The class to use for the returned track objects
+    :type track_cls: :py:class:`~trackpy.tracking.Track`
 
-    levels is a list of lists of points.  The linking in done between
-    the inner lists.
+    Generic version of linking algorithm, should work for any
+    dimension.  All information about dimensionality and the metric
+    are encapsulated in the hash_table and
+    :py:class:`~trackpy.tracking.Point` objects.
 
-    Expect hash_cls to have constructor that takes a single value and
-    support add_particle and get_region
+    .. deprecated:: 0.2
+    '''
+    hash_generator = lambda : hash_cls(dims,search_range)
+    link(levels,search_range,hash_generator,memory,track_cls)
+    
+def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
+    '''   
+    :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
+    :type levels: Iterable of iterables
+    :param search_range: the maximum distance features can move between frames
+    :param hash_generator: a callable that will return a new empty object that supports :py:func:`add_particle` and 
+                :py:func:`get_region`
+    :param memory: the maximum number of frames that a feature can skip along a track
+    :param track_cls: The class to use for the returned track objects
+    :type track_cls: :py:class:`~trackpy.tracking.Track`
 
-    expect particles to know what track they are in (p.track -> track)
-    and know how far apart they are from another particle (p.distance(p2)
-    returns absolute distance)
-
-    dims is the dimension of the data in data units
+    Generic version of linking algorithm, should work for any
+    dimension.  All information about dimensionality and the metric
+    are encapsulated in the hash_table and
+    :py:class:`~trackpy.tracking.Point` objects.
+    
     '''
     #    print "starting linking"
     # initial source set    
     prev_set  = set(levels[0])
-    prev_hash = hash_cls(dims,search_range)
+    prev_hash = hash_generator()
     # set up the particles in the previous level for
     # linking
     for p in prev_set:
         prev_hash.add_point(p)
         p.forward_cands = []
 
-
+    
     # assume everything in first level starts a track
     # initialize the master track list with the points in the first level
     track_lst = [track_cls(p) for p in prev_set]
@@ -249,7 +270,7 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
     
     for cur_level in levels[1:]:
         # make a new hash object
-        cur_hash = hash_cls(dims,search_range)
+        cur_hash = hash_generator()
 
         # create the set for the destination level
         cur_set = set(cur_level)

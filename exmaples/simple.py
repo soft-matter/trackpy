@@ -36,7 +36,8 @@ for i in range(15):
 			level.append(pt.PointND(0,np.asarray((j+2,k+2))+np.random.randn(2)/10))
 
 # do the tracking
-t = pt.link_full(levels,(20,20),.5,pt.Hash_table)
+hash_generator = lambda : pt.Hash_table((20,20),.5)
+t = pt.link_full(levels,.5,hash_generator)
 
 # plot tracks
 fig = plt.figure()
