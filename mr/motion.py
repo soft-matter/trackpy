@@ -7,7 +7,6 @@ import pidly
 import diagnostics
 
 logger = logging.getLogger(__name__)
-t=fetch(query_traj(58,4))
 
 def idl_track(query, max_disp, min_appearances, memory=3):
     """Call Crocker/Weeks track.pro from IDL using pidly module.
