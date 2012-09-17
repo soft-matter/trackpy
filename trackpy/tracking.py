@@ -173,7 +173,7 @@ class Point(object):
         '''Removes a point from the given track, error if not really
         in that track'''
         if self.track != track:
-            raise Exception
+            raise Exception("Point not associated with given track")
         track.remove_point(self)
 
     
