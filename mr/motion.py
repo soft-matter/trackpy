@@ -7,25 +7,7 @@ import pidly
 import diagnostics
 
 logger = logging.getLogger(__name__)
-
-def calib(*args, **kwargs):
-    "Store calbiration."
-    if 'Photron 1X' in args:
-        calib.microns_per_px = 0.415
-        calib.fps = 60.
-    if 'Photron 1.5X' in args:
-        calib.microns_per_px = 0.278
-        calib.fps = 60.
-    if 'Nikon' in args:
-        calib.microns_per_px = 100/427.
-        calib.fps = 30. 
-    if 'microns_per_px' in kwargs:
-        calib.microns_per_px = kwargs['microns_per_px']
-    if 'fps' in kwargs:
-        calib.fps = kwargs['fps']
-    return calib.microns_per_px, calib.fps
-
-calib('Nikon')
+t=fetch(query_traj(58,4))
 
 def idl_track(query, max_disp, min_appearances, memory=3):
     """Call Crocker/Weeks track.pro from IDL using pidly module.
@@ -70,9 +52,7 @@ def displacement(x, dt):
     This is not the same as numpy.diff(x, n), the nth-order derivative."""
     return x[dt:]-x[:-dt]
 
-def msd(traj, microns_per_px=calib.microns_per_px, fps=calib.fps, 
-        max_interval=None, 
-        detail=False):
+def msd(traj, mpp, fps, max_interval=None, detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
     output in units of microns and seconds."""
@@ -82,13 +62,13 @@ def msd(traj, microns_per_px=calib.microns_per_px, fps=calib.fps,
     intervals = xrange(1, 1 + max_interval)
     traj = interp(traj)
     _msd = _detailed_msd if detail else _simple_msd
-    results = [_msd(traj, i, microns_per_px, fps) for i in intervals]
+    results = [_msd(traj, i, mpp, fps) for i in intervals]
     return np.vstack(results)
      
-def _detailed_msd(traj, interval, microns_per_px, fps):
+def _detailed_msd(traj, interval, mpp, fps):
     """Given a continuous trajectory and a time interval (in frames), 
     return t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, N."""
-    d = displacement(microns_per_px*traj[:, 1:], interval) # [[dx, dy], ...]
+    d = displacement(mpp*traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
     stuff = np.column_stack((d, np.sum(d, axis=1), sd, np.sum(sd, axis=1)))
     # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
@@ -97,22 +77,20 @@ def _detailed_msd(traj, interval, microns_per_px, fps):
     N = np.round(2*stuff.shape[0]/float(interval))
     return np.append(np.array([interval])/float(fps), mean_stuff, np.array([N])) 
 
-def _simple_msd(traj, interval, microns_per_px, fps):
+def _simple_msd(traj, interval, mpp, fps):
     """Given a continuous trajectory and a time interval (in frames),
     return t, <r^2>."""
-    d = displacement(microns_per_px*traj[:, 1:], interval) # [[dx, dy], ...]
+    d = displacement(mpp*traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
     msd_result = np.mean(np.sum(sd, axis=1), axis=0)
     return np.array([interval/float(fps), msd_result]) 
 
-def ensemble_msd(flexible_input, microns_per_px=None, fps=None):
+def ensemble_msd(probes, mpp, fps):
     """Return ensemble mean squared displacement. Input in units of px
     and frames. Output in units of microns and seconds."""
-    if not microns_per_px: microns_per_px = calib()[0]
-    if not fps: fps = calib()[1]
-    logger.info("%.3f microns per pixel, %d fps", microns_per_px, fps)
-    probes = _validate_input(flexible_input)
-    m = np.vstack([msd(traj, microns_per_px, fps, detail=False) \
+    logger.info("%.3f microns per pixel, %d fps", mpp, fps)
+    probes = cast_probes(probes)
+    m = np.vstack([msd(traj, mpp, fps, detail=False) \
                 for traj in probes])
     m = m[m[:, 0].argsort()] # sort by dt 
     boundaries, = np.where(np.diff(m[:, 0], axis=0) > 0.0)
@@ -134,7 +112,7 @@ def fit_powerlaw(a):
 
 def drift(flexible_input, suppress_plot=False):
     "Return the ensemble drift, x(t)."
-    x_list = _validate_input(flexible_input, output_style='probes')
+    x_list = cast_probes(flexible_input)
     dx_list = [np.column_stack(
                (np.diff(x[:, 0]), x[1:, 0], np.diff(x[:, 1:], axis=0))
                ) for x in x_list] # dt, t, dx, dy
@@ -152,20 +130,9 @@ def drift(flexible_input, suppress_plot=False):
     if not suppress_plot: plot_drift(x)
     return x 
 
-def plot_drift(x, finish=True, label=''):
-    """Plot ensemble drift. To compare drifts of subsets, call multiple times
-    with finish=False for all but the last call."""
-    plt.plot(x[:, 0], x[:, 1], '-', label=label + ' X')
-    plt.plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
-    if finish:
-        plt.xlabel('time [frames]')
-        plt.ylabel('drift [px]')
-        plt.legend(loc='best')
-        plt.show()
-
-def subtract_drift(flexible_input, d=None):
+def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
-    track_array = _validate_input(flexible_input, 'track array')
+    track_array = cast_probes(probes, 'track array')
     if d is None: 
         d=drift(track_array, suppress_plot=True)
     new_ta = np.copy(track_array)
@@ -174,30 +141,27 @@ def subtract_drift(flexible_input, d=None):
     # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     return new_ta
 
-def is_localized(probe, threshold=0.4):
+def is_localized(traj, threshold=0.4):
     "Is this probe's motion localized?"
-    m = msd(probe)
+    m = msd(traj, mpp=1., fps=1.)
     power, coeff = fit_powerlaw(m)
-    if power < threshold: return True
-    return False
+    return True if power < threshold else False
 
-def is_diffusive(probe, threshold=0.85):
+def is_diffusive(traj, threshold=0.85):
     "Is this probe's motion diffusive?"
-    m = msd(probe)
+    m = msd(traj, mpp=1., fps=1.)
     power, coeff = fit_powerlaw(m)
-    if power > threshold: return True
-    return False
+    return True if power > threshold else False
 
-def is_unphysical(probe, threshold=0.08):
+def is_unphysical(traj, mpp, fps, threshold=0.08):
     """Is the first MSD datapoint unphysically high? (This is sometimes an
     artifact of uneven drift.)"""
-    m = msd(probe)
-    if m[0, 1] >  threshold: return True
-    return False
+    m = msd(traj, mpp, fps=1.)
+    return True if m[0, 1] > threshold else False
 
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     "Sort list of probes into three lists, sorted by mobility."
-    probes = _validate_input(probes)
+    probes = cast_probes(probes)
     diffusive = [p for p in probes if is_diffusive(p)]
     localized = [p for p in probes if is_localized(p)]
     subdiffusive = [p for p in probes if ((not is_localized(p)) and \
@@ -206,28 +170,7 @@ def split_branches(probes, threshold=0.85, lower_threshold=0.4):
              len(diffusive), len(localized), len(subdiffusive))
     return diffusive, localized, subdiffusive
 
-def plot_traj(probes, superimpose=None, microns_per_px=None):
-    """Plot traces of trajectories for each probe.
-    Optionally superimpose it on a fram from the video."""
-    if not microns_per_px: microns_per_px = calib.microns_per_px
-    probes = _validate_input(probes)
-    if superimpose:
-        image = 1-plt.imread(superimpose)
-        plt.imshow(image, cmap=cm.gray)
-        plt.xlim(0, image.shape[1])
-        plt.ylim(0, image.shape[0])
-        logger.info("Using units of px, not microns.")
-        microns_per_px = 1
-        plt.xlabel('x [px]')
-        plt.ylabel('y [px]')
-    else:
-        plt.xlabel('x [um]')
-        plt.ylabel('y [um]')
-    for traj in probes:
-        plt.plot(microns_per_px*traj[:, 1], microns_per_px*traj[:, 2])
-    plt.show()
-
-def _validate_input(flexible_input, output_style='probes'):
+def cast_probes(flexible_input, output_style='probes'):
     """Accept either the IDL-style track_array or a list of probes,
     and return one or the other."""
     if output_style == 'track array':
@@ -248,64 +191,3 @@ def _validate_input(flexible_input, output_style='probes'):
                               "or the list of probes.")
     else:
         raise ValueError, "output_style must be 'track array' or 'probes'."
-
-def plot_msd(probes, max_interval=None,
-             microns_per_px=calib.microns_per_px, fps=calib.fps,
-             indv=True, ensm=False, branch=False, powerlaw=True,
-             defer=False, suppress_labels=False):
-    "Plot individual MSDs for each probe, or ensemble MSD, or both."
-    if not microns_per_px: microns_per_px = calib.microns_per_px  
-    if not fps: fps = calib.fps
-    logger.info("%.3f microns per pixel, %d fps", microns_per_px, fps)
-    probes = _validate_input(probes)
-    if (indv and not branch):
-        msds = [msd(traj, microns_per_px, fps, max_interval, detail=False) \
-                for traj in probes] 
-        for counter, m in enumerate(msds):
-            # Label only one instance for the plot legend.
-            if counter == 0:
-                if not suppress_labels:
-                    plt.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
-                           label='individual probe MSDs')
-            else:
-                plt.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
-    if ensm:
-        m = ensemble_msd(probes)
-        if not suppress_labels:
-            plt.loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
-        else:
-            plt.loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3)
-        if powerlaw:
-            power, coeff = fit_powerlaw(m)
-            plt.loglog(m[:, 0], coeff*m[:, 0]**power, '-', color='#019AD2', linewidth=2,
-                   label=_powerlaw_label(power, coeff))
-    if branch:
-        upper_branch, lower_branch, middle_branch = split_branches(probes)
-        plot_msd(upper_branch, indv=True, ensm=True, powerlaw=True, 
-                 defer=True)
-        plot_msd(middle_branch, indv=True, ensm=False, powerlaw=False, 
-                 defer=True, suppress_labels=True)
-        plot_msd(lower_branch, indv=True, ensm=True, powerlaw=True,
-                 suppress_labels=True)
-        return
-    # Label ticks with plain numbers, not scientific notation:
-    plt.gca().xaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
-    plt.gca().yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
-    plt.ylim(0.01, 100)
-    logger.info('Limits of y range are manually set to %f - %f.', *plt.ylim())
-    plt.xlabel('lag time [s]')
-    plt.ylabel('msd [um$^2$]')
-    if not defer:
-        plt.legend(loc='upper left')
-        plt.show()
-
-def _powerlaw_label(power, coeff):
-    """Return a string suitable for a legend label, including power
-    and D if motion is diffusive, but only power if it is subdiffusive."""
-    DIFFUSIVE_THRESHOLD = 0.90
-    label = 'power law fit\nn=' + '{:.2f}'.format(power)
-    if power >= DIFFUSIVE_THRESHOLD:
-        label += '  D=' + '{:.3f}'.format(coeff/4) + ' um$^2$/s'
-    return label
-    
-    

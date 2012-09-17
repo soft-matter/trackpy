@@ -1,5 +1,6 @@
 *.pro
 *.log
 *.pyc
+*~
 mux
 
