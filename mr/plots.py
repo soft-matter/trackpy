@@ -15,8 +15,7 @@ def plot_drift(x, label=''):
     plt.show()
 
 def plot_traj(probes, mpp, superimpose=None):
-    """Plot traces of trajemr.locate('/media/Frames/T62S1/T62S1F00001.png', 9)
-ctories for each probe.
+    """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
     probes = cast_probes(probes)
     if superimpose:
@@ -66,6 +65,8 @@ def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, defer=False):
         plt.show()
 
 def plot_bimodal_msd(probes, mpp, fps, max_interval=None):
+    """Plot individual MSDs with separate ensemble MSDs and power law fits
+    for diffusive probes and localized probes."""
     probes = cast_probes(probes)
     upper_branch, lower_branch, middle_branch = split_branches(probes)
     plot_msd(upper_branch, mpp, fps, max_interval, defer=True)
