@@ -1,130 +1,59 @@
-Usage
-=====
+=========================
+mr: microrheology toolkit
+=========================
 
-Choose interesting sections of video
-------------------------------------
+What is it
+==========
 
-To review the inventory of videos in a directory, use::
+**mr** is a Python package providing tools for passive and active microrheology experiments, including multiple particle tracking, analysis of colloidal trajectories, and rheological models.
 
-$ mux ls
+Main Features
+=============
 
-It lists video files along with select meta information, like the creation time recorded by the camera.
-
-To analyze a section of video, first convert it into a folder of frames. The jargon term for this is **muxing**. For convenience, you may slice it by the starting and ending times::
-
-$ mux video -s 00:01:00 -e 00:02:00 -T trial DSC0001.MOV
-
-or by the starting time and the duration::
-
-$ mux video -s 00:01:00 -d 00:01:00 -T trial DSC0001.MOV
-
-The argument ``trial`` is a number chosen by you.
-
-Suppose we want the first minute of several videos. We can get them all one command::
-
-$ mux video -s 00:00:00 -e 00:01:00 -T trial DSC0001.MOV DSC0002.MOV DSC0003.MOV
-
-Or even all the videos in a directory::
-
-$ mux video -s 00:00:00 -e 00:01:00 -T trial *
-
-Sometimes, when many videos are taken in one experiment, video timecodes becoming confusing.
-It is more convenient to refer to the age of the system -- the time logged in your notebook.
-If you specify the age of the first video once, ``mux`` can translate age time into video time.
-For example, if the first video was started 1 minute 16 seconds into the experiment, type::
-
-$ mux set_t0 --offset 00:01:16
-
-Now you can slice videos by starting age and ending age::
-
-$ mux age -a 00:15:00 -e 00:16:00 -T trial
-
-or by starting age and duration::
-
-$ mux age -a 00:15:00 -d 00:01:00 -T trial
-
-In these examples, we didn't specify a video file. ``mux`` automatically selects the video that spans the age times we requested, and it slices the appropriate section. Note that we use ``-a`` in place of ``-s`` when we slice by age.
-
-Locate probes.
---------------
-
-Import the ``feature`` module in the ``mr`` package::
-
->>>> from mr.feature import *
-
-List the images in a directory -- probably a directory just created by mux::
-
->>>> imlist = list_images('/media/Frames/T100S1/')
-
-Try out some parameters on a sample of images from that list. Specify feature
-size and minimum 'mass' (integrated brightness)::
-
->>>> sample(imlist, 9, minmass=1000)
-
-Specifically, ``sample`` locates features in the first, middle, and last frames,
-and it displays each one in turn. Press f to toggle fullscreen mode. Close the display
-window to proceed to the next one.
-
-``sample`` is a convenience function: it chains together several deeper functions. Sometimes
-you may want to use them individually.
-
-To get the features from a image, use ``locate``::
-
->>>> first_image = imlist[0]
->>>> features = locate(first_image, 9, minmass=1000)
-
-The full list of parameters, with their default values, is::
-
->>>> locate (image_file, diameter, separation=None, noise_size=1, smoothing_size=None, invert=True, percentile=64, minmass=1.):
-
-To superimpose circles on the original image, use ``annotate``::
-
->>>> annotate(first_image, features)
-
-To save the output, instead of displaying it::
-
->>>> annotate(first_image, features, output_file='some_filename.png')
-
-Locate all the probes.
-----------------------
-
-Having setted on good parameters using ``sample``, process the whole folder of images using ``batch``.
-The features will be saved to the database, so you'll need a trial number and a stack number. If you used mux, a stack number
-was automatically assigned and incorporated into the folder name.
-
-A typical call to batch looks like::
-
->>>> batch(trial, stack, imlist, 9, minmass=1000)
-
-where trial and stack are numbers, of course. ``batch`` also accepts all the optional parameters shown for ``locate`` above.
-
-Link features into trajectories.
---------------------------------
-
-Import the ``track`` module from the ``mr`` package.
-
->>>> from mr.track import * 
-
-Build a query that will fetch the features you found above. You can take them all::
-
->>>> q = query(trial, stack)
-
-or you can filter, by a giving a SQL ``WHERE`` clause. Examples::
-
->>>> q = query(trial, stack, where='mass < 10000')
->>>> q = query(trial, stack, where='ecc < 0.1')
->>>> q = query(trial, stack, where='x between 100 and 200')
-
-You can chain conditions explicitly, as in SQL, or pass them as a list for ``query`` to join::
-
->>>> q = query(trial, stack, where=['mass < 10000', 'ecc < 0.1', 'x between 100 and 200'])
-
-To link the features together into trajectories, we'll pass this query and some parameters to the function ``track``. These parameters are::
-
->>>> track(query, max_displacement, min_appearances, memory)
-
-Here is an example::
-
->>>> t=track(q, 5, 100, 3)
+    - The widely used multiple particle tracking algorithm originally implemented
+      by John Crocker and Eric Weeks in IDL is faithfully reimplemented in
+      Python. Much is accomplished using the standard scipy and numpy modules,
+      and each logical step is broken into a single-purpose function,
+      rendering a succinct and modular code that is easy to customize. Key
+      array-intensive steps that are not available from the standard scientific modules are
+      imported from C.
+    - The trajectories of colloidal probes can be characteristized, grouped, and
+      plotted using a suite of simple, convenient functions.
+    - Various models relate probe statistics to rheological response, including
+      the all-important Generalized Stokes-Einstein and others, particularly
+      models developed for interfacial microrheology. 
+    - A sql module provides convenient functions for storing and loading data
+      from a MySQL database. (A sample database schema is included.)
+    - A wrapper for the powerful video handling software FFmpeg helps slice
+      sections of video to analyze and ameliorate book keeping headaches.
 
 
+Dependencies
+============
+
+  * numpy
+  * scipy
+  * MySQLdb (optional)
+  * pIDLy, but until track.pro can be reimplemented in Python
+
+Project Status
+==============
+The feature-finding is stable. This packages still relies on Crocker & Weeks's 
+``track.pro`` to link feature positions into trajectories. Once these are 
+obtained, the package provides tools for flitering, grouping, and analyzing 
+them.
+
+Related Projects
+================
+
+  * Particle tracking using IDL http://www.physics.emory.edu/~weeks/idl/
+  * A C++ implementation wrapped in Python https://github.com/tacaswell/tracking
+
+Background
+==========
+
+This package was developed and is maintained by Daniel Allan, as part of his
+PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
+University in Baltimore, MD.
+
+Dan can be reached through his website, http://www.danallan.com.
