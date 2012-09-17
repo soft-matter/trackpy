@@ -21,11 +21,21 @@ import scipy
 
 class Hash_table(object):
     '''
-    Basic hash table to fast look up of 
+    :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
+    :param box_size: how big each box should be in data units.  The same scale is used for all dimensions
+
+    Basic hash table to fast look up of particles in the region of a given particle 
     '''
     class Out_of_hash_excpt(Exception):
+        """ 
+        :py:exc:`Exception` for indicating that a particle is outside of the
+        valid range for this hash table."""
         pass
     def __init__(self,dims,box_size):
+        '''
+        Sets up the hash table
+
+        '''
         self.dims = dims                  # the dimensions of the data
         self.box_size = box_size          # the size of boxes to use in the units of the data
         self.hash_dims = np.ceil(np.array(dims)/box_size)
@@ -37,8 +47,15 @@ class Hash_table(object):
         self.strides = np.cumprod(np.concatenate(([1],self.hash_dims[1:])))
     def get_region(self,point, rrange):
         '''
-        Returns all the particles with in the region of minimum radius
+        :param point: point to find the features around
+        :param rrange: the size of the ball to search in
+
+        
+        Returns all the particles with in the region of maximum radius
         rrange in data units
+
+
+        can raise :py:exc:`Out_of_hash_excpt`
         '''
         hash_size = self.hash_dims        
         center = np.floor(point.pos/self.box_size)
@@ -68,6 +85,7 @@ class Hash_table(object):
         region = []
 
         for s in shifts:
+            
             cord = center + s
             if any(cord  >= hash_size) or any(cord < 0):
                 continue
@@ -76,10 +94,13 @@ class Hash_table(object):
         return region
     
     def add_point(self,point):
-        """Adds the `point` to the hash table.  Assumes that :py:attr:`point.pos` exists and
-        is the correct type to be handed to :py:func:`hash_fun`
-
+        """
         :param point: object representing the feature to add to the hash table
+        
+        Adds the `point` to the hash table.  Assumes that :py:attr:`point.pos` exists and
+        is the array-like.
+
+        
 
 
         can raise :py:exc:`~Hash_table.Out_of_hash_excpt`
@@ -96,7 +117,14 @@ class Hash_table(object):
     
 class Track(object):
     '''
-    Object to represent linked tracks.  Includes logic for adding, removing 
+    :param point: The first feature in the track if not  `None`.  
+    :type point: :py:class:`~trackpy.tracking.Point`
+    
+    Base class for objects to represent linked tracks.  Includes logic
+    for adding, removing features to the track.  This can be sub-classed 
+    to provide additional track level computation as needed.
+
+
     '''
     count = 0
     def __init__(self,point=None):
@@ -120,34 +148,37 @@ class Track(object):
     __hash__ = None
         
     def add_point(self,point):
-        '''Adds a point to this track '''
+        '''
+        :param point: point to add 
+        :type point:  :py:class:`~trackpy.tracking.Point`
+        
+        Appends the point to this track. '''
         self.points.append(point)
         point.add_to_track(self)
     def remove_point(self,point):
-        '''removes a point from this track'''
+        '''
+        :param point: point to remove from this track
+        :type point:  :py:class:`~trackpy.tracking.Point`
+        
+        removes a point from this track'''
         self.points.remove(point)
         point.track = None
     def last_point(self):
-        '''Returns the last point on the track'''
-        return self.points[-1]
-    def merge_track(self,to_merge_track):
-        '''Merges the track add_to_track into the current track.
-        Progressively moves points from the other track to this one.
         '''
-    
-        while len(to_merge_track.points) >0:
-            cur_pt = to_merge_track.points.pop()
-            if cur_pt.track != self:
-                raise Exception
-            cur_pt.track = None
-            self.add_point(cur_pt)
+        :rtype: :py:class:`~trackpy.tracking.Point`
+        
+        Returns the last point on the track'''
+        return self.points[-1]
 
 class Point(object):
     '''
-    Base class for point objects used in tracking.  This class contains all of the
-    general stuff for interacting with tracks.
+    Base class for point (features) used in tracking.  This class
+    contains all of the general stuff for interacting with
+    :py:class:`~trackpy.tracking.Track` objects.
 
-    Child classes **MUST** call Point.__init__
+
+
+    .. note:: To be used for tracking this class must be sub-classed to provide a :py:func:`distance` function.  Child classes **MUST** call :py:func:`Point.__init__`.  (See :py:class:`~trackpy.tracking.PointND` for example. )
     '''
     count = 0
     def __init__(self):
@@ -164,14 +195,28 @@ class Point(object):
     
         
     def add_to_track(self,track):
-        '''Adds a track to the point '''
+        '''
+        :param track: the track to assign to this :py:class:`Point`
+        
+        Sets the track of a :py:class:`Point` object.  Raises
+        :py:exc:`Exception` if the object is already assigned a track.
+
+
+
+        '''
         if self.track is not None:
             raise Exception("trying to add a particle already in a track")
         self.track = track
         
     def remove_from_track(self,track):
-        '''Removes a point from the given track, error if not really
-        in that track'''
+        '''
+        :param track: the track to disassociate from this :py:class:`Point`
+
+        Removes this point from the given track. Raises :py:exc:`Exception` if
+        particle not associated with the given track.
+
+        
+        '''
         if self.track != track:
             raise Exception("Point not associated with given track")
         track.remove_point(self)
@@ -179,16 +224,20 @@ class Point(object):
     
 
     def in_track(self):
-        '''Returns if a point is in a track '''
+        '''
+        :rtype: bool
+        
+        Returns if a point is associated with a track '''
         return  self.track is not None
     
 class PointND(Point):
     '''
-    Version of :py:class:`Point` for tracking 
-
-    :py:attr:`Point1D_circ.q` is the parameter for the curve where the point is (maps to time in standard tracking)
-    :py:attr:`Point1D_circ.phi` is the angle of the point along the parametric curve
-    :py:attr:`Point1D_circ.v` any extra values that the point should carry
+    :param t: a time-like variable. 
+    :param pos: position of feature
+    :type pos: iterable of length d
+    
+    Version of :py:class:`Point` for tracking in flat space with
+    non-periodic boundary conditions.
     '''
 
     
@@ -199,7 +248,11 @@ class PointND(Point):
 
     def distance(self,other_point):
         '''
-        Returns the absolute distance between two points
+        :param other_point: point to get distance to.
+        :type other_point: :py:class:`~trackpy.tracking.Point`
+        
+        Returns the absolute distance between this point and other_point
+        
         '''
         return np.sqrt(np.sum((self.pos - other_point.pos)**2))
     
@@ -402,6 +455,9 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
     return track_lst
 
 class SubnetOversizeException(Exception):
+    '''An :py:exc:`Exception` to be raised when the sub-nets are too
+    big to be efficiently linked.  If you get this then either reduce your search range
+    or increase :py:attr:`sub_net_linker.MAX_SUB_NET_SIZE`'''
     pass
 
 class sub_net_linker(object):
