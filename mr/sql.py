@@ -56,8 +56,8 @@ def query_traj(trial, stack, where=None):
     query += " ORDER BY probe, frame"
     return query 
 
-def insert_features(trial, stack, frame, centroids, conn, override=False):
-    "Insert centroid information into the MySQL database."
+def insert_feat(trial, stack, frame, centroids, conn, override=False):
+    "Insert centroid characteristics into the MySQL database."
     try:
         c = conn.cursor()
         # Load the data in a small temporary table.
