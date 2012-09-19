@@ -5,6 +5,7 @@ from scipy import stats
 from scipy import interpolate
 import pidly
 import diagnostics
+from plots import *
 
 logger = logging.getLogger(__name__)
 
