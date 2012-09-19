@@ -193,7 +193,7 @@ def batch(trial, stack, images, diameter, separation=None,
         centroids = locate(filepath, diameter, separation, 
                            noise_size, smoothing_size, invert, 
                            percentile, minmass, pickN)
-        sql.insert(trial, stack, frame, centroids, conn, override)
+        sql.insert_feat(trial, stack, frame, centroids, conn, override)
         logger.info("Completed frame %s", frame)
     conn.close()
 
