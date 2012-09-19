@@ -194,7 +194,8 @@ def batch(trial, stack, images, diameter, separation=None,
                            noise_size, smoothing_size, invert, 
                            percentile, minmass, pickN)
         sql.insert_feat(trial, stack, frame, centroids, conn, override)
-        logger.info("Completed frame %s", frame)
+        logger.info("Completed Trial %s Stack %s Frame %s", 
+                    tiral, stack, frame)
     conn.close()
 
 def sample(images, diameter, separation=None,
