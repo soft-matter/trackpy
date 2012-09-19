@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import logging
-from motion import *
+import motion
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ def plot_drift(x, label=''):
 def plot_traj(probes, mpp, superimpose=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
-    probes = cast_probes(probes)
+    probes = motion.cast_probes(probes)
     if superimpose:
         image = 1-plt.imread(superimpose)
         plt.imshow(image, cmap=cm.gray)
@@ -37,8 +37,8 @@ def plot_traj(probes, mpp, superimpose=None):
 def plot_msd(probes, mpp, fps, max_interval=None, defer=False):
     "Plot MSD for each probe individually."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
-    probes = cast_probes(probes)
-    msds = [msd(traj, mpp, fps, max_interval, detail=False) \
+    probes = motion.cast_probes(probes)
+    msds = [motion.msd(traj, mpp, fps, max_interval, detail=False) \
             for traj in probes] 
     for counter, m in enumerate(msds):
         # Label only one instance for the plot legend.
@@ -54,7 +54,7 @@ def plot_msd(probes, mpp, fps, max_interval=None, defer=False):
 def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, defer=False):
     "Plot ensemble MSDs for probes."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
-    m = ensemble_msd(probes, mpp, fps, max_interval)
+    m = motion.ensemble_msd(probes, mpp, fps, max_interval)
     plt.loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
     if powerlaw:
         power, coeff = fit_powerlaw(m)
@@ -67,7 +67,7 @@ def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, defer=False):
 def plot_bimodal_msd(probes, mpp, fps, max_interval=None):
     """Plot individual MSDs with separate ensemble MSDs and power law fits
     for diffusive probes and localized probes."""
-    probes = cast_probes(probes)
+    probes = motion.cast_probes(probes)
     upper_branch, lower_branch, middle_branch = split_branches(probes)
     plot_msd(upper_branch, mpp, fps, max_interval, defer=True)
     plot_emsd(upper_branch, mpp, fps, max_interval, powerlaw=True, defer=True)
