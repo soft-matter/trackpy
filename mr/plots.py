@@ -1,40 +1,65 @@
+"""These functions generate plots that I have repeatedly used."""
+
 import matplotlib.pyplot as plt
 import logging
 import motion
 
 logger = logging.getLogger(__name__)
 
-def plot_drift(x, label=''):
+def instant_gratification(func):
+    """
+    A decorator for plotting functions.
+    NORMALLY: Direct the plotting function to the current axes, gca().
+              When it's done, make the legend and show that plot. 
+              (Instant gratificaiton!)
+    BUT:      If the uses passes axes to plotting function, write on those axes
+              and return them. The user has the option to draw a more complex 
+              plot in multiple steps.
+    """
+    def wrap(*args, **kwargs):
+        if 'ax' not in kwargs:
+            kwargs['ax'] = plt.gca()
+            func(*args, **kwargs)
+            if not ax.get_legend_handles_labels() == ([], []):
+                plt.legend()
+            plt.show()
+        else:
+            return func(*args, **kwargs)
+    return wrap
+
+@instant_gratification
+def plot_drift(x, label='', ax=None):
     """Plot ensemble drift. To compare drifts of subsets, call multiple times
     with finish=False for all but the last call."""
-    plt.plot(x[:, 0], x[:, 1], '-', label=label + ' X')
-    plt.plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
-    plt.xlabel('time [frames]')
-    plt.ylabel('drift [px]')
-    plt.legend(loc='best')
-    plt.show()
+    ax.plot(x[:, 0], x[:, 1], '-', label=label + ' X')
+    ax.plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
+    ax.set_xlabel('time [frames]')
+    ax.set_ylabel('drift [px]')
+    return ax
 
-def plot_traj(probes, mpp, superimpose=None):
+@instant_gratification
+def plot_traj(probes, mpp, superimpose=None, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
     probes = motion.cast_probes(probes)
     if superimpose:
         image = 1-plt.imread(superimpose)
-        plt.imshow(image, cmap=cm.gray)
-        plt.xlim(0, image.shape[1])
-        plt.ylim(0, image.shape[0])
+        ax.imshow(image, cmap=cm.gray)
+        ax.xlim(0, image.shape[1])
+        ax.ylim(0, image.shape[0])
         logger.info("Using units of px, not microns.")
         mpp = 1
-        plt.xlabel('x [px]')
-        plt.ylabel('y [px]')
+        ax.set_xlabel('x [px]')
+        ax.set_ylabel('y [px]')
     else:
-        plt.xlabel('x [um]')
-        plt.ylabel('y [um]')
+        ax.set_xlabel('x [um]')
+        ax.set_ylabel('y [um]')
     for traj in probes:
-        plt.plot(mpp*traj[:, 1], mpp*traj[:, 2])
-    plt.show()
+        ax.plot(mpp*traj[:, 1], mpp*traj[:, 2])
+    return ax
 
-def plot_msd(probes, mpp, fps, max_interval=None, defer=False):
+@instant_gratification
+def plot_msd(probes, mpp, fps, max_interval=None, ax=None):
     "Plot MSD for each probe individually."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
     probes = motion.cast_probes(probes)
@@ -43,48 +68,49 @@ def plot_msd(probes, mpp, fps, max_interval=None, defer=False):
     for counter, m in enumerate(msds):
         # Label only one instance for the plot legend.
         if counter == 0:
-            plt.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
+            ax.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
                        label='individual probe MSDs')
         else:
-            plt.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
-    if not defer:
-        _config_msd_plot()
-        plt.show()
+            ax.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
+    _setup_msd_plot(ax)
+    return ax
 
-def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, defer=False):
+@instant_gratification
+def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, ax=None):
     "Plot ensemble MSDs for probes."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
     m = motion.ensemble_msd(probes, mpp, fps, max_interval)
-    plt.loglog(m[:, 0], m[:, 1], 'ro-', linewidth=3, label='ensemble MSD')
+    ax.loglog(m[:, 0], m[:, 1], 'ro-', 
+              linewidth=3, label='ensemble MSD')
     if powerlaw:
         power, coeff = fit_powerlaw(m)
-        plt.loglog(m[:, 0], coeff*m[:, 0]**power, '-', color='#019AD2', linewidth=2,
-                   label=_powerlaw_label(power, coeff))
-    if not defer:
-        _config_msd_plot()
-        plt.show()
+        ax.loglog(m[:, 0], coeff*m[:, 0]**power, '-', 
+                  color='#019AD2', linewidth=2,
+                  label=_powerlaw_label(power, coeff))
+    _setup_msd_plot()
+    return ax
 
-def plot_bimodal_msd(probes, mpp, fps, max_interval=None):
+@instant_gratification
+def plot_bimodal_msd(probes, mpp, fps, max_interval=None, ax=None):
     """Plot individual MSDs with separate ensemble MSDs and power law fits
     for diffusive probes and localized probes."""
     probes = motion.cast_probes(probes)
     upper_branch, lower_branch, middle_branch = split_branches(probes)
-    plot_msd(upper_branch, mpp, fps, max_interval, defer=True)
-    plot_emsd(upper_branch, mpp, fps, max_interval, powerlaw=True, defer=True)
-    plot_msd(middle_branch, mpp, fps, max_interval, powerlaw=False, defer=True)
-    plot_msd(lower_branch, mpp, fps, max_interval, defer=True)
-    plot_emsd(lower_branch, mpp, fps, max_interval, powerlaw=True, defer=True)
+    plot_msd(upper_branch, mpp, fps, max_interval, defer=True, ax=ax)
+    plot_emsd(upper_branch, mpp, fps, max_interval, powerlaw=True, ax=ax)
+    plot_msd(middle_branch, mpp, fps, max_interval, powerlaw=False, ax=ax)
+    plot_msd(lower_branch, mpp, fps, max_interval, ax=ax)
+    plot_emsd(lower_branch, mpp, fps, max_interval, powerlaw=True, ax=ax)
+    return ax
 
-def _config_msd_plot():
+def _setup_msd_plot(ax):
     # Label ticks with plain numbers, not scientific notation:
-    plt.gca().xaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
-    plt.gca().yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
-    plt.ylim(0.01, 100)
+    ax.xaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
+    ax.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
+    ax.set_ylim(0.01, 100)
     logger.info('Limits of y range are manually set to %f - %f.', *plt.ylim())
-    plt.xlabel('lag time [s]')
-    plt.ylabel('msd [um$^2$]')
-    plt.legend(loc='upper left')
-    plt.show()
+    ax.set_xlabel('lag time [s]')
+    ax.set_ylabel('msd [um$^2$]')
 
 def _powerlaw_label(power, coeff):
     """Return a string suitable for a legend label, including power

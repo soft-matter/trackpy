@@ -1,3 +1,7 @@
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 from feature import locate, sample, batch, bandpass
 from diagnostics import annotate, subpx_hist
 from motion import (drift, subtract_drift, msd, ensemble_msd, split_by_probe,
