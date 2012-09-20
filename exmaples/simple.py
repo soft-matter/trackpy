@@ -37,7 +37,7 @@ for i in range(15):
 
 # do the tracking
 hash_generator = lambda : pt.Hash_table((20,20),.5)
-t = pt.link_full(levels,.5,hash_generator)
+t = pt.link(levels,.75,hash_generator)
 
 # plot tracks
 fig = plt.figure()
