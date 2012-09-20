@@ -1,4 +1,4 @@
-"""These functions generate plots that I have repeatedly used."""
+"""These functions generate handy plots."""
 
 import matplotlib.pyplot as plt
 import logging
@@ -16,16 +16,16 @@ def instant_gratification(func):
               and return them. The user has the option to draw a more complex 
               plot in multiple steps.
     """
-    def wrap(*args, **kwargs):
+    def wrapper(*args, **kwargs):
         if 'ax' not in kwargs:
             kwargs['ax'] = plt.gca()
             func(*args, **kwargs)
-            if not ax.get_legend_handles_labels() == ([], []):
-                plt.legend()
+            if not kwargs['ax'].get_legend_handles_labels() == ([], []):
+                plt.legend(loc='best')
             plt.show()
         else:
             return func(*args, **kwargs)
-    return wrap
+    return wrapper
 
 @instant_gratification
 def plot_drift(x, label='', ax=None):
@@ -45,8 +45,8 @@ def plot_traj(probes, mpp, superimpose=None, ax=None):
     if superimpose:
         image = 1-plt.imread(superimpose)
         ax.imshow(image, cmap=cm.gray)
-        ax.xlim(0, image.shape[1])
-        ax.ylim(0, image.shape[0])
+        ax.set_xlim(0, image.shape[1])
+        ax.set_ylim(0, image.shape[0])
         logger.info("Using units of px, not microns.")
         mpp = 1
         ax.set_xlabel('x [px]')
@@ -83,11 +83,11 @@ def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, ax=None):
     ax.loglog(m[:, 0], m[:, 1], 'ro-', 
               linewidth=3, label='ensemble MSD')
     if powerlaw:
-        power, coeff = fit_powerlaw(m)
+        power, coeff = motion.fit_powerlaw(m)
         ax.loglog(m[:, 0], coeff*m[:, 0]**power, '-', 
                   color='#019AD2', linewidth=2,
                   label=_powerlaw_label(power, coeff))
-    _setup_msd_plot()
+    _setup_msd_plot(ax)
     return ax
 
 @instant_gratification
@@ -95,10 +95,10 @@ def plot_bimodal_msd(probes, mpp, fps, max_interval=None, ax=None):
     """Plot individual MSDs with separate ensemble MSDs and power law fits
     for diffusive probes and localized probes."""
     probes = motion.cast_probes(probes)
-    upper_branch, lower_branch, middle_branch = split_branches(probes)
-    plot_msd(upper_branch, mpp, fps, max_interval, defer=True, ax=ax)
+    upper_branch, lower_branch, middle_branch = motion.split_branches(probes)
+    plot_msd(upper_branch, mpp, fps, max_interval, ax=ax)
     plot_emsd(upper_branch, mpp, fps, max_interval, powerlaw=True, ax=ax)
-    plot_msd(middle_branch, mpp, fps, max_interval, powerlaw=False, ax=ax)
+    plot_msd(middle_branch, mpp, fps, max_interval, ax=ax)
     plot_msd(lower_branch, mpp, fps, max_interval, ax=ax)
     plot_emsd(lower_branch, mpp, fps, max_interval, powerlaw=True, ax=ax)
     return ax

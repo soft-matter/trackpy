@@ -1,11 +1,10 @@
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy import stats
 from scipy import interpolate
 import pidly
 import diagnostics
-from plots import *
+import plots
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +126,7 @@ def drift(flexible_input, suppress_plot=False):
     # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
     x = np.column_stack((ensemble_dx[:, 0], 
                          np.cumsum(ensemble_dx[:, 1:], axis=0)))
-    if not suppress_plot: plot_drift(x)
+    if not suppress_plot: plots.plot_drift(x)
     return x 
 
 def subtract_drift(probes, d=None):
