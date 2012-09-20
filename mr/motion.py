@@ -88,7 +88,6 @@ def ensemble_msd(probes, mpp, fps, max_interval=None):
     """Return ensemble mean squared displacement. Input in units of px
     and frames. Output in units of microns and seconds."""
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
-    probes = cast_probes(probes)
     m = np.vstack([msd(traj, mpp, fps, max_interval, detail=False) \
                 for traj in probes])
     m = m[m[:, 0].argsort()] # sort by dt 
@@ -109,12 +108,12 @@ def fit_powerlaw(a):
         stats.linregress(np.log(a[:, 0]), np.log(a[:, 1]))
     return slope, np.exp(intercept)
 
-def drift(flexible_input, suppress_plot=False):
+def drift(probes, suppress_plot=False):
     "Return the ensemble drift, x(t)."
-    x_list = cast_probes(flexible_input)
+    print len(probes); print probes[0].shape
     dx_list = [np.column_stack(
                (np.diff(x[:, 0]), x[1:, 0], np.diff(x[:, 1:], axis=0))
-               ) for x in x_list] # dt, t, dx, dy
+               ) for x in probes] # dt, t, dx, dy
     dx = np.vstack(dx_list) # dt, t, dx, dy
     dx = dx[dx[:, 0] == 1.0, 1:] # Drop entries where dt > 1 ( gap).
     dx = dx[dx[:, 0].argsort()] # sort by t
@@ -122,23 +121,23 @@ def drift(flexible_input, suppress_plot=False):
     boundaries += 1
     dx_list = np.split(dx, boundaries) # list of arrays, one for each t
     ensemble_dx = np.vstack([np.mean(dx, axis=0) for dx in dx_list])
-    ensemble_dx = interp(ensemble_dx) # Fill in any gaps.
+    ensemble_dx = interp(ensemble_dx)
     # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
     x = np.column_stack((ensemble_dx[:, 0], 
                          np.cumsum(ensemble_dx[:, 1:], axis=0)))
-    if not suppress_plot: plots.plot_drift(x)
-    return x 
+    uncertainty = None
+    if not suppress_plot: plots.plot_drift(x, uncertainty)
+    return x, uncertainty
 
 def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
-    track_array = cast_probes(probes, 'track array')
     if d is None: 
-        d=drift(track_array, suppress_plot=True)
-    new_ta = np.copy(track_array)
-    for t, x, y in d:
-        new_ta[new_ta[:, 5] == t, 0:2] -= [x, y] 
-    # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
-    return new_ta
+        d, uncertainty = drift(probes)
+    new_probes = list(probes) # copy list
+    for p in new_probes:
+        for t, x, y in d:
+            p[p[:, 0] == t, 1:3] -= [x, y] 
+    return new_probes
 
 def is_localized(traj, threshold=0.4):
     "Is this probe's motion localized?"
@@ -160,7 +159,6 @@ def is_unphysical(traj, mpp, fps, threshold=0.08):
 
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     "Sort list of probes into three lists, sorted by mobility."
-    probes = cast_probes(probes)
     diffusive = [p for p in probes if is_diffusive(p)]
     localized = [p for p in probes if is_localized(p)]
     subdiffusive = [p for p in probes if ((not is_localized(p)) and \

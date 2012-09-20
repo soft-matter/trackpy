@@ -28,9 +28,13 @@ def instant_gratification(func):
     return wrapper
 
 @instant_gratification
-def plot_drift(x, label='', ax=None):
+def plot_drift(x, uncertainty=None, label='', ax=None):
     """Plot ensemble drift. To compare drifts of subsets, call multiple times
     with finish=False for all but the last call."""
+    if uncertainty is not None:
+        u = uncertainty # changing notation for brevity
+        ax.fill_between(x[:, 0], x[:, 1] + u[:, 1], x[:, 1] - u[:, 1])
+        ax.fill_between(x[:, 0], x[:, 2] + u[:, 2], x[:, 2] - u[:, 2])
     ax.plot(x[:, 0], x[:, 1], '-', label=label + ' X')
     ax.plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
     ax.set_xlabel('time [frames]')
