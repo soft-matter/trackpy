@@ -33,8 +33,10 @@ def plot_drift(x, uncertainty=None, label='', ax=None):
     with finish=False for all but the last call."""
     if uncertainty is not None:
         u = uncertainty # changing notation for brevity
-        ax.fill_between(x[:, 0], x[:, 1] + u[:, 1], x[:, 1] - u[:, 1])
-        ax.fill_between(x[:, 0], x[:, 2] + u[:, 2], x[:, 2] - u[:, 2])
+        ax.fill_between(x[:, 0], x[:, 1] + u[:, 1], x[:, 1] - u[:, 1],
+                        color='#DDDDDD')
+        ax.fill_between(x[:, 0], x[:, 2] + u[:, 2], x[:, 2] - u[:, 2],
+                        color='#DDDDDD')
     ax.plot(x[:, 0], x[:, 1], '-', label=label + ' X')
     ax.plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
     ax.set_xlabel('time [frames]')

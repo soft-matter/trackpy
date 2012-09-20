@@ -40,10 +40,10 @@ def split_by_probe(track_array, traj_only=True):
 def interp(traj):
     """Linearly interpolate through gaps in the trajectory
     where the probe was not observed."""
-    # 0: frame, 1: x, 2: y
+    # Column 0 should be time; columns 1: can be anything.
     first_frame, last_frame = traj[:, 0][[0,-1]]
     full_domain = np.arange(first_frame, 1 + last_frame)
-    interpolator = interpolate.interp1d(traj[:, 0], traj[:, 1:3], axis=0)
+    interpolator = interpolate.interp1d(traj[:, 0], traj[:, 1:], axis=0)
     return np.column_stack((full_domain, interpolator(full_domain)))
 
 def displacement(x, dt):
@@ -110,7 +110,6 @@ def fit_powerlaw(a):
 
 def drift(probes, suppress_plot=False):
     "Return the ensemble drift, x(t)."
-    print len(probes); print probes[0].shape
     dx_list = [np.column_stack(
                (np.diff(x[:, 0]), x[1:, 0], np.diff(x[:, 1:], axis=0))
                ) for x in probes] # dt, t, dx, dy
@@ -122,10 +121,13 @@ def drift(probes, suppress_plot=False):
     dx_list = np.split(dx, boundaries) # list of arrays, one for each t
     ensemble_dx = np.vstack([np.mean(dx, axis=0) for dx in dx_list])
     ensemble_dx = interp(ensemble_dx)
+    uncertainty = np.vstack([np.concatenate(
+                             (np.array([dx[0, 0]]), np.std(dx[:, 1:], axis=0))) 
+                             for dx in dx_list])
+    uncertainty = interp(uncertainty)
     # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
     x = np.column_stack((ensemble_dx[:, 0], 
                          np.cumsum(ensemble_dx[:, 1:], axis=0)))
-    uncertainty = None
     if not suppress_plot: plots.plot_drift(x, uncertainty)
     return x, uncertainty
 
