@@ -50,7 +50,7 @@ def plot_traj(probes, mpp, superimpose=None, ax=None):
     probes = motion.cast_probes(probes)
     if superimpose:
         image = 1-plt.imread(superimpose)
-        ax.imshow(image, cmap=cm.gray)
+        ax.imshow(image, cmap=plt.cm.gray)
         ax.set_xlim(0, image.shape[1])
         ax.set_ylim(0, image.shape[0])
         logger.info("Using units of px, not microns.")
@@ -113,7 +113,7 @@ def _setup_msd_plot(ax):
     # Label ticks with plain numbers, not scientific notation:
     ax.xaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
     ax.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
-    ax.set_ylim(0.01, 100)
+    ax.set_ylim(0.001, 100)
     logger.info('Limits of y range are manually set to %f - %f.', *plt.ylim())
     ax.set_xlabel('lag time [s]')
     ax.set_ylabel('msd [um$^2$]')
