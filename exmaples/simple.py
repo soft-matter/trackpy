@@ -33,7 +33,7 @@ for i in range(15):
     for j in range(15):
         for k in range(15):
 			# displace the location from the grid by a guassian with width 1/10
-			level.append(pt.PointND(0,np.asarray((j+2,k+2))+np.random.randn(2)/10))
+			level.append(pt.PointND(i,np.asarray((j+2,k+2))+np.random.randn(2)/10))
 
 # do the tracking
 hash_generator = lambda : pt.Hash_table((20,20),.5)
