@@ -1,12 +1,13 @@
 """These functions generate handy plots."""
 
+import numpy as np
 import matplotlib.pyplot as plt
 import logging
 import motion
 
 logger = logging.getLogger(__name__)
 
-def instant_gratification(func):
+def make_axes(func):
     """
     A decorator for plotting functions.
     NORMALLY: Direct the plotting function to the current axes, gca().
@@ -27,23 +28,67 @@ def instant_gratification(func):
             return func(*args, **kwargs)
     return wrapper
 
-@instant_gratification
-def plot_drift(x, uncertainty=None, label='', ax=None):
-    """Plot ensemble drift. To compare drifts of subsets, call multiple times
-    with finish=False for all but the last call."""
+def make_fig(func):
+    """See make_axes."""
+    def wrapper(*args, **kwargs):
+        if 'fig' not in kwargs:
+            kwargs['fig'] = plt.gcf()
+            func(*args, **kwargs)
+            plt.show()
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+@make_fig
+def plot_drift(traj, uncertainty=None, fig=None):
+    """Plot ensemble drift."""
+    fig, axs = plt.subplots(3, 1, sharex=True)
+    cartesian, radial, angular = axs
+    t, x, y = traj[:, 0], traj[:, 1], traj[:, 2]
+    r, theta = motion.cart_to_polar(x, y, deg=True)
+    if uncertainty is not None:
+        u_x, u_y = uncertainty[:, 1], uncertainty[:, 2]
+        TINY = float(np.finfo(np.float64).tiny) # Avoid divide-by-0 problems.
+        u_r = np.divide(np.sqrt((x*u_x)**2 + (y*u_y)**2), 
+                        np.sqrt(x**2 + y**2) + TINY)
+        u_theta = 180./np.pi*np.divide(np.sqrt((-y*u_x)**2 + (x*u_y)**2), 
+                            x**2 + y**2 + TINY)
+        logging.info("Max uncertainty in r is %s", u_r.max())
+        logging.info("Max uncertainty in theta is %s", u_theta.max())
+        U_COLOR ='#DDDDDD'
+        cartesian.fill_between(t, x - u_x, x + u_x, color=U_COLOR)
+        cartesian.fill_between(t, y - u_y, y + u_y, color=U_COLOR)
+        radial.fill_between(t, r - u_r, r + u_r, color=U_COLOR)
+        angular.fill_between(t, theta - u_theta, theta + u_theta, 
+                             color=U_COLOR)
+    cartesian.plot(t, x, label='X')
+    cartesian.plot(t, y, label='Y')
+    radial.plot(t, r, '-')
+    angular.plot(t, theta, '-')
+    cartesian.legend(loc='best')
+    angular.set_xlabel('time [frames]')
+    cartesian.set_ylabel('drift [px]')
+    radial.set_ylabel('radial drift [px]')
+    angular.set_ylabel('drift direction [degrees]')
+    return fig 
+
+@make_axes
+def plot_cartesian_drift(x, uncertainty=None, ax=None):
+    """DEPRECATED
+    Plot ensemble drift."""
     if uncertainty is not None:
         u = uncertainty # changing notation for brevity
         ax.fill_between(x[:, 0], x[:, 1] + u[:, 1], x[:, 1] - u[:, 1],
                         color='#DDDDDD')
         ax.fill_between(x[:, 0], x[:, 2] + u[:, 2], x[:, 2] - u[:, 2],
                         color='#DDDDDD')
-    ax.plot(x[:, 0], x[:, 1], '-', label=label + ' X')
-    ax.plot(x[:, 0], x[:, 2], '-', label=label + ' Y')
+    ax.plot(x[:, 0], x[:, 1], '-', label='X')
+    ax.plot(x[:, 0], x[:, 2], '-', label='Y')
     ax.set_xlabel('time [frames]')
     ax.set_ylabel('drift [px]')
     return ax
 
-@instant_gratification
+@make_axes
 def plot_traj(probes, mpp, superimpose=None, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
@@ -64,7 +109,7 @@ def plot_traj(probes, mpp, superimpose=None, ax=None):
         ax.plot(mpp*traj[:, 1], mpp*traj[:, 2])
     return ax
 
-@instant_gratification
+@make_axes
 def plot_msd(probes, mpp, fps, max_interval=None, ax=None):
     "Plot MSD for each probe individually."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
@@ -81,7 +126,7 @@ def plot_msd(probes, mpp, fps, max_interval=None, ax=None):
     _setup_msd_plot(ax)
     return ax
 
-@instant_gratification
+@make_axes
 def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, ax=None):
     "Plot ensemble MSDs for probes."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
@@ -96,7 +141,7 @@ def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, ax=None):
     _setup_msd_plot(ax)
     return ax
 
-@instant_gratification
+@make_axes
 def plot_bimodal_msd(probes, mpp, fps, max_interval=None, ax=None):
     """Plot individual MSDs with separate ensemble MSDs and power law fits
     for diffusive probes and localized probes."""

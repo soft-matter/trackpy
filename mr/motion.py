@@ -6,6 +6,8 @@ import pidly
 import diagnostics
 import plots
 
+pi = np.pi
+
 logger = logging.getLogger(__name__)
 
 def idl_track(query, max_disp, min_appearances, memory=3):
@@ -96,8 +98,6 @@ def ensemble_msd(probes, mpp, fps, max_interval=None):
     m = np.split(m, boundaries) # list of arrays, one for each dt
     ensm_m = np.vstack([np.mean(this_m, axis=0) for this_m in m])
     power, coeff = fit_powerlaw(ensm_m)
-    print 'Power Law n =', power
-    print 'D =', coeff/4.
     return ensm_m
 
 def fit_powerlaw(a):
@@ -130,6 +130,11 @@ def drift(probes, suppress_plot=False):
                          np.cumsum(ensemble_dx[:, 1:], axis=0)))
     if not suppress_plot: plots.plot_drift(x, uncertainty)
     return x, uncertainty
+
+def cart_to_polar(x, y, deg=False):
+    "Convert Cartesian x, y to r, theta in radians."
+    conversion = 180./pi if deg else 1.
+    return x**2 + y**2, conversion*np.arctan2(y, x)
 
 def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
