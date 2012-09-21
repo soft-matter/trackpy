@@ -198,9 +198,9 @@ def batch(trial, stack, images, diameter, separation=None,
                     trial, stack, frame)
     conn.close()
 
-def sample(images, diameter, separation=None,
+def sample(images, diameter, minmass=1, separation=None,
            noise_size=1, smoothing_size=None, invert=True,
-           percentile=64, minmass=1., pickN=None):
+           percentile=64, pickN=None):
     """Try parameters on a small sampling of images (out of potenitally huge
     list). For images, accept a list of filepaths, a single filepath, or a 
     directory path. Show annotated images and sub-pixel histogram."""
