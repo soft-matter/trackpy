@@ -134,7 +134,7 @@ def drift(probes, suppress_plot=False):
 def cart_to_polar(x, y, deg=False):
     "Convert Cartesian x, y to r, theta in radians."
     conversion = 180./pi if deg else 1.
-    return x**2 + y**2, conversion*np.arctan2(y, x)
+    return np.sqrt(x**2 + y**2), conversion*np.arctan2(y, x)
 
 def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
