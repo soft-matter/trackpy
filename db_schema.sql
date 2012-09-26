@@ -16,23 +16,6 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `Batch`
---
-
-DROP TABLE IF EXISTS `Batch`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `Batch` (
-  `batch` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `trial` smallint(5) unsigned DEFAULT NULL,
-  `stack` smallint(5) unsigned DEFAULT NULL,
-  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `comment` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`batch`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `Features`
 --
 
@@ -108,6 +91,7 @@ DROP TABLE IF EXISTS `Stacks`;
 CREATE TABLE `Stacks` (
   `trial` smallint(4) unsigned NOT NULL,
   `stack` smallint(2) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(31) DEFAULT NULL,
   `start` time DEFAULT NULL,
   `end` time DEFAULT NULL,
   `vstart` time DEFAULT NULL,
@@ -151,6 +135,7 @@ DROP TABLE IF EXISTS `Trials`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `Trials` (
   `trial` smallint(4) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(31) DEFAULT NULL,
   `description` varchar(63) DEFAULT NULL,
   `who` varchar(63) DEFAULT 'Dan Allan',
   `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -169,4 +154,4 @@ CREATE TABLE `Trials` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2012-09-06 15:42:03
+-- Dump completed on 2012-09-26 13:22:01

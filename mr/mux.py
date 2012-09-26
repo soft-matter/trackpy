@@ -68,22 +68,6 @@ def summary(args):
     else:
         ls(args.path)
 
-def new_stack(trial, video_file, vstart, duration, start, end):
-    "Insert a stack into the database, and return its id number."
-    # Args start, end are relative to age_zero. If unknown or N/A,
-    # do not call them, or call them as None.
-    conn = sql.connect()
-    c = conn.cursor()
-    c.execute("""INSERT INTO Stacks (trial, video, start, end, """
-              """vstart, duration) VALUES """
-              """(%s, %s, %s, %s, %s, %s)""", 
-              (trial, video_file, start, end, vstart, duration))
-    stack = c.lastrowid
-    c.close()
-    conn.close()
-    logging.info('New stack: trial=%s, stack=%s' % (trial, stack))
-    return stack
-
 def new_directory(trial, stack, base_directory):
     """Make a directory for the muxed images. Return its path as a
     format template, which will direct the output of FFmpeg."""
@@ -157,7 +141,7 @@ def video(args):
             logging.info("Ages to be muxed " + str(start) + ' - ' + str(end))
         else:
             start, end = None, None
-        stack = new_stack(trial, video_file, vstart, duration, start, end)
+        stack = sql.new_stack(trial, video_file, vstart, duration, start, end)
         output_template = new_directory(trial, stack, base_directory)
         command = build_command(video_file, output_template, vstart, duration,
                                 detected_fps, args.fps, args.crop_blackmagic,

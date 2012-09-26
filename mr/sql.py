@@ -27,8 +27,44 @@ def fetch(query):
     logger.info("Fetched %d rows", c.rowcount)
     return results 
 
+def name_to_id(trial, stack):
+    """This is used by query-building functions. Accepts database ids or
+    human-friendly names. Return ids."""
+    if type(trial) is str and type(stack) is str:
+        return trial, stack # No need for the database.
+    conn = connect ()
+    c = conn.cursor()
+    if type(trial) is str:
+        c.execute("SELECT trial FROM Trials WHERE name=%s", (trial,))
+        if c.rowcount == 0:
+            raise ValueError, "There is no trial named {}.".format(trial)
+        trial, = c.fetchone()
+    if type(stack) is str:
+        c.execute("SELECT stack FROM Stacks WHERE name=%s", (stack,))
+        if c.rowcount == 0:
+            raise ValueError, "There is no stack named {}.".format(trial)
+        stack, = c.fetchone()
+    return int(trial), int(stack)
+
+def new_stack(trial, video_file, vstart, duration, start, end):
+    "Insert a stack into the database, and return its id number."
+    # Args start, end are relative to age_zero. If unknown or N/A,
+    # do not call them, or call them as None.
+    conn = sql.connect()
+    c = conn.cursor()
+    c.execute("""INSERT INTO Stacks (trial, video, start, end, """
+              """vstart, duration) VALUES """
+              """(%s, %s, %s, %s, %s, %s)""",
+              (trial, video_file, start, end, vstart, duration))
+    stack = c.lastrowid
+    c.close()
+    conn.close()
+    logging.info('New stack: trial=%s, stack=%s' % (trial, stack))
+    return stack
+
 def query_feat(trial, stack, version=None, where=None):
     "Return a query for features from Features."
+    trial, stack = name_to_id(trial, stack)
     if version:
         query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
                  "trial={} AND stack={} AND version={}".format(
@@ -46,6 +82,7 @@ def query_feat(trial, stack, version=None, where=None):
 
 def query_traj(trial, stack, where=None):
     "Return a query for trajectories from Trajecotires."
+    trial, stack = name_to_id(trial, stack)
     query = ("SELECT x, y, mass, size, ecc, frame, probe FROM Trajectories "
               "WHERE trial={} AND stack={}".format(trial, stack))
     if where:
