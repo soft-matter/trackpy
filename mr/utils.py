@@ -1,5 +1,7 @@
 import collections
 import functools
+import re
+from datetime import datetime, timedelta
 
 class memo(object):
    """Decorator. Caches a function's return value each time it is called.
@@ -27,3 +29,31 @@ class memo(object):
       '''Support instance methods.'''
       return functools.partial(self.__call__, obj)
 
+def extract(pattern, string, group, convert=None):
+    """Extract a pattern from a string. Optionally, convert it
+    to a desired type (float, timestamp, etc.) by specifying a function.
+    When the pattern is not found, gracefully return None."""
+    # group may be 1, (1,) or (1, 2).
+    if type(group) is int:
+        grp = (group,)
+    elif type(group) is tuple:
+        grp = group
+    assert type(grp) is tuple, "The arg 'group' should be an int or a tuple."
+    try:
+        result = re.search(pattern, string, re.DOTALL).group(*grp)
+    except AttributeError:
+        # For easy unpacking, when a tuple is expected, return a tuple of Nones.
+        return None if type(group) is int else (None,)*len(group)
+    return convert(result) if convert else result
+
+def timestamp(ts_string):
+    "Convert a timestamp string to a datetime type."
+    if ts_string is None: return None
+    return datetime.strptime(ts_string, '%Y-%m-%d %H:%M:%S')
+
+def time_interval(raw):
+    "Convert a time interval string into a timedelta type."
+    if raw is None: return None
+    m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
+    h, m, s = map(int, m.group(1,2,3))
+    return timedelta(hours=h, minutes=m, seconds=s)

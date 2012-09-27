@@ -27,11 +27,16 @@ def fetch(query):
     logger.info("Fetched %d rows", c.rowcount)
     return results 
 
-def name_to_id(trial, stack):
-    """This is used by query-building functions. Accepts database ids or
-    human-friendly names. Return ids."""
-    if type(trial) is str and type(stack) is str:
-        return trial, stack # No need for the database.
+def name_to_id(trial, stack=None):
+    """Convert human-readable trial or stack names to their database IDs.
+    trial name or ID -> trial ID
+    trial name or ID, stack name or ID -> trial ID, stack ID"""
+    # Dispatch trivial cases where nothing is done.
+    if type(trial) is int and type(stack) is int:
+        return trial, stack
+    if type(trial) is int and stack is None:
+        return trial
+    # Now the meat.
     conn = connect ()
     c = conn.cursor()
     if type(trial) is str:
@@ -39,23 +44,26 @@ def name_to_id(trial, stack):
         if c.rowcount == 0:
             raise ValueError, "There is no trial named {}.".format(trial)
         trial, = c.fetchone()
-    if type(stack) is str:
+    if stack is None:
+        return int(trial)
+    elif type(stack) is int:
+        return int(trial), stack
+    elif type(stack) is str:
         c.execute("SELECT stack FROM Stacks WHERE name=%s", (stack,))
         if c.rowcount == 0:
             raise ValueError, "There is no stack named {}.".format(trial)
         stack, = c.fetchone()
-    return int(trial), int(stack)
+        return int(trial), int(stack)
 
-def new_stack(trial, video_file, vstart, duration, start, end):
+def new_stack(trial, name, video_file, vstart, duration, start, end):
     "Insert a stack into the database, and return its id number."
-    # Args start, end are relative to age_zero. If unknown or N/A,
-    # do not call them, or call them as None.
-    conn = sql.connect()
+    trial = name_to_id(trial)
+    conn = connect()
     c = conn.cursor()
-    c.execute("""INSERT INTO Stacks (trial, video, start, end, """
+    c.execute("""INSERT INTO Stacks (trial, name, video, start, end, """
               """vstart, duration) VALUES """
-              """(%s, %s, %s, %s, %s, %s)""",
-              (trial, video_file, start, end, vstart, duration))
+              """(%s, %s, %s, %s, %s, %s, %s)""",
+              (trial, name, video_file, start, end, vstart, duration))
     stack = c.lastrowid
     c.close()
     conn.close()
