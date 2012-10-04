@@ -1,4 +1,5 @@
 import MySQLdb
+import os
 import numpy as np
 import logging
 
@@ -7,13 +8,14 @@ logger = logging.getLogger(__name__)
 def connect():
     "Return an open connection to the database."
     try:
-        conn = MySQLdb.connect(host='localhost', 
-                               user='scientist',
-                               passwd='scientist', db='exp3')
+        conn = MySQLdb.connect(read_default_group='mr')
     except MySQLdb.Error, e:
-        print "Cannot connect to database."
-        print "Error code:", e.args[0]
-        print "Error message:", e.args[1]
+        log.error("Cannot connect to database. I look for connection "
+                  "parameters in your system's "
+                  "mysql default file, usually called ~/.my.cnf. Create group "
+                  "under the heading [mr].")
+        log.error("Error code: %s", e.args[0])
+        log.error("Error message: %s", e.args[1])
     return conn
 
 def fetch(query):
