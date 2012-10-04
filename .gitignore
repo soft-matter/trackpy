@@ -3,6 +3,5 @@
 *.pyc
 *~
 *.swp
-mux
 build/*
 dist/*
