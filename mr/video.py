@@ -9,8 +9,6 @@ from utils import extract, timestamp, time_interval
 
 logger = logging.getLogger(__name__)
 
-FRAME_REPOSITORY = '/media/Frames'
-
 def video_info(filepath):
     """Return some video meta information as a dictionary."""
     ffmpeg = subprocess.Popen("ffmpeg -i " + filepath, shell=True, stderr=subprocess.PIPE)
@@ -111,9 +109,9 @@ def _maybe_cast_time(time_or_string):
         return time_or_string
 
 def mux_video(trial, video_file, vstart, duration=None, end=None, fps=None,
-              crop_blackmagic=False, safe_mode=False, name=None):
+              crop_blackmagic=False, safe_mode=False, name=None,
+              base_directory=os.path.expanduser('~/Frames')):
     vstart, duration, end = map(_maybe_cast_time, (vstart, duration, end))
-    base_directory = FRAME_REPOSITORY
     duration = duration if duration else end - vstart
     info = video_info(video_file)
     logging.info("User-specified video file %s", video_file)
@@ -165,13 +163,13 @@ def which_video(directory, t0, target_start,
     return None
 
 def mux_age(trial, start, duration=None, end=None, fps=None,
-          crop_blackmagic=False, safe_mode=False, directory='.', name=None):
+            crop_blackmagic=False, safe_mode=False, directory='.', name=None,
+            base_directory=os.path.expanduser('~/Frames')):
     "Find a video covering a span of ages, and send it to mux_video."
     start, duration, end = map(time_interval, (start, duration, end))
     t0 = get_t0(directory)
     if not t0:
         raise ValueError, "I cannot slice videos by age with an age_zero file."
-    base_directory = FRAME_REPOSITORY
     video = which_video(directory, t0, start, duration, end) 
     if not video:
         logging.critical("No video in %s covers that age range.", directory)
