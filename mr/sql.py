@@ -10,12 +10,12 @@ def connect():
     try:
         conn = MySQLdb.connect(read_default_group='mr')
     except MySQLdb.Error, e:
-        log.error("Cannot connect to database. I look for connection "
-                  "parameters in your system's "
-                  "mysql default file, usually called ~/.my.cnf. Create group "
-                  "under the heading [mr].")
-        log.error("Error code: %s", e.args[0])
-        log.error("Error message: %s", e.args[1])
+        logger.error("Cannot connect to database. I look for connection "
+                    "parameters in your system's "
+                    "mysql default file, usually called ~/.my.cnf. "
+                    "Create a group under the heading [mr].")
+        logger.error("Error code: %s", e.args[0])
+        logger.error("Error message: %s", e.args[1])
     return conn
 
 def fetch(query):
