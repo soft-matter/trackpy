@@ -276,7 +276,7 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
     .. deprecated:: 0.2
     '''
     hash_generator = lambda : hash_cls(dims,search_range)
-    link(levels,search_range,hash_generator,memory,track_cls)
+    return link(levels,search_range,hash_generator,memory,track_cls)
     
 def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
     '''   
