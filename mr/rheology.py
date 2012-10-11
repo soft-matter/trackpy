@@ -51,11 +51,13 @@ def gse(t, r2, a, T=298, clip=0.03, width=0.7):
     # If G'(w) or G''(w) are less than 3% of G(w), the signal is probably
     # buried by the noise.
     if np.any(Gp < clip*G_s):
-        Gp[Gp < clip*G_s] = 0
-        logger.info("Some values of G' << G. These were set to zero.")
+        Gp = np.ma.array(Gp, mask=(Gp < clip*G_s), fill_value=0.)
+        logger.info("Some values of G' << G. A masked "
+                    "array will be returned.")
     if np.any(Gpp < clip*G_s):
-        Gpp[Gpp < clip*G_s] = 0
-        logger.info("Some values of G'' << G. These were set to zero.")
+        Gpp = np.ma.array(Gpp, mask=(Gpp < clip*G_s), fill_value=0.)
+        logger.info("Some values of G'' << G. A masked "
+                    "array will be returned.")
     return w, G_s, Gp, Gpp
 
 def log_derivatives(x, f, width=0.7):
