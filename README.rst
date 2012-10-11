@@ -10,22 +10,20 @@ What is it
 Main Features
 =============
 
-    - The widely used multiple particle tracking algorithm originally implemented
-      by John Crocker and Eric Weeks in IDL is faithfully reimplemented in
-      Python. Much is accomplished using the standard scipy and numpy modules,
-      and each logical step is broken into a single-purpose function,
-      rendering a succinct and modular code that is easy to customize. Key
+    - The widely-used multiple particle locating algorithm originally implemented
+      by John Crocker and Eric Weeks in IDL is reimplemented in
+      Python. Wherever possible, I use existing tools from scipy and numpy modules. Each logical step is broken into a single-purpose function,
+      rendering a succinct and modular code that is easy to customize and maintain. Key
       array-intensive steps that are not available from Python's standard scientific modules are
-      imported from C.
+      written in C and imported.
     - The trajectories of colloidal probes can be characteristized, grouped, and
       plotted using a suite of simple, convenient functions.
-    - Various models relate probe statistics to rheological response, including
-      the all-important Generalized Stokes-Einstein and others, particularly
-      models developed for interfacial microrheology. 
+    - Various models (with more to come) relate probe statistics to rheological response, including
+      the Generalized Stokes-Einstein implementation used in the Crocker/Grier code.
     - A sql module provides convenient functions for storing and loading data
       from a MySQL database. (A sample database schema is included.)
     - A wrapper for the powerful video handling software FFmpeg helps slice
-      sections of video to analyze and ameliorate book keeping headaches.
+      sections of video to analyze and ameliorate book-keeping headaches.
 
 
 Dependencies
@@ -34,7 +32,7 @@ Dependencies
   * numpy
   * scipy
   * MySQLdb (optional)
-  * pIDLy, but until track.pro can be reimplemented in Python
+  * pIDLy, which calls IDL from Python, only until track.pro can be reimplemented in Python
 
 Project Status
 ==============
@@ -43,11 +41,14 @@ The feature-finding is stable. This packages still relies on Crocker & Weeks's
 obtained, the package provides tools for flitering, grouping, and analyzing 
 them.
 
+None of the code for active microrheology (tracking and analyzing the motions of magnetic
+nanowires) has yet been included in this repository.
+
 Related Projects
 ================
 
   * Particle tracking using IDL http://www.physics.emory.edu/~weeks/idl/
-  * A C++ implementation wrapped in Python https://github.com/tacaswell/tracking
+  * A C++ implementation (also wrapped in Python) https://github.com/tacaswell/tracking
 
 Background
 ==========
@@ -56,4 +57,4 @@ This package was developed and is maintained by Daniel Allan, as part of his
 PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
 University in Baltimore, MD.
 
-Dan can be reached through his website, http://www.danallan.com.
+Dan can be reached at dallan@pha.jhu.edu.
