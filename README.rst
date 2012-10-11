@@ -49,6 +49,7 @@ Related Projects
 
   * Particle tracking using IDL http://www.physics.emory.edu/~weeks/idl/
   * A C++ implementation (also wrapped in Python) https://github.com/tacaswell/tracking
+  * A Matlab implementation by Daniel Blair and Eric Dufresne http://physics.georgetown.edu/matlab/
 
 Background
 ==========
