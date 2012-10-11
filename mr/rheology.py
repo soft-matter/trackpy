@@ -37,13 +37,15 @@ def gse(t, r2, a, T=298, clip=0.03, width=0.7):
     if np.abs(ddf).max() > 0.15:
         logger.warning("Second logrithmic derivative of the MSD "
                        "reaches %.2f. Data is not very "
-                       "power-law like. Results may be poor.", np.abs(ddf).max())
+                       "power-law like. Results may be poor.", 
+                       np.abs(ddf).max())
     G_s = (DIM/3.)*kT/(pi*a) / (f*special.gamma(1 + df)*(1 + ddf/2.))
     g, dg, ddg = log_derivatives(s, G_s)
     if np.abs(ddg).max() > 0.15:
         logger.warning("Second-order logrithmic derivative of G(s) "
                        "reaches %.2f. Data is not very "
-                       "power-law like. Results may be poor.", np.abs(ddg).max())
+                       "power-law like. Results may be poor.", 
+                       np.abs(ddg).max())
     Gp = g/(1. + ddg) * (np.cos(pi/2*dg) - (pi/2-1)*dg*ddg)
     Gpp = g/(1. + ddg) * (np.sin(pi/2*dg) - (pi/2-1)*(1 - dg)*ddg)
     # If G'(w) or G''(w) are less than 3% of G(w), the signal is probably
@@ -57,11 +59,15 @@ def gse(t, r2, a, T=298, clip=0.03, width=0.7):
     return w, G_s, Gp, Gpp
 
 def log_derivatives(x, f, width=0.7):
-    """Approximate f(x) as a parabola and logrithmically differentiate the parabola.
-    Return this approximated f(x), d(log f)/d(log x), and d^2(log f)/d(log x)^2."""
+    """In the neighborhood of each x, approximate f(x) as a parabola 
+    and logrithmically differentiate the parabola.
+    Return this approximated f(x), d(log f)/d(log x), 
+    and d^2(log f)/d(log x)^2."""
     assert len(x) == len(f), "x and f must be the same length."
     logx, logf = np.log(x), np.log(f)
-    smooth_f = df = ddf = np.zeros_like(f)
+    smooth_f = np.zeros_like(f)
+    df = np.zeros_like(f)
+    ddf = np.zeros_like(f)
     for i, x0 in enumerate(logx):
         c, b, a = _parabolic_spline(logx, logf, x0, width)
         smooth_f[i] = np.exp(a*x0**2 + b*x0 + c)
@@ -77,3 +83,7 @@ def _parabolic_spline(x, f, x0, width):
     # Warning: There is a different function called np.polyfit that does not
     # accept weights. This long namespace calls the weight-capable polyfit.
     return c, b, a
+
+def toy_data(n):
+    "Return powerlaw 'MSD data' with power n."
+    return np.arange(1, 100), np.arange(1, 100)**n+0.001*np.random.rand()
