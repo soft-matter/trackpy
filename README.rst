@@ -5,7 +5,7 @@ mr: microrheology toolkit
 What is it
 ==========
 
-**mr** is a Python package providing tools for passive and active microrheology experiments, including multiple particle tracking, analysis of colloidal trajectories, and rheological models.
+**mr** is a Python package providing tools for passive and active microrheology experiments.
 
 Main Features
 =============
