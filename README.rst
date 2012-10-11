@@ -10,7 +10,7 @@ What is it
 Main Features
 =============
 
-    - The widely-used multiple particle locating algorithm originally implemented
+    - The widely-used particle locating algorithm originally implemented
       by John Crocker and Eric Weeks in IDL is reimplemented in
       Python. Wherever possible, I use existing tools from scipy and numpy modules. Each logical step is broken into a single-purpose function,
       rendering a succinct and modular code that is easy to customize and maintain. Key
