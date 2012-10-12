@@ -93,7 +93,7 @@ def query_feat(trial, stack, version=None, where=None):
 def query_traj(trial, stack, where=None):
     "Return a query for trajectories from Trajecotires."
     trial, stack = name_to_id(trial, stack)
-    query = ("SELECT x, y, mass, size, ecc, frame, probe FROM Trajectories "
+    query = ("SELECT probe, frame, x, y FROM Trajectories "
               "WHERE trial={} AND stack={}".format(trial, stack))
     if where:
         if type(where) is str:

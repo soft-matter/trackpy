@@ -17,13 +17,13 @@ Main Features
       array-intensive steps that are not available from Python's standard scientific modules are
       written in C and imported.
     - The trajectories of colloidal probes can be characteristized, grouped, and
-      plotted using a suite of simple, convenient functions.
+      plotted using a suite of convenient functions.
     - Various models (with more to come) relate probe statistics to rheological response, including
       the Generalized Stokes-Einstein implementation used in the Crocker/Grier code.
     - A sql module provides convenient functions for storing and loading data
       from a MySQL database. (A sample database schema is included.)
     - A wrapper for the powerful video handling software FFmpeg helps slice
-      sections of video to analyze and ameliorate book-keeping headaches.
+      sections of video, ameliorating book-keeping headaches.
 
 
 Dependencies

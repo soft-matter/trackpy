@@ -25,24 +25,19 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     idl.close()
     return t
 
-def split_by_probe(track_array, traj_only=True):
-    """Split the big IDL-style track array into a list of arrays,
+def split_by_probe(track_array):
+    """Split an array of all trajectories, indexed by probe,
+    into a list of arrays,
     where each array coresponds is a separate probe."""
-    boundaries, = np.where(np.diff(track_array[:, 6], axis=0) > 0.0)
+    boundaries, = np.where(np.diff(track_array[:, 0], axis=0) > 0.0)
     boundaries += 1
-    if traj_only:
-        traj = np.split(track_array[:, [5, 0, 1]], boundaries)
-        # 0: frame, 1: x, 2: y
-        return traj
-    else: 
-        probes = np.split(track_array[:, :6], boundaries)
-        # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
-        return probes
+    probes = np.split(track_array[:, 1:], boundaries)
+    # 0: frame, 1: x, 2: y
+    return probes
 
 def interp(traj):
     """Linearly interpolate through gaps in the trajectory
     where the probe was not observed."""
-    # Column 0 should be time; columns 1: can be anything.
     first_frame, last_frame = traj[:, 0][[0,-1]]
     full_domain = np.arange(first_frame, 1 + last_frame)
     interpolator = interpolate.interp1d(traj[:, 0], traj[:, 1:], axis=0)
@@ -57,7 +52,6 @@ def msd(traj, mpp, fps, max_interval=None, detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
     output in units of microns and seconds."""
-    # 0: frame, 1: x, 2: y
     max_interval = max_interval if max_interval else 50 # default
     max_interval = min(max_interval, traj.shape[0])
     intervals = xrange(1, 1 + max_interval)
@@ -101,9 +95,9 @@ def ensemble_msd(probes, mpp, fps, max_interval=None):
     return ensm_m
 
 def fit_powerlaw(a):
-    "Fit a power law to MSD data. Return the power and the coefficient."
-    # This is not a generic power law. By treating it as a linear regression in
-    # log space, we assume no additive constant: y = 0 + coeff*x**power.
+    """Fit a power law to MSD data. Return the power and the coefficient.
+    This is not a generic power law. By treating it as a linear regression in
+    log space, we assume no additive constant: y = 0 + coeff*x**power."""
     slope, intercept, r, p, stderr = \
         stats.linregress(np.log(a[:, 0]), np.log(a[:, 1]))
     return slope, np.exp(intercept)
@@ -165,7 +159,8 @@ def is_unphysical(traj, mpp, fps, threshold=0.08):
     return True if m[0, 1] > threshold else False
 
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
-    "Sort list of probes into three lists, sorted by mobility."
+    """Sort list of probes into three lists, sorted by mobility.
+    Return: diffusive, localized, subdiffusive."""
     diffusive = [p for p in probes if is_diffusive(p)]
     localized = [p for p in probes if is_localized(p)]
     subdiffusive = [p for p in probes if ((not is_localized(p)) and \
