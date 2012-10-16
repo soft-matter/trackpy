@@ -199,6 +199,7 @@ def locate(image_file, diameter, separation=None,
     smoothing_size = smoothing_size if smoothing_size else diameter # default
     image = plt.imread(image_file)
     if junk_image:
+        junk_image = plt.imread(junk_image)
         subtract_junk(image, junk_image)  
     if invert:
         # Efficient way of doing image = 1 - image
