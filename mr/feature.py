@@ -199,7 +199,8 @@ def locate(image_file, diameter, separation=None,
     smoothing_size = smoothing_size if smoothing_size else diameter # default
     image = plt.imread(image_file)
     if junk_image:
-        junk_image = plt.imread(junk_image)
+        if type(junk_image) is str:
+            junk_image = plt.imread(junk_image)
         subtract_junk(image, junk_image)  
     if invert:
         # Efficient way of doing image = 1 - image
@@ -223,6 +224,7 @@ def batch(trial, stack, images, diameter, separation=None,
             logging.error('There are entries for this trial and stack already.')
             conn.close()
             return False
+    junk_image = plt.imread(junk_image)
     for frame, filepath in enumerate(images):
         frame += 1 # Start at 1, not 0.
         centroids = locate(filepath, diameter, separation, 
