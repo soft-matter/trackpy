@@ -34,6 +34,12 @@ import _Cfilters
 
 logger = logging.getLogger(__name__)
 
+def subtract_junk(image, junk_image):
+    """When there is junk in the field of view, call this
+    function first to subtract a baseline image from each frame
+    before processing it."""
+    image -= junk_image
+
 def bandpass(image, lshort, llong):
     """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
@@ -179,21 +185,25 @@ def _locate_centroids(image, diameter, separation=None,
     return centroids 
 
 def locate(image_file, diameter, separation=None, 
-           noise_size=1, smoothing_size=None, invert=True,
+           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
            percentile=64, minmass=1., pickN=None):
-    """Read image, (optionally) invert it, take bandpass, and execute
+    """Read image, optionally invert it, optionally subtract a background
+    junk image, apply band pass filter, and execute
     feature-finding routine _locate_centroids()."""
     smoothing_size = smoothing_size if smoothing_size else diameter # default
     image = plt.imread(image_file)
+    if junk_image:
+        subtract_junk(image, junk_image)  
     if invert:
-        image = 1 - image
+        # Efficient way of doing image = 1 - image
+        image *= -1; image += 1 
     image = bandpass(image, noise_size, smoothing_size)
     return _locate_centroids(image, diameter, separation=separation,
                              percentile=percentile, minmass=minmass,
                              pickN=pickN)
 
 def batch(trial, stack, images, diameter, separation=None,
-          noise_size=1, smoothing_size=None, invert=True,
+          noise_size=1, smoothing_size=None, invert=True, junk_image=None,
           percentile=64, minmass=1., pickN=None, override=False):
     """Process a list of image files using locate(), 
     and insert the centroids into the database."""
@@ -209,7 +219,7 @@ def batch(trial, stack, images, diameter, separation=None,
     for frame, filepath in enumerate(images):
         frame += 1 # Start at 1, not 0.
         centroids = locate(filepath, diameter, separation, 
-                           noise_size, smoothing_size, invert, 
+                           noise_size, smoothing_size, invert, junk_image,
                            percentile, minmass, pickN)
         sql.insert_feat(trial, stack, frame, centroids, conn, override)
         logger.info("Completed Trial %s Stack %s Frame %s", 
@@ -217,7 +227,7 @@ def batch(trial, stack, images, diameter, separation=None,
     conn.close()
 
 def sample(images, diameter, minmass=1, separation=None,
-           noise_size=1, smoothing_size=None, invert=True,
+           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
            percentile=64, pickN=None):
     """Try parameters on a small sampling of images (out of potenitally huge
     list). For images, accept a list of filepaths, a single filepath, or a 
@@ -231,7 +241,7 @@ def sample(images, diameter, minmass=1, separation=None,
     for i, image_file in enumerate(samples):
         logger.info("Sample %s of %s...", 1+i, len(samples))
         f = locate(image_file, diameter, separation,
-                   noise_size, smoothing_size, invert,
+                   noise_size, smoothing_size, invert, junk_image,
                    percentile, minmass, pickN)
         diagnostics.annotate(image_file, f)
         diagnostics.subpx_hist(f)
