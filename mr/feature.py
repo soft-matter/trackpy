@@ -114,7 +114,7 @@ def _local_maxima(image, diameter, separation, percentile=64):
     peaks = np.where(peak_map != 0)
     if not np.size(peaks) > 0:
         raise ValueError, "Bad image! All maxima were in the margins."
-    return [(x, y) for y, x in zip(*peaks)]
+    return peaks[1], peaks[0] # x, y
 
 def _estimate_mass(image, x, y, diameter):
     "Compute the total brightness in the neighborhood of a local maximum."
@@ -175,14 +175,20 @@ def _locate_centroids(image, diameter, separation=None,
     if not separation:
         separation = diameter + 1
     image = (255./image.max()*image.clip(min=0.)).astype(np.uint8)
-    peaks = _local_maxima(image, diameter, separation, percentile=percentile)
-    massive_peaks = [(x, y) for x, y in peaks if 
-        _estimate_mass(image, x, y, diameter) > minmass]
-    centroids = [_refine_centroid(image, x, y, diameter, minmass=minmass) \
-                 for x, y in massive_peaks]
-    logger.info("%s local maxima, %s of qualifying mass", len(peaks),
-                len(centroids))
-    return centroids 
+    x, y = _local_maxima(image, diameter, separation, percentile=percentile)
+    count_peaks = x.size
+    vec_estimate_mass = np.vectorize(
+        lambda xx, yy: _estimate_mass(image, xx, yy, diameter))
+    massive_peaks = vec_estimate_mass(x, y) > minmass
+    x, y = x[massive_peaks], y[massive_peaks]
+    count_massive_peaks = x.size
+    vec_refine_centroid = np.vectorize(
+        lambda xx, yy: _refine_centroid(image, xx, yy, diameter, 
+                                        minmass=minmass))
+    centroids = vec_refine_centroid(x, y)
+    logger.info("%s local maxima, %s of qualifying mass", count_peaks,
+                count_massive_peaks)
+    return zip(*centroids)
 
 def locate(image_file, diameter, separation=None, 
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
