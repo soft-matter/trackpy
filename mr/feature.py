@@ -48,10 +48,10 @@ def bandpass(image, lshort, llong):
         raise ValueError, ("The smoothing length scale must be more" 
                            "than twice the noise length scale.")
     smoothed_background = filters.uniform_filter(image, 2*llong+1)
-    no_noise = np.fft.ifft2(fourier.fourier_gaussian(np.fft.fft2(image), lshort))
-    result = np.real(no_noise - smoothed_background)
+    result = np.fft.ifft2(fourier.fourier_gaussian(np.fft.fft2(image), lshort))
+    result -= smoothed_background
     # Where result < 0 that pixel is definitely not a feature. Zero to simplify.
-    return result.clip(min=0.)
+    return result.real.clip(min=0.)
 
 @memo
 def circular_mask(diameter, side_length=None):
