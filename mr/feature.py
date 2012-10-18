@@ -198,7 +198,7 @@ def locate(image_file, diameter, separation=None,
     feature-finding routine _locate_centroids()."""
     smoothing_size = smoothing_size if smoothing_size else diameter # default
     image = plt.imread(image_file)
-    if junk_image:
+    if isinstance(junk_image,str):
         if type(junk_image) is str:
             junk_image = plt.imread(junk_image)
         subtract_junk(image, junk_image)  
