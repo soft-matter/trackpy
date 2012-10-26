@@ -17,6 +17,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
 import logging
+import copy
 import numpy as np
 from scipy import stats
 from scipy import interpolate
@@ -47,8 +48,7 @@ def split_by_probe(track_array):
     """Split an array of all trajectories, indexed by probe,
     into a list of arrays,
     where each array coresponds is a separate probe."""
-    boundaries, = np.where(np.diff(track_array[:, 0], axis=0) > 0.0)
-    boundaries += 1
+    boundaries, = 1 + np.where(np.diff(track_array[:, 0], axis=0) > 0.0)
     probes = np.split(track_array[:, 1:], boundaries)
     # 0: frame, 1: x, 2: y
     return probes
@@ -105,8 +105,7 @@ def ensemble_msd(probes, mpp, fps, max_interval=None):
     m = np.vstack([msd(traj, mpp, fps, max_interval, detail=False) \
                 for traj in probes])
     m = m[m[:, 0].argsort()] # sort by dt 
-    boundaries, = np.where(np.diff(m[:, 0], axis=0) > 0.0)
-    boundaries += 1
+    boundaries, = 1 + np.where(np.diff(m[:, 0], axis=0) > 0.0)
     m = np.split(m, boundaries) # list of arrays, one for each dt
     ensm_m = np.vstack([np.mean(this_m, axis=0) for this_m in m])
     power, coeff = fit_powerlaw(ensm_m)
@@ -152,7 +151,7 @@ def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
     if d is None: 
         d, uncertainty = drift(probes)
-    new_probes = np.copy(probes) # copy list
+    new_probes = copy.copy(probes) # copy list
     for p in new_probes:
         for t, x, y in d:
             p[p[:, 0] == t, 1:3] -= [x, y] 
@@ -162,19 +161,19 @@ def is_localized(traj, threshold=0.4):
     "Is this probe's motion localized?"
     m = msd(traj, mpp=1., fps=1.)
     power, coeff = fit_powerlaw(m)
-    return True if power < threshold else False
+    return power < threshold
 
 def is_diffusive(traj, threshold=0.85):
     "Is this probe's motion diffusive?"
     m = msd(traj, mpp=1., fps=1.)
     power, coeff = fit_powerlaw(m)
-    return True if power > threshold else False
+    return power > threshold
 
 def is_unphysical(traj, mpp, fps, threshold=0.08):
     """Is the first MSD datapoint unphysically high? (This is sometimes an
     artifact of uneven drift.)"""
     m = msd(traj, mpp, fps=1.)
-    return True if m[0, 1] > threshold else False
+    return m[0, 1] > threshold
 
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     """Sort list of probes into three lists, sorted by mobility.
