@@ -110,7 +110,6 @@ def plot_cartesian_drift(x, uncertainty=None, ax=None):
 def plot_traj(probes, mpp, superimpose=None, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
-    probes = motion.cast_probes(probes)
     if superimpose:
         image = 1-plt.imread(superimpose)
         ax.imshow(image, cmap=plt.cm.gray)
@@ -131,7 +130,6 @@ def plot_traj(probes, mpp, superimpose=None, ax=None):
 def plot_msd(probes, mpp, fps, max_interval=None, ax=None):
     "Plot MSD for each probe individually."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
-    probes = motion.cast_probes(probes)
     msds = [motion.msd(traj, mpp, fps, max_interval, detail=False) \
             for traj in probes] 
     for counter, m in enumerate(msds):
@@ -163,7 +161,6 @@ def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, ax=None):
 def plot_bimodal_msd(probes, mpp, fps, max_interval=None, ax=None):
     """Plot individual MSDs with separate ensemble MSDs and power law fits
     for diffusive probes and localized probes."""
-    probes = motion.cast_probes(probes)
     upper_branch, lower_branch, middle_branch = motion.split_branches(probes)
     plot_msd(upper_branch, mpp, fps, max_interval, ax=ax)
     plot_emsd(upper_branch, mpp, fps, max_interval, powerlaw=True, ax=ax)
