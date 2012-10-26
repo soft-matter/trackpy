@@ -49,7 +49,8 @@ def split(traj_array):
     """Convert one big array of trajectories indexed by probe into a 
     list of trajectories, one list entry per probe."""
     # track array columns are 0:probe, 1:frame, 2:x, 3:y
-    boundaries, = 1 + np.where(np.diff(traj_array[:, 0], axis=0) > 0.0)
+    boundaries, = np.where(np.diff(traj_array[:, 0], axis=0) > 0.0)
+    boundaries += 1
     probes_list = np.split(traj_array[:, 1:], boundaries)
     # probes columns are 0:frame, 1:x, 2:y
     return probes_list
@@ -58,9 +59,9 @@ def stack(probes):
     """Convert a list of probe trajectories into one big array indexed
     by the first column."""
     # Prepend a column designating the probe number.
-    indexed_probes = [np.column_stack((i*np.ones(traj.shape[1]), traj)) \
-     for i, traj in enumerate(probes)]
-    return vstack(indexed_probes)
+    indexed_probes = [np.column_stack((i*np.ones(traj.shape[0]), traj)) \
+                      for i, traj in enumerate(probes)]
+    return np.vstack(indexed_probes)
 
 def interp(traj):
     """Linearly interpolate through gaps in the trajectory
@@ -113,7 +114,8 @@ def ensemble_msd(probes, mpp, fps, max_interval=None):
     m = np.vstack([msd(traj, mpp, fps, max_interval, detail=False) \
                 for traj in probes])
     m = m[m[:, 0].argsort()] # sort by dt 
-    boundaries, = 1 + np.where(np.diff(m[:, 0], axis=0) > 0.0)
+    boundaries, = np.where(np.diff(m[:, 0], axis=0) > 0.0)
+    boundaries += 1
     m = np.split(m, boundaries) # list of arrays, one for each dt
     ensm_m = np.vstack([np.mean(this_m, axis=0) for this_m in m])
     power, coeff = fit_powerlaw(ensm_m)
