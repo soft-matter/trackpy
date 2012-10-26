@@ -180,6 +180,10 @@ def is_diffusive(traj, threshold=0.85):
     power, coeff = fit_powerlaw(m)
     return power > threshold
 
+def is_smear(traj,threshold):
+    d = np.sqrt(np.sum((traj[-1,1:]-traj[0,1:])**2))
+    return d > threshold
+
 def is_unphysical(traj, mpp, fps, threshold=0.08):
     """Is the first MSD datapoint unphysically high? (This is sometimes an
     artifact of uneven drift.)"""
