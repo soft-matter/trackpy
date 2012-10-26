@@ -160,12 +160,13 @@ def cart_to_polar(x, y, deg=False):
 def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
     if d is None: 
+        logger.info("Computing drift using the ensemble of %d probes...",
+                    len(probes))
         d, uncertainty = drift(probes)
-    new_probes = copy.copy(probes) # copy list
-    for p in new_probes:
-        for t, x, y in d:
-            p[p[:, 0] == t, 1:3] -= [x, y] 
-    return new_probes
+    stacked_probes = stack(probes)
+    for t, x, y in d:
+        stacked_probes[stacked_probes[:, 1] == t, 2:4] -= [x, y]
+    return split(stacked_probes)
 
 def is_localized(traj, threshold=0.4):
     "Is this probe's motion localized?"
