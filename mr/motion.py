@@ -186,7 +186,7 @@ def is_unphysical(traj, mpp, fps, threshold=0.08):
     m = msd(traj, mpp, fps=1.)
     return m[0, 1] > threshold
 
-def split_branches(probes, threshold=0.85, lower_threshold=0.4):
+def split_branches(probes):
     """Sort list of probes into three lists, sorted by mobility.
     Return: diffusive, localized, subdiffusive."""
     diffusive = [p for p in probes if is_diffusive(p)]
