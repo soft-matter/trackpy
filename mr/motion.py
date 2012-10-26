@@ -16,7 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
+from __future__ import division
 import logging
+import copy
 import numpy as np
 from scipy import stats
 from scipy import interpolate
@@ -43,15 +45,23 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     idl.close()
     return t
 
-def split_by_probe(track_array):
-    """Split an array of all trajectories, indexed by probe,
-    into a list of arrays,
-    where each array coresponds is a separate probe."""
-    boundaries, = np.where(np.diff(track_array[:, 0], axis=0) > 0.0)
+def split(traj_array):
+    """Convert one big array of trajectories indexed by probe into a 
+    list of trajectories, one list entry per probe."""
+    # track array columns are 0:probe, 1:frame, 2:x, 3:y
+    boundaries, = np.where(np.diff(traj_array[:, 0], axis=0) > 0.0)
     boundaries += 1
-    probes = np.split(track_array[:, 1:], boundaries)
-    # 0: frame, 1: x, 2: y
-    return probes
+    probes_list = np.split(traj_array[:, 1:], boundaries)
+    # probes columns are 0:frame, 1:x, 2:y
+    return probes_list
+
+def stack(probes):
+    """Convert a list of probe trajectories into one big array indexed
+    by the first column."""
+    # Prepend a column designating the probe number.
+    indexed_probes = [np.column_stack((i*np.ones(traj.shape[0]), traj)) \
+                      for i, traj in enumerate(probes)]
+    return np.vstack(indexed_probes)
 
 def interp(traj):
     """Linearly interpolate through gaps in the trajectory
@@ -66,11 +76,10 @@ def displacement(x, dt):
     This is not the same as numpy.diff(x, n), the nth-order derivative."""
     return x[dt:]-x[:-dt]
 
-def msd(traj, mpp, fps, max_interval=None, detail=False):
+def msd(traj, mpp, fps, max_interval=50, detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
     output in units of microns and seconds."""
-    max_interval = max_interval if max_interval else 50 # default
     max_interval = min(max_interval, traj.shape[0])
     intervals = xrange(1, 1 + max_interval)
     traj = interp(traj)
@@ -87,8 +96,8 @@ def _detailed_msd(traj, interval, mpp, fps):
     # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
     mean_stuff = np.mean(stuff, axis=0)
     # Estimate statistically independent measurements:
-    N = np.round(2*stuff.shape[0]/float(interval))
-    return np.append(np.array([interval])/float(fps), mean_stuff, np.array([N])) 
+    N = np.round(2*stuff.shape[0]/interval)
+    return np.append(np.array([interval])/fps, mean_stuff, np.array([N])) 
 
 def _simple_msd(traj, interval, mpp, fps):
     """Given a continuous trajectory and a time interval (in frames),
@@ -96,7 +105,7 @@ def _simple_msd(traj, interval, mpp, fps):
     d = displacement(mpp*traj[:, 1:], interval) # [[dx, dy], ...]
     sd = d**2
     msd_result = np.mean(np.sum(sd, axis=1), axis=0)
-    return np.array([interval/float(fps), msd_result]) 
+    return np.array([interval/fps, msd_result]) 
 
 def ensemble_msd(probes, mpp, fps, max_interval=None):
     """Return ensemble mean squared displacement. Input in units of px
@@ -145,36 +154,37 @@ def drift(probes, suppress_plot=False):
 
 def cart_to_polar(x, y, deg=False):
     "Convert Cartesian x, y to r, theta in radians."
-    conversion = 180./pi if deg else 1.
+    conversion = 180/pi if deg else 1.
     return np.sqrt(x**2 + y**2), conversion*np.arctan2(y, x)
 
 def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
     if d is None: 
+        logger.info("Computing drift using the ensemble of %d probes...",
+                    len(probes))
         d, uncertainty = drift(probes)
-    new_probes = list(probes) # copy list
-    for p in new_probes:
-        for t, x, y in d:
-            p[p[:, 0] == t, 1:3] -= [x, y] 
-    return new_probes
+    stacked_probes = stack(probes)
+    for t, x, y in d:
+        stacked_probes[stacked_probes[:, 1] == t, 2:4] -= [x, y]
+    return split(stacked_probes)
 
 def is_localized(traj, threshold=0.4):
     "Is this probe's motion localized?"
     m = msd(traj, mpp=1., fps=1.)
     power, coeff = fit_powerlaw(m)
-    return True if power < threshold else False
+    return power < threshold
 
 def is_diffusive(traj, threshold=0.85):
     "Is this probe's motion diffusive?"
     m = msd(traj, mpp=1., fps=1.)
     power, coeff = fit_powerlaw(m)
-    return True if power > threshold else False
+    return power > threshold
 
 def is_unphysical(traj, mpp, fps, threshold=0.08):
     """Is the first MSD datapoint unphysically high? (This is sometimes an
     artifact of uneven drift.)"""
     m = msd(traj, mpp, fps=1.)
-    return True if m[0, 1] > threshold else False
+    return m[0, 1] > threshold
 
 def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     """Sort list of probes into three lists, sorted by mobility.
@@ -186,25 +196,3 @@ def split_branches(probes, threshold=0.85, lower_threshold=0.4):
     logger.info("{} diffusive, {} localized, {} subdiffusive",
              len(diffusive), len(localized), len(subdiffusive))
     return diffusive, localized, subdiffusive
-
-def cast_probes(flexible_input, output_style='probes'):
-    """Accept either the IDL-style track_array or a list of probes,
-    and return one or the other."""
-    if output_style == 'track array':
-        if type(flexible_input) is np.ndarray:
-            return flexible_input
-        elif type(flexible_input) is list:
-            return np.vstack(flexible_input)
-        else:
-            raise TypeError, ("Input must be either the np.ndarray track_array "
-                              "or the list of probes.")
-    elif output_style == 'probes':
-        if type(flexible_input) is list:
-            return flexible_input
-        elif type(flexible_input) is np.ndarray:
-            return split_by_probe(flexible_input)
-        else:
-            raise TypeError, ("Input must be either the np.ndarray track_array "
-                              "or the list of probes.")
-    else:
-        raise ValueError, "output_style must be 'track array' or 'probes'."
