@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from feature import locate, sample, batch, bandpass
 from diagnostics import annotate, subpx_hist
 from motion import (drift, subtract_drift, msd, ensemble_msd, split, stack,
-                    is_unphysical, is_localized, is_diffusive, idl_track)
+                    is_unphysical, is_localized, is_diffusive, is_smear, idl_track)
 from plots import (plot_msd, plot_emsd, plot_bimodal_msd, plot_drift, plot_traj)
 from rheology import fischer, gse, toy_data
 from sql import fetch, query_traj, query_feat, insert_traj
