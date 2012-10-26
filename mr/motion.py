@@ -76,7 +76,7 @@ def displacement(x, dt):
     This is not the same as numpy.diff(x, n), the nth-order derivative."""
     return x[dt:]-x[:-dt]
 
-def msd(traj, mpp, fps, max_interval=50, detail=False):
+def msd(traj, mpp, fps, max_interval=100, detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
     output in units of microns and seconds."""
@@ -186,7 +186,7 @@ def is_unphysical(traj, mpp, fps, threshold=0.08):
     m = msd(traj, mpp, fps=1.)
     return m[0, 1] > threshold
 
-def split_branches(probes):
+def branches(probes):
     """Sort list of probes into three lists, sorted by mobility.
     Return: diffusive, localized, subdiffusive."""
     diffusive = [p for p in probes if is_diffusive(p)]

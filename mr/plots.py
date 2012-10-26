@@ -107,27 +107,27 @@ def plot_cartesian_drift(x, uncertainty=None, ax=None):
     return ax
 
 @make_axes
-def plot_traj(probes, mpp, superimpose=None, ax=None):
+def plot_traj(probes, mpp=1, superimpose=None, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
-    if superimpose:
-        image = 1-plt.imread(superimpose)
-        ax.imshow(image, cmap=plt.cm.gray)
-        ax.set_xlim(0, image.shape[1])
-        ax.set_ylim(0, image.shape[0])
-        logger.info("Using units of px, not microns.")
-        mpp = 1
+    if superimpose or mpp == 1:
+        logger.warning("Using units of px, not microns")
         ax.set_xlabel('x [px]')
         ax.set_ylabel('y [px]')
     else:
         ax.set_xlabel('x [um]')
         ax.set_ylabel('y [um]')
+    if superimpose:
+        image = 1-plt.imread(superimpose)
+        ax.imshow(image, cmap=plt.cm.gray)
+        ax.set_xlim(0, image.shape[1])
+        ax.set_ylim(0, image.shape[0])
     for traj in probes:
         ax.plot(mpp*traj[:, 1], mpp*traj[:, 2])
     return ax
 
 @make_axes
-def plot_msd(probes, mpp, fps, max_interval=None, ax=None):
+def plot_msd(probes, mpp, fps, max_interval=100, ax=None):
     "Plot MSD for each probe individually."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
     msds = [motion.msd(traj, mpp, fps, max_interval, detail=False) \
@@ -143,7 +143,7 @@ def plot_msd(probes, mpp, fps, max_interval=None, ax=None):
     return ax
 
 @make_axes
-def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, ax=None):
+def plot_emsd(probes, mpp, fps, max_interval=100, powerlaw=True, ax=None):
     "Plot ensemble MSDs for probes."
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
     m = motion.ensemble_msd(probes, mpp, fps, max_interval)
@@ -158,7 +158,7 @@ def plot_emsd(probes, mpp, fps, max_interval=None, powerlaw=True, ax=None):
     return ax
 
 @make_axes
-def plot_bimodal_msd(probes, mpp, fps, max_interval=None, ax=None):
+def plot_bimodal_msd(probes, mpp, fps, max_interval=100, ax=None):
     """Plot individual MSDs with separate ensemble MSDs and power law fits
     for diffusive probes and localized probes."""
     upper_branch, lower_branch, middle_branch = motion.split_branches(probes)
@@ -186,5 +186,3 @@ def _powerlaw_label(power, coeff):
     if power >= DIFFUSIVE_THRESHOLD:
         label += '  D=' + '{:.3f}'.format(coeff/4) + ' um$^2$/s'
     return label
-    
-    
