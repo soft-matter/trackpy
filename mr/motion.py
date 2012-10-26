@@ -152,7 +152,7 @@ def subtract_drift(probes, d=None):
     "Return a copy of the track_array with the overall drift subtracted out."
     if d is None: 
         d, uncertainty = drift(probes)
-    new_probes = list(probes) # copy list
+    new_probes = np.copy(probes) # copy list
     for p in new_probes:
         for t, x, y in d:
             p[p[:, 0] == t, 1:3] -= [x, y] 
