@@ -60,7 +60,7 @@ def name_to_id(trial, stack=None):
     conn = connect ()
     c = conn.cursor()
     if type(trial) is str:
-        c.execute("SELECT trial FROM Trials WHERE name=%s", (trial,))
+        c.execute("SELECT trial FROM Trials WHERE trial_name=%s", (trial,))
         if c.rowcount == 0:
             raise ValueError, "There is no trial named {}.".format(trial)
         trial, = c.fetchone()
@@ -69,7 +69,7 @@ def name_to_id(trial, stack=None):
     elif type(stack) is int:
         return int(trial), stack
     elif type(stack) is str:
-        c.execute("SELECT stack FROM Stacks WHERE name=%s", (stack,))
+        c.execute("SELECT stack FROM Stacks WHERE stack_name=%s", (stack,))
         if c.rowcount == 0:
             raise ValueError, "There is no stack named {}.".format(trial)
         stack, = c.fetchone()
