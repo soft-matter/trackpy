@@ -107,7 +107,7 @@ def _simple_msd(traj, interval, mpp, fps):
     msd_result = np.mean(np.sum(sd, axis=1), axis=0)
     return np.array([interval/fps, msd_result]) 
 
-def ensemble_msd(probes, mpp, fps, max_interval=None):
+def ensemble_msd(probes, mpp, fps, max_interval=100):
     """Return ensemble mean squared displacement. Input in units of px
     and frames. Output in units of microns and seconds."""
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
