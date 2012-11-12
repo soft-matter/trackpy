@@ -59,15 +59,21 @@ def circular_mask(diameter, side_length=None):
     the 'footprint' of the features we seek."""
     r = int(diameter)/2
     L = int(side_length) if side_length else int(diameter)
-    mask = np.fromfunction(lambda x, y: np.sqrt((x-r)**2 + (y-r)**2), (L, L))
-    mask[mask <= r] = True
-    mask[mask > r] = False
+    points = np.arange(-L, L + 1)
+    x, y = np.meshgrid(points, points)
+    z = np.sqrt(x**2 + y**2)
+    mask = np.zeros_like(z, dtype='bool')
+    mask[z < r] = 1
     return mask
 
 @memo
 def _rgmask(diameter):
-    return circular_mask(diameter) * \
-        np.fromfunction(lambda x, y: x**2 + y**2 + 1/6., (diameter, diameter))
+    points = np.arange(-L, L + 1)
+    x, y = np.meshgrid(points, points)
+    mask = x**2 + y**2
+    mask[mask > r**2] = 0
+    mask *= 1/6. # Right?
+    return mask
 
 @memo
 def _thetamask(diameter):
