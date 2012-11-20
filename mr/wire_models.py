@@ -81,7 +81,11 @@ class Viscous(NonlinearLS):
       Paramters: K, a, b"""
     def _predict(self, params):
         theta = self.exog
-        K, a, b = params
+        return self.func(params, theta)
+
+    @classmethod
+    def func(self, params, theta):
+        K, a, b = map(np.real_if_close, params)
         return np.log(np.tan((theta - a)/b))/K
     
-   # __init__ = dropna(NonlinearLS.__init__)
+    __init__ = dropna(NonlinearLS.__init__)
