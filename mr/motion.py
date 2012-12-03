@@ -25,6 +25,8 @@ from scipy import interpolate
 import pidly
 import diagnostics
 import plots
+import pandas as pd
+from pandas import DataFrame, Series
 
 pi = np.pi
 
@@ -40,28 +42,10 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     idl('t=track(pt, {}, goodenough={}, memory={})'.format(
         max_disp, min_appearances, memory))
     logger.info("IDL finished tracking. Now piping data into Python....")
-    # 0: x, 1: y, 2: mass, 3: size, 4: ecc, 5: frame, 6: probe_id
     t = idl.ev('t')
     idl.close()
-    return t
-
-def split(traj_array):
-    """Convert one big array of trajectories indexed by probe into a 
-    list of trajectories, one list entry per probe."""
-    # track array columns are 0:probe, 1:frame, 2:x, 3:y
-    boundaries, = np.where(np.diff(traj_array[:, 0], axis=0) > 0.0)
-    boundaries += 1
-    probes_list = np.split(traj_array[:, 1:], boundaries)
-    # probes columns are 0:frame, 1:x, 2:y
-    return probes_list
-
-def stack(probes):
-    """Convert a list of probe trajectories into one big array indexed
-    by the first column."""
-    # Prepend a column designating the probe number.
-    indexed_probes = [np.column_stack((i*np.ones(traj.shape[0]), traj)) \
-                      for i, traj in enumerate(probes)]
-    return np.vstack(indexed_probes)
+    return DataFrame(
+        t, columns=['x', 'y', 'mass', 'size', 'ecc', 'frame', 'probe'])
 
 def interp(traj):
     """Linearly interpolate through gaps in the trajectory
