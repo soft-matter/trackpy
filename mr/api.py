@@ -29,4 +29,3 @@ from plots import (plot_msd, plot_emsd, plot_bimodal_msd, plot_drift, plot_traj)
 from rheology import fischer, gse, toy_data
 from sql import fetch, query_traj, query_feat, insert_traj
 from video import vls, mux_video, mux_age, get_t0, set_t0
-import wire_models

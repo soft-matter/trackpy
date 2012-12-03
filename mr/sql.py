@@ -17,6 +17,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
 import MySQLdb
+import pandas.io.sql
 import os
 import numpy as np
 import logging
@@ -37,15 +38,13 @@ def connect():
     return conn
 
 def fetch(query):
-    "Return SQL result set as a numpy array."
+    """Connect to the database, fetch results as a pandas DataFrame object,
+    and close said connection."""
     conn = connect()
-    c = conn.cursor()
-    c.execute(query)
-    results = np.array(c.fetchall())
-    c.close()
+    df = pandas.io.sql.read_frame(query, conn)
     conn.close()
-    logger.info("Fetched %d rows", c.rowcount)
-    return results 
+    logger.info("Fetched %d rows", len(df))
+    return df
 
 def name_to_id(trial, stack=None):
     """Convert human-readable trial or stack names to their database IDs.
@@ -91,7 +90,8 @@ def new_stack(trial, stack_name, video_file, vstart, duration, start, end):
     return stack
 
 def query_feat(trial, stack, version=None, where=None):
-    "Return a query for features from Features."
+    """Convenience function that builds query of the Features table.
+    Optional 'where' argument allows customization."""
     trial, stack = name_to_id(trial, stack)
     if version:
         query = ("SELECT x, y, mass, size, ecc, frame FROM Features WHERE "
@@ -109,9 +109,10 @@ def query_feat(trial, stack, version=None, where=None):
     return query 
 
 def query_traj(trial, stack, where=None):
-    "Return a query for trajectories from Trajecotires."
+    """Convenience function that builds a query of the Trajectories table.
+    Optional 'where' argument allows customization."""
     trial, stack = name_to_id(trial, stack)
-    query = ("SELECT probe, frame, x, y FROM Trajectories "
+    query = ("SELECT probe, frame, x, y, mass, size, ecc FROM Trajectories "
               "WHERE trial={} AND stack={}".format(trial, stack))
     if where:
         if type(where) is str:
@@ -142,14 +143,6 @@ def insert_feat(trial, stack, frame, centroids, conn, override=False):
         print sys.exc_info()
         return False
     return True
-
-def feature_duplicate_check(trial, stack, conn):
-    "Return false if the database has no entries for this trial and stack."
-    c = conn.cursor()
-    c.execute("SELECT COUNT(1) FROM Features WHERE trial=%s AND stack=%s",
-              (trial, stack))
-    count, = c.fetchone()
-    return count != 0.0
 
 def insert_traj(trial, stack, track_array, override=False):
     "Insert a track array into the MySQL database."
@@ -184,6 +177,14 @@ def insert_traj(trial, stack, track_array, override=False):
         c.close()
     except MySQLdb.Error, e:
         print e
+
+def feature_duplicate_check(trial, stack, conn):
+    "Return false if the database has no entries for this trial and stack."
+    c = conn.cursor()
+    c.execute("SELECT COUNT(1) FROM Features WHERE trial=%s AND stack=%s",
+              (trial, stack))
+    count, = c.fetchone()
+    return count != 0.0
 
 def traj_duplicate_check(trial, stack, conn):
     "Return false if the database has no entries for this trial and stack."
