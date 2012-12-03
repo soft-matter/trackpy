@@ -47,34 +47,38 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     return DataFrame(
         t, columns=['x', 'y', 'mass', 'size', 'ecc', 'frame', 'probe'])
 
-def interp(traj):
-    """Linearly interpolate through gaps in the trajectory
-    where the probe was not observed."""
-    first_frame, last_frame = traj[:, 0][[0,-1]]
+def interp(t, pos):
+    "Realize a linear interpolation of pos through all t, start to finish."
+    first_frame, last_frame = t[[0,-1]]
     full_domain = np.arange(first_frame, 1 + last_frame)
-    interpolator = interpolate.interp1d(traj[:, 0], traj[:, 1:], axis=0)
-    return np.column_stack((full_domain, interpolator(full_domain)))
+    interpolator = interpolate.interp1d(t, pos, axis=0)
+    return full_domain, interpolator(full_domain)
 
 def displacement(x, dt):
     """Return difference between neighbors separated by dt steps (frames).
     This is not the same as numpy.diff(x, n), the nth-order derivative."""
     return x[dt:]-x[:-dt]
 
-def msd(traj, mpp, fps, max_interval=100, detail=False):
+def msd(t, pos, mpp, fps, max_interval=100, detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
     output in units of microns and seconds."""
-    max_interval = min(max_interval, traj.shape[0])
+    max_interval = min(max_interval, len(t))
     intervals = xrange(1, 1 + max_interval)
-    traj = interp(traj)
-    _msd = _detailed_msd if detail else _simple_msd
-    results = [_msd(traj, i, mpp, fps) for i in intervals]
-    return np.vstack(results)
+    t, pos = interp(t.values, pos.values)
+    if detail:
+        msd_func = _detailed_msd
+        columns = ['t' ,'<x>', '<y>', '<x^2>', '<y^2>', 'msd', 'N']
+    else:
+        msd_func = _simple_msd
+        columns = ['t', 'msd']
+    results = [msd_func(t, pos, i, mpp, fps) for i in intervals]
+    return DataFrame(np.vstack(results), columns=columns)
      
-def _detailed_msd(traj, interval, mpp, fps):
-    """Given a continuous trajectory and a time interval (in frames), 
-    return t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, N."""
-    d = displacement(mpp*traj[:, 1:], interval) # [[dx, dy], ...]
+def _detailed_msd(t, pos, interval, mpp, fps):
+    """Given the time points and position points of a trajectory,
+    return lag time t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, and N."""
+    d = displacement(mpp*pos, interval) # [[dx, dy], ...]
     sd = d**2
     stuff = np.column_stack((d, np.sum(d, axis=1), sd, np.sum(sd, axis=1)))
     # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
@@ -83,10 +87,10 @@ def _detailed_msd(traj, interval, mpp, fps):
     N = np.round(2*stuff.shape[0]/interval)
     return np.append(np.array([interval])/fps, mean_stuff, np.array([N])) 
 
-def _simple_msd(traj, interval, mpp, fps):
-    """Given a continuous trajectory and a time interval (in frames),
-    return t, <r^2>."""
-    d = displacement(mpp*traj[:, 1:], interval) # [[dx, dy], ...]
+def _simple_msd(t, pos, interval, mpp, fps):
+    """Given the time points and position points of a trajectory, return lag
+    time t and mean squared displacment <r^2>."""
+    d = displacement(mpp*pos, interval) # [[dx, dy], ...]
     sd = d**2
     msd_result = np.mean(np.sum(sd, axis=1), axis=0)
     return np.array([interval/fps, msd_result]) 
@@ -113,28 +117,14 @@ def fit_powerlaw(a):
         stats.linregress(np.log(a[:, 0]), np.log(a[:, 1]))
     return slope, np.exp(intercept)
 
-def drift(probes, suppress_plot=False):
+def drift(traj, suppress_plot=False):
     "Return the ensemble drift, x(t)."
-    dx_list = [np.column_stack(
-               (np.diff(x[:, 0]), x[1:, 0], np.diff(x[:, 1:], axis=0))
-               ) for x in probes] # dt, t, dx, dy
-    dx = np.vstack(dx_list) # dt, t, dx, dy
-    dx = dx[dx[:, 0] == 1.0, 1:] # Drop entries where dt > 1 ( gap).
-    dx = dx[dx[:, 0].argsort()] # sort by t
-    boundaries, = np.where(np.diff(dx[:, 0], axis=0) > 0.0)
-    boundaries += 1
-    dx_list = np.split(dx, boundaries) # list of arrays, one for each t
-    ensemble_dx = np.vstack([np.mean(dx, axis=0) for dx in dx_list])
-    ensemble_dx = interp(ensemble_dx)
-    uncertainty = np.vstack([np.concatenate(
-                             (np.array([dx[0, 0]]), np.std(dx[:, 1:], axis=0))) 
-                             for dx in dx_list])
-    uncertainty = interp(uncertainty)
-    # ensemble_dx is t, dx, dy. Integrate to get t, x, y.
-    x = np.column_stack((ensemble_dx[:, 0], 
-                         np.cumsum(ensemble_dx[:, 1:], axis=0)))
-    if not suppress_plot: plots.plot_drift(x, uncertainty)
-    return x, uncertainty
+    # Keep only frames 
+    delta = pd.concat([t.diff() for p, t in traj.groupby('probe')])
+    avg_delta = delta[delta['frame'] == 1].groupby('frame').mean()
+    frames, dx = interp(traj['frame'].values, traj[['x', 'y']].values)
+    x = np.cumsum(dx, axis=0)
+    return DataFrame(x, columns=['x', 'y'], index=frames)
 
 def cart_to_polar(x, y, deg=False):
     "Convert Cartesian x, y to r, theta in radians."
