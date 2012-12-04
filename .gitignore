@@ -1,7 +1,9 @@
 *.pro
 *.log
 *.pyc
+*.so
 *~
 *.swp
 build/*
 dist/*
+mr.egg-info/*

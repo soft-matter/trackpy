@@ -17,13 +17,11 @@
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
 from feature import locate, sample, batch, bandpass
 from diagnostics import annotate, subpx_hist
-from motion import (drift, subtract_drift, msd, ensemble_msd, split, stack,
+from motion import (drift, subtract_drift, msd, ensemble_msd,
                     is_unphysical, is_localized, is_diffusive, is_smear, idl_track)
 from plots import (plot_msd, plot_emsd, plot_bimodal_msd, plot_drift, plot_traj)
 from rheology import fischer, gse, toy_data
