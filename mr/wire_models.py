@@ -128,8 +128,8 @@ class PowerFluid(Model):
     def dtdm(cls, m, C, theta0, offset, theta):
         "First part of the Jacboian"
         # Compute the two terms of t seperately.
-        t1 = t_term(m, C, offset, theta)
-        t2 = - t_term(m, C, offset, theta)
+        t1 = cls.t_term(m, C, offset, theta)
+        t2 = - cls.t_term(m, C, offset, theta)
         # Chain Rule:
         # The first two terms are of the form (something)*t.
         result = (-1./(m-1) + np.log(C))*(t1 + t2)
@@ -137,7 +137,7 @@ class PowerFluid(Model):
         result += -(np.log(np.cos(theta + offset))*t1 +\
             np.log(np.cos(theta0 + offset))*t2)
         # The last term involves dF/dm, which I compute using a series.
-        result += 1./(m-1)*C**m(np.cos(theta + offset)**(1-m)* \
+        result += 1./(m-1)*C**m*(np.cos(theta + offset)**(1-m)* \
             cls.dFdm(m, theta + offset) \
             - np.cos(theta0 + offset)**(1-m)* \
             cls.dFdm(m, theta0 + offset))
@@ -157,16 +157,16 @@ class PowerFluid(Model):
     def dtdtheta0(cls, m, C, theta0, offset, theta):
         "Third part of the Jacobian"
         # Only the second term depends on the theta0.
-        t2 = - t_term(m, C, offset, theta0)
-        return dtdtheta(m, C, theta0 + offset, t2) 
+        t2 = - cls.t_term(m, C, offset, theta0)
+        return cls.dtdtheta(m, C, theta0 + offset, t2) 
         
     @classmethod
     def dtdoffset(cls, m, C, theta0, offset, theta):
         "Fourth part of the Jacobian"
-        t1 = t_term(m, C, offset, theta)
-        t2 = - t_term(m, C, offset, theta0)
-        result = dtdtheta(m, C, theta0 + offset, t1) 
-        result += dtdtheta(m, C, theta0 + offset, t2)
+        t1 = cls.t_term(m, C, offset, theta)
+        t2 = - cls.t_term(m, C, offset, theta0)
+        result = cls.dtdtheta(m, C, theta0 + offset, t1) 
+        result += cls.dtdtheta(m, C, theta0 + offset, t2)
         return result
 
     @classmethod
@@ -191,7 +191,7 @@ class PowerFluid(Model):
 
     @classmethod
     def dFdm(cls, m, theta, N=10):
-        return array(list(dFdm_sequence(m, theta, N))).sum(0)
+        return np.array(list(cls.dFdm_sequence(m, theta, N))).sum(0)
 
     @classmethod
     def recursive_sequence(cls, m, theta, N=20):
@@ -224,7 +224,7 @@ class PowerFluid(Model):
     @classmethod
     def explicit_series(cls, m, theta, N=10):
         """Yet another way to compute F(m, theta). This one is not as clever."""
-        return array(list(cls.explicit_sequence(m, theta, N))).sum(0)
+        return np.array(list(cls.explicit_sequence(m, theta, N))).sum(0)
 
 class Viscous(Model):
     """Rotation angle of a wire in a viscous fluid under an arbitrary step forcing.
