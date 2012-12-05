@@ -8,10 +8,12 @@ class Model(object):
     def __init__(self, endog, exog, weights=None, sigma=None):
         # Remove missing values.
         self.exog = exog[endog.notnull()]
-        self.endog = endog.dropna()
+        self.endog = endog[exog.notnull()]
+        self.endog = self.endog.dropna()
+        self.exog = self.exog.dropna()
         assert len(self.exog) == len(self.endog)
-        assert self.exog.notnull().all()
-        assert self.endog.notnull().all()
+        assert np.isfinite(self.endog).all()
+        assert np.isfinite(self.exog).all()
         if weights is not None:
             self.weights = weights
         elif sigma:
@@ -74,12 +76,12 @@ class Model(object):
 class PowerFluid(Model):
     """Rotation angle of a wire in a power-law fluid 
        under a step forcing. 
-       Parameters: m, C=K/uB"""
+       Parameters: m, C=K/uB
+       Return: value, Jacobian"""
     @classmethod
     def _predict(cls, theta, params):
         m, C, theta0, offset = params 
-        offset = 0
-        assert offset <=0, (
+        assert offset < 0, (
             "offset = {} > 0 will only lead to tears.").format(offset)
         assert offset > -np.pi/2, (
             "offset = {} < -pi/2 will only lead to tears.").format(offset)
@@ -94,8 +96,10 @@ class PowerFluid(Model):
     def t_term(cls, m, C, offset, angle):
         """The function t consists of two similar terms like this.
         It is convenient to compute them individually."""
-        return 1/(m-1)*C**m*\
+        term =  1/(m-1)*C**m*\
             np.cos(angle + offset)**(1-m)*cls.F(m, angle + offset)
+        assert np.isfinite(term).all(), ("term not finite {}".format(term))
+        return term
 
     @classmethod
     def t(cls, m, C, theta0, offset, theta):
@@ -122,7 +126,7 @@ class PowerFluid(Model):
             m={}
             values={}""".format(m, values))
         return values 
-        # return cls.recursive_series(m, theta)
+        # Or: return cls.recursive_series(m, theta)
 
     @classmethod
     def dtdm(cls, m, C, theta0, offset, theta):
