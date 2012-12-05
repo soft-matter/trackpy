@@ -88,10 +88,29 @@ class PowerFluid(Model):
             "C = {} < 0 is not physical.").format(C)
         assert m >= 0, (
             "m < 0 is not physical.").format(m)
-        return 1./(m-1)*C**m*(np.cos(theta + offset)**(1-m)* \
-                             cls.F(m, theta + offset) \
-                             - np.cos(theta0 + offset)**(1-m)* \
-                             cls.F(m, theta0 + offset))
+        return cls.t(m, C, theta0, offset, theta)
+
+    @classmethod
+    def t_term(cls, m, C, offset, angle):
+        """The function t consists of two similar terms like this.
+        It is convenient to compute them individually."""
+        return 1/(m-1)*C**m*\
+            np.cos(angle + offset)**(1-m)*cls.F(m, angle + offset)
+
+    @classmethod
+    def t(cls, m, C, theta0, offset, theta):
+        "Time as function of m, C, and angles."""
+        t_ = cls.t_term(m, C,  offset, theta) -\
+            cls.t_term(m, C, offset, theta0)
+        return t_
+
+    @classmethod
+    def jacobian(cls, m, C, theta0, offset, theta):
+        """The analytical Jacobian of t, to help curve-fitting."""
+        return (cls.dtdm(m, C, theta0, offset, theta),
+            cls.dtdC(m, C, theta0, offset, theta),
+            cls.dtdtheta0(m, C, theta0, offset, theta),
+            cls.dtdoffset(m, C, theta0, offset, theta))
 
     @classmethod
     def F(cls, m, theta):
@@ -106,7 +125,78 @@ class PowerFluid(Model):
         # return cls.recursive_series(m, theta)
 
     @classmethod
+    def dtdm(cls, m, C, theta0, offset, theta):
+        "First part of the Jacboian"
+        # Compute the two terms of t seperately.
+        t1 = t_term(m, C, offset, theta)
+        t2 = - t_term(m, C, offset, theta)
+        # Chain Rule:
+        # The first two terms are of the form (something)*t.
+        result = (-1./(m-1) + np.log(C))*(t1 + t2)
+        # Third term
+        result += -(np.log(np.cos(theta + offset))*t1 +\
+            np.log(np.cos(theta0 + offset))*t2)
+        # The last term involves dF/dm, which I compute using a series.
+        result += 1./(m-1)*C**m(np.cos(theta + offset)**(1-m)* \
+            cls.dFdm(m, theta + offset) \
+            - np.cos(theta0 + offset)**(1-m)* \
+            cls.dFdm(m, theta0 + offset))
+        return result
+
+    @classmethod
+    def dtdC(cls, m, C, theta0, offset, theta):
+        "Second part of the Jacboian"
+        # Proportional to t -- no need to compute t1, t2 separately.
+        return m/C*cls.t(m, C, theta0, offset, theta)
+
+    # Obviously, dt/d(theta0) and dt/d(offset) are similar.
+    # The next two functions rely on dtdtheta(), whicch
+    # does the similar work for each.
+
+    @classmethod
+    def dtdtheta0(cls, m, C, theta0, offset, theta):
+        "Third part of the Jacobian"
+        # Only the second term depends on the theta0.
+        t2 = - t_term(m, C, offset, theta0)
+        return dtdtheta(m, C, theta0 + offset, t2) 
+        
+    @classmethod
+    def dtdoffset(cls, m, C, theta0, offset, theta):
+        "Fourth part of the Jacobian"
+        t1 = t_term(m, C, offset, theta)
+        t2 = - t_term(m, C, offset, theta0)
+        result = dtdtheta(m, C, theta0 + offset, t1) 
+        result += dtdtheta(m, C, theta0 + offset, t2)
+        return result
+
+    @classmethod
+    def dtdtheta(cls, m, C, angle, term):
+        result = (1-m)/np.cos(angle)*term
+        z = (np.cos(angle))**2 # convenient notation
+        result += -C**m*np.cos(angle)**(1-m)/\
+            (2*z)*(1/np.sqrt(1-z) - cls.F(m, angle))*\
+            np.sin(2*angle)
+        return result
+
+    @classmethod
+    def dFdm_sequence(cls, m, theta, N=10):
+        from scipy.misc import factorial
+        from scipy.special import psi # the digamma function
+        for k in range(N+1):
+            term = 1/(1 + 2*k/(1.-m))*factorial(2*k)/factorial(k)**2*\
+                (np.cos(theta)/2.)**(2*k)*\
+                ( (psi(1 + k + (1-m)/2.) - psi(1 + (1-m)/2.)) - \
+                  (psi(k + (1-m)/2.) - psi((1-m)/2.)) )
+            yield term
+
+    @classmethod
+    def dFdm(cls, m, theta, N=10):
+        return array(list(dFdm_sequence(m, theta, N))).sum(0)
+
+    @classmethod
     def recursive_sequence(cls, m, theta, N=20):
+        """Another way to compute F(m, theta).
+        This sequence generator is summed by the function recursive_series."""
         term = np.ones_like(theta)
         k = 0
         yield term
@@ -118,7 +208,23 @@ class PowerFluid(Model):
 
     @classmethod
     def recursive_series(cls, m, theta, N=20):
+        """Another way to compute F(m, theta)."""
         return np.array(list(cls.recursive_sequence(m, theta, N))).sum(0)
+
+    @classmethod
+    def explicit_sequence(cls, m, theta, N=10):
+        """Yet another way to compute F(m, theta). This one is not as clever.
+        This sequence generator is summed by the function explicit_series."""
+        from scipy.misc import factorial
+        for k in range(N+1):
+            term = 1/(1 + 2*k/(1. - m))*factorial(2*k)/factorial(k)**2*\
+                (np.cos(theta)/2.)**(2*k)
+            yield term
+
+    @classmethod
+    def explicit_series(cls, m, theta, N=10):
+        """Yet another way to compute F(m, theta). This one is not as clever."""
+        return array(list(cls.explicit_sequence(m, theta, N))).sum(0)
 
 class Viscous(Model):
     """Rotation angle of a wire in a viscous fluid under an arbitrary step forcing.
