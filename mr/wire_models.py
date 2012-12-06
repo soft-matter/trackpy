@@ -35,7 +35,8 @@ class Model(object):
             # If bounds are used, default to a method that accepts bounds.
             kwargs['method'] = kwargs.get('method', 'L-BFGS-B')
         result = optimize.minimize(self.residual, guess, **kwargs)
-        return result.x
+        transformed_result = self.transform_vars(*result.x)
+        return result.x, pd.Series(transformed_result, index=self.var_names)
 
     @classmethod
     def predict(cls, exog, params):
@@ -78,14 +79,20 @@ class PowerFluid(Model):
        under a step forcing. 
        Parameters: m, C=K/uB
        Return: value, Jacobian"""
+    
+
     @classmethod
     def _predict(cls, theta, params):
-        m, C, theta0, offset = params 
+        m_, C_, theta0_, offset_ = params 
+        m, C, theta0, offset = cls.transform_vars(m_, C_, theta0_, offset_)
         assert offset < 0, (
             "offset = {} > 0 will only lead to tears.").format(offset)
         assert offset > -np.pi/2, (
             "offset = {} < -pi/2 will only lead to tears.").format(offset)
-        assert np.cos(theta0 + offset) > 0, "We require cos(theta0 + offset) > 0."
+        assert np.cos(theta0 + offset) > 0, (
+            """"We require cos(theta0 + offset) > 0.
+            theta0: {}
+            offset: {}""".format(theta0, offset))
         assert C >= 0, (
             "C = {} < 0 is not physical.").format(C)
         assert m >= 0, (
@@ -93,12 +100,22 @@ class PowerFluid(Model):
         return cls.t(m, C, theta0, offset, theta)
 
     @classmethod
+    def transform_vars(cls, m_, C_, theta0_, offset_):
+        """Enforce bounds using analytical transformations."""
+        m = np.abs(m_)
+        C = np.abs(C_)
+        offset = -(np.pi/2 - 0.0001)*0.5*(1 + np.tanh(offset_))
+        theta0 = offset + (np.pi - 0.0001 - offset)*0.5*(1 + np.tanh(theta0_))
+        cls.var_names = ['m', 'C', 'theta0', 'offset']
+        return m, C, theta0, offset
+
+    @classmethod
     def t_term(cls, m, C, offset, angle):
         """The function t consists of two similar terms like this.
         It is convenient to compute them individually."""
         term =  1/(m-1)*C**m*\
             np.cos(angle + offset)**(1-m)*cls.F(m, angle + offset)
-        assert np.isfinite(term).all(), ("term not finite {}".format(term))
+        assert np.isfinite(term).all(), ("term not finite {}".format((m, C, offset, angle.min(), angle.max())))
         return term
 
     @classmethod
