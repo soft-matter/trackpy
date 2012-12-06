@@ -34,9 +34,12 @@ class Model(object):
         if kwargs.get('bounds'):
             # If bounds are used, default to a method that accepts bounds.
             kwargs['method'] = kwargs.get('method', 'L-BFGS-B')
-        result = optimize.minimize(self.residual, guess, **kwargs)
-        transformed_result = self.transform_vars(*result.x)
-        return result.x, pd.Series(transformed_result, index=self.var_names)
+        self.result = optimize.minimize(self.residual, guess, **kwargs)
+        transformed_result = self.transform_vars(*self.result.x)
+        return pd.Series(transformed_result, index=self.var_names)
+
+    def line(self):
+        return pd.Series(self.predict(self.exog, self.result.x))
 
     @classmethod
     def predict(cls, exog, params):
