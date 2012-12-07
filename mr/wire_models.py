@@ -15,6 +15,7 @@ class Model(object):
         assert np.isfinite(self.endog).all()
         assert np.isfinite(self.exog).all()
         if weights is not None:
+            weights = weights.dropna()
             self.weights = weights
         elif sigma:
             self.weights = 1./sigma
@@ -35,7 +36,7 @@ class Model(object):
             # If bounds are used, default to a method that accepts bounds.
             kwargs['method'] = kwargs.get('method', 'L-BFGS-B')
         self.result = optimize.minimize(self.residual, guess, **kwargs)
-        transformed_result = self.transform_vars(*self.result.x)
+        transformed_result = self.transform_vars(self.result.x)
         return pd.Series(transformed_result, index=self.var_names)
 
     def line(self):
@@ -83,11 +84,9 @@ class PowerFluid(Model):
        Parameters: m, C=K/uB
        Return: value, Jacobian"""
     
-
     @classmethod
     def _predict(cls, theta, params):
-        m_, C_, theta0_, offset_ = params 
-        m, C, theta0, offset = cls.transform_vars(m_, C_, theta0_, offset_)
+        m, C, theta0, offset = cls.transform_vars(params)
         assert offset < 0, (
             "offset = {} > 0 will only lead to tears.").format(offset)
         assert offset > -np.pi/2, (
@@ -103,12 +102,15 @@ class PowerFluid(Model):
         return cls.t(m, C, theta0, offset, theta)
 
     @classmethod
-    def transform_vars(cls, m_, C_, theta0_, offset_):
+    def transform_vars(cls, params):
         """Enforce bounds using analytical transformations."""
+        m_, C_, theta0_, offset_ = params
+        DEL = 0.0001 # a small number
         m = np.abs(m_)
         C = np.abs(C_)
-        offset = -(np.pi/2 - 0.0001)*0.5*(1 + np.tanh(offset_))
-        theta0 = offset + (np.pi - 0.0001 - offset)*0.5*(1 + np.tanh(theta0_))
+        offset = -DEL - (np.pi/2 - DEL)*0.5*(1 + np.tanh(offset_))
+        theta0 = offset + DEL + \
+            (np.pi/2 - DEL - offset)*0.5*(1 + np.tanh(theta0_))
         cls.var_names = ['m', 'C', 'theta0', 'offset']
         return m, C, theta0, offset
 
@@ -129,8 +131,9 @@ class PowerFluid(Model):
         return t_
 
     @classmethod
-    def jacobian(cls, m, C, theta0, offset, theta):
+    def jacobian(cls, theta, params):
         """The analytical Jacobian of t, to help curve-fitting."""
+        m, C, theta0, offset = params
         return (cls.dtdm(m, C, theta0, offset, theta),
             cls.dtdC(m, C, theta0, offset, theta),
             cls.dtdtheta0(m, C, theta0, offset, theta),
