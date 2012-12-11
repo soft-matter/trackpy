@@ -117,30 +117,53 @@ def fit_powerlaw(a):
         stats.linregress(np.log(a[:, 0]), np.log(a[:, 1]))
     return slope, np.exp(intercept)
 
-def drift(traj, suppress_plot=False):
-    "Return the ensemble drift, x(t)."
+def compute_drift(traj, suppress_plot=False):
+    """Return the ensemble drift, x(t).
+
+    Parameters
+    ----------
+    traj : a DataFrame that must include columns x, y, frame, and probe
+
+    Returns
+    -------
+    drift : DataFrame([x, y], index=frame)    
+    """
     # Keep only frames 
     delta = pd.concat([t.diff() for p, t in traj.groupby('probe')])
     avg_delta = delta[delta['frame'] == 1].groupby('frame').mean()
-    frames, dx = interp(traj['frame'].values, traj[['x', 'y']].values)
+    frame, dx = interp(traj['frame'].values, traj[['x', 'y']].values)
     x = np.cumsum(dx, axis=0)
-    return DataFrame(x, columns=['x', 'y'], index=frames)
+    return DataFrame(x, columns=['x', 'y'], index=frame)
 
 def cart_to_polar(x, y, deg=False):
     "Convert Cartesian x, y to r, theta in radians."
     conversion = 180/pi if deg else 1.
     return np.sqrt(x**2 + y**2), conversion*np.arctan2(y, x)
 
-def subtract_drift(probes, d=None):
-    "Return a copy of the track_array with the overall drift subtracted out."
-    if d is None: 
-        logger.info("Computing drift using the ensemble of %d probes...",
-                    len(probes))
-        d, uncertainty = drift(probes)
-    stacked_probes = stack(probes)
-    for t, x, y in d:
-        stacked_probes[stacked_probes[:, 1] == t, 2:4] -= [x, y]
-    return split(stacked_probes)
+def subtract_drift(traj, drift=None):
+    """Return a copy of probe trajectores with the overall drift subtracted out.
+    
+    Parameters
+    ----------
+    traj : a DataFrame that must have columns x, y, and frame
+    d : optional DataFrame([x, y], index=frame) like output of drift()
+         By default, the drift is calculated from all the probes in traj.
+         Optionally specify a different drift, like the drift of a subset
+         or superset of these probes.
+     
+
+    Returns
+    -------
+    new_traj : a copy, having modified columns x and y
+    """
+
+    if drift is None: 
+        logger.info("Computing drift...")
+        drift = compute_drift(traj)
+    new_traj = traj.copy().set_index('frame', drop=False)
+    new_traj[['x', 'y']] -= drift
+    print new_traj
+    return new_traj
 
 def is_localized(traj, threshold=0.4):
     "Is this probe's motion localized?"

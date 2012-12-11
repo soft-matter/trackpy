@@ -57,57 +57,8 @@ def make_fig(func):
             return func(*args, **kwargs)
     return wrapper
 
-@make_fig
-def plot_drift(traj, uncertainty=None, fig=None):
-    """Plot ensemble drift."""
-    fig, axs = plt.subplots(3, 1, sharex=True)
-    cartesian, radial, angular = axs
-    t, x, y = traj[:, 0], traj[:, 1], traj[:, 2]
-    r, theta = motion.cart_to_polar(x, y, deg=True)
-    if uncertainty is not None:
-        u_x, u_y = uncertainty[:, 1], uncertainty[:, 2]
-        TINY = float(np.finfo(np.float64).tiny) # Avoid divide-by-0 problems.
-        u_r = np.divide(np.sqrt((x*u_x)**2 + (y*u_y)**2), 
-                        np.sqrt(x**2 + y**2) + TINY)
-        u_theta = 180./np.pi*np.divide(np.sqrt((-y*u_x)**2 + (x*u_y)**2), 
-                            x**2 + y**2 + TINY)
-        logging.info("Max uncertainty in r is %s", u_r.max())
-        logging.info("Max uncertainty in theta is %s", u_theta.max())
-        U_COLOR ='#DDDDDD'
-        cartesian.fill_between(t, x - u_x, x + u_x, color=U_COLOR)
-        cartesian.fill_between(t, y - u_y, y + u_y, color=U_COLOR)
-        radial.fill_between(t, r - u_r, r + u_r, color=U_COLOR)
-        angular.fill_between(t, theta - u_theta, theta + u_theta, 
-                             color=U_COLOR)
-    cartesian.plot(t, x, label='X')
-    cartesian.plot(t, y, label='Y')
-    radial.plot(t, r, '-')
-    angular.plot(t, theta, '-')
-    cartesian.legend(loc='best')
-    angular.set_xlabel('time [frames]')
-    cartesian.set_ylabel('drift [px]')
-    radial.set_ylabel('radial drift [px]')
-    angular.set_ylabel('drift direction [degrees]')
-    return fig 
-
 @make_axes
-def plot_cartesian_drift(x, uncertainty=None, ax=None):
-    """DEPRECATED
-    Plot ensemble drift."""
-    if uncertainty is not None:
-        u = uncertainty # changing notation for brevity
-        ax.fill_between(x[:, 0], x[:, 1] + u[:, 1], x[:, 1] - u[:, 1],
-                        color='#DDDDDD')
-        ax.fill_between(x[:, 0], x[:, 2] + u[:, 2], x[:, 2] - u[:, 2],
-                        color='#DDDDDD')
-    ax.plot(x[:, 0], x[:, 1], '-', label='X')
-    ax.plot(x[:, 0], x[:, 2], '-', label='Y')
-    ax.set_xlabel('time [frames]')
-    ax.set_ylabel('drift [px]')
-    return ax
-
-@make_axes
-def plot_traj(probes, mpp=1, superimpose=None, ax=None):
+def plot_traj(traj, mpp=1, superimpose=None, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
     if superimpose or mpp == 1:
@@ -122,8 +73,8 @@ def plot_traj(probes, mpp=1, superimpose=None, ax=None):
         ax.imshow(image, cmap=plt.cm.gray)
         ax.set_xlim(0, image.shape[1])
         ax.set_ylim(0, image.shape[0])
-    for traj in probes:
-        ax.plot(mpp*traj[:, 1], mpp*traj[:, 2])
+    unstacked = traj.set_index(['frame', 'probe']).unstack()
+    plt.plot(mpp*unstacked['x'], mpp*unstacked['y'])
     return ax
 
 @make_axes

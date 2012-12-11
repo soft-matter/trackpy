@@ -17,7 +17,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
 import MySQLdb
-import pandas.io.sql
+import pandas.io.sql as psql
 import os
 import numpy as np
 import logging
@@ -41,7 +41,7 @@ def fetch(query):
     """Connect to the database, fetch results as a pandas DataFrame object,
     and close said connection."""
     conn = connect()
-    df = pandas.io.sql.read_frame(query, conn)
+    df = psql.read_frame(query, conn)
     conn.close()
     logger.info("Fetched %d rows", len(df))
     return df
@@ -163,10 +163,7 @@ def insert_traj(trial, stack, track_array, override=False):
         c.execute("CREATE TEMPORARY TABLE NewTrajectories"
                   "(probe int unsigned, frame int unsigned, "
                   "x float, y float, mass float, size float, ecc float)")
-        c.executemany("INSERT INTO NewTrajectories "
-                      "(x, y, mass, size, ecc, frame, probe) "
-                      "VALUES (%s, %s, %s, %s, %s, %s, %s)", 
-                      map(tuple, list(track_array)))
+        psql.write_frame(track_array[['probe', 'frame', 'x', 'y', 'mass', 'size', 'ecc']], 'NewTrajectories', conn, 'mysql', 'append')
         # In one step, tag all the rows with identifiers (trial, stack, frame).
         # Copy the temporary table into the big table of features.
         c.execute("INSERT INTO Trajectories "
