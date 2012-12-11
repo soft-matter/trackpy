@@ -58,8 +58,8 @@ def circular_mask(diameter, side_length=None):
     """A circle of 1's inscribed in a square of 0's,
     the 'footprint' of the features we seek."""
     r = int(diameter)/2
-    L = int(side_length) if side_length else int(diameter)
-    points = np.arange(-L, L + 1)
+    L = side_length if side_length else int(diameter)
+    points = np.arange(-int(L/2), int(L/2) + 1)
     x, y = np.meshgrid(points, points)
     z = np.sqrt(x**2 + y**2)
     mask = np.zeros_like(z, dtype='bool')
@@ -68,7 +68,8 @@ def circular_mask(diameter, side_length=None):
 
 @memo
 def _rgmask(diameter):
-    points = np.arange(-L, L + 1)
+    r = int(diameter)/2
+    points = np.arange(-r, r + 1)
     x, y = np.meshgrid(points, points)
     mask = x**2 + y**2
     mask[mask > r**2] = 0

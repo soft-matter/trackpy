@@ -23,8 +23,6 @@ import numpy as np
 from scipy import stats
 from scipy import interpolate
 import pidly
-import diagnostics
-import plots
 import pandas as pd
 from pandas import DataFrame, Series
 
@@ -47,18 +45,12 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     return DataFrame(
         t, columns=['x', 'y', 'mass', 'size', 'ecc', 'frame', 'probe'])
 
-def interp(t, pos):
-    "Realize a linear interpolation of pos through all t, start to finish."
-    first_frame, last_frame = t[[0,-1]]
-    full_domain = np.arange(first_frame, 1 + last_frame)
-    interpolator = interpolate.interp1d(t, pos, axis=0)
-    return full_domain, interpolator(full_domain)
-
 def spline(t, pos, k=3, s=None):
-    """Realize a Univariate spline through the data.
+    """Realize a Univariate spline, interpolating pos through all t. 
+
     Parameters
     ----------
-    t : Series of integers with possible gaps
+    t : Index (not Series!) of integers with possible gaps
     pos : DataFrame or Series of data to be interpolated
     k : integer
         polynomial order of spline, k <= 5
@@ -80,88 +72,51 @@ def spline(t, pos, k=3, s=None):
         new_pos.append(new_col)
     return pd.concat(new_pos, axis=1, keys=pos.columns)
 
-def _displacement(x, dt):
-    """Return difference between neighbors separated by dt steps (frames).
-    This is not the same as numpy.diff(x, n), the nth-order derivative."""
-    return x[dt:]-x[:-dt]
-
-def msd(t, pos, mpp, fps, max_interval=100, detail=False):
+def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
     output in units of microns and seconds.
     
     Parameters
     ----------
-    t : time-like variable, assumed to be frames
-    pos : DataFrame of position data
-        Columns will be treated as x and y, in order, but these names are
-        never referred to explicitly.
+    traj : DataFrame of trajectories, including columns frame, x, and y
+        If there is a probe column, the data will be considered probe by probe.
     mpp : microns per pixel
     fps : frames per second
-    max_interval : intervals of frames out to which MSD is computed
+    max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
     detail : See below. Default False.
 
     Returns
     -------
-    With detail True:
-        DataFrame([t, <x>, <y>, <x^2>, <y^2>, msd, N])
-    With detail False:
-        DataFrame([t, msd])
+    DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
+    
+    If detail is True, the DataFrame also contains a column N,
+    the estimated number of statistically independent measurements
+    that comprise the result at each lagtime.
+
+    Notes
+    -----
+    Input units are pixels and frames. Output units are microns and seconds.
     """
-    max_interval = min(max_interval, len(t))
-    intervals = xrange(1, 1 + max_interval)
-    t, pos = interp(t.values, pos.values)
-    if detail:
-        msd_func = _detailed_msd
-        columns = ['t' ,'<x>', '<y>', '<x^2>', '<y^2>', 'msd', 'N']
-    else:
-        msd_func = _simple_msd
-        columns = ['t', 'msd']
-    results = [msd_func(t, pos, i, mpp, fps) for i in intervals]
-    return DataFrame(np.vstack(results), columns=columns)
-     
-def _detailed_msd(t, pos, interval, mpp, fps):
-    """Given the time points and position points of a trajectory,
-    return lag time t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, and N."""
-    d = _displacement(mpp*pos, interval) # [[dx, dy], ...]
-    sd = d**2
-    stuff = np.column_stack((d, np.sum(d, axis=1), sd, np.sum(sd, axis=1)))
-    # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
-    mean_stuff = np.mean(stuff, axis=0)
-    # Estimate statistically independent measurements:
-    N = np.round(2*stuff.shape[0]/interval)
-    return np.append(np.array([interval])/fps, mean_stuff, np.array([N])) 
-
-def _simple_msd(t, pos, interval, mpp, fps):
-    """Given the time points and position points of a trajectory, return lag
-    time t and mean squared displacment <r^2>."""
-    d = _displacement(mpp*pos, interval) # [[dx, dy], ...]
-    sd = d**2
-    msd_result = np.mean(np.sum(sd, axis=1), axis=0)
-    return np.array([interval/fps, msd_result]) 
-
-def ensemble_msd(probes, mpp, fps, max_interval=100):
-    """Return ensemble mean squared displacement. Input in units of px
-    and frames. Output in units of microns and seconds."""
     logger.info("%.3f microns per pixel, %d fps", mpp, fps)
-    m = np.vstack([msd(traj, mpp, fps, max_interval, detail=False) \
-                for traj in probes])
-    m = m[m[:, 0].argsort()] # sort by dt 
-    boundaries, = np.where(np.diff(m[:, 0], axis=0) > 0.0)
-    boundaries += 1
-    m = np.split(m, boundaries) # list of arrays, one for each dt
-    ensm_m = np.vstack([np.mean(this_m, axis=0) for this_m in m])
-    power, coeff = fit_powerlaw(ensm_m)
-    return ensm_m
-
-def fit_powerlaw(a):
-    """Fit a power law to MSD data. Return the power and the coefficient.
-    This is not a generic power law. By treating it as a linear regression in
-    log space, we assume no additive constant: y = 0 + coeff*x**power."""
-    slope, intercept, r, p, stderr = \
-        stats.linregress(np.log(a[:, 0]), np.log(a[:, 1]))
-    return slope, np.exp(intercept)
+    pos = traj[['x', 'y']]
+    t = traj['frame']
+    # Reindex with consecutive frames, placing NaNs in the gaps. 
+    pos = pos.reindex(np.arange(0, t.irow(-1) - t.irow(0) + 1))
+    max_lagtime = min(max_lagtime, len(t)) # checking to be safe
+    lagtimes = 1 + np.arange(max_lagtime) 
+    disp = pd.concat([pos.sub(pos.shift(lt)) for lt in lagtimes],
+                     keys=lagtimes, names=['lt', 'frames'])
+    results = mpp*disp.mean(level=0)
+    results.columns = ['<x>', '<y>']
+    results[['<x^2>', '<y^2>']] = mpp**2*(disp**2).mean(level=0)
+    results['msd'] = mpp**2*(disp**2).mean(level=0).sum(1) # <r^2>
+    # Estimated statistically independent measurements = 2N/t
+    if detail:
+        results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))
+    results.index = results.index/fps
+    return results
 
 def compute_drift(traj, smoothing=None):
     """Return the ensemble drift, x(t).
@@ -233,14 +188,3 @@ def is_unphysical(traj, mpp, fps, threshold=0.08):
     artifact of uneven drift.)"""
     m = msd(traj, mpp, fps=1.)
     return m[0, 1] > threshold
-
-def branches(probes):
-    """Sort list of probes into three lists, sorted by mobility.
-    Return: diffusive, localized, subdiffusive."""
-    diffusive = [p for p in probes if is_diffusive(p)]
-    localized = [p for p in probes if is_localized(p)]
-    subdiffusive = [p for p in probes if ((not is_localized(p)) and \
-                           (not is_diffusive(p)))]
-    logger.info("{} diffusive, {} localized, {} subdiffusive",
-             len(diffusive), len(localized), len(subdiffusive))
-    return diffusive, localized, subdiffusive
