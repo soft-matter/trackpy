@@ -58,7 +58,7 @@ def make_fig(func):
     return wrapper
 
 @make_axes
-def plot_traj(traj, mpp=1, superimpose=None, ax=None):
+def pt(traj, mpp=1, superimpose=None, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a fram from the video."""
     if superimpose or mpp == 1:
@@ -76,6 +76,8 @@ def plot_traj(traj, mpp=1, superimpose=None, ax=None):
     unstacked = traj.set_index(['frame', 'probe']).unstack()
     plt.plot(mpp*unstacked['x'], mpp*unstacked['y'])
     return ax
+
+plot_traj = pt
 
 @make_axes
 def plot_msd(probes, mpp, fps, max_interval=100, ax=None):

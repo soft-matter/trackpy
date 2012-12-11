@@ -54,7 +54,33 @@ def interp(t, pos):
     interpolator = interpolate.interp1d(t, pos, axis=0)
     return full_domain, interpolator(full_domain)
 
-def displacement(x, dt):
+def spline(t, pos, k=3, s=None):
+    """Realize a Univariate spline through the data.
+    Parameters
+    ----------
+    t : Series of integers with possible gaps
+    pos : DataFrame or Series of data to be interpolated
+    k : integer
+        polynomial order of spline, k <= 5
+    s : None or float, optional
+        smoothing parameter
+    
+    Returns
+    -------
+    DataFrame of interpolated pos. The index is interpolated t.
+    """
+    first_frame, last_frame = t[[0, -1]]
+    domain = np.arange(first_frame, 1 + last_frame)
+    new_pos = []
+    pos = DataFrame(pos) # in case pos is given as a Series
+    for col in pos:
+        spl = interpolate.UnivariateSpline(
+            t.values, pos[col].values, k=k, s=s)
+        new_col = Series(spl(domain), index=domain, name=col)
+        new_pos.append(new_col)
+    return pd.concat(new_pos, axis=1, keys=pos.columns)
+
+def _displacement(x, dt):
     """Return difference between neighbors separated by dt steps (frames).
     This is not the same as numpy.diff(x, n), the nth-order derivative."""
     return x[dt:]-x[:-dt]
@@ -62,7 +88,27 @@ def displacement(x, dt):
 def msd(t, pos, mpp, fps, max_interval=100, detail=False):
     """Compute the mean displacement and mean squared displacement of a
     trajectory over a range of time intervals. Input in units of px and frames;
-    output in units of microns and seconds."""
+    output in units of microns and seconds.
+    
+    Parameters
+    ----------
+    t : time-like variable, assumed to be frames
+    pos : DataFrame of position data
+        Columns will be treated as x and y, in order, but these names are
+        never referred to explicitly.
+    mpp : microns per pixel
+    fps : frames per second
+    max_interval : intervals of frames out to which MSD is computed
+        Default: 100
+    detail : See below. Default False.
+
+    Returns
+    -------
+    With detail True:
+        DataFrame([t, <x>, <y>, <x^2>, <y^2>, msd, N])
+    With detail False:
+        DataFrame([t, msd])
+    """
     max_interval = min(max_interval, len(t))
     intervals = xrange(1, 1 + max_interval)
     t, pos = interp(t.values, pos.values)
@@ -78,7 +124,7 @@ def msd(t, pos, mpp, fps, max_interval=100, detail=False):
 def _detailed_msd(t, pos, interval, mpp, fps):
     """Given the time points and position points of a trajectory,
     return lag time t, <x>, <y>, <r>, <x^2>, <y^2>, <r^2>, and N."""
-    d = displacement(mpp*pos, interval) # [[dx, dy], ...]
+    d = _displacement(mpp*pos, interval) # [[dx, dy], ...]
     sd = d**2
     stuff = np.column_stack((d, np.sum(d, axis=1), sd, np.sum(sd, axis=1)))
     # [[dx, dy, dr, dx^2, dy^2, dr^2], ...]
@@ -90,7 +136,7 @@ def _detailed_msd(t, pos, interval, mpp, fps):
 def _simple_msd(t, pos, interval, mpp, fps):
     """Given the time points and position points of a trajectory, return lag
     time t and mean squared displacment <r^2>."""
-    d = displacement(mpp*pos, interval) # [[dx, dy], ...]
+    d = _displacement(mpp*pos, interval) # [[dx, dy], ...]
     sd = d**2
     msd_result = np.mean(np.sum(sd, axis=1), axis=0)
     return np.array([interval/fps, msd_result]) 
@@ -117,28 +163,36 @@ def fit_powerlaw(a):
         stats.linregress(np.log(a[:, 0]), np.log(a[:, 1]))
     return slope, np.exp(intercept)
 
-def compute_drift(traj, suppress_plot=False):
+def compute_drift(traj, smoothing=None):
     """Return the ensemble drift, x(t).
 
     Parameters
     ----------
     traj : a DataFrame that must include columns x, y, frame, and probe
+    smoothing : float or None, optional
+        Positive smoothing factor used to choose the number of knots.
+        Number of knots will be increased until the smoothing condition 
+        is satisfied:
+        sum((w[i]*(y[i]-s(x[i])))**2,axis=0) <= s
+        If None (default), s=len(w) which should be a good value if 1/w[i] 
+        is an estimate of the standard deviation of y[i]. If 0, spline will
+        interpolate through all data points.
 
     Returns
     -------
     drift : DataFrame([x, y], index=frame)    
     """
-    # Keep only frames 
-    delta = pd.concat([t.diff() for p, t in traj.groupby('probe')])
-    avg_delta = delta[delta['frame'] == 1].groupby('frame').mean()
-    frame, dx = interp(traj['frame'].values, traj[['x', 'y']].values)
-    x = np.cumsum(dx, axis=0)
-    return DataFrame(x, columns=['x', 'y'], index=frame)
-
-def cart_to_polar(x, y, deg=False):
-    "Convert Cartesian x, y to r, theta in radians."
-    conversion = 180/pi if deg else 1.
-    return np.sqrt(x**2 + y**2), conversion*np.arctan2(y, x)
+    # Probe by probe, take the difference between frames.
+    delta = pd.concat([t.set_index('frame', drop=False).diff()
+                       for p, t in traj.groupby('probe')])
+    # Keep only deltas between frames that are consecutive. 
+    delta = delta[delta['frame'] == 1]
+    # Restore the original frame column (replacing delta frame).
+    delta['frame'] = delta.index
+    traj = delta.groupby('frame').mean()
+    dx = spline(traj.index, traj[['x', 'y']], s=smoothing)
+    x = dx.cumsum(0) 
+    return DataFrame(x, columns=['x', 'y'])
 
 def subtract_drift(traj, drift=None):
     """Return a copy of probe trajectores with the overall drift subtracted out.
@@ -146,24 +200,17 @@ def subtract_drift(traj, drift=None):
     Parameters
     ----------
     traj : a DataFrame that must have columns x, y, and frame
-    d : optional DataFrame([x, y], index=frame) like output of drift()
-         By default, the drift is calculated from all the probes in traj.
-         Optionally specify a different drift, like the drift of a subset
-         or superset of these probes.
-     
+    drift : optional DataFrame([x, y], index=frame) like output of 
+         compute_drift(). If no drift is passed, drift is computed from traj.
 
     Returns
     -------
-    new_traj : a copy, having modified columns x and y
+    traj : a copy, having modified columns x and y
     """
 
     if drift is None: 
-        logger.info("Computing drift...")
         drift = compute_drift(traj)
-    new_traj = traj.copy().set_index('frame', drop=False)
-    new_traj[['x', 'y']] -= drift
-    print new_traj
-    return new_traj
+    return traj.set_index('frame', drop=False).sub(drift, fill_value = 0)
 
 def is_localized(traj, threshold=0.4):
     "Is this probe's motion localized?"
