@@ -355,6 +355,10 @@ def sample(images, diameter, minmass=100, separation=None,
             ax.plot(f['mass'], f['ecc'], 'ko', alpha=0.3)
             ax.set_xlabel('mass')
             ax.set_ylabel('ecc')
+            fig, ax = plt.subplots()
+            ax.plot(f['mass'], f['size'], 'ko', alpha=0.3)
+            ax.set_xlabel('mass')
+            ax.set_ylabel('size')
 
 def _cast_images(images):
     """Accept a list of image files, a directory of image files, 
