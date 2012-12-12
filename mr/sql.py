@@ -19,6 +19,7 @@
 import MySQLdb
 import pandas.io.sql as psql
 import os
+import sys
 import numpy as np
 import logging
 
@@ -127,24 +128,27 @@ def insert_feat(trial, stack, frame, centroids, conn, override=False):
     try:
         c = conn.cursor()
         # Load the data in a small temporary table.
-        c.execute("CREATE TEMPORARY TABLE NewFeatures"
+        c.execute("DROP TABLE IF EXISTS NewFeatures")
+        c.execute("CREATE TABLE NewFeatures"
                   "(x float, y float, mass float, size float, ecc float)")
-        c.executemany("INSERT INTO NewFeatures (x, y, mass, size, ecc) "
-                      "VALUES (%s, %s, %s, %s, %s)", centroids)
+        psql.write_frame(
+            centroids[['x', 'y', 'mass', 'size', 'ecc']],
+            'NewFeatures',
+            conn, 'mysql', 'append')
         # In one step, tag all the rows with identifiers (trial, stack, frame).
         # Copy the temporary table into the big table of features.
         c.execute("INSERT INTO Features "
                   "(trial, stack, frame, x, y, mass, size, ecc) "
                   "SELECT %s, %s, %s, x, y, mass, size, ecc FROM NewFeatures" 
                   % (trial, stack, frame))
-        c.execute("DROP TEMPORARY TABLE NewFeatures")
+        c.execute("DROP TABLE NewFeatures")
         c.close()
     except:
         print sys.exc_info()
         return False
     return True
 
-def insert_traj(trial, stack, track_array, override=False):
+def insert_traj(trial, stack, traj, override=False):
     "Insert a track array into the MySQL database."
     if (type(trial) is not int or type(stack) is not int):
         raise TypeError, ("The first two arguments of insert_traj must be the"
@@ -163,7 +167,10 @@ def insert_traj(trial, stack, track_array, override=False):
         c.execute("CREATE TEMPORARY TABLE NewTrajectories"
                   "(probe int unsigned, frame int unsigned, "
                   "x float, y float, mass float, size float, ecc float)")
-        psql.write_frame(track_array[['probe', 'frame', 'x', 'y', 'mass', 'size', 'ecc']], 'NewTrajectories', conn, 'mysql', 'append')
+        psql.write_frame(
+            traj[['probe', 'frame', 'x', 'y', 'mass', 'size', 'ecc']],
+            'NewTrajectories',
+            conn, 'mysql', 'append')
         # In one step, tag all the rows with identifiers (trial, stack, frame).
         # Copy the temporary table into the big table of features.
         c.execute("INSERT INTO Trajectories "

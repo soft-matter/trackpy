@@ -246,9 +246,9 @@ def locate(image_file, diameter, minmass=100., separation=None,
                           pickN=pickN)
     return f
 
-def batch(trial, stack, images, diameter, separation=None,
+def batch(trial, stack, images, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
-          percentile=64, minmass=1., pickN=None, override=False):
+          percentile=64, pickN=None, override=False):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
 
