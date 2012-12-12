@@ -290,9 +290,9 @@ def batch(trial, stack, images, diameter, separation=None,
     junk_image = plt.imread(junk_image)
     for frame, filepath in enumerate(images):
         frame += 1 # Start at 1, not 0.
-        centroids = locate(filepath, diameter, separation, 
+        centroids = locate(filepath, diameter, minmass, separation, 
                            noise_size, smoothing_size, invert, junk_image,
-                           percentile, minmass, pickN)
+                           percentile, pickN)
         sql.insert_feat(trial, stack, frame, centroids, conn, override)
         logger.info("Completed Trial %s Stack %s Frame %s", 
                     trial, stack, frame)
@@ -326,6 +326,7 @@ def sample(images, diameter, minmass=100, separation=None,
     """
     images = _cast_images(images)
     get_elem = lambda x, indicies: [x[i] for i in indicies]
+    fig, axes = plt.subplots(1, 3, sharey=True)
     if len(images) < 3:
         samples = images
     else:
@@ -333,10 +334,10 @@ def sample(images, diameter, minmass=100, separation=None,
         samples = get_elem(images, [0, len(images)/2, -1])
     for i, image_file in enumerate(samples):
         logger.info("Sample %s of %s...", 1+i, len(samples))
-        f = locate(image_file, diameter, separation,
+        f = locate(image_file, diameter, minmass, separation,
                    noise_size, smoothing_size, invert, junk_image,
-                   percentile, minmass, pickN)
-        diagnostics.annotate(image_file, f)
+                   percentile, pickN)
+        diagnostics.annotate(image_file, f, axes[i])
         #diagnostics.subpx_hist(f)
 
 def _cast_images(images):

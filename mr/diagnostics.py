@@ -19,17 +19,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def annotate(image, positions, circle_size=170, ax=None):
+def annotate(image, centroids, circle_size=170, ax=None):
     "Draw white circles on the image, like Eric Weeks' fover2d."
     # The parameter image can be an image object or a filename.
     if ax is None:
         ax = plt.gca()
     if type(image) is str:
-	image = 1-plt.imread(image)
-    x, y = np.array(positions)[:,0:2].T
+	    image = 1-plt.imread(image)
     ax.imshow(image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
     ax.set_xlim(0, image.shape[1])
     ax.set_ylim(0, image.shape[0]) 
+    x, y = centroids['x'], centroids['y']
     ax.scatter(x, y, s=circle_size, facecolors='none', edgecolors='w')
     return ax
 
