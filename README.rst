@@ -12,7 +12,8 @@ Main Features
 
     - The widely-used particle locating algorithm originally implemented
       by John Crocker and Eric Weeks in IDL is reimplemented in
-      Python. Wherever possible, I use existing tools from scipy and numpy modules. Each logical step is broken into a single-purpose function,
+      Python. Wherever possible, I use existing tools from scipy and numpy modules. 
+      Each logical step is broken into a single-purpose function,
       rendering a succinct and modular code that is easy to customize and maintain. Key
       array-intensive steps that are not available from Python's standard scientific modules are
       written in C and imported.
@@ -31,6 +32,7 @@ Dependencies
 
   * numpy
   * scipy
+  * pandas
   * MySQLdb (optional)
   * pIDLy, which calls IDL from Python, only until track.pro can be reimplemented in Python
 
