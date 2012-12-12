@@ -74,13 +74,14 @@ def spline(t, pos, k=3, s=None):
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean displacement and mean squared displacement of a
-    trajectory over a range of time intervals. Input in units of px and frames;
-    output in units of microns and seconds.
+    trajectory over a range of time intervals.
     
     Parameters
     ----------
     traj : DataFrame of trajectories, including columns frame, x, and y
-        If there is a probe column, the data will be considered probe by probe.
+        If there is a probe column containing more than one value, an
+        ensemble MSD will be computed. See imsd() to conveniently
+        compute the MSD for each probe individually.
     mpp : microns per pixel
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
@@ -117,19 +118,41 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     results.index = results.index/fps
     return results
 
-def imsd(*args, **kwargs):
-    traj = args[0]
+def imsd(traj, mpp, fps, max_lagtime=100, detail=False):
+    """Compute the mean squared displacements of probes individually.
+    
+    Parameters
+    ----------
+    traj : DataFrame of trajectories of multiple probes, including 
+        columns probe, frame, x, and y
+        If there is a probe column containing more than one value, an
+        ensemble MSD will be computed. See imsd() to conveniently
+        compute the MSD for each probe individually.
+    mpp : microns per pixel
+    fps : frames per second
+    max_lagtime : intervals of frames out to which MSD is computed
+        Default: 100
+    detail : See below. Default False.
+
+    Returns
+    -------
+    DataFrame([Probe 1 msd, Probe 2 msd, ...], index=t)
+    
+    Notes
+    -----
+    Input units are pixels and frames. Output units are microns and seconds.
+    """
+    pos = traj[['x', 'y']]
     ids = []
     msds = []
     for pid, ptraj in traj.groupby('probe'):
-        args = (ptraj, 1, 1)
-        msds.append(msd(*args))
+        # Use fps=1 to keep frames for now; convert to time at the end.
+        msds.append(msd(ptraj, mpp, 1, max_lagtime, detail))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
-    results[['<x>', '<y>']] *= kwargs.get('mpp', 1)
-    results[['<x^2>', '<y^2>', 'msd']] *= (kwargs.get('mpp', 1)**2)
     # Swap MultiIndex levels so that unstack() makes probes into columns.
     results = results.swaplevel(0, 1)['msd'].unstack()
+    results.index = results.index/fps
     return results
 
 def compute_drift(traj, smoothing=None):
