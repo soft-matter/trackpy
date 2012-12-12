@@ -21,6 +21,8 @@ import os
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+from pandas import DataFrame, Series
 from scipy.ndimage import morphology
 from scipy.ndimage import filters
 from scipy.ndimage import fourier
@@ -91,7 +93,7 @@ def _cosmask(diameter):
     return circular_mask(diameter)*np.cos(2*_thetamask(diameter))
 
 def _local_maxima(image, diameter, separation, percentile=64):
-    "Find local maxima whose brightness is above a given percentile."
+    """Find local maxima whose brightness is above a given percentile."""
     # Find the threshold brightness, representing the given
     # percentile among all NON-ZERO pixels in the image.
     flat = np.ravel(image)
@@ -121,7 +123,9 @@ def _local_maxima(image, diameter, separation, percentile=64):
     peaks = np.where(peak_map != 0)
     if not np.size(peaks) > 0:
         raise ValueError, "Bad image! All maxima were in the margins."
-    return peaks[1], peaks[0] # x, y
+    # Return coords in as a numpy array, shaped so it can be passed directly
+    # to the DataFrame constructor.
+    return np.array([peaks[1], peaks[0]]).T # columns: x, y
 
 def _estimate_mass(image, x, y, diameter):
     "Compute the total brightness in the neighborhood of a local maximum."
@@ -133,7 +137,7 @@ def _estimate_mass(image, x, y, diameter):
     neighborhood = circular_mask(diameter)*image[y0:y1, x0:x1]
     return np.sum(neighborhood)
 
-def _refine_centroid(image, x, y, diameter, minmass=1, iterations=10):
+def _refine_centroid(image, x, y, diameter, minmass=100, iterations=10):
     """Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
     brightness, size (Rg), and eccentricity (0=circular)."""
@@ -171,32 +175,31 @@ def _refine_centroid(image, x, y, diameter, minmass=1, iterations=10):
     ecc = np.sqrt((np.sum(neighborhood*_cosmask(diameter)))**2 + 
                   (np.sum(neighborhood*_sinmask(diameter)))**2) / \
                   (mass - neighborhood[r, r] + 1e-6)
-    return (xc, yc, mass, Rg, ecc)
+    return Series([xc, yc, mass, Rg, ecc])
 
 def _locate_centroids(image, diameter, separation=None, 
-                      percentile=64, minmass=1., pickN=None):
+                      percentile=64, minmass=100, pickN=None):
     """Find bright Guassian-like blobs against a dark background.
-    See wrapper function locate() for descriptions of the parameters."""
+    See wrapper function locate() for descriptions of the parameters
+    and the returned values."""
     # Check parameters.
     if not diameter & 1:
         raise ValueError, "Feature diameter must be an odd number. Round up."
     if not separation:
         separation = diameter + 1
     image = (255./image.max()*image.clip(min=0.)).astype(np.uint8)
-    x, y = _local_maxima(image, diameter, separation, percentile=percentile)
-    count_peaks = x.size
-    vec_estimate_mass = np.vectorize(
-        lambda xx, yy: _estimate_mass(image, xx, yy, diameter))
-    massive_peaks = vec_estimate_mass(x, y) > minmass
-    x, y = x[massive_peaks], y[massive_peaks]
-    count_massive_peaks = x.size
-    vec_refine_centroid = np.vectorize(
-        lambda xx, yy: _refine_centroid(image, xx, yy, diameter, 
-                                        minmass=minmass))
-    centroids = vec_refine_centroid(x, y)
-    logger.info("%s local maxima, %s of qualifying mass", count_peaks,
-                count_massive_peaks)
-    return zip(*centroids)
+    c = DataFrame(
+        _local_maxima(image, diameter, separation, percentile=percentile),
+        columns=['x', 'y'])
+    approx_mass = c.apply(
+        lambda x: _estimate_mass(image, x[0], x[1], diameter), axis=1)
+    refined_c = c[approx_mass > minmass].apply(
+        lambda x: _refine_centroid(image, x[0], x[1], diameter, minmass), 
+        axis=1)
+    refined_c.columns = ['x', 'y', 'mass', 'size', 'ecc']
+    logger.info("%s local maxima, %s of qualifying mass", 
+                len(c), len(refined_c)) 
+    return refined_c 
 
 def locate(image_file, diameter, minmass=100., separation=None, 
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
@@ -223,7 +226,10 @@ def locate(image_file, diameter, minmass=100., separation=None,
 
     Returns
     -------
-    
+    DataFrame([x, y, mass, size, ecc])
+
+    where mass means total integrated brightness of the blob
+    and size means the radius of gyration of its Gaussian-like profile
     """
     smoothing_size = smoothing_size if smoothing_size else diameter # default
     image = plt.imread(image_file)
@@ -236,15 +242,42 @@ def locate(image_file, diameter, minmass=100., separation=None,
         image *= -1; image += 1 
     image = bandpass(image, noise_size, smoothing_size)
     f = _locate_centroids(image, diameter, separation=separation,
-                             percentile=percentile, minmass=minmass,
-                             pickN=pickN)
+                          percentile=percentile, minmass=minmass,
+                          pickN=pickN)
     return f
 
 def batch(trial, stack, images, diameter, separation=None,
           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
           percentile=64, minmass=1., pickN=None, override=False):
-    """Process a list of image files using locate(), 
-    and insert the centroids into the database."""
+    """Process a list of images, doing optional image preparation and cleanup, 
+    locating Gaussian-like blobs of a given size above a given total brightness.
+
+    Parameters
+    ----------
+    trial : integer Trial Number or string Trial Name
+    stack : integer Stack Number or string Stack Name
+    image_file : string file path
+    diameter : feature size in px
+    minmass : minimum integrated brightness
+       Default is 100, but a good value is often much higher. This is a 
+       crucial parameter for elminating spurrious features.
+    separation : feature separation in px
+    noise_size : scale of Gaussian blurring. Default 1.
+    smoothing_size : defauls to separation
+    invert : Set to True if features are darker than background. Default True.
+    junk_image : an image that will be subtracted from each frame before
+        it is processed
+    percentile : Features must have a peak brighter than pixels in this
+        percentile. This helps eliminate spurrious peaks.
+    pickN : Not Implemented
+
+    Returns
+    -------
+    DataFrame([x, y, mass, size, ecc])
+
+    where mass means total integrated brightness of the blob
+    and size means the radius of gyration of its Gaussian-like profile
+    """
     images = _cast_images(images)
     conn = sql.connect()
     if sql.feature_duplicate_check(trial, stack, conn):
