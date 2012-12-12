@@ -177,7 +177,6 @@ def _locate_centroids(image, diameter, separation=None,
                       percentile=64, minmass=1., pickN=None):
     """Find bright Guassian-like blobs against a dark background.
     See wrapper function locate() for descriptions of the parameters."""
-    print '__hi there'
     # Check parameters.
     if not diameter & 1:
         raise ValueError, "Feature diameter must be an odd number. Round up."
@@ -191,20 +190,17 @@ def _locate_centroids(image, diameter, separation=None,
     massive_peaks = vec_estimate_mass(x, y) > minmass
     x, y = x[massive_peaks], y[massive_peaks]
     count_massive_peaks = x.size
-    print 'i have massive peaks'
     vec_refine_centroid = np.vectorize(
         lambda xx, yy: _refine_centroid(image, xx, yy, diameter, 
                                         minmass=minmass))
     centroids = vec_refine_centroid(x, y)
-    print 'i have centroids'
     logger.info("%s local maxima, %s of qualifying mass", count_peaks,
                 count_massive_peaks)
-    print 'ready to return'
     return zip(*centroids)
 
-def locate(image_file, diameter, separation=None, 
+def locate(image_file, diameter, minmass=100., separation=None, 
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
-           percentile=64, minmass=1., pickN=None):
+           percentile=64, pickN=None):
     """Read an image, do optional image preparation and cleanup, and locate 
     Gaussian-like blobs of a given size above a given total brightness.
 
@@ -229,21 +225,16 @@ def locate(image_file, diameter, separation=None,
     -------
     
     """
-    print 'hi there'
     smoothing_size = smoothing_size if smoothing_size else diameter # default
     image = plt.imread(image_file)
-    print 'image read'
     if isinstance(junk_image,str):
         if type(junk_image) is str:
             junk_image = plt.imread(junk_image)
         subtract_junk(image, junk_image)  
-    print 'junk image done'
     if invert:
         # Efficient way of doing image = 1 - image
         image *= -1; image += 1 
-    print 'about to bandpass'
     image = bandpass(image, noise_size, smoothing_size)
-    print 'bandpassed'
     f = _locate_centroids(image, diameter, separation=separation,
                              percentile=percentile, minmass=minmass,
                              pickN=pickN)
