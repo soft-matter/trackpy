@@ -19,6 +19,9 @@
 import logging
 import numpy as np
 from scipy import special
+from scipy import stats
+import pandas as pd
+from pandas import DataFrame, Series
 pi = np.pi
 
 logger = logging.getLogger(__name__)

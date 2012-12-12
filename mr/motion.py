@@ -71,7 +71,7 @@ def spline(t, pos, k=3, s=None):
     return pd.concat(new_pos, axis=1, keys=pos.columns)
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
-    """Compute the mean displacement and mean squared displacement of a
+    """Compute the mean displacement and mean squared displacement of one 
     trajectory over a range of time intervals.
     
     Parameters
@@ -116,21 +116,17 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     results.index = results.index/fps
     return results
 
-def imsd(traj, mpp, fps, max_lagtime=100, detail=False):
+def imsd(traj, mpp, fps, max_lagtime=100):
     """Compute the mean squared displacements of probes individually.
     
     Parameters
     ----------
     traj : DataFrame of trajectories of multiple probes, including 
         columns probe, frame, x, and y
-        If there is a probe column containing more than one value, an
-        ensemble MSD will be computed. See imsd() to conveniently
-        compute the MSD for each probe individually.
     mpp : microns per pixel
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
-    detail : See below. Default False.
 
     Returns
     -------
@@ -140,17 +136,49 @@ def imsd(traj, mpp, fps, max_lagtime=100, detail=False):
     -----
     Input units are pixels and frames. Output units are microns and seconds.
     """
-    pos = traj[['x', 'y']]
     ids = []
     msds = []
     for pid, ptraj in traj.groupby('probe'):
         # Use fps=1 to keep frames for now; convert to time at the end.
-        msds.append(msd(ptraj, mpp, 1, max_lagtime, detail))
+        msds.append(msd(ptraj, mpp, 1, max_lagtime, False))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes probes into columns.
     results = results.swaplevel(0, 1)['msd'].unstack()
     results.index = results.index/fps
+    return results
+
+def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
+    """Compute the mean squared displacements of an ensemble of probes. 
+    
+    Parameters
+    ----------
+    traj : DataFrame of trajectories of multiple probes, including 
+        columns probe, frame, x, and y
+    mpp : microns per pixel
+    fps : frames per second
+    max_lagtime : intervals of frames out to which MSD is computed
+        Default: 100
+    detail : See below. Default False.
+
+    Returns
+    -------
+    DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
+    
+    Notes
+    -----
+    Input units are pixels and frames. Output units are microns and seconds.
+    """
+    msds = []
+    for pid, ptraj in traj.groupby('probe'):
+        # Use fps=1 to keep frames for now; convert to time at the end.
+        msds.append(msd(ptraj, mpp, 1, max_lagtime, True))
+    msds = pd.concat(msds)
+    # TODO: Use N to make a weighted average.
+    results = msds.mean(level=0) # Average for each lag time.
+    results.index = results.index/fps
+    if not detail:
+        del results['N']
     return results
 
 def compute_drift(traj, smoothing=None):
