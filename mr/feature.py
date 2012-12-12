@@ -38,9 +38,8 @@ logger = logging.getLogger(__name__)
 
 def subtract_junk(image, junk_image):
     """When there is junk in the field of view, call this
-    function first to subtract a baseline image from each frame
-    before processing it."""
-    image -= junk_image
+    function first to subtract a baseline image from each frame."""
+    image -= junk_image # in place
 
 def bandpass(image, lshort, llong):
     """Convolve with a Gaussian to remove short-wavelength noise,
@@ -75,7 +74,7 @@ def _rgmask(diameter):
     x, y = np.meshgrid(points, points)
     mask = x**2 + y**2
     mask[mask > r**2] = 0
-    mask *= 1/6. # Right?
+    mask += (1/6.) # Right?
     return mask
 
 @memo
