@@ -26,8 +26,6 @@ import pidly
 import pandas as pd
 from pandas import DataFrame, Series
 
-pi = np.pi
-
 logger = logging.getLogger(__name__)
 
 def idl_track(query, max_disp, min_appearances, memory=3):
