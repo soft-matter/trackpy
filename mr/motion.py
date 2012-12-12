@@ -99,15 +99,14 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     -----
     Input units are pixels and frames. Output units are microns and seconds.
     """
-    logger.info("%.3f microns per pixel, %d fps", mpp, fps)
     pos = traj[['x', 'y']]
     t = traj['frame']
     # Reindex with consecutive frames, placing NaNs in the gaps. 
-    pos = pos.reindex(np.arange(0, t.irow(-1) - t.irow(0) + 1))
+    pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
     max_lagtime = min(max_lagtime, len(t)) # checking to be safe
     lagtimes = 1 + np.arange(max_lagtime) 
     disp = pd.concat([pos.sub(pos.shift(lt)) for lt in lagtimes],
-                     keys=lagtimes, names=['lt', 'frames'])
+                     keys=lagtimes, names=['lagt', 'frames'])
     results = mpp*disp.mean(level=0)
     results.columns = ['<x>', '<y>']
     results[['<x^2>', '<y^2>']] = mpp**2*(disp**2).mean(level=0)
@@ -116,6 +115,21 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     if detail:
         results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))
     results.index = results.index/fps
+    return results
+
+def imsd(*args, **kwargs):
+    traj = args[0]
+    ids = []
+    msds = []
+    for pid, ptraj in traj.groupby('probe'):
+        args = (ptraj, 1, 1)
+        msds.append(msd(*args))
+        ids.append(pid)
+    results = pd.concat(msds, keys=ids)
+    results[['<x>', '<y>']] *= kwargs.get('mpp', 1)
+    results[['<x^2>', '<y^2>', 'msd']] *= (kwargs.get('mpp', 1)**2)
+    # Swap MultiIndex levels so that unstack() makes probes into columns.
+    results = results.swaplevel(0, 1)['msd'].unstack()
     return results
 
 def compute_drift(traj, smoothing=None):
