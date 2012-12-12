@@ -242,12 +242,29 @@ def batch(trial, stack, images, diameter, separation=None,
                     trial, stack, frame)
     conn.close()
 
-def sample(images, diameter, minmass=1, separation=None,
+def sample(images, diameter, minmass=100, separation=None,
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
            percentile=64, pickN=None):
-    """Try parameters on a small sampling of images (out of potenitally huge
-    list). For images, accept a list of filepaths, a single filepath, or a 
-    directory path. Show annotated images and sub-pixel histogram."""
+    """Try parameters on the first, middle, and last image in a stack.
+
+    Parameters
+    ----------
+    images : directory, list of files, or one file
+    diameter : feature size in px
+    minmass : minimum integrated brightness
+       Default is 100, but a good value is often much higher. This is a 
+       crucial parameter for elminating spurrious features.
+    separation : feature separation in px
+    noise_size : scale of Gaussian blurring. Default 1.
+    smoothing_size : defauls to separation
+    invert : Set to True if features are darker than background. Default True.
+    junk_image : an image that will be subtracted from each frame before
+        it is processed
+    percentile : Features must have a peak brighter than pixels in this
+        percentile. This helps eliminate spurrious peaks.
+    pickN : Not Implemented
+
+    """
     images = _cast_images(images)
     get_elem = lambda x, indicies: [x[i] for i in indicies]
     if len(images) < 3:
@@ -259,8 +276,8 @@ def sample(images, diameter, minmass=1, separation=None,
         f = locate(image_file, diameter, separation,
                    noise_size, smoothing_size, invert, junk_image,
                    percentile, minmass, pickN)
-        diagnostics.annotate(image_file, f)
-        diagnostics.subpx_hist(f)
+        #diagnostics.annotate(image_file, f)
+        #diagnostics.subpx_hist(f)
 
 def _cast_images(images):
     """Accept a list of image files, a directory of image files, 
