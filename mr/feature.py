@@ -175,7 +175,9 @@ def _refine_centroid(image, x, y, diameter, minmass=1, iterations=10):
 
 def _locate_centroids(image, diameter, separation=None, 
                       percentile=64, minmass=1., pickN=None):
-    "Locate circular Gaussian blobs of a given diameter."
+    """Find bright Guassian-like blobs against a dark background.
+    See wrapper function locate() for descriptions of the parameters."""
+    print '__hi there'
     # Check parameters.
     if not diameter & 1:
         raise ValueError, "Feature diameter must be an odd number. Round up."
@@ -189,33 +191,63 @@ def _locate_centroids(image, diameter, separation=None,
     massive_peaks = vec_estimate_mass(x, y) > minmass
     x, y = x[massive_peaks], y[massive_peaks]
     count_massive_peaks = x.size
+    print 'i have massive peaks'
     vec_refine_centroid = np.vectorize(
         lambda xx, yy: _refine_centroid(image, xx, yy, diameter, 
                                         minmass=minmass))
     centroids = vec_refine_centroid(x, y)
+    print 'i have centroids'
     logger.info("%s local maxima, %s of qualifying mass", count_peaks,
                 count_massive_peaks)
+    print 'ready to return'
     return zip(*centroids)
 
 def locate(image_file, diameter, separation=None, 
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
            percentile=64, minmass=1., pickN=None):
-    """Read image, optionally invert it, optionally subtract a background
-    junk image, apply band pass filter, and execute
-    feature-finding routine _locate_centroids()."""
+    """Read an image, do optional image preparation and cleanup, and locate 
+    Gaussian-like blobs of a given size above a given total brightness.
+
+    Parameters
+    ----------
+    image_file : string file path
+    diameter : feature size in px
+    minmass : minimum integrated brightness
+       Default is 100, but a good value is often much higher. This is a 
+       crucial parameter for elminating spurrious features.
+    separation : feature separation in px
+    noise_size : scale of Gaussian blurring. Default 1.
+    smoothing_size : defauls to separation
+    invert : Set to True if features are darker than background. Default True.
+    junk_image : an image that will be subtracted from each frame before
+        it is processed
+    percentile : Features must have a peak brighter than pixels in this
+        percentile. This helps eliminate spurrious peaks.
+    pickN : Not Implemented
+
+    Returns
+    -------
+    
+    """
+    print 'hi there'
     smoothing_size = smoothing_size if smoothing_size else diameter # default
     image = plt.imread(image_file)
+    print 'image read'
     if isinstance(junk_image,str):
         if type(junk_image) is str:
             junk_image = plt.imread(junk_image)
         subtract_junk(image, junk_image)  
+    print 'junk image done'
     if invert:
         # Efficient way of doing image = 1 - image
         image *= -1; image += 1 
+    print 'about to bandpass'
     image = bandpass(image, noise_size, smoothing_size)
-    return _locate_centroids(image, diameter, separation=separation,
+    print 'bandpassed'
+    f = _locate_centroids(image, diameter, separation=separation,
                              percentile=percentile, minmass=minmass,
                              pickN=pickN)
+    return f
 
 def batch(trial, stack, images, diameter, separation=None,
           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
@@ -264,19 +296,23 @@ def sample(images, diameter, minmass=100, separation=None,
         percentile. This helps eliminate spurrious peaks.
     pickN : Not Implemented
 
+    Returns
+    -------
+    None
     """
     images = _cast_images(images)
     get_elem = lambda x, indicies: [x[i] for i in indicies]
     if len(images) < 3:
         samples = images
     else:
-        samples = get_elem(images, [0, len(images)/2, -1]) # first, middle, last
+        # first, middle, last
+        samples = get_elem(images, [0, len(images)/2, -1])
     for i, image_file in enumerate(samples):
         logger.info("Sample %s of %s...", 1+i, len(samples))
         f = locate(image_file, diameter, separation,
                    noise_size, smoothing_size, invert, junk_image,
                    percentile, minmass, pickN)
-        #diagnostics.annotate(image_file, f)
+        diagnostics.annotate(image_file, f)
         #diagnostics.subpx_hist(f)
 
 def _cast_images(images):
