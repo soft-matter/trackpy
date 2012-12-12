@@ -302,6 +302,7 @@ def sample(images, diameter, minmass=100, separation=None,
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
            percentile=64, pickN=None):
     """Try parameters on the first, middle, and last image in a stack.
+    See notes for explanation of plots.
 
     Parameters
     ----------
@@ -323,10 +324,20 @@ def sample(images, diameter, minmass=100, separation=None,
     Returns
     -------
     None
+
+    Notes
+    -----
+    For each image, the features are circled.
+    For the last image, the decimal part of the x and y positions are
+    histogrammed. When you are achieving subpixel accuracy, these histograms
+    should be flat. If they dip in the middle, try increasing the diameter
+    parameter.
     """
     images = _cast_images(images)
     get_elem = lambda x, indicies: [x[i] for i in indicies]
-    fig, axes = plt.subplots(1, 3, sharey=True)
+    fig, axes = plt.subplots(2, 2, sharex='col', sharey='row')
+    axes = axes[0][0], axes[0][1], axes[1][0], axes[1][1] # flat
+    fig.set_size_inches(12, 8)
     if len(images) < 3:
         samples = images
     else:
@@ -337,8 +348,14 @@ def sample(images, diameter, minmass=100, separation=None,
         f = locate(image_file, diameter, minmass, separation,
                    noise_size, smoothing_size, invert, junk_image,
                    percentile, pickN)
-        diagnostics.annotate(image_file, f, axes[i])
-        #diagnostics.subpx_hist(f)
+        diagnostics.annotate(image_file, f, ax=axes[i])
+        if i == len(samples) - 1:
+            fig, ax = plt.subplots()
+            f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
+            fig, ax = plt.subplots()
+            ax.plot(f['mass'], f['ecc'], 'ko', alpha=0.3)
+            ax.set_xlabel('mass')
+            ax.set_ylabel('ecc')
 
 def _cast_images(images):
     """Accept a list of image files, a directory of image files, 
