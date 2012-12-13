@@ -111,7 +111,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     # Estimated statistically independent measurements = 2N/t
     if detail:
         results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))
-    results.index = results.index/fps
+    results['lagt'] = results.index/fps
     return results
 
 def imsd(traj, mpp, fps, max_lagtime=100):
@@ -138,12 +138,11 @@ def imsd(traj, mpp, fps, max_lagtime=100):
     msds = []
     for pid, ptraj in traj.groupby('probe'):
         # Use fps=1 to keep frames for now; convert to time at the end.
-        msds.append(msd(ptraj, mpp, 1, max_lagtime, False))
+        msds.append(msd(ptraj, mpp, fps, max_lagtime, False))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes probes into columns.
     results = results.swaplevel(0, 1)['msd'].unstack()
-    results.index = results.index/fps
     return results
 
 def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
@@ -170,12 +169,14 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     msds = []
     for pid, ptraj in traj.groupby('probe'):
         # Use fps=1 to keep frames for now; convert to time at the end.
-        msds.append(msd(ptraj, mpp, 1, max_lagtime, True))
+        msds.append(msd(ptraj, mpp, fps, max_lagtime, True))
         ids.append(pid)
-    msds = pd.concat(msds, keys=ids, names=['probe', 'lagt'])
+    msds = pd.concat(msds, keys=ids, names=['probe', 'frame'])
     results = msds.mul(msds['N'], axis=0).mean(level=1) # weighted average
     results = results.div(msds['N'].mean(level=1), axis=0) # weights normalized
-    results.index = results.index/fps
+    # Above, lagt is lumped in with the rest for simplicity and speed.
+    # Here, rebuild it from the frame index.
+    results['lagt'] = results.index/fps
     del results['N']
     return results
 
