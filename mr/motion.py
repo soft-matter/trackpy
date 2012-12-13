@@ -137,7 +137,6 @@ def imsd(traj, mpp, fps, max_lagtime=100):
     ids = []
     msds = []
     for pid, ptraj in traj.groupby('probe'):
-        # Use fps=1 to keep frames for now; convert to time at the end.
         msds.append(msd(ptraj, mpp, fps, max_lagtime, False))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
@@ -168,7 +167,6 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     ids = []
     msds = []
     for pid, ptraj in traj.groupby('probe'):
-        # Use fps=1 to keep frames for now; convert to time at the end.
         msds.append(msd(ptraj, mpp, fps, max_lagtime, True))
         ids.append(pid)
     msds = pd.concat(msds, keys=ids, names=['probe', 'frame'])
