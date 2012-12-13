@@ -229,6 +229,29 @@ def subtract_drift(traj, drift=None):
         drift = compute_drift(traj)
     return traj.set_index('frame', drop=False).sub(drift, fill_value = 0)
 
+def is_typical(msds, frame=23, lower=0.1, upper=0.9):
+    """Examine individual probe MSDs, distinguishing outliers from those
+    in the central quantile.
+
+    Parameters
+    ----------
+    msds: a DataFrame like the output of imsd()
+        columns correspond to probes, index is lagtime measured in frames
+    at_frame : Compare MSDs at this lagtime, again measured in frames.
+        Default is 23 (1 second at 24 fps).
+    lower : Probes with MSD up to this quantile are deemed outliers.
+        float between 0 and 1, default 0.1
+    upper : Probes with MSD above this quantile are deemed outliers.
+        a float between 0 and 1, default 0.9
+    
+    Returns
+    -------
+    a boolean Series indexed by probe number
+    True = typical, False = outlier
+    """
+    a, b = msds.ix[frame].quantile(lower), msds.ix[frame].quantile(upper)
+    return (msds.ix[frame] > a) & (msds.ix[frame] < b)
+
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "Still working on this."
 
