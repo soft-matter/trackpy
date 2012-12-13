@@ -185,7 +185,7 @@ def compute_drift(traj, smoothing=None):
 
     Parameters
     ----------
-    traj : a DataFrame that must include columns x, y, frame, and probe
+    traj : DataFrame of trajectories, including columns x, y, frame, and probe
     smoothing : float or None, optional
         Positive smoothing factor used to choose the number of knots.
         Number of knots will be increased until the smoothing condition 
@@ -216,7 +216,7 @@ def subtract_drift(traj, drift=None):
     
     Parameters
     ----------
-    traj : a DataFrame that must have columns x, y, and frame
+    traj : DataFrame of trajectories, including columns x, y, and frame
     drift : optional DataFrame([x, y], index=frame) like output of 
          compute_drift(). If no drift is passed, drift is computed from traj.
 
@@ -235,25 +235,26 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
 
     Parameters
     ----------
-    msds: a DataFrame like the output of imsd()
-        columns correspond to probes, index is lagtime measured in frames
-    at_frame : Compare MSDs at this lagtime, again measured in frames.
-        Default is 23 (1 second at 24 fps).
-    lower : Probes with MSD up to this quantile are deemed outliers.
-        float between 0 and 1, default 0.1
-    upper : Probes with MSD above this quantile are deemed outliers.
-        a float between 0 and 1, default 0.9
+    msds: DataFrame like the output of imsd()
+        Columns correspond to probes, indexed by lagtime measured in frames.
+    frame : integer frame number
+        Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).
+    lower : float between 0 and 1, default 0.1
+        Probes with MSD up to this quantile are deemed outliers.
+    upper : float between 0 and 1, default 0.9
+        Probes with MSD above this quantile are deemed outliers.
+        
     
     Returns
     -------
-    a boolean Series indexed by probe number
-    True = typical, False = outlier
+    Series of boolean values, indexed by probe number
+    True = typical probe, False = outlier probe
     """
     a, b = msds.ix[frame].quantile(lower), msds.ix[frame].quantile(upper)
     return (msds.ix[frame] > a) & (msds.ix[frame] < b)
 
 def is_localized(traj, threshold=0.4):
-    raise NotImplementedError, "Still working on this."
+    raise NotImplementedError, "I will rewrite this."
 
 def is_diffusive(traj, threshold=0.9):
-    raise NotImplementedError, "Still working on this."
+    raise NotImplementedError, "I will rewrite this."
