@@ -58,9 +58,24 @@ def make_fig(func):
     return wrapper
 
 @make_axes
-def pt(traj, mpp=1, superimpose=None, ax=None):
+def pt(traj, colorby='probe', mpp=1, superimpose=None, ax=None):
     """Plot traces of trajectories for each probe.
-    Optionally superimpose it on a fram from the video."""
+    Optionally superimpose it on a frame from the video.
+
+    Parameters
+    ----------
+    traj : DataFrame including columns x and y
+    colorby: {'probe', 'frame'}
+    mpp : microns per pixel
+    superimpose : filepath of background image, default None
+    ax : matplotlib axes object, defaults to current axes
+
+    Returns
+    -------
+    None
+    """
+    if colorby != 'probe':
+        raise NotImplementedError
     if superimpose or mpp == 1:
         logger.warning("Using units of px, not microns")
         ax.set_xlabel('x [px]')
@@ -77,65 +92,61 @@ def pt(traj, mpp=1, superimpose=None, ax=None):
     plt.plot(mpp*unstacked['x'], mpp*unstacked['y'])
     return ax
 
-plot_traj = pt
+plot_traj = pt # alias
 
-@make_axes
-def plot_msd(probes, mpp, fps, max_interval=100, ax=None):
-    "Plot MSD for each probe individually."
-    logger.info("%.3f microns per pixel, %d fps", mpp, fps)
-    msds = [motion.msd(traj, mpp, fps, max_interval, detail=False) \
-            for traj in probes] 
-    for counter, m in enumerate(msds):
-        # Label only one instance for the plot legend.
-        if counter == 0:
-            ax.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3,
-                       label='individual probe MSDs')
-        else:
-            ax.loglog(m[:, 0], m[:, 1], 'k.-', alpha=0.3)
-    _setup_msd_plot(ax)
+def annotate(image, centroids, circle_size=170, invert=True, ax=None):
+    """Mark identified features with white circles.
+    
+    Parameters
+    ----------
+    image : image object or string filepath
+    centroids : DataFrame including columns x and y
+    circle_size : size of circle annotations in matplotlib's annoying
+        arbitrary units, default 170
+    invert : If you give a filepath as the image, specify whether to invert
+        black and white. Default True.
+    ax : matplotlib axes object, defaults to current axes
+    
+    Returns
+    ------
+    axes
+    """ 
+    # The parameter image can be an image object or a filename.
+    if type(image) is str:
+        image = plt.imread(image)
+        if invert:
+            image = 1 - image
+    ax.imshow(image, origin='upper', 
+    shape=image.shape, cmap=plt.cm.gray)
+    ax.set_xlim(0, image.shape[1])
+    ax.set_ylim(0, image.shape[0])
+    ax.scatter(centroids['x'], centroids['y'], 
+               s=circle_size, facecolors='none', edgecolors='w')
     return ax
 
 @make_axes
-def plot_emsd(probes, mpp, fps, max_interval=100, powerlaw=True, ax=None):
-    "Plot ensemble MSDs for probes."
-    logger.info("%.3f microns per pixel, %d fps", mpp, fps)
-    m = motion.ensemble_msd(probes, mpp, fps, max_interval)
-    ax.loglog(m[:, 0], m[:, 1], 'ro-', 
-              linewidth=3, label='ensemble MSD')
-    if powerlaw:
-        power, coeff = motion.fit_powerlaw(m)
-        ax.loglog(m[:, 0], coeff*m[:, 0]**power, '-', 
-                  color='#019AD2', linewidth=2,
-                  label=_powerlaw_label(power, coeff))
-    _setup_msd_plot(ax)
+def mass_ecc(f, ax=None):
+    """Plot each probe's mass versus eccentricity."""
+    ax.plot(f['mass'], f['ecc'], 'ko', alpha=0.3)
+    ax.set_xlabel('mass')
+    ax.set_ylabel('eccentricity (0=circular)')
     return ax
 
 @make_axes
-def plot_bimodal_msd(probes, mpp, fps, max_interval=100, ax=None):
-    """Plot individual MSDs with separate ensemble MSDs and power law fits
-    for diffusive probes and localized probes."""
-    upper_branch, lower_branch, middle_branch = motion.split_branches(probes)
-    plot_msd(upper_branch, mpp, fps, max_interval, ax=ax)
-    plot_emsd(upper_branch, mpp, fps, max_interval, powerlaw=True, ax=ax)
-    plot_msd(middle_branch, mpp, fps, max_interval, ax=ax)
-    plot_msd(lower_branch, mpp, fps, max_interval, ax=ax)
-    plot_emsd(lower_branch, mpp, fps, max_interval, powerlaw=True, ax=ax)
+def mass_size(f, ax=None):
+    """Plot each probe's mass versus size."""
+    ax.plot(f['mass'], f['size'], 'ko', alpha=0.3)
+    ax.set_xlabel('mass')
+    ax.set_ylabel('size')
     return ax
 
-def _setup_msd_plot(ax):
-    # Label ticks with plain numbers, not scientific notation:
-    ax.xaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
-    ax.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
-    ax.set_ylim(0.001, 100)
-    logger.info('Limits of y range are manually set to %f - %f.', *plt.ylim())
-    ax.set_xlabel('lag time [s]')
-    ax.set_ylabel('msd [um$^2$]')
+@make_axes
+def subpx_bias(f, ax=None):
+    """Histogram the fractional part of the x and y position.
 
-def _powerlaw_label(power, coeff):
-    """Return a string suitable for a legend label, including power
-    and D if motion is diffusive, but only power if it is subdiffusive."""
-    DIFFUSIVE_THRESHOLD = 0.90
-    label = 'power law fit\nn=' + '{:.2f}'.format(power)
-    if power >= DIFFUSIVE_THRESHOLD:
-        label += '  D=' + '{:.3f}'.format(coeff/4) + ' um$^2$/s'
-    return label
+    Notes
+    -----
+    If subpixel accuracy is good, this should be flat. If it depressed in the
+    middle, try using a larger value for feature diameter."""
+    f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
+    return ax

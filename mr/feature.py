@@ -31,7 +31,7 @@ from scipy.ndimage import interpolation
 from scipy import stats
 from utils import memo
 import sql
-import diagnostics
+import plots
 import _Cfilters
 
 logger = logging.getLogger(__name__)
@@ -322,7 +322,8 @@ def sample(images, diameter, minmass=100, separation=None,
 
     Returns
     -------
-    None
+    DataFrame([x, y, mass, size, ecc])
+    containing all the features from these sample frames
 
     Notes
     -----
@@ -342,23 +343,22 @@ def sample(images, diameter, minmass=100, separation=None,
     else:
         # first, middle, last
         samples = get_elem(images, [0, len(images)/2, -1])
+    some_features = []
     for i, image_file in enumerate(samples):
         logger.info("Sample %s of %s...", 1+i, len(samples))
         f = locate(image_file, diameter, minmass, separation,
                    noise_size, smoothing_size, invert, junk_image,
                    percentile, pickN)
-        diagnostics.annotate(image_file, f, ax=axes[i])
-        if i == len(samples) - 1:
-            fig, ax = plt.subplots()
-            f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
-            fig, ax = plt.subplots()
-            ax.plot(f['mass'], f['ecc'], 'ko', alpha=0.3)
-            ax.set_xlabel('mass')
-            ax.set_ylabel('ecc')
-            fig, ax = plt.subplots()
-            ax.plot(f['mass'], f['size'], 'ko', alpha=0.3)
-            ax.set_xlabel('mass')
-            ax.set_ylabel('size')
+        some_features.append(f)
+        plots.annotate(image_file, f, ax=axes[i])
+    some_features = pd.concat(some_features, ignore_index=True)
+    fig, ax = plt.subplots()
+    plots.subpx_bias(some_features, ax=ax)
+    fig, ax = plt.subplots()
+    plots.mass_ecc(some_features, ax=ax)
+    fig, ax = plt.subplots()
+    plots.mass_size(some_features, ax=ax)
+    return some_features
 
 def _cast_images(images):
     """Accept a list of image files, a directory of image files, 
