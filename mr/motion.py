@@ -18,13 +18,11 @@
 
 from __future__ import division
 import logging
-import copy
 import numpy as np
-from scipy import stats
-from scipy import interpolate
-import pidly
 import pandas as pd
 from pandas import DataFrame, Series
+from scipy import interpolate
+import pidly
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +157,6 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
-    detail : See below. Default False.
 
     Returns
     -------
@@ -169,16 +166,17 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     -----
     Input units are pixels and frames. Output units are microns and seconds.
     """
+    ids = []
     msds = []
     for pid, ptraj in traj.groupby('probe'):
         # Use fps=1 to keep frames for now; convert to time at the end.
         msds.append(msd(ptraj, mpp, 1, max_lagtime, True))
-    msds = pd.concat(msds)
-    # TODO: Use N to make a weighted average.
-    results = msds.mean(level=0) # Average for each lag time.
+        ids.append(pid)
+    msds = pd.concat(msds, keys=ids, names=['probe', 'lagt'])
+    results = msds.mul(msds['N'], axis=0).mean(level=1) # weighted average
+    results = results.div(msds['N'].mean(level=1), axis=0) # weights normalized
     results.index = results.index/fps
-    if not detail:
-        del results['N']
+    del results['N']
     return results
 
 def compute_drift(traj, smoothing=None):
@@ -231,23 +229,7 @@ def subtract_drift(traj, drift=None):
     return traj.set_index('frame', drop=False).sub(drift, fill_value = 0)
 
 def is_localized(traj, threshold=0.4):
-    "Is this probe's motion localized?"
-    m = msd(traj, mpp=1., fps=1.)
-    power, coeff = fit_powerlaw(m)
-    return power < threshold
+    raise NotImplementedError, "Still working on this."
 
-def is_diffusive(traj, threshold=0.85):
-    "Is this probe's motion diffusive?"
-    m = msd(traj, mpp=1., fps=1.)
-    power, coeff = fit_powerlaw(m)
-    return power > threshold
-
-def is_smear(traj,threshold):
-    d = np.sqrt(np.sum((traj[-1,1:]-traj[0,1:])**2))
-    return d > threshold
-
-def is_unphysical(traj, mpp, fps, threshold=0.08):
-    """Is the first MSD datapoint unphysically high? (This is sometimes an
-    artifact of uneven drift.)"""
-    m = msd(traj, mpp, fps=1.)
-    return m[0, 1] > threshold
+def is_diffusive(traj, threshold=0.9):
+    raise NotImplementedError, "Still working on this."
