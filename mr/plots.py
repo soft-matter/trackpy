@@ -19,6 +19,7 @@
 """These functions generate handy plots."""
 
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import logging
 import motion
@@ -74,8 +75,7 @@ def pt(traj, colorby='probe', mpp=1, superimpose=None, ax=None):
     -------
     None
     """
-    if colorby != 'probe':
-        raise NotImplementedError
+    # Axes labels
     if superimpose or mpp == 1:
         logger.warning("Using units of px, not microns")
         ax.set_xlabel('x [px]')
@@ -83,13 +83,34 @@ def pt(traj, colorby='probe', mpp=1, superimpose=None, ax=None):
     else:
         ax.set_xlabel('x [um]')
         ax.set_ylabel('y [um]')
+    # Background image
     if superimpose:
         image = 1-plt.imread(superimpose)
         ax.imshow(image, cmap=plt.cm.gray)
         ax.set_xlim(0, image.shape[1])
         ax.set_ylim(0, image.shape[0])
-    unstacked = traj.set_index(['frame', 'probe']).unstack()
-    plt.plot(mpp*unstacked['x'], mpp*unstacked['y'])
+    # Trajectories
+    if colorby == 'probe':
+        # Unstack probes into columns.
+        unstacked = traj.set_index(['frame', 'probe']).unstack()
+        plt.plot(mpp*unstacked['x'], mpp*unstacked['y'])
+    if colorby == 'frame':
+        logger.warning("This doesn't seem to work yet.")
+        # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine 
+        from matplotlib.collections import LineCollection
+        cmap = mpl.cm.afmhot
+        unstacked = traj.set_index(['frame', 'probe']).unstack()
+        x, y = unstacked['x'].values, unstacked['y'].values
+        points = np.array([x, y]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        print type(segments), segments.shape
+        print 'setup complete'
+        lc = LineCollection(segments, cmap=cmap, norm=plt.Normalize())
+        print 'i made a line collection'
+        lc.set_array(traj['frame'].values)
+        print 'i set an array'
+        ax.add_collection(lc)
+        print 'i added the collection'
     return ax
 
 plot_traj = pt # alias
