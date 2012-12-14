@@ -35,8 +35,9 @@ def spline(t, pos, k=3, s=None):
     pos : DataFrame or Series of data to be interpolated
     k : integer
         polynomial order of spline, k <= 5
-    s : None or float, optional
-        smoothing parameter
+    s : float or tuple of floats (one for each column) or None 
+        Positive smoothing parameter used to determine the number of knots.
+        For details, see documentation for scipy.interpolate.UnivariateSpline.
     
     Returns
     -------
@@ -46,9 +47,14 @@ def spline(t, pos, k=3, s=None):
     domain = np.arange(first_frame, 1 + last_frame)
     new_pos = []
     pos = DataFrame(pos) # in case pos is given as a Series
-    for col in pos:
+    import collections
+    if not isinstance(s, collections.Iterable):
+        s = [s]*len(pos.columns)
+    assert len(s) == len(pos.columns), ("The length of s must match the number" 
+                                        "of columns in pos.")
+    for i, col in enumerate(pos):
         spl = interpolate.UnivariateSpline(
-            t.values, pos[col].values, k=k, s=s)
+            t.values, pos[col].values, k=k, s=s[i])
         new_col = Series(spl(domain), index=domain, name=col)
         new_pos.append(new_col)
     return pd.concat(new_pos, axis=1, keys=pos.columns)
@@ -169,14 +175,9 @@ def compute_drift(traj, smoothing=None):
     Parameters
     ----------
     traj : DataFrame of trajectories, including columns x, y, frame, and probe
-    smoothing : float or None, optional
+    smoothing : float, tuple of floats (x_smoothing, y_smoothing), or None
         Positive smoothing factor used to choose the number of knots.
-        Number of knots will be increased until the smoothing condition 
-        is satisfied:
-        sum((w[i]*(y[i]-s(x[i])))**2,axis=0) <= s
-        If None (default), s=len(w) which should be a good value if 1/w[i] 
-        is an estimate of the standard deviation of y[i]. If 0, spline will
-        interpolate through all data points.
+        For details, see documentation for scipy.interpolate.UnivariateSpline.
 
     Returns
     -------
