@@ -95,25 +95,26 @@ def pt(traj, colorby='probe', mpp=1, superimpose=None, ax=None):
         unstacked = traj.set_index(['frame', 'probe']).unstack()
         plt.plot(mpp*unstacked['x'], mpp*unstacked['y'])
     if colorby == 'frame':
-        logger.warning("This doesn't seem to work yet.")
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine 
         from matplotlib.collections import LineCollection
-        cmap = mpl.cm.afmhot
-        unstacked = traj.set_index(['frame', 'probe']).unstack()
-        x, y = unstacked['x'].values, unstacked['y'].values
-        points = np.array([x, y]).T.reshape(-1, 1, 2)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        print type(segments), segments.shape
-        print 'setup complete'
-        lc = LineCollection(segments, cmap=cmap, norm=plt.Normalize())
-        print 'i made a line collection'
-        lc.set_array(traj['frame'].values)
-        print 'i set an array'
-        ax.add_collection(lc)
-        print 'i added the collection'
+        cmap = mpl.cm.hsv
+        x = traj.set_index(['frame', 'probe'])['x'].unstack()
+        y = traj.set_index(['frame', 'probe'])['y'].unstack()
+        color_numbers = traj['frame'].values/float(traj['frame'].max())
+        logger.info("Drawing multicolor lines takes awhile. "
+                    "Come back in a minute.")
+        for probe in x:
+            points = np.array(
+                [x[probe].values, y[probe].values]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(segments, cmap=cmap)
+            lc.set_array(color_numbers)
+            ax.add_collection(lc)
+            ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
+            ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
     return ax
 
-plot_traj = pt # alias
+plot_traj = pt # deprecated alias
 
 def annotate(image, centroids, circle_size=170, invert=True, ax=None):
     """Mark identified features with white circles.
