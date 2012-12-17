@@ -59,7 +59,8 @@ def make_fig(func):
     return wrapper
 
 @make_axes
-def pt(traj, colorby='probe', mpp=1, superimpose=None, ax=None):
+def pt(traj, colorby='probe', mpp=1, superimpose=None, 
+       cmap=mpl.cm.winter, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a frame from the video.
 
@@ -69,6 +70,8 @@ def pt(traj, colorby='probe', mpp=1, superimpose=None, ax=None):
     colorby: {'probe', 'frame'}
     mpp : microns per pixel
     superimpose : filepath of background image, default None
+    cmap : This is only used in colorby='frame' mode.
+        Default = mpl.cm.winter
     ax : matplotlib axes object, defaults to current axes
 
     Returns
@@ -97,7 +100,6 @@ def pt(traj, colorby='probe', mpp=1, superimpose=None, ax=None):
     if colorby == 'frame':
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine 
         from matplotlib.collections import LineCollection
-        cmap = mpl.cm.hsv
         x = traj.set_index(['frame', 'probe'])['x'].unstack()
         y = traj.set_index(['frame', 'probe'])['y'].unstack()
         color_numbers = traj['frame'].values/float(traj['frame'].max())
