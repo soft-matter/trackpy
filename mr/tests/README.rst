@@ -1,8 +1,6 @@
-Unit Testing
-============
+Testing
+=======
 
-These tests are pretty basic. They only verify that I haven't broken anything
-major.
+This suite of tests verifies that everything is working as expected. There are unit tests, checking for sanity. There are systems tests, running multistep calculations to reproduce the result of a control experiment such as the viscosity of water. (So far, that's the only one.)
 
-For now, each file must to executed manually, like so::
-python test_feature.py
+Tests should be run using [nosetests](https://nose.readthedocs.org/en/latest/).
