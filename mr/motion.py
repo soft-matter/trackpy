@@ -182,6 +182,16 @@ def compute_drift(traj, smoothing=None):
     Returns
     -------
     drift : DataFrame([x, y], index=frame)    
+
+    Examples
+    --------
+    compute_drift(traj).plot() # Default smoothing usually smooths too much.
+    compute_drift(traj, 0).plot() # not smoothed
+    compute_drift(traj, 15).plot() # Try various smoothing values.
+    compute_drift(traj, (18, 23)).plot() # Smooth x and y differently.
+
+    drift = compute_drift(traj, (18, 23)) # Save good drift curves.
+    corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
     # Probe by probe, take the difference between frames.
     delta = pd.concat([t.set_index('frame', drop=False).diff()
@@ -219,7 +229,7 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
 
     Parameters
     ----------
-    msds: DataFrame like the output of imsd()
+    msds : DataFrame like the output of imsd()
         Columns correspond to probes, indexed by lagtime measured in frames.
     frame : integer frame number
         Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).
@@ -233,6 +243,14 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
     -------
     Series of boolean values, indexed by probe number
     True = typical probe, False = outlier probe
+
+    Example
+    -------
+    m = mr.imsd(traj, MPP, FPS)
+    # Index by probe ID, slice using boolean output from is_typical(), and then
+    # restore the original index, frame number.
+    typical_traj = traj.set_index('probe').ix[is_typical(m)].reset_index()\
+        .set_index('frame', drop=False)
     """
     a, b = msds.ix[frame].quantile(lower), msds.ix[frame].quantile(upper)
     return (msds.ix[frame] > a) & (msds.ix[frame] < b)
@@ -251,6 +269,24 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     idl.close()
     return DataFrame(
         t, columns=['x', 'y', 'mass', 'size', 'ecc', 'frame', 'probe'])
+
+def vanhove(msds, frame):
+    """Compute the van Hove correlation function at given lagtime (frame span).
+
+    Parameters
+    ----------
+    msds : DataFrame like the output of imsd()
+        Columns correspond to probes, indexed by lagtime measured in frames.
+    frame : integer frame number
+        Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).
+
+    Returns
+    -------
+    correlation : DataFrame with a correlation function for each probe in msds,
+        indexed by displacement. That is, each column is the historgram, and
+        the Index specifies the bins.
+    """
+    
 
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "I will rewrite this."
