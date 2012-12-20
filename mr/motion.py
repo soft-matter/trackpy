@@ -62,13 +62,10 @@ def spline(t, pos, k=3, s=None):
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean displacement and mean squared displacement of one 
     trajectory over a range of time intervals.
-    
+
     Parameters
     ----------
-    traj : DataFrame of trajectories, including columns frame, x, and y
-        If there is a probe column containing more than one value, an
-        ensemble MSD will be computed. See imsd() to conveniently
-        compute the MSD for each probe individually.
+    traj : DataFrame with one trajectory, including columns frame, x, and y
     mpp : microns per pixel
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
@@ -86,6 +83,10 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     Notes
     -----
     Input units are pixels and frames. Output units are microns and seconds.
+
+    See also
+    --------
+    imsd() and emsd()
     """
     pos = traj[['x', 'y']]
     t = traj['frame']
@@ -273,23 +274,51 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     return DataFrame(
         t, columns=['x', 'y', 'mass', 'size', 'ecc', 'frame', 'probe'])
 
-def vanhove(msds, frame):
+def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     """Compute the van Hove correlation function at given lagtime (frame span).
 
     Parameters
     ----------
-    msds : DataFrame like the output of imsd()
-        Columns correspond to probes, indexed by lagtime measured in frames.
-    frame : integer frame number
-        Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).
+    pos : DataFrame of x or (or!) y positions, one column per probe, indexed
+        by frame
+    lagtime : integer interval of frames 
+        Compare the correlation function at this lagtime. Default is 23 
+        (1 second at 24 fps).
+    mpp : microns per pixel, DEFAULT TO 1 because it is usually fine to use
+        pixels for this analysis
+    ensemble : boolean, defaults False
+    bins : integer or sequence
+        Specify a number of equally spaced bins, or explicitly specifiy a
+        sequence of bin edges. See np.histogram docs.
 
     Returns
     -------
-    correlation : DataFrame with a correlation function for each probe in msds,
-        indexed by displacement. That is, each column is the historgram, and
-        the Index specifies the bins.
+    vh : If ensemble=True, a DataFrame with each probe's van Hove correlation 
+        function, indexed by displacement. If ensemble=False, a Series with 
+        the van Hove correlation function of the whole ensemble.
+
+    Example
+    -------
+    pos = traj.set_index(['frame', 'probe'])['x'].unstack() # probes as columns
+    vh = vanhove(pos)
     """
-     
+    # Reindex with consecutive frames, placing NaNs in the gaps. 
+    pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
+    assert lagtime <= pos.index.values.max(), \
+        "There is a no data out to frame %s. " % frame
+    disp = mpp*pos.sub(pos.shift(lagtime))
+    # Let np.histogram choose the best bins for all the data together.
+    values = disp.values.flatten()
+    values = values[np.isfinite(values)]
+    global_bins = np.histogram(values, bins=bins)[1]
+    # Use those bins to histogram each column by itself. 
+    vh = disp.apply(
+        lambda x: Series(np.histogram(x, bins=global_bins, density=True)[0])) 
+    vh.index = global_bins[:-1]
+    if ensemble:
+        return vh.sum(1)/len(vh.columns)
+    else:
+        return vh
 
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "I will rewrite this."
