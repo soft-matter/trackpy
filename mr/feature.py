@@ -74,7 +74,6 @@ def _rgmask(diameter):
     x, y = np.meshgrid(points, points)
     mask = x**2 + y**2
     mask[mask > r**2] = 0
-    mask += (1/6.) # Right?
     return mask
 
 @memo
