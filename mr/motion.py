@@ -105,7 +105,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     results['lagt'] = results.index/fps
     return results
 
-def imsd(traj, mpp, fps, max_lagtime=100):
+def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     """Compute the mean squared displacements of probes individually.
     
     Parameters
@@ -116,6 +116,9 @@ def imsd(traj, mpp, fps, max_lagtime=100):
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
+    statistic : {'msd', '<x>', '<y>', '<x^2>', '<y^2>'}, default is 'msd'
+        The functions msd() and emsd() return all these as columns. For
+        imsd() you have to pick one.
 
     Returns
     -------
@@ -132,7 +135,7 @@ def imsd(traj, mpp, fps, max_lagtime=100):
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes probes into columns.
-    results = results.swaplevel(0, 1)['msd'].unstack()
+    results = results.swaplevel(0, 1)[statistic].unstack()
     return results
 
 def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
@@ -286,7 +289,7 @@ def vanhove(msds, frame):
         indexed by displacement. That is, each column is the historgram, and
         the Index specifies the bins.
     """
-    
+     
 
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "I will rewrite this."
