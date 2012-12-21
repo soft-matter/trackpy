@@ -30,7 +30,7 @@ def parse_output(output):
     return x
 
 def fit(data, func, guess_params, collective=False):
-    """Perform a least squared fit on a DataFrame, either fitting the columns
+    """Peeform a least squared fit on a DataFrame, either fitting the columns
     collectively with one best fit, or producing a best fit for each column
     individually.
 
@@ -48,7 +48,8 @@ def fit(data, func, guess_params, collective=False):
     best_params : DataFrame with a column of best fit params for each 
         column of data. (If collective=True, this is just a Series.)
     """
-    exog = Series(data.index, index=data.index, dtype=np.float64)
+    print type(data)
+    exog = Series(data.index.values, index=data.index, dtype=np.float64)
     if collective:
         def err(params):
             f = exog.apply(lambda x: func(x, *params))
