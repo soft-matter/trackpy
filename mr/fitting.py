@@ -26,7 +26,7 @@ def parse_output(output):
     "Parse the output from scipy.optimize.leastsq, and respond appropriately."
     x, cov_x, infodict, mesg, ier = output
     if not ier in [1, 2, 3, 4]:
-        raise Exception, "A solution was not found. Message:\n%s" % mesg
+        raise Warning, "A solution was not found. Message:\n%s" % mesg
     return x
 
 def fit(data, func, guess_params, collective=False):
@@ -35,6 +35,7 @@ def fit(data, func, guess_params, collective=False):
     Parameters
     ----------
     data : a DataFrame or Series indexed by the exogenous ("x") variable.
+        Missing values will be ignored.
     func : model function of the form f(x, *params)
     guess_params : a sequence of parameters to be optimized
 
@@ -42,6 +43,15 @@ def fit(data, func, guess_params, collective=False):
     -------
     best_params : DataFrame with a column of best fit params for each 
         column of data.
+
+    Raises
+    ------
+    a Warning if the fit fails to converge
+
+    Notes
+    -----
+    This wraps scipy.optimize.leastsq, which itself wraps an old Fortran 
+    MINPACK implementation of the Levenburg-Marquardt algorithm. 
     """
     exog = Series(data.index.values, index=data.index, dtype=np.float64)
     # If the guess_params have an index, retain it.
@@ -61,4 +71,4 @@ def fit(data, func, guess_params, collective=False):
         output = optimize.leastsq(err, guess_params, full_output=True)
         best_params = parse_output(output)
         fits[col] = Series(best_params, index=index)
-    return fits.T
+    return fits.T # a column for each fit parameter 
