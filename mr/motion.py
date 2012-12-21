@@ -135,7 +135,7 @@ def imsd(traj, mpp, fps, max_lagtime=100):
     results = results.swaplevel(0, 1)['msd'].unstack()
     return results
 
-def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
+def emsd(traj, mpp, fps, max_lagtime=100):
     """Compute the mean squared displacements of an ensemble of probes. 
     
     Parameters
