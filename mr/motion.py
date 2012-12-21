@@ -62,13 +62,10 @@ def spline(t, pos, k=3, s=None):
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean displacement and mean squared displacement of one 
     trajectory over a range of time intervals.
-    
+
     Parameters
     ----------
-    traj : DataFrame of trajectories, including columns frame, x, and y
-        If there is a probe column containing more than one value, an
-        ensemble MSD will be computed. See imsd() to conveniently
-        compute the MSD for each probe individually.
+    traj : DataFrame with one trajectory, including columns frame, x, and y
     mpp : microns per pixel
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
@@ -86,6 +83,10 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     Notes
     -----
     Input units are pixels and frames. Output units are microns and seconds.
+
+    See also
+    --------
+    imsd() and emsd()
     """
     pos = traj[['x', 'y']]
     t = traj['frame']
@@ -105,7 +106,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     results['lagt'] = results.index/fps
     return results
 
-def imsd(traj, mpp, fps, max_lagtime=100):
+def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     """Compute the mean squared displacements of probes individually.
     
     Parameters
@@ -116,6 +117,9 @@ def imsd(traj, mpp, fps, max_lagtime=100):
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
+    statistic : {'msd', '<x>', '<y>', '<x^2>', '<y^2>'}, default is 'msd'
+        The functions msd() and emsd() return all these as columns. For
+        imsd() you have to pick one.
 
     Returns
     -------
@@ -132,7 +136,7 @@ def imsd(traj, mpp, fps, max_lagtime=100):
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes probes into columns.
-    results = results.swaplevel(0, 1)['msd'].unstack()
+    results = results.swaplevel(0, 1)[statistic].unstack()
     return results
 
 def emsd(traj, mpp, fps, max_lagtime=100):
@@ -182,6 +186,16 @@ def compute_drift(traj, smoothing=None):
     Returns
     -------
     drift : DataFrame([x, y], index=frame)    
+
+    Examples
+    --------
+    compute_drift(traj).plot() # Default smoothing usually smooths too much.
+    compute_drift(traj, 0).plot() # not smoothed
+    compute_drift(traj, 15).plot() # Try various smoothing values.
+    compute_drift(traj, (18, 23)).plot() # Smooth x and y differently.
+
+    drift = compute_drift(traj, (18, 23)) # Save good drift curves.
+    corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
     # Probe by probe, take the difference between frames.
     delta = pd.concat([t.set_index('frame', drop=False).diff()
@@ -219,7 +233,7 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
 
     Parameters
     ----------
-    msds: DataFrame like the output of imsd()
+    msds : DataFrame like the output of imsd()
         Columns correspond to probes, indexed by lagtime measured in frames.
     frame : integer frame number
         Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).
@@ -233,6 +247,14 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
     -------
     Series of boolean values, indexed by probe number
     True = typical probe, False = outlier probe
+
+    Example
+    -------
+    m = mr.imsd(traj, MPP, FPS)
+    # Index by probe ID, slice using boolean output from is_typical(), and then
+    # restore the original index, frame number.
+    typical_traj = traj.set_index('probe').ix[is_typical(m)].reset_index()\
+        .set_index('frame', drop=False)
     """
     a, b = msds.ix[frame].quantile(lower), msds.ix[frame].quantile(upper)
     return (msds.ix[frame] > a) & (msds.ix[frame] < b)
@@ -251,6 +273,52 @@ def idl_track(query, max_disp, min_appearances, memory=3):
     idl.close()
     return DataFrame(
         t, columns=['x', 'y', 'mass', 'size', 'ecc', 'frame', 'probe'])
+
+def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
+    """Compute the van Hove correlation function at given lagtime (frame span).
+
+    Parameters
+    ----------
+    pos : DataFrame of x or (or!) y positions, one column per probe, indexed
+        by frame
+    lagtime : integer interval of frames 
+        Compare the correlation function at this lagtime. Default is 23 
+        (1 second at 24 fps).
+    mpp : microns per pixel, DEFAULT TO 1 because it is usually fine to use
+        pixels for this analysis
+    ensemble : boolean, defaults False
+    bins : integer or sequence
+        Specify a number of equally spaced bins, or explicitly specifiy a
+        sequence of bin edges. See np.histogram docs.
+
+    Returns
+    -------
+    vh : If ensemble=True, a DataFrame with each probe's van Hove correlation 
+        function, indexed by displacement. If ensemble=False, a Series with 
+        the van Hove correlation function of the whole ensemble.
+
+    Example
+    -------
+    pos = traj.set_index(['frame', 'probe'])['x'].unstack() # probes as columns
+    vh = vanhove(pos)
+    """
+    # Reindex with consecutive frames, placing NaNs in the gaps. 
+    pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
+    assert lagtime <= pos.index.values.max(), \
+        "There is a no data out to frame %s. " % frame
+    disp = mpp*pos.sub(pos.shift(lagtime))
+    # Let np.histogram choose the best bins for all the data together.
+    values = disp.values.flatten()
+    values = values[np.isfinite(values)]
+    global_bins = np.histogram(values, bins=bins)[1]
+    # Use those bins to histogram each column by itself. 
+    vh = disp.apply(
+        lambda x: Series(np.histogram(x, bins=global_bins, density=True)[0])) 
+    vh.index = global_bins[:-1]
+    if ensemble:
+        return vh.sum(1)/len(vh.columns)
+    else:
+        return vh
 
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "I will rewrite this."

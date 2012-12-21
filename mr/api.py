@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from feature import *
 from diagnostics import *
 from motion import *
+from fitting import *
 from plots import *
 from rheology import *
 from sql import *
