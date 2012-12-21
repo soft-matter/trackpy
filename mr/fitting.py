@@ -30,58 +30,35 @@ def parse_output(output):
     return x
 
 def fit(data, func, guess_params, collective=False):
-    """Peeform a least squared fit on a DataFrame, either fitting the columns
-    collectively with one best fit, or producing a best fit for each column
-    individually.
+    """Perform a least-sqaured fit on each column of a DataFrame. 
 
     Parameters
     ----------
     data : a DataFrame or Series indexed by the exogenous ("x") variable.
     func : model function of the form f(x, *params)
     guess_params : a sequence of parameters to be optimized
-    collective : boolean
-        If True, find the parameters that fit all the columns together.
-        If False, fit each column individually.
 
     Returns
     -------
     best_params : DataFrame with a column of best fit params for each 
-        column of data. (If collective=True, this is just a Series.)
+        column of data.
     """
-    print type(data)
     exog = Series(data.index.values, index=data.index, dtype=np.float64)
-    if collective:
+    # If the guess_params have an index, retain it.
+    try:
+        if not issubclass(type(guess_params.index), pd.core.index.Index):
+            raise TypeError
+        index = guess_params.index
+    except:
+        index = np.arange(len(guess_params))
+    fits = DataFrame(index=index)
+    data = DataFrame(data) # Maybe convert Series to DataFrame.
+    for col in data:
         def err(params):
             f = exog.apply(lambda x: func(x, *params))
-            # Subtract the model from each column of data. Then sum the
-            # columns.
-            return (data - f).sum(1).fillna(0).values
+            e = (data[col] - f).fillna(0).values
+            return e
         output = optimize.leastsq(err, guess_params, full_output=True)
         best_params = parse_output(output)
-        # If the guess_params come as a Series, reuse the same Index.
-        try:
-            if not issubclass(index, pandas.core.index.Index):
-                raise TypeError
-            index = guess_params.index
-        except:
-            index = None
-        return Series(best_params, index=index)
-    else:
-        # Make an empty DataFrame of the right length to hold the fits.
-        try:
-            if not issubclass(index, pandas.core.index.Index):
-                raise TypeError
-            index = guess_params.index
-        except:
-            index = np.arange(len(guess_params))
-        fits = DataFrame(index=index)
-        data = DataFrame(data)
-        for col in data:
-            def err(params):
-                f = exog.apply(lambda x: func(x, *params))
-                e = (data[col] - f).fillna(0).values
-                return e
-            output = optimize.leastsq(err, guess_params, full_output=True)
-            best_params = parse_output(output)
-            fits[col] = Series(best_params)
-        return fits.T
+        fits[col] = Series(best_params, index=index)
+    return fits.T
