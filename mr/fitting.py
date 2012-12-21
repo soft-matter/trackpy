@@ -45,16 +45,16 @@ def fit(data, func, guess_params, collective=False):
 
     Returns
     -------
-    best_params : If collective=True, this is a Series. If collective=False,
-       this is a DataFrame, with a column of fits for each column of data.
+    best_params : DataFrame with a column of best fit params for each 
+        column of data. (If collective=True, this is just a Series.)
     """
-    exog = Series(data.index)
+    exog = Series(data.index, index=data.index, dtype=np.float64)
     if collective:
         def err(params):
             f = exog.apply(lambda x: func(x, *params))
             # Subtract the model from each column of data. Then sum the
             # columns.
-            return (data - f).sum(1).values
+            return (data - f).sum(1).fillna(0).values
         output = optimize.leastsq(err, guess_params, full_output=True)
         best_params = parse_output(output)
         # If the guess_params come as a Series, reuse the same Index.
@@ -74,12 +74,13 @@ def fit(data, func, guess_params, collective=False):
         except:
             index = np.arange(len(guess_params))
         fits = DataFrame(index=index)
-        data = DataFrame(data) # Maybe convert Series to DataFrame.
+        data = DataFrame(data)
         for col in data:
             def err(params):
                 f = exog.apply(lambda x: func(x, *params))
-                return (data[col] - f).values
+                e = (data[col] - f).fillna(0).values
+                return e
             output = optimize.leastsq(err, guess_params, full_output=True)
             best_params = parse_output(output)
             fits[col] = Series(best_params)
-        return fits
+        return fits.T
