@@ -29,7 +29,7 @@ def parse_output(output):
         raise Warning, "A solution was not found. Message:\n%s" % mesg
     return x
 
-def fit(data, func, guess_params, collective=False):
+def fit(data, func, guess_params):
     """Perform a least-sqaured fit on each column of a DataFrame. 
 
     Parameters
@@ -72,3 +72,13 @@ def fit(data, func, guess_params, collective=False):
         best_params = parse_output(output)
         fits[col] = Series(best_params, index=index)
     return fits.T # a column for each fit parameter 
+
+def fit_powerlaw(data):
+    """Fit a powerlaw by doing a linear regression in log space."""
+    data = DataFrame(data)
+    fits = []
+    for col in data:
+        slope, intercept, r, p, stderr = \
+            stats.linregress(data.index.values, data[col].values)
+        fits.append(Series([slope, np.exp(intercept)], index=['A', 'n']))
+    return pd.concat(fits, axis=1, keys=data.columns).T

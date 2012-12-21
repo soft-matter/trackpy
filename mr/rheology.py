@@ -26,15 +26,6 @@ pi = np.pi
 
 logger = logging.getLogger(__name__)
 
-def fit_powerlaw(data):
-    data = DataFrame(data)
-    fits = []
-    for col in data:
-        slope, intercept, r, p, stderr = \
-            stats.linregress(data.index.values, data[col].values)
-        fits.append(Series([slope, np.exp(intercept)], index=['A', 'n']))
-    return pd.concat(fits, axis=1, keys=data.columns)
-
 def fischer(D, a, contact_angle, bulk_visc=1e-3, T=298):
     """Use Fischer model to compute film viscosity from:
     diffusivity D in um^2/s,
