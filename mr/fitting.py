@@ -20,7 +20,7 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from scipy import optimize
+from scipy import optimize, stats
 
 def parse_output(output):
     "Parse the output from scipy.optimize.leastsq, and respond appropriately."
