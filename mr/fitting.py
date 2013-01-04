@@ -81,4 +81,4 @@ def fit_powerlaw(data):
         slope, intercept, r, p, stderr = \
             stats.linregress(data.index.values, data[col].values)
         fits.append(Series([slope, np.exp(intercept)], index=['A', 'n']))
-    return pd.concat(fits, axis=1, keys=data.columns).T
+    return pd.concat(fits, axis=1, keys=data.columns)
