@@ -23,7 +23,8 @@ def curpath():
 
 class TestWaterViscosity(unittest.TestCase):
     def setUp(self):
-        self.path = curpath()
+        DATA_DIR = 'water'
+        self.path = os.path.join(curpath(), DATA_DIR)
         self.raw_traj = pd.load(os.path.join(self.path, 'raw_traj.df'))
         self.expected_drift = pd.load(os.path.join(self.path, 'drift.df'))
         self.expected_corrected_traj = pd.load(
