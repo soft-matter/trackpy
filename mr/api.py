@@ -19,6 +19,13 @@
 import numpy as np
 from datetime import datetime, timedelta
 
+# SSH-safe matplotlib import
+import matplotlib as mpl
+import os
+if 'DISPLAY' not in os.environ:
+    print "No $DISPLAY variable found. Using the Agg matplotlib backend."
+    mpl.use('Agg') # suppress plot display
+
 from feature import *
 from motion import *
 from fitting import *
