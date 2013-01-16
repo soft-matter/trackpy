@@ -333,6 +333,10 @@ def is_not_dirt(traj, threshold=3, mpp=1):
     Returns
     -------
     boolean Series indexed by probe ID. False = dirt.
+
+    Notes
+    -----
+    Use this before you subtract the overall drift, not after.
     """
     
     extremes = traj.groupby('probe')['x', 'y'].agg(['max', 'min'])
