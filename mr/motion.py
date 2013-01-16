@@ -341,7 +341,7 @@ def is_not_dirt(traj, threshold=3, mpp=1):
     Example
     -------
     >>> notdirt = is_not_dirt(t)
-    >>> t.set_index('probe').ix[notdirt].reset_index().set_index('frame', drop=False')
+    >>> t.set_index('probe').ix[notdirt].reset_index().set_index('frame', drop=False)
     """
     
     extremes = traj.groupby('probe')['x', 'y'].agg(['max', 'min'])
