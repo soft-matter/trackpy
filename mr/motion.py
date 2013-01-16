@@ -320,6 +320,26 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     else:
         return vh
 
+def is_not_dirt(traj, threshold=3, mpp=1):
+    """Identify which probes are so localized that they are probably dirt.
+    
+    Parameters
+    ----------
+    traj : DataFrame of trajectories of multiple probes, including 
+        columns probe, frame, x, and y
+    threshold : minimum displacement of non-dirt
+    mpp : microns per pixel, assumed to be 1
+
+    Returns
+    -------
+    boolean Series indexed by probe ID. False = dirt.
+    """
+    
+    extremes = traj.groupby('probe')['x', 'y'].agg(['max', 'min'])
+    diag_size = np.sqrt((extremes[('x', 'max')] - extremes[('x', 'min')])**2
+                        + (extremes[('y', 'max')] - extremes[('y', 'min')])**2)
+    return diag_size > threshold 
+
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "I will rewrite this."
 
