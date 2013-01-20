@@ -2,6 +2,60 @@ import numpy as np
 from scipy import special
 from scipy import optimize
 import pandas as pd
+pi = np.pi
+
+def boxed(x, below, above, cushion=1.e-6):
+    assert cushion > 0, "cushion must be an absolute value"
+    unit_box = (1 + np.tanh(x))/2. # from 0 to 1
+    return below + cushion + (above - below - cushion)*unit_box
+
+def transform_params(m_, C_, theta0_, offset_, angle_min, angle_max):
+    """Enforce bounds using analytical transformations."""
+    m = np.abs(m_)
+    C = np.abs(C_)
+    offset = boxed(offset_, -pi/2 - angle_min, pi/2 - angle_max)
+    theta0 = boxed(theta0_, -pi/2 - offset, pi/2 - offset) 
+    return m, C, theta0, offset
+
+def validate_params(angle, m, C, theta0, offset):
+    assert C >= 0, (
+        "C = {} < 0 is not physical.").format(C)
+    assert m >= 0, (
+        "m < 0 is not physical.").format(m)
+    assert m != 1, (
+        """m == 1 means that the flow index n is also 1.
+           This model diverges, but a purely viscous one should work.""")
+    assert np.all(np.cos(angle + offset) >= 0), "cos(angle + offset) < 0"
+    assert np.all(np.cos(angle + offset) >= 0), "cos(angle + offset) < 0"
+    assert np.all(np.cos(theta0 + offset) >= 0), "cos(theta0 + offset) < 0"
+
+def term(angle, m, C, offset):
+    """The function t consists of two similar terms like this.
+    It is convenient to compute them individually."""
+    term =  1/(m-1)*C**m*\
+        np.cos(angle + offset)**(1-m)*F(angle + offset, m)
+    all_finite = np.isfinite(term).all()
+    print type(angle)
+    assert np.cos(angle + offset) > 0, "AHHH"
+    assert all_finite, "term not finite {}".format((m, C, offset))
+    return term
+
+def t(angle, m, C, theta0, offset):
+    "Time as function of m, C, and angles."""
+    angle_min, angle_max = angle.min(), angle.max()
+    m, C, theta0, offset = transform_params(m, C, theta0, offset, angle_min, angle_max)
+    validate_params(angle, m, C, theta0, offset)
+    return term(angle, m, C,  offset) - term(theta0, m, C, offset)
+
+def F(angle, m):
+    "Convenience function"
+    # _2F_1(1/2, (1-m)/2; (3-m)/2, cos^2(theta))
+    result = special.hyp2f1(0.5, (1-m)/2, (3-m)/2, np.cos(angle)**2)
+    assert np.isfinite(result).all(), (
+        """Hypergeometric function returned a result that is not finite.
+        m={}
+        result={}""".format(m, result))
+    return result
 
 class Model(object):
     "Nonlinear model"
