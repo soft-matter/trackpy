@@ -91,6 +91,7 @@ def fit(data, func, guess_params, log_residual=False, exog_columns=False):
     pd.reset_option('use_inf_as_null')
     return fits.T # a column for each fit parameter 
 
+
 def fit_powerlaw(data):
     """Fit a powerlaw by doing a linear regression in log space."""
     data = DataFrame(data)
@@ -100,3 +101,39 @@ def fit_powerlaw(data):
             stats.linregress(data.index.values, data[col].values)
         fits.append(Series([slope, np.exp(intercept)], index=['A', 'n']))
     return pd.concat(fits, axis=1, keys=data.columns)
+
+def bound_fit(data, func, guess_params, transform, untransform, 
+              log_residual=False, exog_columns=False):
+    """Perform a least-sqaured fit on each column of a DataFrame. 
+
+    Parameters
+    ----------
+    data : a DataFrame or Series indexed by the exogenous ("x") variable.
+        Missing values will be ignored.
+    func : model function of the form f(x, *params)
+    guess_params : a sequence of parameters to be optimized
+    transform : function that transforms open-ended parameters on (-inf, inf) 
+        into bounded, real variables
+    untransform : function that transforms bounded, real variables into
+       open-ended parameters on (-inf, inf)
+    log_residual : boolean, default False
+        Compute the residual in log space.
+    exog_columns : boolean, default False
+
+    Returns
+    -------
+    best_params : DataFrame with a column of best fit params for each 
+        column of data.
+
+    Raises
+    ------
+    a Warning if the fit fails to converge
+
+    Notes
+    -----
+    This wraps scipy.optimize.leastsq, which itself wraps an old Fortran 
+    MINPACK implementation of the Levenburg-Marquardt algorithm. 
+    """
+    guess_params = untransform(data, *guess_params)
+    fits = fit(data, func, guess_params, log_residual, exog_columns)
+    return transform(data, *fits)

@@ -5,24 +5,38 @@ import pandas as pd
 from pandas import DataFrame, Series
 pi = np.pi
 
-def boxed(x, below, above, cushion=1.e-6):
+def box(x, a, b, cushion=1.e-6):
     """Enforce bounds using an analytical transformation."""
     assert cushion > 0, "cushion must be an absolute value"
-    assert above > below, "above must be great than below"
+    assert a < b, "Required: a < b"
     unit_box = (1 + np.tanh(x))/2. # from 0 to 1
-    return below + cushion + (above - below - 2*cushion)*unit_box
+    return a + cushion + (b - a - 2*cushion)*unit_box
 
-def transform_params(m_, C_, theta0_, offset_, angle_min, angle_max):
+def unbox(x, a, b, cushion=1.e-6):
+    """Undo box."""
+    assert cushion > 0, "cushion must be an absolute value"
+    assert x < b, "Required: a < x < b"
+    assert x > a, "Required: a < x < b"
+    return np.arctanh(2*(x - a - cushion)/(b - a - 2*cushion) - 1)
+
+def transform(angle, m_, C_, theta0_, offset_):
     "Bound m and C below. Bound theta0 and offset above and below."
     m = np.abs(m_)
     C = np.abs(C_)
-    offset = boxed(offset_, -pi/2 - angle_min, pi/2 - angle_max)
-    theta0 = boxed(theta0_, -pi/2 - offset, pi/2 - offset) 
+    offset = box(offset_, -pi/2 - angle.min(), pi/2 - angle.max())
+    theta0 = box(theta0_, -pi/2 - offset, pi/2 - offset) 
+    return m, C, theta0, offset
+
+def untransform(angle, m_, C_, theta0_, offset_):
+    m = m_
+    C = C_
+    offset = unbox(offset_, -pi/2 - angle.min(), pi/2 - angle.max())
+    theta0 = unbox(theta0_, -pi/2 - offset, pi/2 - offset) 
     return m, C, theta0, offset
 
 def power_fluid(angle, m, C, theta0, offset):
-    m, C, theta0, offset = transform_params(m, C, theta0, offset, angle.min(), angle.max())
-    validate_params(angle, m, C, theta0, offset)
+    m, C, theta0, offset = transform(angle, m, C, theta0, offset)
+    validate(angle, m, C, theta0, offset)
     # print 'type:', type(angle)
     # print 'extremes:', angle.min(), angle.max()
     # print 'transformed and validated params:', m, C, theta0, offset
@@ -32,7 +46,7 @@ def power_fluid(angle, m, C, theta0, offset):
         np.cos(theta0 + offset)**(1-m)*F(theta0 + offset, m)
     return term1 + term2
 
-def validate_params(angle, m, C, theta0, offset):
+def validate(angle, m, C, theta0, offset):
     assert C >= 0, (
         "C = {} < 0 is not physical.").format(C)
     assert m >= 0, (
@@ -57,11 +71,6 @@ def F(angle, m):
 def transform_fits(angle, fits):
     """Apply same transformation to final result, which will be given
     in weird varibles."""
-    transformation_inputs = pd.concat([fits, 
-                                      pd.concat([angle.min(), angle.max()], 
-                                                axis=1, 
-                                                keys=['min', 'max'])], 
-                                      axis=1)
-    transformed_fits = transformation_inputs.T.apply(
-        lambda x: Series(transform_params(*x), index=x.index[:4]))
+    transformed_fits = fits.T.apply(
+        lambda x: Series(transform(angle[x.name], *x), index=x.index))
     return transformed_fits
