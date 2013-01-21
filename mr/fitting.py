@@ -29,7 +29,7 @@ def parse_output(output):
         raise Warning, "A solution was not found. Message:\n%s" % mesg
     return x
 
-def fit(data, func, guess_params, exog_columns = False):
+def fit(data, func, guess_params, log_residual=False, exog_columns=False):
     """Perform a least-sqaured fit on each column of a DataFrame. 
 
     Parameters
@@ -38,6 +38,8 @@ def fit(data, func, guess_params, exog_columns = False):
         Missing values will be ignored.
     func : model function of the form f(x, *params)
     guess_params : a sequence of parameters to be optimized
+    log_residual : boolean, default False
+        Compute the residual in log space.
     exog_columns : boolean, default False
 
     Returns
@@ -54,6 +56,8 @@ def fit(data, func, guess_params, exog_columns = False):
     This wraps scipy.optimize.leastsq, which itself wraps an old Fortran 
     MINPACK implementation of the Levenburg-Marquardt algorithm. 
     """
+    pd.set_option('use_inf_as_null', True)
+    data = data.dropna()
     data_index = Series(data.index.values, index=data.index, dtype=np.float64)
     # If the guess_params have an index, retain it.
     try:
@@ -68,16 +72,23 @@ def fit(data, func, guess_params, exog_columns = False):
         if not exog_columns:
             def err(params):
                 f = data_index.apply(lambda x: func(x, *params))
-                e = (data[col] - f).fillna(0).values
-                return e
+                if log_residual:
+                    e = (np.log(data[col]) - np.log(f)).fillna(0)
+                else:
+                    e = (data[col] - f).fillna(0)
+                return e.values
         else:
             def err(params):
                 f = data[col].apply(lambda x: func(x, *params))
-                e = (data_index - f).fillna(0).values
-                return e
+                if log_residual:
+                    e = (np.log(data_index) - np.log(f)).fillna(0) 
+                else:
+                    e = (data_index - f).fillna(0)
+                return e.values
         output = optimize.leastsq(err, guess_params, full_output=True)
         best_params = parse_output(output)
         fits[col] = Series(best_params, index=param_index)
+    pd.reset_option('use_inf_as_null')
     return fits.T # a column for each fit parameter 
 
 def fit_powerlaw(data):

@@ -2,6 +2,7 @@ import numpy as np
 from scipy import special
 from scipy import optimize
 import pandas as pd
+from pandas import DataFrame, Series
 pi = np.pi
 
 def boxed(x, below, above, cushion=1.e-6):
@@ -19,7 +20,7 @@ def transform_params(m_, C_, theta0_, offset_, angle_min, angle_max):
     theta0 = boxed(theta0_, -pi/2 - offset, pi/2 - offset) 
     return m, C, theta0, offset
 
-def t(angle, m, C, theta0, offset):
+def power_fluid(angle, m, C, theta0, offset):
     m, C, theta0, offset = transform_params(m, C, theta0, offset, angle.min(), angle.max())
     validate_params(angle, m, C, theta0, offset)
     # print 'type:', type(angle)
@@ -52,3 +53,15 @@ def F(angle, m):
         m={}
         result={}""".format(m, result))
     return result
+
+def transform_fits(angle, fits):
+    """Apply same transformation to final result, which will be given
+    in weird varibles."""
+    transformation_inputs = pd.concat([fits, 
+                                      pd.concat([angle.min(), angle.max()], 
+                                                axis=1, 
+                                                keys=['min', 'max'])], 
+                                      axis=1)
+    transformed_fits = transformation_inputs.T.apply(
+        lambda x: Series(transform_params(*x), index=x.index[:4]))
+    return transformed_fits
