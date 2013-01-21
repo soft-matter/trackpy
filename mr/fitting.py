@@ -71,7 +71,6 @@ def fit(data, func, guess_params, exog_columns = False):
                 e = (data[col] - f).fillna(0).values
                 return e
         else:
-            print "HEY!"
             def err(params):
                 f = data[col].apply(lambda x: func(x, *params))
                 e = (data_index - f).fillna(0).values
