@@ -82,7 +82,6 @@ def NLS(data, func, params, log_residual=False, inverted_model=False):
     pd.reset_option('use_inf_as_null')
     return results.T # column for each fit parameter
 
-
 def fit_powerlaw(data):
     """Fit a powerlaw by doing a linear regression in log space."""
     data = DataFrame(data)
