@@ -34,5 +34,4 @@ from rheology import *
 from sql import *
 from video import *
 
-import fitting
 import models.power_fluid

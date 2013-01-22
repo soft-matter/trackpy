@@ -58,7 +58,8 @@ class Result:
     def fitlines(self, value):
         self._fitlines = value
 
-def NLS(data, model_func, params, log_residual=False, inverted_model=False):
+def NLS(data, model_func, params, weights,
+        log_residual=False, inverted_model=False):
     """Perform a nonlinear least-sqaured fit on each column of a DataFrame. 
 
     Parameters
@@ -68,6 +69,7 @@ def NLS(data, model_func, params, log_residual=False, inverted_model=False):
     model_func : model function of the form f(x, params)
     params : a Parameters object or a function of the form f(data) that returns
         a Parameters object. (See the lmfit module for more on Parameters.)
+    weights : Series
     log_residual : boolean, default False
         Compute the residual in log space.
     inverted_model : boolean, default False
@@ -86,19 +88,22 @@ def NLS(data, model_func, params, log_residual=False, inverted_model=False):
     This wraps lmfit, which extends scipy.optimize.leastsq, which itself wraps 
     an old Fortran MINPACK implementation of the Levenburg-Marquardt algorithm. 
     """
-    def residual_func(params, x, y):
+    pd.set_option('use_inf_as_null', True)
+    def residual_func(params, x, y, weights):
         f = x.apply(lambda x: model_func(x, params))
         if log_residual:
-            e = (np.log(y) - np.log(f))
+            e = (np.log(y) - np.log(f)).div(weights)
             e.fillna(e.mean(), inplace=True)
         else:
-            e = y - f
+            e = (y - f).div(weights)
+            e.fillna(e.mean(), inplace=True)
         return e.values
     # If we are given a params-generating function, generate sample
     # params to index the results DataFrame. 
-    pd.set_option('use_inf_as_null', True)
     ys = DataFrame(data) # in case it's a Series
     x = Series(data.index.values, index=data.index, dtype=np.float64)
+    if weights is None:
+        weights = np.ones_like(x)
     if hasattr(params, '__call__'):
         p = params(ys.icol(0))
     values = DataFrame(index=p.keys())
@@ -112,9 +117,9 @@ def NLS(data, model_func, params, log_residual=False, inverted_model=False):
         else:
             p = params
         if not inverted_model:
-            result = lmfit.minimize(residual_func, p, args=(x, y))
+            result = lmfit.minimize(residual_func, p, args=(x, y, weights))
         else:
-            result = lmfit.minimize(residual_func, p, args=(y, x))
+            result = lmfit.minimize(residual_func, p, args=(y, x, weights))
         result_params = Series(result.params)
         values[col] = result_params.apply(lambda param: param.value)
         stderr[col] = result_params.apply(lambda param: param.stderr)
