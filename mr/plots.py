@@ -19,6 +19,8 @@
 """These functions generate handy plots."""
 
 import numpy as np
+import pandas as pd
+from pandas import DataFrame, Series
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import logging
@@ -59,7 +61,7 @@ def make_fig(func):
     return wrapper
 
 @make_axes
-def pt(traj, colorby='probe', mpp=1, superimpose=None, 
+def pt(traj, colorby='probe', mpp=1, label=False, superimpose=None, 
        cmap=mpl.cm.winter, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a frame from the video.
@@ -114,6 +116,13 @@ def pt(traj, colorby='probe', mpp=1, superimpose=None,
             ax.add_collection(lc)
             ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
             ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
+    if label:
+        unstacked = traj.set_index(['frame', 'probe'])[['x', 'y']].unstack()
+        coords = unstacked.fillna(method='backfill').stack().ix[1]
+        for probe_id, coord in coords.iterrows():
+            plt.text(coord['x'], coord['y'], str(probe_id),
+                     horizontalalignment='center',
+                     verticalalignment='center')
     return ax
 
 plot_traj = pt # deprecated alias
