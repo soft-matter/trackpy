@@ -134,6 +134,41 @@ def bound_fit(data, func, guess_params, transform, untransform,
     This wraps scipy.optimize.leastsq, which itself wraps an old Fortran 
     MINPACK implementation of the Levenburg-Marquardt algorithm. 
     """
-    guess_params = untransform(data, *guess_params)
-    fits = fit(data, func, guess_params, log_residual, exog_columns)
-    return transform(data, *fits)
+    pd.set_option('use_inf_as_null', True)
+    data = data.dropna()
+    data_index = Series(data.index.values, index=data.index, dtype=np.float64)
+    # If the guess_params have an index, retain it.
+    try:
+        if not issubclass(type(guess_params.index), pd.core.index.Index):
+            raise TypeError
+        param_index = guess_params.index
+    except:
+        param_index = np.arange(len(guess_params))
+    fits = DataFrame(index=param_index)
+    data = DataFrame(data) # Maybe convert Series to DataFrame.
+    for col in data:
+        ut_guess_params = untransform(data[col], *guess_params)
+        if not exog_columns:
+            def err(params):
+                f = data_index.apply(lambda x: func(x, *params))
+                if log_residual:
+                    e = (np.log(data[col]) - np.log(f))
+                    e.fillna(2*e.mean(), inplace=True)
+                else:
+                    e = (data[col] - f)
+                return e.values
+        else:
+            def err(params):
+                f = data[col].apply(lambda x: func(x, *params))
+                if log_residual:
+                    e = (np.log(data_index) - np.log(f))
+                    e.fillna(2*e.mean(), inplace=True) 
+                else:
+                    e = (data_index - f)
+                return e.values
+        output = optimize.leastsq(err, ut_guess_params, full_output=True)
+        ut_best_params = parse_output(output)
+        t_best_params = transform(data[col], *ut_best_params)
+        fits[col] = Series(t_best_params, index=param_index)
+    pd.reset_option('use_inf_as_null')
+    return fits.T # a column for each fit parameter 
