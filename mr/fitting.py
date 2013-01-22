@@ -20,34 +20,30 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from scipy import optimize, stats
+from scipy import stats
+import lmfit
+from lmfit import Parameters
 
-def parse_output(output):
-    "Parse the output from scipy.optimize.leastsq, and respond appropriately."
-    x, cov_x, infodict, mesg, ier = output
-    if not ier in [1, 2, 3, 4]:
-        raise Warning, "A solution was not found. Message:\n%s" % mesg
-    return x
-
-def fit(data, func, guess_params, log_residual=False, exog_columns=False):
-    """Perform a least-sqaured fit on each column of a DataFrame. 
+def NLS(data, func, params, log_residual=False, inverted_model=False):
+    """Perform a nonlinear least-sqaured fit on each column of a DataFrame. 
 
     Parameters
     ----------
     data : a DataFrame or Series indexed by the exogenous ("x") variable.
         Missing values will be ignored.
-    func : model function of the form f(x, *params)
-    guess_params : a sequence of parameters to be optimized
+    func : model function of the form f(x, params)
+    params : a Parameters object or a function of the form f(data) that returns
+        a Parameters object. (See the lmfit module for more on Parameters.)
     log_residual : boolean, default False
         Compute the residual in log space.
-    exog_columns : boolean, default False
+    inverted_model : boolean, default False
+        Use when the model is expressed as x(y).
 
     Returns
     -------
-    best_params : DataFrame with a column of best fit params for each 
+    results : DataFrame with a column of best fit params for each 
         column of data.
 
-    Raises
     ------
     a Warning if the fit fails to converge
 
@@ -57,39 +53,34 @@ def fit(data, func, guess_params, log_residual=False, exog_columns=False):
     MINPACK implementation of the Levenburg-Marquardt algorithm. 
     """
     pd.set_option('use_inf_as_null', True)
-    data = data.dropna()
-    data_index = Series(data.index.values, index=data.index, dtype=np.float64)
-    # If the guess_params have an index, retain it.
-    try:
-        if not issubclass(type(guess_params.index), pd.core.index.Index):
-            raise TypeError
-        param_index = guess_params.index
-    except:
-        param_index = np.arange(len(guess_params))
-    fits = DataFrame(index=param_index)
-    data = DataFrame(data) # Maybe convert Series to DataFrame.
-    for col in data:
-        if not exog_columns:
-            def err(params):
-                f = data_index.apply(lambda x: func(x, *params))
-                if log_residual:
-                    e = (np.log(data[col]) - np.log(f)).fillna(0)
-                else:
-                    e = (data[col] - f).fillna(0)
-                return e.values
+    y = DataFrame(data.dropna())
+    x = Series(data.index.values, index=data.index, dtype=np.float64)
+    def residual(params, x, y):
+        f = x.apply(lambda x: func(x, params))
+        if log_residual:
+            e = (np.log(y) - np.log(f))
+            e.fillna(e.mean(), inplace=True)
         else:
-            def err(params):
-                f = data[col].apply(lambda x: func(x, *params))
-                if log_residual:
-                    e = (np.log(data_index) - np.log(f)).fillna(0) 
-                else:
-                    e = (data_index - f).fillna(0)
-                return e.values
-        output = optimize.leastsq(err, guess_params, full_output=True)
-        best_params = parse_output(output)
-        fits[col] = Series(best_params, index=param_index)
+            e = y - f
+        return e.values
+    # Set up params if need be. Use the first column.
+    if hasattr(params, '__call__'):
+        p = params(y.icol(0))
+    results = DataFrame(index=p.keys())
+    for col in y:
+        # Set up params if need be.
+        if hasattr(params, '__call__'):
+            p = params(y[col])
+        else:
+            p = params
+        if not inverted_model:
+            minimizer = lmfit.minimize(residual, p, args=(x, y[col]))
+        else:
+            minimizer = lmfit.minimize(residual, p, args=(y[col], x))
+        result = Series(minimizer.params)
+        results[col] = result.apply(lambda param: param.value)
     pd.reset_option('use_inf_as_null')
-    return fits.T # a column for each fit parameter 
+    return results.T # column for each fit parameter
 
 
 def fit_powerlaw(data):
