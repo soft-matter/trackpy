@@ -15,10 +15,10 @@ def setup_params(angle):
     """
     pi = np.pi
     params = lmfit.Parameters()
-    params.add('m', value=1.5, min=0)
+    params.add('m', value=1.7, min=0)
     params.add('C', value=1.0, min=0)
-    params.add('offset', -0.005) # specify bounds below 
-    params.add('theta0_plus_offset', 0.05, min=0, max=0.2) # bounding utility 
+    params.add('offset', pi/100) # specify bounds below 
+    params.add('theta0_plus_offset', pi/50, min=0, max=0.2) # bounding utility 
     params.add('theta0', expr='theta0_plus_offset - offset')
 
     offset = params['offset']

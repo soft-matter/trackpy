@@ -50,12 +50,12 @@ class Result:
         self._residual = value
 
     @property
-    def fitlines(self, value):
-        return self._fitlines
+    def fits(self, value):
+        return self._fits
 
-    @fitlines.setter
-    def fitlines(self, value):
-        self._fitlines = value
+    @fits.setter
+    def fits(self, value):
+        self._fits= value
 
 def NLS(data, model_func, params, weights=None,
         log_residual=False, inverted_model=False, plot=True):
