@@ -18,7 +18,7 @@ def setup_params(angle):
     params.add('m', value=1.5, min=0)
     params.add('C', value=1.0, min=0)
     params.add('offset', -0.05) # specify bounds below 
-    params.add('theta0_plus_offset', 0.1, min=0, max=0.2) # bounding utility 
+    params.add('theta0_plus_offset', 0.1, min=0, max=0.1) # bounding utility 
     params.add('theta0', expr='theta0_plus_offset - offset')
 
     offset = params['offset']
@@ -27,7 +27,7 @@ def setup_params(angle):
     offset.min, offset.max = -pi/2 - angle_min, pi/2 - angle_max
     return params
 
-def power_fluid(angle, params):
+def model(angle, params):
     m = params['m'].value
     C = params['C'].value
     theta0 = params['theta0'].value

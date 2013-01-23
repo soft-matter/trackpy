@@ -108,6 +108,7 @@ def NLS(data, model_func, params, weights=None,
     if weights is not None:
         assert weights.size == x.size, \
             "weights must be an array-like sequence the same length as data."
+        weights = Series(np.asarray(weights), index=x.index)
     if hasattr(params, '__call__'):
         p = params(ys.icol(0))
     values = DataFrame(index=p.keys())
