@@ -183,3 +183,16 @@ def subpx_bias(f, ax=None):
     middle, try using a larger value for feature diameter."""
     f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
     return ax
+
+@make_axes
+def fit(data, fits, inverted_model=False, ax=None):
+    data.plot(style='o', ax=ax)
+    datalines = ax.get_lines() 
+    if not inverted_model:
+        fitlines = ax.plot(fits)
+    else:
+        fitlines = ax.plot(fits, data)
+    # Match colors of data and corresponding fits.
+    [f.set_color(d.get_color()) for d, f in zip(datalines, fitlines)]
+    ax.set_xscale('log')
+    return ax

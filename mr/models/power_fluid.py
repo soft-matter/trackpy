@@ -17,8 +17,8 @@ def setup_params(angle):
     params = lmfit.Parameters()
     params.add('m', value=1.5, min=0)
     params.add('C', value=1.0, min=0)
-    params.add('offset', -0.05) # specify bounds below 
-    params.add('theta0_plus_offset', 0.1, min=0, max=0.1) # bounding utility 
+    params.add('offset', -0.005) # specify bounds below 
+    params.add('theta0_plus_offset', 0.05, min=0, max=0.2) # bounding utility 
     params.add('theta0', expr='theta0_plus_offset - offset')
 
     offset = params['offset']

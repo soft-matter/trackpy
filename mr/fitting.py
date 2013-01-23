@@ -24,7 +24,6 @@ from scipy import stats
 import lmfit
 from lmfit import Parameters
 
-
 class Result:
     @property
     def values(self):
@@ -59,7 +58,7 @@ class Result:
         self._fitlines = value
 
 def NLS(data, model_func, params, weights=None,
-        log_residual=False, inverted_model=False):
+        log_residual=False, inverted_model=False, plot=True):
     """Perform a nonlinear least-sqaured fit on each column of a DataFrame. 
 
     Parameters
@@ -74,6 +73,8 @@ def NLS(data, model_func, params, weights=None,
         Compute the residual in log space.
     inverted_model : boolean, default False
         Use when the model is expressed as x(y).
+    plot : boolean, default True
+        Automatically plot fits.
 
     Returns
     -------
@@ -114,7 +115,7 @@ def NLS(data, model_func, params, weights=None,
     values = DataFrame(index=p.keys())
     stderr = DataFrame(index=p.keys())
     residuals = {}
-    fitlines = {}
+    fits = {}
     for col in ys:
         y = ys[col].dropna()
         # If need be, generate params using this column's data. 
@@ -131,15 +132,18 @@ def NLS(data, model_func, params, weights=None,
         stderr[col] = result_params.apply(lambda param: param.stderr)
         residuals[col] = Series(result.residual, index=x)
         if not inverted_model:
-            fitlines[col] = x.apply(lambda x: model_func(x, result.params))
+            fits[col] = x.apply(lambda x: model_func(x, result.params))
         else:
-            fitlines[col] = y.apply(lambda y: model_func(y, result.params))
+            fits[col] = y.apply(lambda y: model_func(y, result.params))
     pd.reset_option('use_inf_as_null')
     r = Result()
     r.values = values.T
     r.stderr = stderr.T
     r.residuals = pd.concat(residuals, axis=1)
-    r.fitlines = pd.concat(fitlines, axis=1)
+    r.fits = pd.concat(fits, axis=1)
+    if plot:
+        import plots
+        plots.fit(data, r.fits, inverted_model)
     return r
 
 def fit_powerlaw(data):
