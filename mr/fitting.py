@@ -92,12 +92,12 @@ def NLS(data, model_func, params, weights,
     def residual_func(params, x, y, weights):
         f = x.apply(lambda x: model_func(x, params))
         if log_residual:
-            e = (np.log(y) - np.log(f)).div(weights)
+            e = (np.log(y) - np.log(f))
             e.fillna(e.mean(), inplace=True)
         else:
-            e = (y - f).div(weights)
+            e = (y - f)
             e.fillna(e.mean(), inplace=True)
-        return e.values
+        return e.mul(weights).values
     # If we are given a params-generating function, generate sample
     # params to index the results DataFrame. 
     ys = DataFrame(data) # in case it's a Series
