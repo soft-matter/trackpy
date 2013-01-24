@@ -185,14 +185,17 @@ def subpx_bias(f, ax=None):
     return ax
 
 @make_axes
-def fit(data, fits, inverted_model=False, ax=None):
-    data.plot(style='o', ax=ax)
+def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
+    data.plot(style='o', logx=logx, logy=logy, ax=ax)
     datalines = ax.get_lines() 
     if not inverted_model:
         fitlines = ax.plot(fits)
     else:
         fitlines = ax.plot(fits, data)
+    # Restrict plot axis to domain of the data, not domain of the fit.
+    xmin = data.index.values[data.index.values > 0].min() if logx \
+        else data.index.values.min()
+    ax.set_xlim(xmin, data.index.values.max())
     # Match colors of data and corresponding fits.
     [f.set_color(d.get_color()) for d, f in zip(datalines, fitlines)]
-    ax.set_xscale('log')
     return ax
