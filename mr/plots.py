@@ -18,6 +18,7 @@
 
 """These functions generate handy plots."""
 
+from functools import wraps
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
@@ -38,6 +39,7 @@ def make_axes(func):
               and return them. The user has the option to draw a more complex 
               plot in multiple steps.
     """
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if 'ax' not in kwargs:
             kwargs['ax'] = plt.gca()
@@ -51,6 +53,7 @@ def make_axes(func):
 
 def make_fig(func):
     """See make_axes."""
+    wraps(func)
     def wrapper(*args, **kwargs):
         if 'fig' not in kwargs:
             kwargs['fig'] = plt.gcf()
