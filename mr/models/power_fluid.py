@@ -68,6 +68,19 @@ def model(angle, params):
          np.cos(theta0 + offset)**(1-m)*_F(theta0 + offset, m))
     return t
 
+def typo_model(angle, params):
+    m = params['m']
+    C = params['C']
+    theta0 = params['theta0']
+    offset = params['offset']
+    _validate(angle, m, C, theta0, offset)
+    t = 1/(m-1)*C**m*\
+        (np.cos(angle + offset)**(1-m)*_F(angle + offset, m) - \
+         np.cos(angle + offset)**(1-m)*_F(theta0 + offset, m))
+        #         ^ should be theta0 -- intentional typo
+    return t
+
+
 def _validate(angle, m, C, theta0, offset):
     assert C >= 0, (
         "C = {} < 0 is not physical.").format(C)
