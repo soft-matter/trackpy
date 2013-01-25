@@ -1,17 +1,34 @@
 import numpy as np
+import pandas as pd
 from scipy import special
 import lmfit
+from functools import wraps
+
+def params_as_dict(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        params = kwargs.get('params', args[1])
+        if type(params) is dict:
+            return func(*args, **kwargs)
+        elif type(params) is pd.Series:
+            return func(args[0], params.todict())
+        elif type(params) is lmfit.Parameters:
+            d = dict(
+                zip(params.keys(), map(lambda x: x.value, params.values())))
+            return func(args[0], d)
+    return wrapper
+
 
 def setup_params(angle):
     """The fit parameters' bounds depend on the range of the angle data.
     
     Parameters
     ----------
-    angle -- an array-like sequence of angle values
+    angle : an array-like sequence of angle values
 
     Returns
     -------
-    params -- Parameters object with correct bounds
+    params : Parameters object with correct bounds
     """
     pi = np.pi
     params = lmfit.Parameters()
@@ -27,17 +44,29 @@ def setup_params(angle):
     offset.min, offset.max = -pi/2 - angle_min, pi/2 - angle_max
     return params
 
+@params_as_dict
 def model(angle, params):
-    m = params['m'].value
-    C = params['C'].value
-    theta0 = params['theta0'].value
-    offset = params['offset'].value
+    """Model a wire rotated in a power fluid.
+
+    Parameters
+    ----------
+    angle : array-like or scale angle(s) in radians
+    params : dict or Parameters object
+        containing m, C, theta0, offset
+
+    Returns
+    -------
+    time : array-like or scalar time in seconds
+    """
+    m = params['m']
+    C = params['C']
+    theta0 = params['theta0']
+    offset = params['offset']
     _validate(angle, m, C, theta0, offset)
-    term1 = 1/(m-1)*C**m*\
-        np.cos(angle + offset)**(1-m)*_F(angle + offset, m)
-    term2 = 1/(m-1)*C**m*\
-        np.cos(theta0 + offset)**(1-m)*_F(theta0 + offset, m)
-    return term1 + term2
+    t = 1/(m-1)*C**m*\
+        (np.cos(angle + offset)**(1-m)*_F(angle + offset, m) - \
+         np.cos(theta0 + offset)**(1-m)*_F(theta0 + offset, m))
+    return t
 
 def _validate(angle, m, C, theta0, offset):
     assert C >= 0, (
