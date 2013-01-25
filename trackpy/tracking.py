@@ -17,52 +17,54 @@
 from __future__ import division
 
 import numpy as np
-import scipy
+
 
 class Hash_table(object):
     '''
     :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
     :param box_size: how big each box should be in data units.  The same scale is used for all dimensions
 
-    Basic hash table to fast look up of particles in the region of a given particle 
+    Basic hash table to fast look up of particles in the region of a given particle
     '''
     class Out_of_hash_excpt(Exception):
-        """ 
+        """
         :py:exc:`Exception` for indicating that a particle is outside of the
         valid range for this hash table."""
         pass
-    def __init__(self,dims,box_size):
+
+    def __init__(self, dims, box_size):
         '''
         Sets up the hash table
 
         '''
         self.dims = dims                  # the dimensions of the data
         self.box_size = box_size          # the size of boxes to use in the units of the data
-        self.hash_dims = np.ceil(np.array(dims)/box_size)
+        self.hash_dims = np.ceil(np.array(dims) / box_size)
 
         self.hash_table = [[] for j in range(int(np.prod(self.hash_dims)))]
         self.spat_dims = len(dims)        # how many spatial dimensions
         self.cached_shifts = None
         self.cached_rrange = None
-        self.strides = np.cumprod(np.concatenate(([1],self.hash_dims[1:])))[::-1]
-    def get_region(self,point, rrange):
+        self.strides = np.cumprod(np.concatenate(([1], self.hash_dims[1:])))[::-1]
+
+    def get_region(self, point, rrange):
         '''
         :param point: point to find the features around
         :param rrange: the size of the ball to search in
 
-        
+
         Returns all the particles with in the region of maximum radius
         rrange in data units
 
 
         can raise :py:exc:`Out_of_hash_excpt`
         '''
-        hash_size = self.hash_dims        
-        center = np.floor(point.pos/self.box_size)
-        if any(center  >= hash_size) or any(center < 0):
+        hash_size = self.hash_dims
+        center = np.floor(point.pos / self.box_size)
+        if any(center >= hash_size) or any(center < 0):
             raise Hash_table.Out_of_hash_excpt("cord out of range")
 
-        rrange = int(np.ceil(rrange/ self.box_size))
+        rrange = int(np.ceil(rrange / self.box_size))
 
         # check if we have already computed the shifts
         if rrange == self.cached_rrange and self.cached_shifts is not None:
@@ -70,14 +72,14 @@ class Hash_table(object):
         # Other wise, generate them
         else:
             if self.spat_dims == 2:
-                shifts = [np.array([j,k]) 
-                            for j in range(-rrange,rrange + 1) 
-                            for k in range(-rrange,rrange + 1)]
-            elif self.spat_dims ==3:
-                shifts = [np.array([j,k,m])
-                            for j in range(-rrange,rrange + 1)
-                            for k in range(-rrange,rrange + 1)
-                            for m in range(-rrange,rrange + 1)]
+                shifts = [np.array([j, k])
+                            for j in range(-rrange, rrange + 1)
+                            for k in range(-rrange, rrange + 1)]
+            elif self.spat_dims == 3:
+                shifts = [np.array([j, k, m])
+                            for j in range(-rrange, rrange + 1)
+                            for k in range(-rrange, rrange + 1)
+                            for m in range(-rrange, rrange + 1)]
             else:
                 raise NotImplementedError('only 2 and 3 dimensions implemented')
             self.cached_rrange = rrange   # and save them
@@ -85,90 +87,93 @@ class Hash_table(object):
         region = []
 
         for s in shifts:
-            
+
             cord = center + s
-            if any(cord  >= hash_size) or any(cord < 0):
+            if any(cord >= hash_size) or any(cord < 0):
                 continue
             indx = int(sum(cord * self.strides))
             region.extend(self.hash_table[indx])
         return region
-    
-    def add_point(self,point):
+
+    def add_point(self, point):
         """
         :param point: object representing the feature to add to the hash table
-        
+
         Adds the `point` to the hash table.  Assumes that :py:attr:`point.pos` exists and
         is the array-like.
 
-        
+
 
 
         can raise :py:exc:`~Hash_table.Out_of_hash_excpt`
-    
+
         """
-        cord = np.floor(np.asarray(point.pos)/self.box_size)
+        cord = np.floor(np.asarray(point.pos) / self.box_size)
         hash_size = self.hash_dims
-        if any(cord  >= hash_size) or any(cord < 0):
+        if any(cord >= hash_size) or any(cord < 0):
             raise Hash_table.Out_of_hash_excpt("cord out of range")
         indx = int(sum(cord * self.strides))
         self.hash_table[indx].append(point)
 
 
-    
 class Track(object):
     '''
-    :param point: The first feature in the track if not  `None`.  
+    :param point: The first feature in the track if not  `None`.
     :type point: :py:class:`~trackpy.tracking.Point`
-    
+
     Base class for objects to represent linked tracks.  Includes logic
-    for adding, removing features to the track.  This can be sub-classed 
+    for adding, removing features to the track.  This can be sub-classed
     to provide additional track level computation as needed.
 
 
     '''
     count = 0
-    def __init__(self,point=None):
+    def __init__(self, point=None):
         self.points = []
         # will take initiator point
         if not point is None:
             self.add_point(point)
-                                        
-        self.indx = Track.count           #unique id
-        Track.count +=1
+
+        self.indx = Track.count           # unique id
+        Track.count += 1
+
     def __iter__(self):
         return self.points.__iter__()
+
     def __len__(self):
         return len(self.points)
 
-    def __eq__(self,other):
+    def __eq__(self, other):
         return self.index == other.index
 
-    def __neq__(self,other):
+    def __neq__(self, other):
         return not self.__eq__(other)
     __hash__ = None
-        
-    def add_point(self,point):
+
+    def add_point(self, point):
         '''
-        :param point: point to add 
+        :param point: point to add
         :type point:  :py:class:`~trackpy.tracking.Point`
-        
+
         Appends the point to this track. '''
         self.points.append(point)
         point.add_to_track(self)
-    def remove_point(self,point):
+    def remove_point(self, point):
         '''
         :param point: point to remove from this track
         :type point:  :py:class:`~trackpy.tracking.Point`
-        
+
         removes a point from this track'''
         self.points.remove(point)
         point.track = None
+
     def last_point(self):
         '''
         :rtype: :py:class:`~trackpy.tracking.Point`
-        
+
         Returns the last point on the track'''
         return self.points[-1]
+
 
 class Point(object):
     '''
@@ -181,6 +186,7 @@ class Point(object):
     .. note:: To be used for tracking this class must be sub-classed to provide a :py:func:`distance` function.  Child classes **MUST** call :py:func:`Point.__init__`.  (See :py:class:`~trackpy.tracking.PointND` for example. )
     '''
     count = 0
+
     def __init__(self):
         self.track = None
         self.uuid = Point.count         # unique id for __hash__
@@ -188,16 +194,17 @@ class Point(object):
 
     def __hash__(self):
         return self.uuid
+
     def __eq__(self,other):
         return self.uuid == other.uuid
+
     def __neq__(self,other):
         return not self.__eq__(other)
-    
-        
-    def add_to_track(self,track):
+
+    def add_to_track(self, track):
         '''
         :param track: the track to assign to this :py:class:`Point`
-        
+
         Sets the track of a :py:class:`Point` object.  Raises
         :py:exc:`Exception` if the object is already assigned a track.
 
@@ -207,61 +214,61 @@ class Point(object):
         if self.track is not None:
             raise Exception("trying to add a particle already in a track")
         self.track = track
-        
-    def remove_from_track(self,track):
+
+    def remove_from_track(self, track):
         '''
         :param track: the track to disassociate from this :py:class:`Point`
 
         Removes this point from the given track. Raises :py:exc:`Exception` if
         particle not associated with the given track.
 
-        
+
         '''
         if self.track != track:
             raise Exception("Point not associated with given track")
         track.remove_point(self)
 
-    
-
     def in_track(self):
         '''
         :rtype: bool
-        
+
         Returns if a point is associated with a track '''
-        return  self.track is not None
-    
+        return self.track is not None
+
+
 class PointND(Point):
     '''
-    :param t: a time-like variable. 
+    :param t: a time-like variable.
     :param pos: position of feature
     :type pos: iterable of length d
-    
+
     Version of :py:class:`Point` for tracking in flat space with
     non-periodic boundary conditions.
     '''
 
-    
-    def __init__(self,t,pos):
+
+    def __init__(self, t,pos):
         Point.__init__(self)                  # initialize base class
         self.t = t                            # time
-        self.pos = np.asarray(pos)            # position in ND space 
+        self.pos = np.asarray(pos)            # position in ND space
 
-    def distance(self,other_point):
+    def distance(self, other_point):
         '''
         :param other_point: point to get distance to.
         :type other_point: :py:class:`~trackpy.tracking.Point`
-        
+
         Returns the absolute distance between this point and other_point
-        
+
         '''
-        return np.sqrt(np.sum((self.pos - other_point.pos)**2))
-    
-def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
-    '''   
+        return np.sqrt(np.sum((self.pos - other_point.pos) ** 2))
+
+
+def link_full(levels, dims, search_range, hash_cls, memory=0, track_cls=Track):
+    '''
     :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
     :type levels: Iterable of iterables
     :param dims: The dimensions of the data
-    :param hash_cls: A class that provides :py:func:`add_particle` and 
+    :param hash_cls: A class that provides :py:func:`add_particle` and
                 :py:func:`get_region` and has a two argument constructor
     :param search_range: the maximum distance features can move between frames
     :param memory: the maximum number of frames that a feature can skip along a track
@@ -275,15 +282,16 @@ def link_full(levels,dims,search_range,hash_cls,memory=0,track_cls = Track ):
 
     .. deprecated:: 0.2
     '''
-    hash_generator = lambda : hash_cls(dims,search_range)
-    return link(levels,search_range,hash_generator,memory,track_cls)
-    
-def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
-    '''   
+    hash_generator = lambda: hash_cls(dims, search_range)
+    return link(levels, search_range, hash_generator, memory, track_cls)
+
+
+def link(levels, search_range, hash_generator, memory=0, track_cls = Track):
+    '''
     :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
     :type levels: Iterable of iterables
     :param search_range: the maximum distance features can move between frames
-    :param hash_generator: a callable that will return a new empty object that supports :py:func:`add_particle` and 
+    :param hash_generator: a callable that will return a new empty object that supports :py:func:`add_particle` and
                 :py:func:`get_region`
     :param memory: the maximum number of frames that a feature can skip along a track
     :param track_cls: The class to use for the returned track objects
@@ -293,11 +301,11 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
     dimension.  All information about dimensionality and the metric
     are encapsulated in the hash_table and
     :py:class:`~trackpy.tracking.Point` objects.
-    
+
     '''
     #    print "starting linking"
-    # initial source set    
-    prev_set  = set(levels[0])
+    # initial source set
+    prev_set = set(levels[0])
     prev_hash = hash_generator()
     # set up the particles in the previous level for
     # linking
@@ -305,22 +313,17 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
         prev_hash.add_point(p)
         p.forward_cands = []
 
-    
     # assume everything in first level starts a track
     # initialize the master track list with the points in the first level
     track_lst = [track_cls(p) for p in prev_set]
     mem_set = set()
     # fill in first 'prev' hash
 
-
-
     # fill in memory list of sets
     mem_history = []
     for j in range(memory):
         mem_history.append(set())
 
-
-    
     for cur_level in levels[1:]:
         # make a new hash object
         cur_hash = hash_generator()
@@ -329,10 +332,10 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
         cur_set = set(cur_level)
         # create a second copy that will be used as the source in
         # the next loop
-        tmp_set = set(cur_level) 
+        tmp_set = set(cur_level)
         # memory set
         new_mem_set = set()
-        
+
         # fill in first 'cur' hash and set up attributes for keeping
         # track of possible connections
 
@@ -342,37 +345,38 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
             p.forward_cands = []
         # sort out what can go to what
         for p in cur_level:
-            # get 
-            work_box = prev_hash.get_region(p,search_range)
+            # get
+            work_box = prev_hash.get_region(p, search_range)
             for wp in work_box:
                 # this should get changed to deal with squared values
                 # to save an eventually square root
                 d = p.distance(wp)
-                if d< search_range:
-                    p.back_cands.append((wp,d))
-                    wp.forward_cands.append((p,d))
-
+                if d < search_range:
+                    p.back_cands.append((wp, d))
+                    wp.forward_cands.append((p, d))
 
         # sort the candidate lists by distance
-        for p in cur_set: p.back_cands.sort(key=lambda x: x[1])
-        for p in prev_set: p.forward_cands.sort(key=lambda x: x[1])
+        for p in cur_set:
+            p.back_cands.sort(key=lambda x: x[1])
+        for p in prev_set:
+            p.forward_cands.sort(key=lambda x: x[1])
         # while there are particles left to link, link
         while len(prev_set) > 0 and len(cur_set) > 0:
             p = cur_set.pop()
             bc_c = len(p.back_cands)
             # no backwards candidates
-            if bc_c ==  0:
+            if bc_c == 0:
                 # add a new track
                 track_lst.append(track_cls(p))
-                # clean up tracking apparatus 
+                # clean up tracking apparatus
                 del p.back_cands
                 # short circuit loop
                 continue
-            if bc_c ==1:
+            if bc_c == 1:
                 # one backwards candidate
                 b_c_p = p.back_cands[0]
                 # and only one forward candidate
-                if len(b_c_p[0].forward_cands) ==1:
+                if len(b_c_p[0].forward_cands) == 1:
                     # add to the track of the candidate
                     b_c_p[0].track.add_point(p)
                     # clean up tracking apparatus
@@ -380,7 +384,7 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
                     del b_c_p[0].forward_cands
                     # short circuit loop
                     continue
-            # we need to generate the sub networks 
+            # we need to generate the sub networks
             done_flg = False
             s_sn = set()                  # source sub net
             d_sn = set()                  # destination sub net
@@ -399,10 +403,9 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
                         cur_set.discard(c_dp[0])
                 done_flg = (len(d_sn) == d_sn_sz) and (len(s_sn) == s_sn_sz)
 
-            snl = sub_net_linker(s_sn,search_range)
-            
+            snl = sub_net_linker(s_sn, search_range)
 
-            spl,dpl = zip(*snl.best_pairs)
+            spl, dpl = zip(*snl.best_pairs)
             # strip the distance information off the subnet sets and
             # remove the linked particles
             d_remain = set([d for d in d_sn])
@@ -410,7 +413,7 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
             s_remain = set([s for s in s_sn])
             s_remain -= set(spl)
 
-            for sp,dp in snl.best_pairs:
+            for sp, dp in snl.best_pairs:
                 # do linking and clean up
                 sp.track.add_point(dp)
                 del dp.back_cands
@@ -436,10 +439,10 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
             # remove points that are now too old
             mem_set -= mem_history.pop(0)
             # add the new points
-            mem_set |=new_mem_set
+            mem_set |= new_mem_set
             # add the memory particles to what will be the next source
             # set
-            tmp_set |=mem_set
+            tmp_set |= mem_set
             # add memory points to prev_hash (to be used as the next source)
             for m in mem_set:
                 # add points to the hash
@@ -448,11 +451,11 @@ def link(levels,search_range,hash_generator,memory=0,track_cls = Track ):
                 m.forward_cands = []
         prev_set = tmp_set
 
-        
         # add in the memory points
         # store the current level for use in next loop
 
     return track_lst
+
 
 class SubnetOversizeException(Exception):
     '''An :py:exc:`Exception` to be raised when the sub-nets are too
@@ -460,12 +463,13 @@ class SubnetOversizeException(Exception):
     or increase :py:attr:`sub_net_linker.MAX_SUB_NET_SIZE`'''
     pass
 
+
 class sub_net_linker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
-    
-    def __init__(self,s_sn,search_range):
+
+    def __init__(self, s_sn, search_range):
         self.s_sn = s_sn
         self.s_lst = [s for s in s_sn]
         self.MAX = len(self.s_lst)
@@ -477,12 +481,12 @@ class sub_net_linker(object):
         self.cur_sum = 0
 
         if self.MAX > sub_net_linker.MAX_SUB_NET_SIZE:
-            raise SubnetOversizeException('sub net contains %d points'%self.MAX)
+            raise SubnetOversizeException('sub net contains %d points' % self.MAX)
         # do the computation
         self.do_recur(0)
-    def do_recur(self,j):
+    def do_recur(self, j):
         cur_s = self.s_lst[j]
-        for cur_d,dist in cur_s.forward_cands:
+        for cur_d, dist in cur_s.forward_cands:
             tmp_sum = self.cur_sum + dist
             if tmp_sum > self.best_sum:
                 # if we are already greater than the best sum, bail we
@@ -495,22 +499,22 @@ class sub_net_linker(object):
             if cur_d in self.d_taken:
                 # we have already used this destination point, bail
                 continue
-            # add this pair to the running list 
-            self.cur_pairs.append((cur_s,cur_d))
-            # add the destination point to the exclusion list 
+            # add this pair to the running list
+            self.cur_pairs.append((cur_s, cur_d))
+            # add the destination point to the exclusion list
             self.d_taken.add(cur_d)
             # update the current sum
             self.cur_sum = tmp_sum
             # buried base case
             # if we have hit the end of s_lst and made it this far, it
-            # must be a better linking so save it.             
-            if j +1 == self.MAX:
+            # must be a better linking so save it.
+            if j + 1 == self.MAX:
                 self.best_sum = tmp_sum
                 self.best_pairs = list(self.cur_pairs)
             else:
                 # recurse!
-                self.do_recur(j+1)
-            # remove this step from the working 
+                self.do_recur(j + 1)
+            # remove this step from the working
             self.cur_sum -= dist
             self.d_taken.remove(cur_d)
             self.cur_pairs.pop()
@@ -520,15 +524,12 @@ class sub_net_linker(object):
             # add displacement penalty
             self.cur_sum = tmp_sum
             # buried base case
-            if j +1 == self.MAX:
+            if j + 1 == self.MAX:
                 self.best_sum = tmp_sum
                 self.best_pairs = list(self.cur_pairs)
             else:
                 # recurse!
-                self.do_recur(j+1)
-            # remove penalty 
-            self.cur_sum-=self.sr
+                self.do_recur(j + 1)
+            # remove penalty
+            self.cur_sum -= self.sr
         pass
-    
-
-
