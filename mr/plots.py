@@ -192,7 +192,7 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
     data.plot(style='o', logx=logx, logy=logy, ax=ax)
     datalines = ax.get_lines() 
     if not inverted_model:
-        fitlines = ax.plot(fits)
+        fitlines = ax.plot(fits.index, fits)
     else:
         fitlines = ax.plot(fits, data)
     # Restrict plot axis to domain of the data, not domain of the fit.
@@ -201,4 +201,6 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
     ax.set_xlim(xmin, data.index.values.max())
     # Match colors of data and corresponding fits.
     [f.set_color(d.get_color()) for d, f in zip(datalines, fitlines)]
+    if logx:
+        ax.set_xscale('log') # logx kwarg does not always take. Bug?
     return ax

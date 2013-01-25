@@ -146,12 +146,22 @@ def NLS(data, model_func, params, weights=None,
         plots.fit(data, r.fits, inverted_model, logx=True)
     return r
 
-def fit_powerlaw(data):
+def fit_powerlaw(data, plot=True):
     """Fit a powerlaw by doing a linear regression in log space."""
-    data = DataFrame(data)
-    fits = []
-    for col in data:
+    ys = DataFrame(data)
+    x = Series(data.index.values, index=data.index, dtype=np.float64)
+    values = DataFrame(index=['n', 'A']) 
+    fits = {}
+    for col in ys:
+        y = ys[col].dropna()
         slope, intercept, r, p, stderr = \
-            stats.linregress(data.index.values, data[col].values)
-        fits.append(Series([slope, np.exp(intercept)], index=['A', 'n']))
-    return pd.concat(fits, axis=1, keys=data.columns)
+            stats.linregress(np.log(x), np.log(y))
+        print 'slope', slope, ', intercept', intercept
+        values[col] = [slope, np.exp(intercept)]
+        fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope) 
+    values = values.T
+    fits = pd.concat(fits, axis=1)
+    if plot:
+        import plots
+        plots.fit(data, fits, logx=True, logy=True)
+    return values
