@@ -44,7 +44,7 @@ class Hash_table(object):
         self.spat_dims = len(dims)        # how many spatial dimensions
         self.cached_shifts = None
         self.cached_rrange = None
-        self.strides = np.cumprod(np.concatenate(([1],self.hash_dims[1:])))
+        self.strides = np.cumprod(np.concatenate(([1],self.hash_dims[1:])))[::-1]
     def get_region(self,point, rrange):
         '''
         :param point: point to find the features around
