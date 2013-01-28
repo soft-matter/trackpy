@@ -103,6 +103,46 @@ def subpixel_centroid(img, local_maxes, mask_rad):
     return np.array(shifts_lst).T + local_maxes, mass_lst, r2_lst
 
 
+def band_pass(img, p_rad, hwhm):
+    '''
+    Intended to be a replacement for bpass in the matlab/IDL code.
+
+    Works by convolving a Gaussian with the image, than a box car and
+    taking the difference.
+
+    :param img: array of data
+    :param p_rad: the size of the window used for the convolution
+    :param hwhm: the hwhm of the Gaussian
+    :rtype: :class:`numpy.ndarray` scaled between 0 and 1
+    '''
+    # make sure the input data is an array and float type.
+    img = np.asarray(img).astype(float)
+
+    p_dia = 2 * p_rad + 1
+
+    # do the two convolutions.
+    # These should maybe be replaced with masked kernels, but this is
+    # faster to code up.
+    img_boxcar = ndimage.filters.uniform_filter(img, p_dia, mode='nearest', cval=0)
+    img_gaus = ndimage.filters.gaussian_filter(img, hwhm, mode='nearest', cval=0)
+
+    # subtract them
+    ret_img = img_boxcar - img_gaus
+
+    # kill data at edegs where the convolution leaked out
+    ret_img[ret_img < 0] = 0
+    ret_img[:p_dia, :] = 0
+    ret_img[-p_dia:, :] = 0
+    ret_img[:, :p_dia] = 0
+    ret_img[:, -p_dia:] = 0
+
+    # normalize the image
+    ret_img -= np.min(ret_img)
+    ret_img /= np.max(ret_img)
+
+    return ret_img
+
+
 def gen_fake_data(list_of_locs, p_rad, hwhm, img_shape):
     """
     Function to generate fake images for testing purposes
@@ -119,6 +159,7 @@ def gen_fake_data(list_of_locs, p_rad, hwhm, img_shape):
 
     for loc in itertools.izip(*list_of_locs):
         window = [slice(int(p) - (p_rad + 2), int(p) + (p_rad + 2) + 1) for p in loc]
+
         p = pixel_values(window, np.array(loc))
         img[window] += p
 
