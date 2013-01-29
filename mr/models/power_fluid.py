@@ -2,22 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy import special
 import lmfit
-from functools import wraps
-
-def params_as_dict(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        params = kwargs.get('params', args[1])
-        if type(params) is dict:
-            return func(*args, **kwargs)
-        elif type(params) is pd.Series:
-            return func(args[0], params.todict())
-        elif type(params) is lmfit.Parameters:
-            d = dict(
-                zip(params.keys(), map(lambda x: x.value, params.values())))
-            return func(args[0], d)
-    return wrapper
-
+from model_utils import params_as_dict
 
 def setup_params(angle):
     """The fit parameters' bounds depend on the range of the angle data.
@@ -78,6 +63,17 @@ def typo_model(angle, params):
         (np.cos(angle + offset)**(1-m)*_F(angle + offset, m) - \
          np.cos(angle + offset)**(1-m)*_F(theta0 + offset, m))
         #         ^ should be theta0 -- intentional typo
+    return t
+
+def linearized_HB(angle, params):
+    m = params['m']
+    C = params['C']
+    A = params['A'] 
+    t = C**m*np.cos(angle)**(-m)*\
+        (A*special.hyp2f1(1/2., -m/2., (2-m)/2., np.cos(angle)**2) + \
+            np.cos(angle)/(m-1)*_F(angle, m)) -\
+        C**m*(np.sqrt(np.pi)*A*special.gamma(1-m/2.)/special.gamma((1-m)/2.) +
+              np.sqrt(np.pi)*special.gamma((3-m)/2.)/((m-1)*special.gamma(1-m/2.)))
     return t
 
 
