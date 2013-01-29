@@ -1,4 +1,5 @@
 import pandas as pd
+import lmfit
 from functools import wraps
 
 def params_as_dict(func):
