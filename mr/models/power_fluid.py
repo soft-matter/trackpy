@@ -4,21 +4,26 @@ from scipy import special
 import lmfit
 from model_utils import params_as_dict
 
-def setup_params(angle):
+def setup_params(angle, params=None):
     """The fit parameters' bounds depend on the range of the angle data.
     
     Parameters
     ----------
     angle : an array-like sequence of angle values
+    params : optional Parameters object containing 'm' and/or 'C'
+        Otherwise, hard-coded parameters are used.
 
     Returns
     -------
     params : Parameters object with correct bounds
     """
     pi = np.pi
-    params = lmfit.Parameters()
-    params.add('m', value=1.7, min=0)
-    params.add('C', value=1.0, min=0)
+    if params is None:
+        params = lmfit.Parameters()
+    if params.get('m') is None:
+        params.add('m', value=1.7, min=0)
+    if params.get('C') is None:
+        params.add('C', value=1.0, min=0)
     params.add('offset', pi/100) # specify bounds below 
     params.add('theta0_plus_offset', pi/50, min=0, max=0.2) # bounding utility 
     params.add('theta0', expr='theta0_plus_offset - offset')
@@ -28,30 +33,6 @@ def setup_params(angle):
     assert angle_min.size == 1, "argument must be a 1D sequence"
     offset.min, offset.max = -pi/2 - angle_min, pi/2 - angle_max
     return params
-
-@params_as_dict
-def model(angle, params):
-    """Model a wire rotated in a power fluid.
-
-    Parameters
-    ----------
-    angle : array-like or scale angle(s) in radians
-    params : dict or Parameters object
-        containing m, C, theta0, offset
-
-    Returns
-    -------
-    time : array-like or scalar time in seconds
-    """
-    m = params['m']
-    C = params['C']
-    theta0 = params['theta0']
-    offset = params['offset']
-    _validate(angle, m, C, theta0, offset)
-    t = 1/(m-1)*C**m*\
-        (np.cos(angle + offset)**(1-m)*_F(angle + offset, m) - \
-         np.cos(theta0 + offset)**(1-m)*_F(theta0 + offset, m))
-    return t
 
 def typo_model(angle, params):
     m = params['m']
@@ -64,18 +45,6 @@ def typo_model(angle, params):
          np.cos(angle + offset)**(1-m)*_F(theta0 + offset, m))
         #         ^ should be theta0 -- intentional typo
     return t
-
-def linearized_HB(angle, params):
-    m = params['m']
-    C = params['C']
-    A = params['A'] 
-    t = C**m*np.cos(angle)**(-m)*\
-        (A*special.hyp2f1(1/2., -m/2., (2-m)/2., np.cos(angle)**2) + \
-            np.cos(angle)/(m-1)*_F(angle, m)) -\
-        C**m*(np.sqrt(np.pi)*A*special.gamma(1-m/2.)/special.gamma((1-m)/2.) +
-              np.sqrt(np.pi)*special.gamma((3-m)/2.)/((m-1)*special.gamma(1-m/2.)))
-    return t
-
 
 def _validate(angle, m, C, theta0, offset):
     assert C >= 0, (

@@ -165,3 +165,4 @@ def fit_powerlaw(data, plot=True):
         import plots
         plots.fit(data, fits, logx=True, logy=True)
     return values
+
