@@ -167,7 +167,7 @@ class Track(object):
 
         removes a point from this track'''
         self.points.remove(point)
-        point.track = None
+        point._track = None
 
     def last_point(self):
         '''
@@ -190,7 +190,7 @@ class Point(object):
     count = 0
 
     def __init__(self):
-        self.track = None
+        self._track = None
         self.uuid = Point.count         # unique id for __hash__
         Point.count += 1
 
@@ -213,9 +213,9 @@ class Point(object):
 
 
         '''
-        if self.track is not None:
+        if self._track is not None:
             raise Exception("trying to add a particle already in a track")
-        self.track = track
+        self._track = track
 
     def remove_from_track(self, track):
         '''
@@ -226,7 +226,7 @@ class Point(object):
 
 
         '''
-        if self.track != track:
+        if self._track != track:
             raise Exception("Point not associated with given track")
         track.remove_point(self)
 
@@ -235,7 +235,12 @@ class Point(object):
         :rtype: bool
 
         Returns if a point is associated with a track '''
-        return self.track is not None
+        return self._track is not None
+
+    @property
+    def track(self):
+        """Returns the track that this :class:`Point` is in.  May be `None` """
+        return self._track
 
 
 class PointND(Point):
