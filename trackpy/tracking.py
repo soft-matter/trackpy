@@ -128,6 +128,7 @@ class Track(object):
 
     '''
     count = 0
+
     def __init__(self, point=None):
         self.points = []
         # will take initiator point
@@ -158,6 +159,7 @@ class Track(object):
         Appends the point to this track. '''
         self.points.append(point)
         point.add_to_track(self)
+
     def remove_point(self, point):
         '''
         :param point: point to remove from this track
@@ -190,15 +192,15 @@ class Point(object):
     def __init__(self):
         self.track = None
         self.uuid = Point.count         # unique id for __hash__
-        Point.count +=1
+        Point.count += 1
 
     def __hash__(self):
         return self.uuid
 
-    def __eq__(self,other):
+    def __eq__(self, other):
         return self.uuid == other.uuid
 
-    def __neq__(self,other):
+    def __neq__(self, other):
         return not self.__eq__(other)
 
     def add_to_track(self, track):
@@ -246,8 +248,7 @@ class PointND(Point):
     non-periodic boundary conditions.
     '''
 
-
-    def __init__(self, t,pos):
+    def __init__(self, t, pos):
         Point.__init__(self)                  # initialize base class
         self.t = t                            # time
         self.pos = np.asarray(pos)            # position in ND space
@@ -286,7 +287,7 @@ def link_full(levels, dims, search_range, hash_cls, memory=0, track_cls=Track):
     return link(levels, search_range, hash_generator, memory, track_cls)
 
 
-def link(levels, search_range, hash_generator, memory=0, track_cls = Track):
+def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     '''
     :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
     :type levels: Iterable of iterables
@@ -484,6 +485,7 @@ class sub_net_linker(object):
             raise SubnetOversizeException('sub net contains %d points' % self.MAX)
         # do the computation
         self.do_recur(0)
+
     def do_recur(self, j):
         cur_s = self.s_lst[j]
         for cur_d, dist in cur_s.forward_cands:
