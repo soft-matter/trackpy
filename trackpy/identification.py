@@ -54,7 +54,8 @@ def find_local_max(img, d_rad, threshold=1e-15):
     # find the locations that are the local maximum
     # TODO clean this up
     local_max = np.where(np.exp(img - dilated_img) > (1 - 1e-15))
-    return np.vstack(local_max)
+    # the extra [::-1] is because matplotlib and ndimage disagree an xy vs yx
+    return np.vstack(local_max[::-1])
 
 
 def subpixel_centroid(img, local_maxes, mask_rad):
@@ -70,6 +71,7 @@ def subpixel_centroid(img, local_maxes, mask_rad):
 
     :rtype: (d,N) array of positions, (d,) array of masses, (d,) array of r2,
     '''
+    local_maxes = local_maxes[::-1]
     # do some data checking/munging
     mask_rad = int(mask_rad)
     img = np.squeeze(img)                 # knock out singleton dimensions
@@ -99,8 +101,8 @@ def subpixel_centroid(img, local_maxes, mask_rad):
         mass_lst.append(mass)
         shifts_lst.append([np.sum(img_win * o) / mass for o in offset_masks])
         r2_lst.append(np.sum(r2_mask * img_win))
-
-    return np.array(shifts_lst).T + local_maxes, mass_lst, r2_lst
+    sub_pixel = np.array(shifts_lst).T + local_maxes
+    return sub_pixel[::-1], mass_lst, r2_lst
 
 
 def band_pass(img, p_rad, hwhm):
