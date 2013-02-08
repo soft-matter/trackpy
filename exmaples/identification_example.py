@@ -21,11 +21,15 @@ import matplotlib
 import trackpy.tracking as pt
 import trackpy.identification as tid
 import matplotlib.pyplot as plt
-
+import random
 import numpy as np
 
-img = tid.gen_fake_data(np.vstack([np.arange(10, 200, 20),
-                                   np.arange(10, 200, 20)]), 5, 2.5, (210, 210))
+X = range(10, 200, 20)
+Y = range(10, 200, 20)
+random.shuffle(X)
+random.shuffle(Y)
+
+img = tid.gen_fake_data(np.vstack([X, Y]), 5, 2.5, (210, 210))
 bp_img = tid.band_pass(img, 2, 2.5)
 
 
@@ -46,4 +50,5 @@ ax.format_coord = lambda x, y: 'r=%d,c=%d,v=%0.2f' % (int(x + .5),
                                                       int(x + .5) < bp_img.shape[0] and int(y + .5) < bp_img.shape[1] else 0)
 
 ax.plot(*locs, linestyle='none', marker='o')
+
 plt.show()
