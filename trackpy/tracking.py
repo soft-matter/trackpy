@@ -194,9 +194,6 @@ class Point(object):
         self.uuid = Point.count         # unique id for __hash__
         Point.count += 1
 
-    def __hash__(self):
-        return self.uuid
-
     def __eq__(self, other):
         return self.uuid == other.uuid
 
