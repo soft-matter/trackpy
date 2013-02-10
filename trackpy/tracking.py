@@ -306,6 +306,8 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     :py:class:`~trackpy.tracking.Point` objects.
 
     '''
+
+    search_range_sq = search_range * search_range
     #    print "starting linking"
     # initial source set
     prev_set = set(levels[0])
@@ -406,21 +408,26 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
                         cur_set.discard(c_dp[0])
                 done_flg = (len(d_sn) == d_sn_sz) and (len(s_sn) == s_sn_sz)
 
-            snl = sub_net_linker(s_sn, search_range)
+            # add in penalty for not linking
+            for _s in s_sn:
+                _s.forward_cands.append((None, search_range_sq))
 
-            spl, dpl = zip(*snl.best_pairs)
+            spl, dpl = _private_linker(s_sn)
             # strip the distance information off the subnet sets and
             # remove the linked particles
-            d_remain = set([d for d in d_sn])
-            d_remain -= set(dpl)
-            s_remain = set([s for s in s_sn])
-            s_remain -= set(spl)
+            d_remain = set(d for d in d_sn if d is not None)
+            d_remain -= set(d for d in dpl if d is not None)
+            s_remain = set(s for s in s_sn if s is not None)
+            s_remain -= set(s for s in spl if s is not None)
 
-            for sp, dp in snl.best_pairs:
+            for sp, dp in zip(spl, dpl):
                 # do linking and clean up
-                sp.track.add_point(dp)
-                del dp.back_cands
-                del sp.forward_cands
+                if sp is not None and dp is not None:
+                    sp.track.add_point(dp)
+                if dp is not None:
+                    del dp.back_cands
+                if sp is not None:
+                    del sp.forward_cands
             for sp in s_remain:
                 # clean up
                 del sp.forward_cands
@@ -467,16 +474,22 @@ class SubnetOversizeException(Exception):
     pass
 
 
+def recursive_linker_obj(s_sn):
+    snl = sub_net_linker(s_sn)
+    return zip(*snl.best_pairs)
+
+
 class sub_net_linker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
 
-    def __init__(self, s_sn, search_range):
+    def __init__(self, s_sn):
+        print 'made sub linker'
         self.s_sn = s_sn
         self.s_lst = [s for s in s_sn]
         self.MAX = len(self.s_lst)
-        self.sr = search_range
+
         self.best_pairs = []
         self.cur_pairs = []
         self.best_sum = np.Inf
@@ -506,7 +519,8 @@ class sub_net_linker(object):
             # add this pair to the running list
             self.cur_pairs.append((cur_s, cur_d))
             # add the destination point to the exclusion list
-            self.d_taken.add(cur_d)
+            if cur_d is not None:
+                self.d_taken.add(cur_d)
             # update the current sum
             self.cur_sum = tmp_sum
             # buried base case
@@ -537,3 +551,5 @@ class sub_net_linker(object):
             # remove penalty
             self.cur_sum -= self.sr
         pass
+
+_private_linker = recursive_linker_obj
