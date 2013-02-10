@@ -307,7 +307,6 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     :py:class:`~trackpy.tracking.Point` objects.
 
     '''
-
     search_range_sq = search_range * search_range
     #    print "starting linking"
     # initial source set
@@ -414,6 +413,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
                 _s.forward_cands.append((None, search_range))
 
             spl, dpl = _private_linker(s_sn, len(d_sn), search_range)
+
             # strip the distance information off the subnet sets and
             # remove the linked particles
             d_remain = set(d for d in d_sn if d is not None)
@@ -475,6 +475,7 @@ class SubnetOversizeException(Exception):
     pass
 
 
+
 def recursive_linker_obj(s_sn, dest_size, search_range):
     snl = sub_net_linker(s_sn, dest_size, search_range)
     return zip(*snl.best_pairs)
@@ -485,12 +486,14 @@ class sub_net_linker(object):
     algorithm.  This class handles the recursion code for the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
 
+
     def __init__(self, s_sn, dest_size, search_range):
         print 'made sub linker'
         self.s_sn = s_sn
         self.search_range = search_range
         self.s_lst = [s for s in s_sn]
         self.MAX = len(self.s_lst)
+
         self.max_links = min(self.MAX, dest_size)
         self.best_pairs = None
         self.cur_pairs = deque([])
@@ -543,4 +546,86 @@ class sub_net_linker(object):
             self.cur_pairs.pop()
         pass
 
-_private_linker = recursive_linker_obj
+
+def nonrecursive_link(source_list):
+    print 'non-recursive'
+    source_list = list(source_list)
+    k_stack = [0]
+    j_stack = [0]
+    cur_front_stack = [[]]
+    cur_back_stack = [[]]
+    cur_sum_stack = [0]
+
+    stacks = [j_stack,
+              k_stack,
+              cur_front_stack,
+              cur_back_stack,
+              cur_sum_stack]
+    best_sum = np.inf
+    best_front = None
+    best_back = None
+
+    MAX = len(source_list)
+
+    while len(j_stack) > 0:
+        # grad everything from the end of the stack
+        j, k, cur_front, cur_back, cur_sum = [s[-1] for s in stacks]
+        # print j, k, cur_sum, best_sum
+        # print 'j stack: ', j_stack
+        # print 'k_stack: ', k_stack
+
+        # advance the counter in the k_stack, the next time this level
+        # of the frame stack is run the _next_ candidate will be run
+        k_stack[-1] += 1
+
+        if j >= MAX:
+            # base case, no more source candidates,
+            # pop the stacks
+            [s.pop() for s in stacks]
+            # save the current configuration if it's better than the current max
+            if cur_sum < best_sum:
+                best_sum = cur_sum
+                best_front = cur_front
+                best_back = cur_back
+            # print 'we have a winner'
+            # print '-------------------------'
+            continue
+
+        # see if we have any forward candidates
+        cur_s = source_list[j]
+        cand_lst = cur_s.forward_cands
+        if k >= len(cand_lst):
+            # no more candidates to try, this branch is done
+            [s.pop() for s in stacks]
+            # print 'out of cands'
+            # print '-------------------------'
+            continue
+
+        # get the forward candidate
+        cur_d, cur_dist = cand_lst[k]
+
+        tmp_sum = cur_sum + cur_dist
+        if tmp_sum > best_sum:
+            # nothing in this branch can do better than the current best
+            [s.pop() for s in stacks]
+            #            if len(j_stack) > 0:
+            #   [s.pop() for s in stacks]
+            # print 'total bail'
+            # print '-------------------------'
+            continue
+
+        # check if it's already linked
+        if cur_d is not None and cur_d in cur_back:
+            # this will run the loop with almost identical stack, but with advanced k
+            # print 'already linked cur_d'
+            # print '-------------------------'
+            continue
+
+        next_frame = [j + 1, 0, cur_front + [cur_s], cur_back + [cur_d], tmp_sum]
+        [s.append(_nf) for s, _nf in zip(stacks, next_frame)]
+        # print '-------------------------'
+
+    return best_front, best_back
+
+
+_private_linker = nonrecursive_link
