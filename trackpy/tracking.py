@@ -475,7 +475,6 @@ class SubnetOversizeException(Exception):
     pass
 
 
-
 def recursive_linker_obj(s_sn, dest_size, search_range):
     snl = sub_net_linker(s_sn, dest_size, search_range)
     return zip(*snl.best_pairs)
@@ -485,7 +484,6 @@ class sub_net_linker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
-
 
     def __init__(self, s_sn, dest_size, search_range):
         print 'made sub linker'
@@ -550,7 +548,7 @@ class sub_net_linker(object):
 
 def nonrecursive_link(source_list, dest_size, search_range):
 
-    print 'non-recursive'
+    print 'non-recursive', len(source_list), dest_size
     source_list = list(source_list)
     source_list.sort(key=lambda x: len(x.forward_cands))
     MAX = len(source_list)
@@ -560,8 +558,6 @@ def nonrecursive_link(source_list, dest_size, search_range):
     j = 0
     cur_back = deque([])
     cur_sum_stack = deque([0])
-
-
 
     best_sum = np.inf
 
@@ -586,7 +582,6 @@ def nonrecursive_link(source_list, dest_size, search_range):
             cur_sum_stack.pop()
             cur_back.pop()
 
-
             # print 'we have a winner'
             # print '-------------------------'
             continue
@@ -600,8 +595,6 @@ def nonrecursive_link(source_list, dest_size, search_range):
             cur_sum_stack.pop()
             if j >= 0:
                 cur_back.pop()
-
-
             # print 'out of cands'
             # print '-------------------------'
             continue
@@ -617,9 +610,6 @@ def nonrecursive_link(source_list, dest_size, search_range):
             cur_sum_stack.pop()
             if j >= 0:
                 cur_back.pop()
-
-
-
             # print 'total bail'
             # print '-------------------------'
             continue
