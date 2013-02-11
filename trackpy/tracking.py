@@ -554,13 +554,12 @@ def nonrecursive_link(source_list, dest_size, search_range):
     MAX = len(source_list)
 
     max_links = min(MAX, dest_size)
-
-    k_stack = [0]
-
+    k_stack = deque([0])
     j = 0
-    cur_back = []
+    cur_back = deque([])
+    cur_sum_stack = deque([0])
 
-    cur_sum_stack = [0]
+
 
     best_sum = np.inf
 
@@ -571,10 +570,6 @@ def nonrecursive_link(source_list, dest_size, search_range):
     while j >= 0:
         # grab everything from the end of the stack
         cur_sum = cur_sum_stack[-1]
-
-
-        # advance the counter in the k_stack, the next time this level
-        # of the frame stack is run the _next_ candidate will be run
         if j >= MAX:
             # base case, no more source candidates,
             # save the current configuration if it's better than the current max
@@ -582,12 +577,12 @@ def nonrecursive_link(source_list, dest_size, search_range):
             tmp_sum = cur_sum + search_range * (max_links - len([d for d in cur_back if d is not None]))
             if tmp_sum < best_sum:
                 best_sum = cur_sum
-                best_back = cur_back[:]
+                best_back = list(cur_back)
 
             j -= 1
-            k_stack = k_stack[:-1]
-            cur_sum_stack = cur_sum_stack[:-1]
-            cur_back = cur_back[:-1]
+            k_stack.pop()
+            cur_sum_stack.pop()
+            cur_back.pop()
 
 
             # print 'we have a winner'
@@ -599,9 +594,10 @@ def nonrecursive_link(source_list, dest_size, search_range):
         if k >= cand_lens[j]:
             # no more candidates to try, this branch is done
             j -= 1
-            k_stack = k_stack[:-1]
-            cur_sum_stack = cur_sum_stack[:-1]
-            cur_back = cur_back[:-1]
+            k_stack.pop()
+            cur_sum_stack.pop()
+            if j >= 0:
+                cur_back.pop()
 
 
             # print 'out of cands'
@@ -615,15 +611,19 @@ def nonrecursive_link(source_list, dest_size, search_range):
         if tmp_sum > best_sum:
             # nothing in this branch can do better than the current best
             j -= 1
-            k_stack = k_stack[:-1]
-            cur_sum_stack = cur_sum_stack[:-1]
-            cur_back = cur_back[:-1]
+            k_stack.pop()
+            cur_sum_stack.pop()
+            if j >= 0:
+                cur_back.pop()
+
 
 
             # print 'total bail'
             # print '-------------------------'
             continue
 
+        # advance the counter in the k_stack, the next time this level
+        # of the frame stack is run the _next_ candidate will be run
         k_stack[-1] += 1
         # check if it's already linked
         if cur_d is not None and cur_d in cur_back:
