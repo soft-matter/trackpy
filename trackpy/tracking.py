@@ -410,9 +410,9 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
 
             # add in penalty for not linking
             for _s in s_sn:
-                _s.forward_cands.append((None, search_range_sq))
+                _s.forward_cands.append((None, search_range))
 
-            spl, dpl = _private_linker(s_sn)
+            spl, dpl = _private_linker(s_sn, len(d_sn), search_range)
             # strip the distance information off the subnet sets and
             # remove the linked particles
             d_remain = set(d for d in d_sn if d is not None)
@@ -474,8 +474,8 @@ class SubnetOversizeException(Exception):
     pass
 
 
-def recursive_linker_obj(s_sn):
-    snl = sub_net_linker(s_sn)
+def recursive_linker_obj(s_sn, dest_size, search_range):
+    snl = sub_net_linker(s_sn, dest_size, search_range)
     return zip(*snl.best_pairs)
 
 
@@ -484,12 +484,13 @@ class sub_net_linker(object):
     algorithm.  This class handles the recursion code for the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
 
-    def __init__(self, s_sn):
+    def __init__(self, s_sn, dest_size, search_range):
         print 'made sub linker'
         self.s_sn = s_sn
+        self.search_range = search_range
         self.s_lst = [s for s in s_sn]
         self.MAX = len(self.s_lst)
-
+        self.max_links = min(self.MAX, dest_size)
         self.best_pairs = []
         self.cur_pairs = []
         self.best_sum = np.Inf
@@ -527,8 +528,10 @@ class sub_net_linker(object):
             # if we have hit the end of s_lst and made it this far, it
             # must be a better linking so save it.
             if j + 1 == self.MAX:
-                self.best_sum = tmp_sum
-                self.best_pairs = list(self.cur_pairs)
+                tmp_sum = self.cur_sum + self.search_range * (self.max_links - len(self.d_taken))
+                if tmp_sum < self.best_sum:
+                    self.best_sum = tmp_sum
+                    self.best_pairs = list(self.cur_pairs)
             else:
                 # recurse!
                 self.do_recur(j + 1)
