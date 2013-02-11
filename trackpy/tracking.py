@@ -19,6 +19,7 @@ from __future__ import division
 import numpy as np
 from collections import deque
 
+
 class Hash_table(object):
     '''
     :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
@@ -73,13 +74,13 @@ class Hash_table(object):
         else:
             if self.spat_dims == 2:
                 shifts = [np.array([j, k])
-                            for j in range(-rrange, rrange + 1)
-                            for k in range(-rrange, rrange + 1)]
+                          for j in range(-rrange, rrange + 1)
+                          for k in range(-rrange, rrange + 1)]
             elif self.spat_dims == 3:
                 shifts = [np.array([j, k, m])
-                            for j in range(-rrange, rrange + 1)
-                            for k in range(-rrange, rrange + 1)
-                            for m in range(-rrange, rrange + 1)]
+                          for j in range(-rrange, rrange + 1)
+                          for k in range(-rrange, rrange + 1)
+                          for m in range(-rrange, rrange + 1)]
             else:
                 raise NotImplementedError('only 2 and 3 dimensions implemented')
             self.cached_rrange = rrange   # and save them
@@ -541,6 +542,5 @@ class sub_net_linker(object):
                 self.d_taken.remove(cur_d)
             self.cur_pairs.pop()
         pass
-
 
 _private_linker = recursive_linker_obj
