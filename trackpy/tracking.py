@@ -17,7 +17,7 @@
 from __future__ import division
 
 import numpy as np
-
+from collections import deque
 
 class Hash_table(object):
     '''
@@ -491,8 +491,8 @@ class sub_net_linker(object):
         self.s_lst = [s for s in s_sn]
         self.MAX = len(self.s_lst)
         self.max_links = min(self.MAX, dest_size)
-        self.best_pairs = []
-        self.cur_pairs = []
+        self.best_pairs = None
+        self.cur_pairs = deque([])
         self.best_sum = np.Inf
         self.d_taken = set()
         self.cur_sum = 0
