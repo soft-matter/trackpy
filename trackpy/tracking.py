@@ -194,11 +194,11 @@ class Point(object):
         self.uuid = Point.count         # unique id for __hash__
         Point.count += 1
 
-    def __eq__(self, other):
-        return self.uuid == other.uuid
+    ## def __eq__(self, other):
+    ##     return self.uuid == other.uuid
 
-    def __neq__(self, other):
-        return not self.__eq__(other)
+    ## def __neq__(self, other):
+    ##     return not self.__eq__(other)
 
     def add_to_track(self, track):
         '''
@@ -514,7 +514,7 @@ class sub_net_linker(object):
                 # connection, thus we can discard with out testing all
                 # leaves down this branch
                 return
-            if cur_d in self.d_taken:
+            if cur_d is not None and cur_d in self.d_taken:
                 # we have already used this destination point, bail
                 continue
             # add this pair to the running list
@@ -537,22 +537,10 @@ class sub_net_linker(object):
                 self.do_recur(j + 1)
             # remove this step from the working
             self.cur_sum -= dist
-            self.d_taken.remove(cur_d)
+            if cur_d is not None:
+                self.d_taken.remove(cur_d)
             self.cur_pairs.pop()
-        # try null link
-        tmp_sum = self.cur_sum + self.sr
-        if tmp_sum < self.best_sum:
-            # add displacement penalty
-            self.cur_sum = tmp_sum
-            # buried base case
-            if j + 1 == self.MAX:
-                self.best_sum = tmp_sum
-                self.best_pairs = list(self.cur_pairs)
-            else:
-                # recurse!
-                self.do_recur(j + 1)
-            # remove penalty
-            self.cur_sum -= self.sr
         pass
+
 
 _private_linker = recursive_linker_obj
