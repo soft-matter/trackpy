@@ -537,7 +537,7 @@ class sub_net_linker(object):
                     self.best_sum = tmp_sum
                     self.best_pairs = list(self.cur_pairs)
             else:
-                # recurse!
+                # re curse!
                 self.do_recur(j + 1)
             # remove this step from the working
             self.cur_sum -= dist
@@ -547,9 +547,13 @@ class sub_net_linker(object):
         pass
 
 
-def nonrecursive_link(source_list):
+def nonrecursive_link(source_list, dest_size, search_range):
+
     print 'non-recursive'
     source_list = list(source_list)
+    MAX = len(source_list)
+
+    max_links = min(MAX, dest_size)
     k_stack = [0]
     j_stack = [0]
     cur_front_stack = [[]]
@@ -583,7 +587,9 @@ def nonrecursive_link(source_list):
             # pop the stacks
             [s.pop() for s in stacks]
             # save the current configuration if it's better than the current max
-            if cur_sum < best_sum:
+            # add penalty for not linking to particles in the destination set
+            tmp_sum = cur_sum + search_range * (max_links - len([d for d in cur_back if d is not None]))
+            if tmp_sum < best_sum:
                 best_sum = cur_sum
                 best_front = cur_front
                 best_back = cur_back
