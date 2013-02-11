@@ -486,7 +486,7 @@ class sub_net_linker(object):
     MAX_SUB_NET_SIZE = 50
 
     def __init__(self, s_sn, dest_size, search_range):
-        print 'made sub linker'
+        #        print 'made sub linker'
         self.s_sn = s_sn
         self.search_range = search_range
         self.s_lst = [s for s in s_sn]
@@ -548,7 +548,7 @@ class sub_net_linker(object):
 
 def nonrecursive_link(source_list, dest_size, search_range):
 
-    print 'non-recursive', len(source_list), dest_size
+    #    print 'non-recursive', len(source_list), dest_size
     source_list = list(source_list)
     source_list.sort(key=lambda x: len(x.forward_cands))
     MAX = len(source_list)
