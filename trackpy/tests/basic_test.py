@@ -41,3 +41,30 @@ def test_easy_tracking():
 
         assert np.sum(dx) == level_count - 1
         assert np.sum(dy) == 0
+
+
+def test_pathological_tracking():
+    level_count = 5
+    p_count = 16
+    levels = []
+    shift = 1.75
+
+
+    for j in range(level_count):
+        level = []
+        for k in np.arange(p_count) * 2:
+            level.append(pt.PointND(j, (j, k + j * shift)))
+        levels.append(level)
+
+    hash_generator = lambda: pt.Hash_table((level_count + 1, p_count * 2 + level_count * shift + 1), .5)
+    tracks = pt.link(levels, 5, hash_generator)
+
+    assert len(tracks) == p_count, len(tracks)
+
+    for t in tracks:
+        x, y = zip(*[p.pos for p in t])
+        dx = np.diff(x)
+        dy = np.diff(y)
+
+        assert np.sum(dx) == level_count - 1
+        assert np.sum(dy) == (level_count - 1) * shift
