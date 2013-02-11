@@ -307,7 +307,6 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     :py:class:`~trackpy.tracking.Point` objects.
 
     '''
-    search_range_sq = search_range * search_range
     #    print "starting linking"
     # initial source set
     prev_set = set(levels[0])
@@ -365,6 +364,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
             p.back_cands.sort(key=lambda x: x[1])
         for p in prev_set:
             p.forward_cands.sort(key=lambda x: x[1])
+
         # while there are particles left to link, link
         while len(prev_set) > 0 and len(cur_set) > 0:
             p = cur_set.pop()
@@ -492,6 +492,7 @@ class sub_net_linker(object):
         self.s_sn = s_sn
         self.search_range = search_range
         self.s_lst = [s for s in s_sn]
+        self.s_lst.sort(key=lambda x: len(x.forward_cands))
         self.MAX = len(self.s_lst)
 
         self.max_links = min(self.MAX, dest_size)
@@ -551,6 +552,7 @@ def nonrecursive_link(source_list, dest_size, search_range):
 
     print 'non-recursive'
     source_list = list(source_list)
+    source_list.sort(key=lambda x: len(x.forward_cands))
     MAX = len(source_list)
 
     max_links = min(MAX, dest_size)
@@ -638,7 +640,7 @@ def nonrecursive_link(source_list, dest_size, search_range):
         cur_back.append(cur_d)
 
         # print '-------------------------'
-
+    #    print 'done'
     return source_list, best_back
 
 
