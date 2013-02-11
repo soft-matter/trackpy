@@ -556,23 +556,25 @@ def nonrecursive_link(source_list, dest_size, search_range):
     max_links = min(MAX, dest_size)
 
     k_stack = [0]
+
     j = 0
-    cur_front = []
     cur_back = []
+
     cur_sum_stack = [0]
 
     best_sum = np.inf
-    best_front = None
+
     best_back = None
+    cand_list_list = [c.forward_cands for c in source_list]
+    cand_lens = [len(c) for c in cand_list_list]
 
     while j >= 0:
         # grab everything from the end of the stack
-        k = k_stack[-1]
         cur_sum = cur_sum_stack[-1]
+
+
         # advance the counter in the k_stack, the next time this level
         # of the frame stack is run the _next_ candidate will be run
-        k_stack[-1] += 1
-
         if j >= MAX:
             # base case, no more source candidates,
             # save the current configuration if it's better than the current max
@@ -580,34 +582,34 @@ def nonrecursive_link(source_list, dest_size, search_range):
             tmp_sum = cur_sum + search_range * (max_links - len([d for d in cur_back if d is not None]))
             if tmp_sum < best_sum:
                 best_sum = cur_sum
-                best_front = cur_front[:]
                 best_back = cur_back[:]
 
             j -= 1
             k_stack = k_stack[:-1]
             cur_sum_stack = cur_sum_stack[:-1]
-            cur_front = cur_front[:-1]
             cur_back = cur_back[:-1]
+
+
             # print 'we have a winner'
             # print '-------------------------'
             continue
 
         # see if we have any forward candidates
-        cur_s = source_list[j]
-        cand_lst = cur_s.forward_cands
-        if k >= len(cand_lst):
+        k = k_stack[-1]
+        if k >= cand_lens[j]:
             # no more candidates to try, this branch is done
             j -= 1
             k_stack = k_stack[:-1]
             cur_sum_stack = cur_sum_stack[:-1]
-            cur_front = cur_front[:-1]
             cur_back = cur_back[:-1]
+
+
             # print 'out of cands'
             # print '-------------------------'
             continue
 
         # get the forward candidate
-        cur_d, cur_dist = cand_lst[k]
+        cur_d, cur_dist = cand_list_list[j][k]
 
         tmp_sum = cur_sum + cur_dist
         if tmp_sum > best_sum:
@@ -615,12 +617,14 @@ def nonrecursive_link(source_list, dest_size, search_range):
             j -= 1
             k_stack = k_stack[:-1]
             cur_sum_stack = cur_sum_stack[:-1]
-            cur_front = cur_front[:-1]
             cur_back = cur_back[:-1]
+
+
             # print 'total bail'
             # print '-------------------------'
             continue
 
+        k_stack[-1] += 1
         # check if it's already linked
         if cur_d is not None and cur_d in cur_back:
             # this will run the loop with almost identical stack, but with advanced k
@@ -629,13 +633,13 @@ def nonrecursive_link(source_list, dest_size, search_range):
             continue
 
         j += 1
-        k_stack = k_stack + [0]
-        cur_sum_stack = cur_sum_stack + [tmp_sum]
-        cur_front = cur_front + [cur_s]
-        cur_back = cur_back + [cur_d]
+        k_stack.append(0)
+        cur_sum_stack.append(tmp_sum)
+        cur_back.append(cur_d)
+
         # print '-------------------------'
 
-    return best_front, best_back
+    return source_list, best_back
 
 
 _private_linker = nonrecursive_link
