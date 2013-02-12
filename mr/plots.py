@@ -194,7 +194,7 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
     if not inverted_model:
         fitlines = ax.plot(fits.index, fits)
     else:
-        fitlines = ax.plot(fits, data)
+        fitlines = ax.plot(fits.reindex(data.dropna().index), data.dropna())
     # Restrict plot axis to domain of the data, not domain of the fit.
     xmin = data.index.values[data.index.values > 0].min() if logx \
         else data.index.values.min()
