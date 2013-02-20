@@ -18,6 +18,7 @@
 
 """These functions generate handy plots."""
 
+from functools import wraps
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
@@ -38,6 +39,7 @@ def make_axes(func):
               and return them. The user has the option to draw a more complex 
               plot in multiple steps.
     """
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if 'ax' not in kwargs:
             kwargs['ax'] = plt.gca()
@@ -51,6 +53,7 @@ def make_axes(func):
 
 def make_fig(func):
     """See make_axes."""
+    wraps(func)
     def wrapper(*args, **kwargs):
         if 'fig' not in kwargs:
             kwargs['fig'] = plt.gcf()
@@ -182,4 +185,22 @@ def subpx_bias(f, ax=None):
     If subpixel accuracy is good, this should be flat. If it depressed in the
     middle, try using a larger value for feature diameter."""
     f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
+    return ax
+
+@make_axes
+def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
+    data.plot(style='o', logx=logx, logy=logy, ax=ax)
+    datalines = ax.get_lines() 
+    if not inverted_model:
+        fitlines = ax.plot(fits.index, fits)
+    else:
+        fitlines = ax.plot(fits, data)
+    # Restrict plot axis to domain of the data, not domain of the fit.
+    xmin = data.index.values[data.index.values > 0].min() if logx \
+        else data.index.values.min()
+    ax.set_xlim(xmin, data.index.values.max())
+    # Match colors of data and corresponding fits.
+    [f.set_color(d.get_color()) for d, f in zip(datalines, fitlines)]
+    if logx:
+        ax.set_xscale('log') # logx kwarg does not always take. Bug?
     return ax

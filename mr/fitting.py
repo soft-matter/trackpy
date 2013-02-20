@@ -24,7 +24,6 @@ from scipy import stats
 import lmfit
 from lmfit import Parameters
 
-
 class Result:
     @property
     def values(self):
@@ -51,15 +50,15 @@ class Result:
         self._residual = value
 
     @property
-    def fitlines(self, value):
-        return self._fitlines
+    def fits(self, value):
+        return self._fits
 
-    @fitlines.setter
-    def fitlines(self, value):
-        self._fitlines = value
+    @fits.setter
+    def fits(self, value):
+        self._fits= value
 
-def NLS(data, model_func, params, weights,
-        log_residual=False, inverted_model=False):
+def NLS(data, model_func, params, weights=None,
+        log_residual=False, inverted_model=False, plot=True):
     """Perform a nonlinear least-sqaured fit on each column of a DataFrame. 
 
     Parameters
@@ -74,6 +73,8 @@ def NLS(data, model_func, params, weights,
         Compute the residual in log space.
     inverted_model : boolean, default False
         Use when the model is expressed as x(y).
+    plot : boolean, default True
+        Automatically plot fits.
 
     Returns
     -------
@@ -97,21 +98,24 @@ def NLS(data, model_func, params, weights,
         else:
             e = (y - f)
             e.fillna(e.mean(), inplace=True)
-        return e.mul(weights).values
+        if weights is None:
+            return e.values
+        else:
+            return e.mul(weights).values
     # If we are given a params-generating function, generate sample
     # params to index the results DataFrame. 
     ys = DataFrame(data) # in case it's a Series
     x = Series(data.index.values, index=data.index, dtype=np.float64)
-    if weights is None:
-        weights = np.ones_like(x)
-    assert weights.size == x.size, \
-        "weights must be an array-like sequence of the same length as data."
+    if weights is not None:
+        assert weights.size == x.size, \
+            "weights must be an array-like sequence the same length as data."
+        weights = Series(np.asarray(weights), index=x.index)
     if hasattr(params, '__call__'):
         p = params(ys.icol(0))
     values = DataFrame(index=p.keys())
     stderr = DataFrame(index=p.keys())
     residuals = {}
-    fitlines = {}
+    fits = {}
     for col in ys:
         y = ys[col].dropna()
         # If need be, generate params using this column's data. 
@@ -127,22 +131,38 @@ def NLS(data, model_func, params, weights,
         values[col] = result_params.apply(lambda param: param.value)
         stderr[col] = result_params.apply(lambda param: param.stderr)
         residuals[col] = Series(result.residual, index=x)
-        if inverted_model:
-            fitlines[col] = ys.apply(lambda x: model_func(x, result.params))
+        if not inverted_model:
+            fits[col] = x.apply(lambda x: model_func(x, result.params))
+        else:
+            fits[col] = y.apply(lambda y: model_func(y, result.params))
     pd.reset_option('use_inf_as_null')
     r = Result()
     r.values = values.T
     r.stderr = stderr.T
     r.residuals = pd.concat(residuals, axis=1)
-    r.fitlines = pd.concat(fitlines, axis=1)
+    r.fits = pd.concat(fits, axis=1)
+    if plot:
+        import plots
+        plots.fit(data, r.fits, inverted_model, logx=True)
     return r
 
-def fit_powerlaw(data):
+def fit_powerlaw(data, plot=True):
     """Fit a powerlaw by doing a linear regression in log space."""
-    data = DataFrame(data)
-    fits = []
-    for col in data:
+    ys = DataFrame(data)
+    x = Series(data.index.values, index=data.index, dtype=np.float64)
+    values = DataFrame(index=['n', 'A']) 
+    fits = {}
+    for col in ys:
+        y = ys[col].dropna()
         slope, intercept, r, p, stderr = \
-            stats.linregress(data.index.values, data[col].values)
-        fits.append(Series([slope, np.exp(intercept)], index=['A', 'n']))
-    return pd.concat(fits, axis=1, keys=data.columns)
+            stats.linregress(np.log(x), np.log(y))
+        print 'slope', slope, ', intercept', intercept
+        values[col] = [slope, np.exp(intercept)]
+        fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope) 
+    values = values.T
+    fits = pd.concat(fits, axis=1)
+    if plot:
+        import plots
+        plots.fit(data, fits, logx=True, logy=True)
+    return values
+
