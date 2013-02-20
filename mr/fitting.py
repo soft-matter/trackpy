@@ -112,6 +112,8 @@ def NLS(data, model_func, params, weights=None,
         weights = Series(np.asarray(weights), index=x.index)
     if hasattr(params, '__call__'):
         p = params(ys.icol(0))
+    else:
+        p = params
     values = DataFrame(index=p.keys())
     stderr = DataFrame(index=p.keys())
     residuals = {}
