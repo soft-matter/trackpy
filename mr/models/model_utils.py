@@ -1,6 +1,7 @@
 import pandas as pd
 import lmfit
 from functools import wraps
+import numpy as np
 
 def params_as_dict(func):
     @wraps(func)
@@ -15,3 +16,31 @@ def params_as_dict(func):
                 zip(params.keys(), map(lambda x: x.value, params.values())))
             return func(args[0], d)
     return wrapper
+
+def _going_up(a, threshold=0.1):
+    crossing = ((a > threshold) & (a.shift(1) < threshold) & (a.diff() > 0)) # boolean
+    return crossing
+
+def _going_down(a, threshold = np.pi/2 - 01):
+    crossing = ((a < threshold) & (a.shift(1) > threshold) & (a.diff() < 0)) # boolean
+    return crossing
+
+def group_curve(a):
+    crossing = _going_up(a) | _going_down(a)
+    counter = crossing.astype(np.int).cumsum().shift(-2)
+    counter.fillna(method='ffill', inplace=True) # trailing NaNs
+    return a.groupby(counter)
+
+def _flip_columns(df):
+    upsidedown = df.irow(0) > np.pi/4
+    df[df.columns[upsidedown]] *= -1
+    df[df.columns[upsidedown]] += np.pi/2
+    return df
+
+def split_curve(group, B):
+    d = dict()
+    for k, v in B.iterkv():
+        d[v] = group.get_group(k).reset_index(drop=True)
+    s = pd.concat(d, axis=1)
+    _flip_columns(s)
+    return s
