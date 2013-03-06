@@ -21,7 +21,7 @@ def setup_params(angle, params=None):
     if params is None:
         params = lmfit.Parameters()
     if params.get('m') is None:
-        params.add('m', value=1.7, min=0)
+        params.add('m', value=1.7, min=1.1)
     if params.get('C') is None:
         params.add('C', value=1.0, min=0)
     params.add('offset', pi/100) # specify bounds below 
@@ -34,6 +34,19 @@ def setup_params(angle, params=None):
     offset.min, offset.max = -pi/2 - angle_min, pi/2 - angle_max
     return params
 
+@params_as_dict
+def model(angle, params):
+    m = params['m']
+    C = params['C']
+    theta0 = params['theta0']
+    offset = params['offset']
+    _validate(angle, m, C, theta0, offset)
+    t = 1/(m-1)*C**m*\
+        (np.cos(angle + offset)**(1-m)*_F(angle + offset, m) - \
+         np.cos(theta0 + offset)**(1-m)*_F(theta0 + offset, m))
+    return t
+
+@params_as_dict
 def typo_model(angle, params):
     m = params['m']
     C = params['C']
