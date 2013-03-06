@@ -17,14 +17,14 @@ def params_as_dict(func):
             return func(args[0], d)
     return wrapper
 
-def _going_up(a, threshold=0.1):
-    smoothed = pd.rolling_mean(a, 5)
-    crossing = ((a > threshold) & (a.shift(1) < threshold) & (smoothed.diff() > 0)) # boolean
+def _going_up(a, threshold=0.1, slope_threshold=0.001):
+    slope = pd.rolling_mean(a, 100, center=True).diff()
+    crossing = ((a > threshold) & (a.shift(1) < threshold) & (slope > slope_threshold)) # boolean
     return crossing
 
-def _going_down(a, threshold = np.pi/2 - 0.1):
-    smoothed = pd.rolling_mean(a, 10)
-    crossing = ((a < threshold) & (a.shift(1) > threshold) & (smoothed.diff() < 0)) # boolean
+def _going_down(a, threshold = np.pi/2 - 0.1, slope_threshold=-0.001):
+    slope = pd.rolling_mean(a, 100, center=True).diff()
+    crossing = ((a < threshold) & (a.shift(1) > threshold) & (slope < slope_threshold)) # boolean
     return crossing
 
 def group_curve(a):
