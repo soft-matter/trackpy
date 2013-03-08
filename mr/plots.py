@@ -189,7 +189,7 @@ def subpx_bias(f, ax=None):
 
 @make_axes
 def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
-    data.plot(style='o', logx=logx, logy=logy, ax=ax)
+    data.dropna().plot(style='o', logx=logx, logy=logy, ax=ax)
     datalines = ax.get_lines() 
     if not inverted_model:
         fitlines = ax.plot(fits.index, fits)
