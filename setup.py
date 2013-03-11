@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import setuptools
 from distutils.core import setup
 
 print "Installing trackpy"
