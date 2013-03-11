@@ -64,7 +64,7 @@ def make_fig(func):
     return wrapper
 
 @make_axes
-def pt(traj, colorby='probe', mpp=1, label=False, superimpose=None, 
+def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None, 
        cmap=mpl.cm.winter, ax=None):
     """Plot traces of trajectories for each probe.
     Optionally superimpose it on a frame from the video.
@@ -128,7 +128,7 @@ def pt(traj, colorby='probe', mpp=1, label=False, superimpose=None,
                      verticalalignment='center')
     return ax
 
-plot_traj = pt # deprecated alias
+ptraj = plot_traj # convenience alias
 
 def annotate(image, centroids, circle_size=170, invert=True, ax=None):
     """Mark identified features with white circles.
