@@ -33,5 +33,6 @@ from plots import *
 from rheology import *
 from sql import *
 from video import *
+from tracking import *
 
 import models.power_fluid
