@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
-import MySQLdb
 import pandas.io.sql as psql
 import os
 import sys
@@ -25,10 +24,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def connect():
     "Return an open connection to the database."
     try:
-        conn = MySQLdb.connect(read_default_group='mr')
+        import MySQLdb
+    except ImportError:
+        logger.error("MySQLdb could not be imported.")
+        return None
+    try:
+        conn = MySQLdb.connect(
+            read_default_file=os.path.expanduser('~/.my.cnf'),
+            read_default_group='mr')
     except MySQLdb.Error, e:
         logger.error("Cannot connect to database. I look for connection "
                     "parameters in your system's "
@@ -36,6 +43,7 @@ def connect():
                     "Create a group under the heading [mr].")
         logger.error("Error code: %s", e.args[0])
         logger.error("Error message: %s", e.args[1])
+        return None
     return conn
 
 def fetch(query):

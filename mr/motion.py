@@ -22,7 +22,6 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from scipy import interpolate
-import pidly
 
 logger = logging.getLogger(__name__)
 
@@ -225,21 +224,6 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
     """
     a, b = msds.ix[frame].quantile(lower), msds.ix[frame].quantile(upper)
     return (msds.ix[frame] > a) & (msds.ix[frame] < b)
-
-def idl_track(query, max_disp, min_appearances, memory=3):
-    """Call Crocker/Weeks track.pro from IDL using pidly module.
-    Returns one big array, where the last column is the probe ID."""
-    idl = pidly.IDL()
-    logger.info("Opened IDL process.")
-    idl('pt = get_sql("{}")'.format(query))
-    logger.info("IDL is done loading features from the database. Now tracking....")
-    idl('t=track(pt, {}, goodenough={}, memory={})'.format(
-        max_disp, min_appearances, memory))
-    logger.info("IDL finished tracking. Now piping data into Python....")
-    t = idl.ev('t')
-    idl.close()
-    return DataFrame(
-        t, columns=['x', 'y', 'mass', 'size', 'ecc', 'frame', 'probe'])
 
 def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     """Compute the van Hove correlation function at given lagtime (frame span).
