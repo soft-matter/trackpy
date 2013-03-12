@@ -20,3 +20,7 @@ def track(features, search_range=5, memory=0, box_size=100):
         probes.append(probe)
     probes = pd.concat(probes, keys=np.arange(len(probes)), names=['probe', 'frame'])
     return probes.reset_index()
+
+def bust_ghosts(tracks, threshold=100):
+    b = t.groupby('probe').frame.transform(len) > threshold
+    return tracks[b]
