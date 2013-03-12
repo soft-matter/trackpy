@@ -171,9 +171,10 @@ def compute_drift(traj, smoothing=0):
     # Restore the original frame column (replacing delta frame).
     delta['frame'] = delta.index
     dx = delta.groupby('frame').mean()
-    dx = pd.rolling_mean(dx, smoothing, min_periods=0)
-    x = dx.cumsum(0) 
-    return DataFrame(x, columns=['x', 'y'])
+    if smoothing > 0:
+        dx = pd.rolling_mean(dx, smoothing, min_periods=0)
+    x = dx.cumsum(0)[['x', 'y']]
+    return x
 
 def subtract_drift(traj, drift=None):
     """Return a copy of probe trajectores with the overall drift subtracted out.
