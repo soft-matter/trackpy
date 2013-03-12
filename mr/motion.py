@@ -26,39 +26,6 @@ import pidly
 
 logger = logging.getLogger(__name__)
 
-def spline(t, pos, k=3, s=None):
-    """Realize a Univariate spline, interpolating pos through all t. 
-
-    Parameters
-    ----------
-    t : Index (not Series!) of integers with possible gaps
-    pos : DataFrame or Series of data to be interpolated
-    k : integer
-        polynomial order of spline, k <= 5
-    s : float or tuple of floats (one for each column) or None 
-        Positive smoothing parameter used to determine the number of knots.
-        For details, see documentation for scipy.interpolate.UnivariateSpline.
-    
-    Returns
-    -------
-    DataFrame of interpolated pos. The index is interpolated t.
-    """
-    first_frame, last_frame = t[[0, -1]]
-    domain = np.arange(first_frame, 1 + last_frame)
-    new_pos = []
-    pos = DataFrame(pos) # in case pos is given as a Series
-    import collections
-    if not isinstance(s, collections.Iterable):
-        s = [s]*len(pos.columns)
-    assert len(s) == len(pos.columns), ("The length of s must match the number" 
-                                        "of columns in pos.")
-    for i, col in enumerate(pos):
-        spl = interpolate.UnivariateSpline(
-            t.values, pos[col].values, k=k, s=s[i])
-        new_col = Series(spl(domain), index=domain, name=col)
-        new_pos.append(new_col)
-    return pd.concat(new_pos, axis=1, keys=pos.columns)
-
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean displacement and mean squared displacement of one 
     trajectory over a range of time intervals.
@@ -179,9 +146,9 @@ def compute_drift(traj, smoothing=None):
     Parameters
     ----------
     traj : DataFrame of trajectories, including columns x, y, frame, and probe
-    smoothing : float, tuple of floats (x_smoothing, y_smoothing), or None
-        Positive smoothing factor used to choose the number of knots.
-        For details, see documentation for scipy.interpolate.UnivariateSpline.
+    smoothing : integer
+        Smooth the drift using a forward-looking rolling mean over 
+        this many frames.
 
     Returns
     -------
@@ -192,9 +159,8 @@ def compute_drift(traj, smoothing=None):
     compute_drift(traj).plot() # Default smoothing usually smooths too much.
     compute_drift(traj, 0).plot() # not smoothed
     compute_drift(traj, 15).plot() # Try various smoothing values.
-    compute_drift(traj, (18, 23)).plot() # Smooth x and y differently.
 
-    drift = compute_drift(traj, (18, 23)) # Save good drift curves.
+    drift = compute_drift(traj, 15) # Save good drift curves.
     corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
     # Probe by probe, take the difference between frames.
@@ -204,8 +170,8 @@ def compute_drift(traj, smoothing=None):
     delta = delta[delta['frame'] == 1]
     # Restore the original frame column (replacing delta frame).
     delta['frame'] = delta.index
-    traj = delta.groupby('frame').mean()
-    dx = spline(traj.index, traj[['x', 'y']], s=smoothing)
+    dx = delta.groupby('frame').mean()
+    dx = pd.rolling_mean(dx, smoothing, min_periods=0)
     x = dx.cumsum(0) 
     return DataFrame(x, columns=['x', 'y'])
 
