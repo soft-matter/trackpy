@@ -22,5 +22,5 @@ def track(features, search_range=5, memory=0, box_size=100):
     return probes.reset_index()
 
 def bust_ghosts(tracks, threshold=100):
-    b = t.groupby('probe').frame.transform(len) > threshold
+    b = tracks.groupby('probe').frame.transform(len) > threshold
     return tracks[b]
