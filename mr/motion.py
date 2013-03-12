@@ -140,7 +140,7 @@ def emsd(traj, mpp, fps, max_lagtime=100):
     del results['N']
     return results
 
-def compute_drift(traj, smoothing=None):
+def compute_drift(traj, smoothing=0):
     """Return the ensemble drift, x(t).
 
     Parameters
