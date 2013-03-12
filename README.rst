@@ -23,8 +23,7 @@ Main Features
       the Generalized Stokes-Einstein implementation used in the Crocker/Grier code.
     - A sql module provides convenient functions for storing and loading data
       from a MySQL database. (A sample database schema is included.)
-    - A wrapper for the powerful video handling software FFmpeg helps slice
-      sections of video, ameliorating book-keeping headaches.
+    - A wrapper for the powerful video handling software FFmpeg slices video and helps with book-keeping.
 
 
 Dependencies
@@ -34,17 +33,7 @@ Dependencies
   * scipy
   * pandas
   * MySQLdb (optional)
-  * pIDLy, which calls IDL from Python, only until track.pro can be reimplemented in Python
-
-Project Status
-==============
-The feature-finding is stable. This packages still relies on Crocker & Weeks's 
-``track.pro`` to link feature positions into trajectories. Once these are 
-obtained, the package provides tools for flitering, grouping, and analyzing 
-them.
-
-None of the code for active microrheology (tracking and analyzing the motions of magnetic
-nanowires) has yet been included in this repository.
+  * [trackpy](https://github.com/tacaswell/trackpy)
 
 Related Projects
 ================
