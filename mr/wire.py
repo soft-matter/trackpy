@@ -25,3 +25,10 @@ def bigfish(mask):
     big_label = sizes.argmax() # the label of the largest connection region
     roi = ndimage.find_objects(label_im==big_label)[0]
     return roi
+
+def orientation(img):
+    i, j = np.mgrid[:img.shape[0], :img.shape[1]]
+    coords = np.vstack((i.reshape(-1), j.reshape(-1), img.reshape(-1))).T
+    covariance = np.cov(coords)
+    eigvals, eigvecs = np.linalg.eigh(covariance)
+    return eigvecs
