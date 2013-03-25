@@ -1,40 +1,34 @@
-from PIL import Image
 import numpy as np
-from scipy import stats
-import lmfit
+from scipy import  ndimage
 
-def crop_roi(im, roi):
-    im = Image.open(filename)
-    im = im.crop(roi_coords).load() # left, upper, right, lower
-    return im
+def threshold(im, sigma=3):
+    """Threshold a grayscale image based on the mean and std brightness.
 
-def _residual(params, x, y):
-    A = params['A'].value
-    base = params['base'].value
-    sigma = params['sigma'].value
-    x0 = params['x0'].value
-    
-    f = base + A*np.exp(-(x-x0)**2/sigma)
-    return y - f
+    Parameters
+    ----------
+    im: ndarray
+    sigma: float, default 3.0
+        minimum brightness in terms of standard deviations above the mean
+    """
+    mask = im > (im.mean() + 3*im.std())
+    return mask
 
-def _gaussian_center(params, x, data):
-    lmfit.minimize(_residual, params, args=(x, data))
-    return params['x0'].value, params['A'].value
+def bigfish(mask):
+    """Identify the largest connected region and return the roi. 
 
-def get_centers(im):
-    L = im.shape[1]
-    params = lmfit.Parameters()
-    params.add('A', 100, min=0, max=255)
-    params.add('sigma', 3, min=0, max=L/2)
-    params.add('x0', L/2, min=0, max=L)
-    params.add('base', 1, min=0, max=254)
+    Parameters
+    ----------
+    mask: binary (thresholded) image
+    """
+    label_im, nb_labels = ndimage.label(mask)
+    sizes = ndimage.sum(mask, label_im, range(nb_labels + 1))
+    big_label = sizes.argmax() # the label of the largest connection region
+    roi = ndimage.find_objects(label_im==big_label)[0]
+    return roi
 
-    gaussian_center = lambda a: _gaussian_center(params, np.arange(L), a)
-    fit = DataFrame(np.apply_along_axis(gaussian_center, 1, im), columns=['x0', 'A'])
-    return fit
-
-def get_angle(centers, threshold=20):
-    real_centers = centers[centers['A'] > threshold]['x0'] # Filter junk.
-    slope, intercept, r, p, stderr = \
-            stats.linregress(real_centers.index, real_centers.values)
-    return np.degrees(np.arctan(slope))
+def orientation(img):
+    i, j = np.mgrid[:img.shape[0], :img.shape[1]]
+    coords = np.vstack((i.reshape(-1), j.reshape(-1), img.reshape(-1))).T
+    covariance = np.cov(coords)
+    eigvals, eigvecs = np.linalg.eigh(covariance)
+    return eigvecs
