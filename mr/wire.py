@@ -2,6 +2,7 @@ import numpy as np
 from pandas import Series, DataFrame
 import pandas as pd
 from scipy import  ndimage
+import mr.video
 
 def threshold(im, sigma=3):
     """Threshold a grayscale image based on the mean and std brightness.
@@ -123,14 +124,13 @@ def analyze(frame, angle_only=True, plot=False):
     else:
         return results
 
-def batch(frame_generator):
-    N = 7000
-    a = Series(index=range(1, N))
-    img = 1 # placeholder
-    for frame in range(1, N):
-        img = frame_generator()
-        if img is None:
-            break
-        a[frame] = analyze(img)
-    a = a.dropna() # discard extra frames
-    return a
+def batch(filename):
+    capture = mr.video.open_video(filename)
+    frames = mr.video.frame_generator(capture) # generator of image arrays
+    FC_CODE = mr.video.cv.CV_CAP_PROP_FRAME_COUNT # some cv constant
+    count = int(mr.video.cv.GetCaptureProperty(capture, FC_CODE))
+    data = Series(index=range(1, count + 1))
+    for i, img in enumerate(frames):
+        data[i + 1] = analyze(img)
+    data = data.dropna() # Discard unused rows.
+    return data
