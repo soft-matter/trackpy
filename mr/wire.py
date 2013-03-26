@@ -124,7 +124,7 @@ def analyze(frame, angle_only=True, plot=False):
     else:
         return results
 
-def batch(filename):
+def batch(filename, shift=True):
     capture = mr.video.open_video(filename)
     frames = mr.video.frame_generator(capture) # generator of image arrays
     FC_CODE = mr.video.cv.CV_CAP_PROP_FRAME_COUNT # some cv constant
@@ -133,4 +133,6 @@ def batch(filename):
     for i, img in enumerate(frames):
         data[i + 1] = analyze(img)
     data = data.dropna() # Discard unused rows.
+    if shift:
+        data = data.where(data > 0, data + 180)
     return data
