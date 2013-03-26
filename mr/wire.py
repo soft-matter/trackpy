@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import  ndimage
-from mr.kington import *
 
 def threshold(im, sigma=3):
     """Threshold a grayscale image based on the mean and std brightness.
