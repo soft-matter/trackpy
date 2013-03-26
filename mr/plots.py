@@ -206,7 +206,7 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
     return ax
 
 @make_axes
-def plot_princple_axes(x_bar, y_bar, cov, ax=None):
+def plot_principal_axes(x_bar, y_bar, cov, ax=None):
     """Plot bars with a length of 2 stddev along the principal axes.
 
     Attribution
