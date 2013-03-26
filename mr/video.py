@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 import sql
 import logging
 from utils import extract, timestamp, time_interval
+from opencv import *
 
 logger = logging.getLogger(__name__)
 
