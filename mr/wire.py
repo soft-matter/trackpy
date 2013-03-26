@@ -1,4 +1,6 @@
 import numpy as np
+from pandas import Series, DataFrame
+import pandas as pd
 from scipy import  ndimage
 
 def threshold(im, sigma=3):
@@ -122,8 +124,11 @@ def analyze(frame, angle_only=True, plot=False):
         return results
 
 def batch(frame_generator):
-    a = Series(index=range(1, 10000))
-    for frane, img in enumerate(frame_generator()):
+    N = 7000
+    a = Series(index=range(1, N))
+    img = 1 # placeholder
+    for frame in range(1, N):
+        img = frame_generator()
         if img is None:
             break
         a[frame] = analyze(img)
