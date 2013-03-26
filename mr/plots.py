@@ -207,7 +207,14 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
 
 @make_axes
 def plot_principal_axes(img, x_bar, y_bar, cov, ax=None):
-    """Plot bars with a length of 2 stddev along the principal axes."""
+    """Plot bars with a length of 2 stddev along the principal axes.
+
+    Attribution
+    -----------
+    This function is based on a solution by Joe Kington, posted on Stack
+    Overflow at http://stackoverflow.com/questions/5869891/
+    how-to-calculate-the-axis-of-orientation/5873296#5873296
+    """
     def make_lines(eigvals, eigvecs, mean, i):
         """Make lines a length of 2 stddev."""
         std = np.sqrt(eigvals[i])

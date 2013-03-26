@@ -63,7 +63,8 @@ def inertial_axes(img):
     -----------
     This function is based on a solution by Joe Kington, posted on Stack
     Overflow at http://stackoverflow.com/questions/5869891/
-    how-to-calculate-the-axis-of-orientation/5873296#5873296"""
+    how-to-calculate-the-axis-of-orientation/5873296#5873296
+    """
     normalization = img.sum()
     m10 = moment(img, 1, 0)
     m01 = moment(img, 0, 1)
