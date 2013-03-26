@@ -34,6 +34,7 @@ from rheology import *
 from sql import *
 from video import *
 from tracking import *
-from wire import *
+import mr.wire
+
 
 import models.power_fluid

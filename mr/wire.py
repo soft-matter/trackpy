@@ -120,3 +120,12 @@ def analyze(frame, angle_only=True, plot=False):
         return np.rad2deg(orientation(results[2]))
     else:
         return results
+
+def batch(frame_generator):
+    a = Series(index=range(1, 10000))
+    for frane, img in enumerate(frame_generator()):
+        if img is None:
+            break
+        a[frame] = analyze(img)
+    a = a.dropna() # discard extra frames
+    return a
