@@ -148,7 +148,7 @@ def annotate(image, centroids, circle_size=170, invert=True, ax=None):
     axes
     """ 
     # The parameter image can be an image object or a filename.
-    if type(image) is str:
+    if isinstance(image, basestring):
         image = plt.imread(image)
         if invert:
             image = 1 - image
@@ -157,7 +157,7 @@ def annotate(image, centroids, circle_size=170, invert=True, ax=None):
     ax.set_xlim(0, image.shape[1])
     ax.set_ylim(0, image.shape[0])
     ax.scatter(centroids['x'], centroids['y'], 
-               s=circle_size, facecolors='none', edgecolors='w')
+               s=circle_size, facecolors='none', edgecolors='g')
     return ax
 
 @make_axes
