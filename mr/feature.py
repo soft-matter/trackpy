@@ -195,7 +195,7 @@ def _locate_centroids(image, diameter, separation=None,
     return refined_c 
 
 def locate(image, diameter, minmass=100., separation=None, 
-           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
+           noise_size=1, smoothing_size=None, invert=True, background=None,
            percentile=64, pickN=None):
     """Read an image, do optional image preparation and cleanup, and locate 
     Gaussian-like blobs of a given size above a given total brightness.
@@ -211,7 +211,7 @@ def locate(image, diameter, minmass=100., separation=None,
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
     invert : Set to True if features are darker than background. Default True.
-    junk_image : image array, an image to be subtracted from each frame before
+    background : image array, an image to be subtracted from each frame before
         it is processed
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
@@ -225,10 +225,10 @@ def locate(image, diameter, minmass=100., separation=None,
     and size means the radius of gyration of its Gaussian-like profile
     """
     smoothing_size = smoothing_size if smoothing_size else diameter # default
-    if junk_image is not None:
-        image -= junk_image
+    if background is not None:
+        image = image - background
     if invert:
-        image = 1 - image # Do not do in place -- can confuse other uses.
+        image = 255 - image # Do not do in place -- can confuse other uses.
     image = bandpass(image, noise_size, smoothing_size)
     f = _locate_centroids(image, diameter, separation=separation,
                           percentile=percentile, minmass=minmass,
@@ -236,7 +236,7 @@ def locate(image, diameter, minmass=100., separation=None,
     return f
 
 def batch(frames, diameter, minmass=100, separation=None,
-          noise_size=1, smoothing_size=None, invert=True, junk_image=None,
+          noise_size=1, smoothing_size=None, invert=True, background=None,
           percentile=64, pickN=None, override=False, table='features'):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
@@ -254,7 +254,7 @@ def batch(frames, diameter, minmass=100, separation=None,
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
     invert : Set to True if features are darker than background. Default True.
-    junk_image : an image that will be subtracted from each frame before
+    background : an image that will be subtracted from each frame before
         it is processed
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
@@ -273,7 +273,7 @@ def batch(frames, diameter, minmass=100, separation=None,
     store = pd.HDFStore(output_filename)
     for frame_no, image in enumerate(frames):
         centroids = locate(image, diameter, minmass, separation, 
-                           noise_size, smoothing_size, invert, junk_image,
+                           noise_size, smoothing_size, invert, background,
                            percentile, pickN)
         centroids['frame'] = frame_no
         logger.info("Frame %d: %d features", frame_no, len(centroids))
@@ -283,7 +283,7 @@ def batch(frames, diameter, minmass=100, separation=None,
     return store[table]
 
 def sample(frames, diameter, minmass=100, separation=None,
-           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
+           noise_size=1, smoothing_size=None, invert=True, background=None,
            percentile=64, pickN=None):
     """Try parameters on the first, middle, and last image in a stack.
     See notes for explanation of plots.
@@ -299,7 +299,7 @@ def sample(frames, diameter, minmass=100, separation=None,
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
     invert : Set to True if features are darker than background. Default True.
-    junk_image : an image that will be subtracted from each frame before
+    background : an image that will be subtracted from each frame before
         it is processed
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
@@ -332,7 +332,7 @@ def sample(frames, diameter, minmass=100, separation=None,
     all_features = []
     for i, image in enumerate(samples):
         features = locate(image, diameter, minmass, separation,
-                          noise_size, smoothing_size, invert, junk_image,
+                          noise_size, smoothing_size, invert, background,
                           percentile, pickN)
         all_features.append(features)
         plots.annotate(image, features, ax=axes[i])
