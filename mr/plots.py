@@ -130,7 +130,8 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
 
 ptraj = plot_traj # convenience alias
 
-def annotate(image, centroids, circle_size=170, invert=True, ax=None):
+@make_axes
+def annotate(image, centroids, circle_size=170, invert=False, ax=None):
     """Mark identified features with white circles.
     
     Parameters
@@ -150,10 +151,10 @@ def annotate(image, centroids, circle_size=170, invert=True, ax=None):
     # The parameter image can be an image object or a filename.
     if isinstance(image, basestring):
         image = plt.imread(image)
-        if invert:
-            image = 1 - image
-    ax.imshow(image, origin='upper', 
-    shape=image.shape, cmap=plt.cm.gray)
+    if invert:
+        ax.imshow(1-image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
+    else:
+        ax.imshow(image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
     ax.set_xlim(0, image.shape[1])
     ax.set_ylim(0, image.shape[0])
     ax.scatter(centroids['x'], centroids['y'], 

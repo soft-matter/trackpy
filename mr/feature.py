@@ -228,7 +228,7 @@ def locate(image, diameter, minmass=100., separation=None,
     if junk_image is not None:
         image -= junk_image
     if invert:
-        image *= -1; image += 1 # i.e., image = 1 - image
+        image = 1 - image # Do not do in place -- can confuse other uses.
     image = bandpass(image, noise_size, smoothing_size)
     f = _locate_centroids(image, diameter, separation=separation,
                           percentile=percentile, minmass=minmass,
@@ -282,7 +282,7 @@ def batch(frames, diameter, minmass=100, separation=None,
         store.append(table, centroids)
     return store[table]
 
-def sample(images, diameter, minmass=100, separation=None,
+def sample(frames, diameter, minmass=100, separation=None,
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
            percentile=64, pickN=None):
     """Try parameters on the first, middle, and last image in a stack.
@@ -318,12 +318,19 @@ def sample(images, diameter, minmass=100, separation=None,
     should be flat. If they dip in the middle, try increasing the diameter
     parameter.
     """
+    # Get frames 0, 10, and 20.
+    samples = []
+    for frame_no, image in enumerate(frames):
+        if frame_no % 10 == 0:
+            samples.append(image)
+        if len(samples) == 3:
+            break
     # Set up figures.
     fig, axes = plt.subplots(2, 2, sharex='col', sharey='row')
     axes = axes[0][0], axes[0][1], axes[1][0], axes[1][1] # flat
     fig.set_size_inches(12, 8)
     all_features = []
-    for image in samples:
+    for i, image in enumerate(samples):
         features = locate(image, diameter, minmass, separation,
                           noise_size, smoothing_size, invert, junk_image,
                           percentile, pickN)
