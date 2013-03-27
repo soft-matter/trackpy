@@ -126,7 +126,7 @@ def analyze(frame, angle_only=True, plot=False):
 
 def batch(filename, shift=True):
     capture = mr.video.open_video(filename)
-    frames = mr.video.frame_generator(capture) # generator of image arrays
+    frames = mr.video.frame_generator(filename) # generator of image arrays
     FC_CODE = mr.video.cv.CV_CAP_PROP_FRAME_COUNT # some cv constant
     count = int(mr.video.cv.GetCaptureProperty(capture, FC_CODE))
     data = Series(index=range(1, count + 1))
