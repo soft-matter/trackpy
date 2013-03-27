@@ -30,16 +30,10 @@ from scipy.ndimage import measurements
 from scipy.ndimage import interpolation
 from scipy import stats
 from utils import memo
-import sql
 import plots
 import _Cfilters
 
 logger = logging.getLogger(__name__)
-
-def subtract_junk(image, junk_image):
-    """When there is junk in the field of view, call this
-    function first to subtract a baseline image from each frame."""
-    image -= junk_image # in place
 
 def bandpass(image, lshort, llong):
     """Convolve with a Gaussian to remove short-wavelength noise,
@@ -186,20 +180,21 @@ def _locate_centroids(image, diameter, separation=None,
     if not separation:
         separation = diameter + 1
     image = (255./image.max()*image.clip(min=0.)).astype(np.uint8)
-    c = DataFrame(
-        _local_maxima(image, diameter, separation, percentile=percentile),
-        columns=['x', 'y'])
+    c = DataFrame(_local_maxima(image, diameter, separation, percentile),
+                  columns=['x', 'y'])
     approx_mass = c.apply(
         lambda x: _estimate_mass(image, x[0], x[1], diameter), axis=1)
     refined_c = c[approx_mass > minmass].apply(
         lambda x: _refine_centroid(image, x[0], x[1], diameter, minmass), 
         axis=1)
-    refined_c.columns = ['x', 'y', 'mass', 'size', 'ecc']
     logger.info("%s local maxima, %s of qualifying mass", 
                 len(c), len(refined_c)) 
+    if len(refined_c) == 0:
+        return DataFrame(columns=['x', 'y', 'mass', 'size', 'ecc']) # empty
+    refined_c.columns = ['x', 'y', 'mass', 'size', 'ecc']
     return refined_c 
 
-def locate(image_file, diameter, minmass=100., separation=None, 
+def locate(image, diameter, minmass=100., separation=None, 
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
            percentile=64, pickN=None):
     """Read an image, do optional image preparation and cleanup, and locate 
@@ -207,7 +202,7 @@ def locate(image_file, diameter, minmass=100., separation=None,
 
     Parameters
     ----------
-    image_file : string file path
+    image: image array
     diameter : feature size in px
     minmass : minimum integrated brightness
        Default is 100, but a good value is often much higher. This is a 
@@ -216,7 +211,7 @@ def locate(image_file, diameter, minmass=100., separation=None,
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
     invert : Set to True if features are darker than background. Default True.
-    junk_image : an image that will be subtracted from each frame before
+    junk_image : image array, an image to be subtracted from each frame before
         it is processed
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
@@ -230,31 +225,27 @@ def locate(image_file, diameter, minmass=100., separation=None,
     and size means the radius of gyration of its Gaussian-like profile
     """
     smoothing_size = smoothing_size if smoothing_size else diameter # default
-    image = plt.imread(image_file)
-    if isinstance(junk_image,str):
-        if type(junk_image) is str:
-            junk_image = plt.imread(junk_image)
-        subtract_junk(image, junk_image)  
+    if junk_image is not None:
+        image -= junk_image
     if invert:
-        # Efficient way of doing image = 1 - image
-        image *= -1; image += 1 
+        image *= -1; image += 1 # i.e., image = 1 - image
     image = bandpass(image, noise_size, smoothing_size)
     f = _locate_centroids(image, diameter, separation=separation,
                           percentile=percentile, minmass=minmass,
                           pickN=pickN)
     return f
 
-def batch(trial, stack, images, diameter, minmass=100, separation=None,
+def batch(frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, invert=True, junk_image=None,
-          percentile=64, pickN=None, override=False):
+          percentile=64, pickN=None, override=False, table='features'):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
 
     Parameters
     ----------
-    trial : integer Trial Number or string Trial Name
-    stack : integer Stack Number or string Stack Name
-    image_file : string file path
+    frames : iterable frames
+        For example, frames = mr.video.frame_generator('video_file.avi')
+                  or frames = [array1, array2, array3]
     diameter : feature size in px
     minmass : minimum integrated brightness
        Default is 100, but a good value is often much higher. This is a 
@@ -268,6 +259,7 @@ def batch(trial, stack, images, diameter, minmass=100, separation=None,
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
     pickN : Not Implemented
+    table : HDFStore table. Defaults to 'features'.
 
     Returns
     -------
@@ -276,25 +268,19 @@ def batch(trial, stack, images, diameter, minmass=100, separation=None,
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
     """
-    images = _cast_images(images)
-    conn = sql.connect()
-    if sql.feature_duplicate_check(trial, stack, conn):
-        if override:
-            logger.info('Overriding')
-        else:
-            logging.error('There are entries for this trial and stack already.')
-            conn.close()
-            return False
-    junk_image = plt.imread(junk_image)
-    for frame, filepath in enumerate(images):
-        frame += 1 # Start at 1, not 0.
-        centroids = locate(filepath, diameter, minmass, separation, 
+    timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d_%H%M%S')
+    output_filename = 'data_' + timestamp
+    store = pd.HDFStore(output_filename)
+    for frame_no, image in enumerate(frames):
+        centroids = locate(image, diameter, minmass, separation, 
                            noise_size, smoothing_size, invert, junk_image,
                            percentile, pickN)
-        sql.insert_feat(trial, stack, frame, centroids, conn, override)
-        logger.info("Completed Trial %s Stack %s Frame %s", 
-                    trial, stack, frame)
-    conn.close()
+        centroids['frame'] = frame_no
+        logger.info("Frame %d: %d features", frame_no, len(centroids))
+        if len(centroids) == 0:
+            continue
+        store.append(table, centroids)
+    return store[table]
 
 def sample(images, diameter, minmass=100, separation=None,
            noise_size=1, smoothing_size=None, invert=True, junk_image=None,
@@ -332,53 +318,23 @@ def sample(images, diameter, minmass=100, separation=None,
     should be flat. If they dip in the middle, try increasing the diameter
     parameter.
     """
-    images = _cast_images(images)
-    get_elem = lambda x, indicies: [x[i] for i in indicies]
+    # Set up figures.
     fig, axes = plt.subplots(2, 2, sharex='col', sharey='row')
     axes = axes[0][0], axes[0][1], axes[1][0], axes[1][1] # flat
     fig.set_size_inches(12, 8)
-    if len(images) < 3:
-        samples = images
-    else:
-        # first, middle, last
-        samples = get_elem(images, [0, len(images)/2, -1])
-    some_features = []
-    for i, image_file in enumerate(samples):
-        logger.info("Sample %s of %s...", 1+i, len(samples))
-        f = locate(image_file, diameter, minmass, separation,
-                   noise_size, smoothing_size, invert, junk_image,
-                   percentile, pickN)
-        some_features.append(f)
-        plots.annotate(image_file, f, ax=axes[i])
-    some_features = pd.concat(some_features, ignore_index=True)
+    all_features = []
+    for image in samples:
+        features = locate(image, diameter, minmass, separation,
+                          noise_size, smoothing_size, invert, junk_image,
+                          percentile, pickN)
+        all_features.append(features)
+        plots.annotate(image, features, ax=axes[i])
+    all_features = pd.concat(all_features, ignore_index=True)
     fig, ax = plt.subplots()
-    plots.subpx_bias(some_features, ax=ax)
+    plots.subpx_bias(all_features, ax=ax)
     fig, ax = plt.subplots()
-    plots.mass_ecc(some_features, ax=ax)
+    plots.mass_ecc(all_features, ax=ax)
     fig, ax = plt.subplots()
-    plots.mass_size(some_features, ax=ax)
-    return some_features
-
-def _cast_images(images):
-    """Accept a list of image files, a directory of image files, 
-    or a single image file. Return contents as a list of strings."""
-    if type(images) is list:
-        return images
-    elif type(images) is str:
-        if os.path.isfile(images):
-            return list(images) # a single-element list
-        elif os.path.isdir(images):
-            images = list_images(images)
-            return images
-    else:
-        raise TypeError, ("images must be a directory path, a file path, or "
-                          "a list of file paths.")
-
-def list_images(directory):
-    "List the path to all image files in a directory."
-    files = os.listdir(directory)
-    images = [os.path.join(directory, f) for f in files if \
-        os.path.isfile(os.path.join(directory, f)) and re.match('.*\.png', f)]
-    if not images: logging.error('No images!')
-    return sorted(images)
+    plots.mass_size(all_features, ax=ax)
+    return all_features
 
