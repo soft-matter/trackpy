@@ -10,7 +10,7 @@ def track(features, search_range=5, memory=0, box_size=100):
         for i, pos in positions.iterrows():
             frame.append(pt.PointND(frame_no, pos))
     
-    hash_generator = lambda: pt.Hash_table((1000,1000), box_size)
+    hash_generator = lambda: pt.Hash_table((1300,1000), box_size)
     tracks = pt.link(frames, search_range, hash_generator, memory)
     probes = []
     for t in tracks:
@@ -22,5 +22,16 @@ def track(features, search_range=5, memory=0, box_size=100):
     return probes.reset_index()
 
 def bust_ghosts(tracks, threshold=100):
+    """Discard trajectories with few points. They are often specious.
+
+    Parameters
+    ----------
+    tracks : DataFrame of with a 'probe' column
+    threshold : minimum number of points to survive. 100 by default.
+
+    Returns
+    -------
+    tracks, culled
+    """
     b = tracks.groupby('probe').frame.transform(len) > threshold
     return tracks[b]
