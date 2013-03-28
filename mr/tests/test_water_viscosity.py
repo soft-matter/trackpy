@@ -1,6 +1,6 @@
 """Reproduce a control experiment."""
 import unittest
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
@@ -40,7 +40,7 @@ class TestWaterViscosity(unittest.TestCase):
         assert_frame_equal(trajectories, self.store['raw_trajectories'])
 
     def test_drift(self):
-        drift = mr.motion.compute_drift(self.store['raw_trajectories'])
+        drift = mr.motion.compute_drift(self.store['raw_trajectories'], 5)
         assert_frame_equal(drift, self.store['drift'])
 
     def test_drift_subtraction(self):
@@ -64,8 +64,8 @@ class TestWaterViscosity(unittest.TestCase):
         A = fit['A'].values[0]
         n = fit['n'].values[0]
         viscosity = 1.740/A
-        assert_almost_equal(n, EXPECTED_N, decimal=1)
-        assert_almost_equal(viscosity, EXPECTED_VISCOSITY, decimal=1)
+        assert_allclose(n, EXPECTED_N, rtol=0.05)
+        assert_allclose(viscosity, EXPECTED_VISCOSITY, rtol=0.15)
 
 if __name__ == '__main__':
     import nose
