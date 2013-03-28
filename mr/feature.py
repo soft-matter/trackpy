@@ -195,7 +195,7 @@ def _locate_centroids(image, diameter, separation=None,
     return refined_c 
 
 def locate(image, diameter, minmass=100., separation=None, 
-           noise_size=1, smoothing_size=None, invert=True, background=None,
+           noise_size=1, smoothing_size=None, invert=False, background=None,
            percentile=64, pickN=None):
     """Read an image, do optional image preparation and cleanup, and locate 
     Gaussian-like blobs of a given size above a given total brightness.
@@ -210,7 +210,8 @@ def locate(image, diameter, minmass=100., separation=None,
     separation : feature separation in px
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
-    invert : Set to True if features are darker than background. Default True.
+    invert : Set to True if features are darker than background. False by
+        default.
     background : image array, an image to be subtracted from each frame before
         it is processed
     percentile : Features must have a peak brighter than pixels in this
@@ -236,7 +237,7 @@ def locate(image, diameter, minmass=100., separation=None,
     return f
 
 def batch(frames, diameter, minmass=100, separation=None,
-          noise_size=1, smoothing_size=None, invert=True, background=None,
+          noise_size=1, smoothing_size=None, invert=False, background=None,
           percentile=64, pickN=None, override=False, table='features'):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
@@ -253,7 +254,8 @@ def batch(frames, diameter, minmass=100, separation=None,
     separation : feature separation in px
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
-    invert : Set to True if features are darker than background. Default True.
+    invert : Set to True if features are darker than background. False by
+        default.
     background : an image that will be subtracted from each frame before
         it is processed
     percentile : Features must have a peak brighter than pixels in this
@@ -283,7 +285,7 @@ def batch(frames, diameter, minmass=100, separation=None,
     return store[table]
 
 def sample(frames, diameter, minmass=100, separation=None,
-           noise_size=1, smoothing_size=None, invert=True, background=None,
+           noise_size=1, smoothing_size=None, invert=False, background=None,
            percentile=64, pickN=None):
     """Try parameters on the first, middle, and last image in a stack.
     See notes for explanation of plots.
@@ -298,7 +300,8 @@ def sample(frames, diameter, minmass=100, separation=None,
     separation : feature separation in px
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
-    invert : Set to True if features are darker than background. Default True.
+    invert : Set to True if features are darker than background. False by
+        default.
     background : an image that will be subtracted from each frame before
         it is processed
     percentile : Features must have a peak brighter than pixels in this
