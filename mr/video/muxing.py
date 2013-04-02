@@ -19,11 +19,9 @@
 import os, subprocess, re, argparse, string
 import logging
 from datetime import datetime, timedelta
-import sql
+import mr.sql
 import logging
-from utils import extract, timestamp, time_interval
-from opencv import *
-from tif import *
+from mr.utils import extract, timestamp, time_interval
 
 logger = logging.getLogger(__name__)
 
