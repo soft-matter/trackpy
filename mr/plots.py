@@ -227,3 +227,11 @@ def plot_principal_axes(img, x_bar, y_bar, cov, ax=None):
     ax.plot(*make_lines(eigvals, eigvecs, mean, 0), marker='o', color='white')
     ax.plot(*make_lines(eigvals, eigvecs, mean, -1), marker='o', color='red')
     ax.imshow(img)
+
+def examine_jumps(data, jumps):
+    fig, axes = plt.subplots(len(jumps), 1)
+    for i, jump in enumerate(jumps):
+        roi = data.ix[jump-10:jump+10]
+        axes[i].plot(roi.index, roi, 'g.')
+        axes[i].plot(jump, data[jump], 'ko')
+    fig.show()
