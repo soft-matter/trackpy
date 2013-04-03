@@ -50,7 +50,6 @@ class Video(object):
     def rewind(self):
         """Reopen the video file to start at the beginning. ('Seeking'
         capabilities in the underlying OpenCV library are not reliable.)"""
-        self.capture.close()
         self.capture = open_video(self.filename)
         self.cursor = 0
 
