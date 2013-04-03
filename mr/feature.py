@@ -271,7 +271,7 @@ def batch(frames, diameter, minmass=100, separation=None,
     and size means the radius of gyration of its Gaussian-like profile
     """
     timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d_%H%M%S')
-    output_filename = 'data_' + timestamp
+    output_filename = 'data_' + timestamp + '.h5'
     store = pd.HDFStore(output_filename)
     for frame_no, image in enumerate(frames):
         centroids = locate(image, diameter, minmass, separation, 
