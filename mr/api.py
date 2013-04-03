@@ -36,5 +36,4 @@ from video import *
 from tracking import *
 import mr.wire
 
-
 import models.power_fluid

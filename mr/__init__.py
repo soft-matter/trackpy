@@ -17,7 +17,6 @@
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
 import logging
-import matplotlib
 import os
 import warnings
 

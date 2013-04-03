@@ -1,6 +1,5 @@
 import os
 import cv2
-from PIL import Image
 import numpy as np
 
 def open_video(filename):
@@ -56,7 +55,6 @@ class Video(object):
         self.cursor = 0
 
     def next(self):
-        print self.cursor
         if self.endpoint is not None and self.cursor > self.endpoint:
             raise StopIteration
         return_code, frame = self.capture.read()
