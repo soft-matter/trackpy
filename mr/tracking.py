@@ -2,23 +2,46 @@ import trackpy.tracking as pt
 import numpy as np
 import pandas as pd
 
+class Feature(pt.PointND):
+    "Extends pt.PointND to carry meta information from feature identification."
+    def add_meta(self, mass, size, ecc):
+        self.mass = mass
+        self.size = size
+        self.ecc= ecc
+
 def track(features, search_range=5, memory=0, box_size=100):
+    """Link features into trajectories.
+
+    Parameters
+    ----------
+    features : DataFrame including x, y, frame
+    search_range : maximum displacement of a probe between two frames
+        Default is 5 px.
+    memory : Number of frames through which a probe is allowed to "disappear"
+        and reappear and be considered the same probe. Default 0.
+    box_size : A parameter of the underlying algorithm.
+    """
     frames = []
-    for frame_no, positions in features[['x', 'y']].groupby(features['frame']):
+    for frame_no, fs in features.groupby(features['frame']):
         frame = []
         frames.append(frame)
-        for i, pos in positions.iterrows():
-            frame.append(pt.PointND(frame_no, pos))
+        for i, vals in fs.iterrows():
+            x, y, mass, size, ecc, frame_no = vals
+            f = Feature(frame_no, (x, y))
+            f.add_meta(mass, size, ecc)
+            frame.append(f)
     
     hash_generator = lambda: pt.Hash_table((1300,1000), box_size)
     tracks = pt.link(frames, search_range, hash_generator, memory)
     probes = []
     for t in tracks:
-        probe = pd.DataFrame(map(lambda x: x.pos, t.points), 
-                             index=map(lambda x: x.t, t.points),
-                             columns = ['x', 'y'])
+        probe = pd.DataFrame(
+            map(lambda x: list(x.pos) + [x.mass, x.size, x.ecc], t.points), 
+            index=map(lambda x: x.t, t.points),
+            columns = ['x', 'y', 'mass', 'size', 'ecc'])
         probes.append(probe)
-    probes = pd.concat(probes, keys=np.arange(len(probes)), names=['probe', 'frame'])
+    probes = pd.concat(probes, keys=np.arange(len(probes)), 
+                       names=['probe', 'frame'])
     return probes.reset_index()
 
 def bust_ghosts(tracks, threshold=100):

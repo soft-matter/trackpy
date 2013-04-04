@@ -43,7 +43,7 @@ class Video(object):
         self.invert = invert
         self.capture = open_video(self.filename)
         self.cursor = 0
-        self.count = video._count()
+        self.count = self._count()
         self.endpoint = None
 
     def __iter__(self):
