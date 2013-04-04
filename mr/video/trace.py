@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import pandas as pd
 
 def circle(features, frames):
     """Play video, circling features in each frame.
@@ -25,7 +26,7 @@ def circle(features, frames):
             these_centers = centers.loc[frame_no, ['x', 'y']]
             # This if/else statement handles the unusual case in which
             # there is only one probe in a frame.
-            if isinstance(these_centers, Series):
+            if isinstance(these_centers, pd.Series):
                 these_centers = list([these_centers.tolist()])
             else:
                 these_centers = these_centers.values
