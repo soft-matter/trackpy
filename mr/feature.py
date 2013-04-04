@@ -271,14 +271,21 @@ def batch(store, frames, diameter, minmass=100, separation=None,
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
     """
-    timestamp = pd.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d %H%M%S')
     if table is None:
         table = 'features_' + timestamp + '.h5'
-    meta = Series([diameter, minmass, separation, noise_size, 
-                   smoothing_size, invert, percentile, pickN, timestamp], 
-                  index=['diameter', 'minmass', 'separation', 'noise_size', 
-                           'smoothing_size', 'invert', 'percentile', 'pickN',
-                           'timestamp'])
+    # Gather meta information and pack it into a Series.
+    try: 
+        source = frames.filename
+    except:
+        source = None
+    meta = Series([source, diameter, minmass, separation, noise_size, 
+                   smoothing_size, invert, percentile, pickN, 
+                   pd.Timestamp(timestamp)], 
+                  index=['source', 
+                         'diameter', 'minmass', 'separation', 'noise_size', 
+                         'smoothing_size', 'invert', 'percentile', 'pickN',
+                         'timestamp'])
     store[table + '_meta'] = meta
     for i, image in enumerate(frames):
         # If frames has a cursor property, use it. Otherwise, just count
