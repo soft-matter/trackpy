@@ -11,13 +11,39 @@ def open_video(filename):
     return capture
 
 class Video(object):
+    """Iterable object that returns frames of video as numpy arrays of integers
+    0-255.
 
+    Parameters
+    ----------
+    filename : string
+    gray : Convert color image to grayscale. True by default.
+    invert : Invert black and white. True by default.
+
+    Examples
+    --------
+    >>> video = Video('filename')
+    >>> imshow(video.next()) # Show the first frame.
+    >>> imshow(video.next()[0:10][0:10]) # Show one corner of the second frame.
+    >>> video.rewind()
+    >>> imshow(video.next()) # First frame again.
+
+    >>> for frame in video:
+    ...    # Do something with every frame.
+ 
+    >>> for frame in video[10:20]:
+    ...    # Do something with frames 10-20.
+ 
+    >>> frame_count = video.count # Number of frames in video
+    """
+    
     def __init__(self, filename, gray=True, invert=True):
         self.filename = filename
         self.gray = gray
         self.invert = invert
         self.capture = open_video(self.filename)
         self.cursor = 0
+        self.count = video._count()
         self.endpoint = None
 
     def __iter__(self):
@@ -39,7 +65,7 @@ class Video(object):
     def endpoint(self, val):
         self._endpoint = val
 
-    def count(self):
+    def _count(self):
         "Return total frame count. Result is not always exact."
         return int(self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 

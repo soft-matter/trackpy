@@ -1,6 +1,15 @@
 import cv2
 
 def circle(features, frames):
+    """Play video, circling features in each frame.
+
+    Parameters
+    ----------
+    features : DataFrame including columns 'frame', 'x', and 'y'
+    frames : iterable container of image arrays, like a list of images or a 
+        Video object (See mr.opencv.video.Video.)
+    """
+
     RADIUS = 10
     COLOR = (0, 255, 0)
     features_by_frame = features.set_index('frame')

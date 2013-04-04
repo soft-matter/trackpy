@@ -124,7 +124,7 @@ def analyze(frame, angle_only=True, plot=False):
         return results
 
 def batch(frames, shift=True):
-    count = frames.count()
+    count = frames.count
     data = Series(index=range(1, count + 1))
     for i, img in enumerate(frames):
         data[i + 1] = analyze(img)
