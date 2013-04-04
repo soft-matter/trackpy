@@ -238,7 +238,7 @@ def locate(image, diameter, minmass=100., separation=None,
 
 def batch(store, frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, invert=False, background=None,
-          percentile=64, pickN=None, override=False, table=None):
+          percentile=64, pickN=None, table=None):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
 
@@ -271,14 +271,20 @@ def batch(store, frames, diameter, minmass=100, separation=None,
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
     """
+    timestamp = pd.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     if table is None:
-        timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d_%H%M%S')
         table = 'features_' + timestamp + '.h5'
+    meta = Series([diameter, minmass, separation, noise_size, 
+                   smoothing_size, invert, percentile, pickN, timestamp], 
+                  index=['diameter', 'minmass', 'separation', 'noise_size', 
+                           'smoothing_size', 'invert', 'percentile', 'pickN',
+                           'timestamp'])
+    store[table + '_meta'] = meta
     for i, image in enumerate(frames):
         # If frames has a cursor property, use it. Otherwise, just count
         # the frames from 0.
         try:
-            frame_no = frames.cursor
+            frame_no = frames.cursor - 1
         except AttributeError:
             frame_no = i 
         centroids = locate(image, diameter, minmass, separation, 
