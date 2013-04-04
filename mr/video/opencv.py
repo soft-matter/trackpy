@@ -92,7 +92,7 @@ class Video(object):
 
     def __getitem__(self, val):
         if isinstance(val, slice):
-            start, stop, step = val.indices(self.count())
+            start, stop, step = val.indices(self.count)
             if step != 1:
                 raise NotImplementedError, \
                     "Step must be 1."
