@@ -23,7 +23,11 @@ def circle(features, frames):
             if len(frame.shape) == 2:
                 frame = cv2.cvtColor(frame, cv2.cv.CV_GRAY2RGB)
             frame_no = frames.cursor - 1
-            these_centers = centers.loc[frame_no, ['x', 'y']]
+            try:
+                these_centers = centers.loc[frame_no, ['x', 'y']]
+            except KeyError:
+                print "No features for Frame %d." % frame_no
+                continue
             # This if/else statement handles the unusual case in which
             # there is only one probe in a frame.
             if isinstance(these_centers, pd.Series):
