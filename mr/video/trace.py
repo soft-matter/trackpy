@@ -11,10 +11,10 @@ def circle(features, frames):
     frames : iterable container of image arrays, like a list of images or a 
         Video object (See mr.opencv.video.Video.)
     """
-
     RADIUS = 10
     COLOR = (0, 200, 0)
-    centers = features.set_index('frame')[['x', 'y']].apply(np.rint).astype('int')
+    SHIFT = 3
+    centers = features.set_index('frame')[['x', 'y']]
     cv2.namedWindow("playback")
     print "Press Ctrl+C to interrupt video."
     try:
@@ -31,7 +31,9 @@ def circle(features, frames):
             else:
                 these_centers = these_centers.values
             for x, y in these_centers:
-                cv2.circle(frame, (x, y), RADIUS, COLOR) 
+                x, y = map(lambda x: int(x*2**SHIFT), [x, y])
+                cv2.circle(frame, (x, y), RADIUS*2**SHIFT, COLOR, 
+                           thickness=1, lineType=cv2.cv.CV_AA, shift=SHIFT) 
             cv2.imshow("playback", frame)
             cv2.waitKey(1)
     except KeyboardInterrupt:
