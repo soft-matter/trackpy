@@ -1,2 +1,1 @@
-import power_fluid 
-import viscous
+from mr.models import *

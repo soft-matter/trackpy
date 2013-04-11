@@ -24,4 +24,18 @@ import warnings
 FORMAT = "%(name)s.%(funcName)s:  %(message)s"
 logging.basicConfig(level=logging.INFO, format=FORMAT)
 
-from mr.api import *
+import numpy as np
+import pandas as pd
+
+# SSH-safe matplotlib import
+import matplotlib as mpl
+import os
+if 'DISPLAY' not in os.environ:
+    print "No $DISPLAY variable found. Using the Agg matplotlib backend."
+    mpl.use('Agg') # suppress plot display
+
+from mr.core.api import *
+from mr.video.api import *
+from mr import wire
+
+from mr import models

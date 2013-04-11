@@ -29,7 +29,7 @@ import motion
 
 logger = logging.getLogger(__name__)
 
-def make_axes(func):
+def _make_axes(func):
     """
     A decorator for plotting functions.
     NORMALLY: Direct the plotting function to the current axes, gca().
@@ -51,8 +51,8 @@ def make_axes(func):
             return func(*args, **kwargs)
     return wrapper
 
-def make_fig(func):
-    """See make_axes."""
+def _make_fig(func):
+    """See _make_axes."""
     wraps(func)
     def wrapper(*args, **kwargs):
         if 'fig' not in kwargs:
@@ -63,7 +63,7 @@ def make_fig(func):
             return func(*args, **kwargs)
     return wrapper
 
-@make_axes
+@_make_axes
 def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None, 
        cmap=mpl.cm.winter, ax=None):
     """Plot traces of trajectories for each probe.
@@ -130,7 +130,7 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
 
 ptraj = plot_traj # convenience alias
 
-@make_axes
+@_make_axes
 def annotate(image, centroids, circle_size=170, invert=False, ax=None):
     """Mark identified features with white circles.
     
@@ -161,7 +161,7 @@ def annotate(image, centroids, circle_size=170, invert=False, ax=None):
                s=circle_size, facecolors='none', edgecolors='g')
     return ax
 
-@make_axes
+@_make_axes
 def mass_ecc(f, ax=None):
     """Plot each probe's mass versus eccentricity."""
     ax.plot(f['mass'], f['ecc'], 'ko', alpha=0.3)
@@ -169,7 +169,7 @@ def mass_ecc(f, ax=None):
     ax.set_ylabel('eccentricity (0=circular)')
     return ax
 
-@make_axes
+@_make_axes
 def mass_size(f, ax=None):
     """Plot each probe's mass versus size."""
     ax.plot(f['mass'], f['size'], 'ko', alpha=0.3)
@@ -177,7 +177,7 @@ def mass_size(f, ax=None):
     ax.set_ylabel('size')
     return ax
 
-@make_axes
+@_make_axes
 def subpx_bias(f, ax=None):
     """Histogram the fractional part of the x and y position.
 
@@ -188,7 +188,7 @@ def subpx_bias(f, ax=None):
     f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
     return ax
 
-@make_axes
+@_make_axes
 def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
     data.dropna().plot(style='o', logx=logx, logy=logy, ax=ax)
     datalines = ax.get_lines() 
@@ -206,7 +206,7 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
         ax.set_xscale('log') # logx kwarg does not always take. Bug?
     return ax
 
-@make_axes
+@_make_axes
 def plot_principal_axes(img, x_bar, y_bar, cov, ax=None):
     """Plot bars with a length of 2 stddev along the principal axes.
 

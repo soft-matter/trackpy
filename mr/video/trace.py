@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-def circle(features, frames):
+def circle(features, frames, high_contrast=True):
     """Play video, circling features in each frame.
 
     Parameters
@@ -19,6 +19,9 @@ def circle(features, frames):
     print "Press Ctrl+C to interrupt video."
     try:
         for frame in frames: 
+            # Maximize contrast.
+            if high_contrast:
+                frame = 255/(frame.max() - frame.min())*(frame - frame.min())
             # Colorize frame to allow colored annotations.
             if len(frame.shape) == 2:
                 frame = cv2.cvtColor(frame, cv2.cv.CV_GRAY2RGB)

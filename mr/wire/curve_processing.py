@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-def find_jumps(data, z_window=10, f_window=7,
+def locate_jumps(data, z_window=10, f_window=7,
                maxima_window=100, significance=2):
     """Find the points when the B-field was stepped.
 
