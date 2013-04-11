@@ -286,7 +286,6 @@ def batch(store, frames, diameter, minmass=100, separation=None,
                          'diameter', 'minmass', 'separation', 'noise_size', 
                          'smoothing_size', 'invert', 'percentile', 'pickN',
                          'timestamp'])
-    store[table + '_meta'] = meta
     for i, image in enumerate(frames):
         # If frames has a cursor property, use it. Otherwise, just count
         # the frames from 0.
@@ -303,6 +302,7 @@ def batch(store, frames, diameter, minmass=100, separation=None,
             continue
         store.append(table, centroids)
         store.flush() # Force save. Not essential.
+    store.get_storer(table).attrs.meta = meta
     return store[table]
 
 def sample(frames, diameter, minmass=100, separation=None,
