@@ -5,7 +5,6 @@ from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
 import os
-
 import pandas as pd
 from pandas import DataFrame, Series
 
@@ -25,18 +24,26 @@ class TestWaterViscosity(unittest.TestCase):
         VIDEO_PATH = os.path.join(curpath(), 'water/bulk-water.mov')
         STORE_PATH = os.path.join(curpath(), 'water/expected.h5')
         self.store = pd.HDFStore(STORE_PATH)
-        self.frames = mr.video.frame_generator(VIDEO_PATH)
+        self.frames = mr.Video(VIDEO_PATH)
 
     @slow
     def test_batch_locate(self):
-        features = mr.feature.batch(self.frames, DIAMETER, MINMASS)
-        assert_frame_equal(features, self.store['features'])
+        MAX_FRAME = 10
+        temp_store = pd.HDFStore('temp_for_testing.h5')
+        try:
+            features = mr.batch(
+                temp_store, self.frames[:MAX_FRAME], DIAMETER, MINMASS)
+        finally:
+            os.remove('temp_for_testing.h5') 
+        expected_features = self.store['features']
+        assert_frame_equal(
+            features, expected_features[expected_features.frame <= MAX_FRAME])
 
     @slow
     def test_track(self):
         features = self.store['features']
-        trajectories = mr.tracking.track(features[features['ecc'] < 0.1])
-        trajectories = mr.tracking.bust_ghosts(trajectories, 50)
+        trajectories = mr.track(features[features['ecc'] < 0.1])
+        trajectories = mr.bust_ghosts(trajectories, 50)
         assert_frame_equal(trajectories, self.store['raw_trajectories'])
 
     def test_drift(self):
@@ -44,7 +51,7 @@ class TestWaterViscosity(unittest.TestCase):
         assert_frame_equal(drift, self.store['drift'])
 
     def test_drift_subtraction(self):
-        trajectories = mr.motion.subtract_drift(self.store['raw_trajectories'],
+        trajectories = mr.subtract_drift(self.store['raw_trajectories'],
                                                 self.store['drift'])
         assert_frame_equal(trajectories, self.store['trajectories'])
 
