@@ -53,7 +53,7 @@ class Video(object):
         if self.gray:
             frame = cv2.cvtColor(frame, cv2.cv.CV_RGB2GRAY)
         if self.invert:
-            frame *= 1
+            frame *= -1
             frame += 255
         return frame 
 
