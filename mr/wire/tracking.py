@@ -123,7 +123,19 @@ def analyze(frame, angle_only=True, plot=False):
     else:
         return results
 
-def batch(frames, shift=True):
+def track(frames, shift=True):
+    """Track the orientation of a wire through many frames.
+
+    Parameters
+    ----------
+    frames : an iterable, such as a list of images or a mr.Video
+        object
+    shift : automatically put angles in the 0-180 degree range
+
+    Returns
+    -------
+    Series of angles in degrees, indexed by frame
+    """
     count = frames.count
     data = Series(index=range(1, count + 1))
     for i, img in enumerate(frames):
