@@ -235,3 +235,8 @@ def examine_jumps(data, jumps):
         axes[i].plot(roi.index, roi, 'g.')
         axes[i].plot(jump, data[jump], 'ko')
     fig.show()
+    fig2, axes2 = plt.subplots(1, 1)
+    axes2.plot(data.index, data, 'g.')
+    for jump in jumps:
+        axes2.plot(jump, data[jump], 'ko')
+    fig2.show()
