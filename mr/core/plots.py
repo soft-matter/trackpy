@@ -101,7 +101,7 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
     if colorby == 'probe':
         # Unstack probes into columns.
         unstacked = traj.set_index(['frame', 'probe']).unstack()
-        plt.plot(mpp*unstacked['x'], mpp*unstacked['y'])
+        ax.plot(mpp*unstacked['x'], mpp*unstacked['y'])
     if colorby == 'frame':
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine 
         from matplotlib.collections import LineCollection
@@ -126,6 +126,7 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
             plt.text(coord['x'], coord['y'], str(probe_id),
                      horizontalalignment='center',
                      verticalalignment='center')
+    ax.invert_yaxis()
     return ax
 
 ptraj = plot_traj # convenience alias
