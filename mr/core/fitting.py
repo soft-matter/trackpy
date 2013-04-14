@@ -145,7 +145,7 @@ def NLS(data, model_func, params, weights=None,
     r.fits = pd.concat(fits, axis=1)
     if plot:
         import plots
-        plots.fit(data, r.fits, inverted_model, logx=True)
+        plots.fit(data, r.fits, inverted_model)
     return r
 
 def fit_powerlaw(data, plot=True):

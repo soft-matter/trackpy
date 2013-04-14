@@ -46,6 +46,11 @@ class Video(object):
         self.count = self._count()
         self.endpoint = None
 
+    def __repr__(self):
+        return """Video Frames
+Source File: %s
+Cursor at Frame %d of %d""" % (self.filename, self.cursor, self.count)
+
     def __iter__(self):
         return self
 
