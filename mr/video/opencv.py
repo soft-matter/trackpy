@@ -42,14 +42,18 @@ class Video(object):
         self.gray = gray
         self.invert = invert
         self.capture = open_video(self.filename)
+        self.shape = (self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH),
+                      self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
         self.cursor = 0
         self.count = self._count()
         self.endpoint = None
 
     def __repr__(self):
-        return """Video Frames
+        return """<Video Frames>
 Source File: %s
-Cursor at Frame %d of %d""" % (self.filename, self.cursor, self.count)
+Frame Dimensions: %d x %d
+Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
+                               self.cursor, self.count)
 
     def __iter__(self):
         return self
