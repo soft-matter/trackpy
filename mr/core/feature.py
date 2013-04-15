@@ -57,9 +57,7 @@ def circular_mask(diameter, side_length=None):
     points = np.arange(-int(L/2), int(L/2) + 1)
     x, y = np.meshgrid(points, points)
     z = np.sqrt(x**2 + y**2)
-    mask = np.zeros_like(z, dtype='bool')
-    mask[z < r] = 1
-    return mask
+    return z <= r
 
 @memo
 def _rgmask(diameter):
