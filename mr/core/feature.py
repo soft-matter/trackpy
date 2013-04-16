@@ -30,7 +30,8 @@ from scipy.ndimage import measurements
 from scipy.ndimage import interpolation
 from scipy import stats
 from utils import memo
-import plots
+from mr.core import uncertainty
+from mr.core import plots
 import _Cfilters
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ def bandpass(image, lshort, llong):
     smoothed_background = filters.uniform_filter(image, 2*llong+1)
     result = np.fft.ifft2(fourier.fourier_gaussian(np.fft.fft2(image), lshort))
     result -= smoothed_background
-    # Where result < 0 that pixel is definitely not a feature. Zero to simplify.
+    result -= 1 # Features must be at least 1 ADU above the background.
     return result.real.clip(min=0.)
 
 @memo
@@ -60,7 +61,7 @@ def circular_mask(diameter, side_length=None):
     return z <= r
 
 @memo
-def _rgmask(diameter):
+def rgmask(diameter):
     r = int(diameter)/2
     points = np.arange(-r, r + 1)
     x, y = np.meshgrid(points, points)
@@ -69,20 +70,20 @@ def _rgmask(diameter):
     return mask
 
 @memo
-def _thetamask(diameter):
+def thetamask(diameter):
     r = int(diameter)/2
     return circular_mask(diameter) * \
         np.fromfunction(lambda y, x: np.arctan2(r-y,x-r), (diameter, diameter)) 
 
 @memo
-def _sinmask(diameter):
-    return circular_mask(diameter)*np.sin(2*_thetamask(diameter))
+def sinmask(diameter):
+    return circular_mask(diameter)*np.sin(2*thetamask(diameter))
 
 @memo
-def _cosmask(diameter):
-    return circular_mask(diameter)*np.cos(2*_thetamask(diameter))
+def cosmask(diameter):
+    return circular_mask(diameter)*np.cos(2*thetamask(diameter))
 
-def _local_maxima(image, diameter, separation, percentile=64):
+def local_maxima(image, diameter, separation, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
     # Find the threshold brightness, representing the given
     # percentile among all NON-ZERO pixels in the image.
@@ -117,7 +118,7 @@ def _local_maxima(image, diameter, separation, percentile=64):
     # to the DataFrame constructor.
     return np.array([peaks[1], peaks[0]]).T # columns: x, y
 
-def _estimate_mass(image, x, y, diameter):
+def estimate_mass(image, x, y, diameter):
     "Compute the total brightness in the neighborhood of a local maximum."
     r = int(diameter)/2
     x0 = x - r
@@ -127,7 +128,7 @@ def _estimate_mass(image, x, y, diameter):
     neighborhood = circular_mask(diameter)*image[y0:y1, x0:x1]
     return np.sum(neighborhood)
 
-def _refine_centroid(image, x, y, diameter, minmass=100, iterations=10):
+def refine_centroid(image, x, y, diameter, minmass=100, iterations=10):
     """Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
     brightness, size (Rg), and eccentricity (0=circular)."""
@@ -160,12 +161,13 @@ def _refine_centroid(image, x, y, diameter, minmass=100, iterations=10):
         yc, xc = yc + y0, xc + x0  # image coords
     
     # Characterize the neighborhood of our final centroid.
-    mass = np.sum(neighborhood)    
-    Rg = np.sqrt(np.sum(_rgmask(diameter)*image[y0:y1, x0:x1])/mass)
-    ecc = np.sqrt((np.sum(neighborhood*_cosmask(diameter)))**2 + 
-                  (np.sum(neighborhood*_sinmask(diameter)))**2) / \
+    mass = neighborhood.sum() 
+    Rg = np.sqrt(np.sum(rgmask(diameter)*neighborhood)/mass)
+    ecc = np.sqrt((np.sum(neighborhood*cosmask(diameter)))**2 + 
+                  (np.sum(neighborhood*sinmask(diameter)))**2) / \
                   (mass - neighborhood[r, r] + 1e-6)
-    return Series([xc, yc, mass, Rg, ecc])
+    signal = neighborhood.max() - neighborhood.mean()
+    return Series([xc, yc, mass, Rg, ecc, signal])
 
 def _locate_centroids(image, diameter, separation=None, 
                       percentile=64, minmass=100, pickN=None):
@@ -178,18 +180,18 @@ def _locate_centroids(image, diameter, separation=None,
     if not separation:
         separation = diameter + 1
     image = (255./image.max()*image.clip(min=0.)).astype(np.uint8)
-    c = DataFrame(_local_maxima(image, diameter, separation, percentile),
+    c = DataFrame(local_maxima(image, diameter, separation, percentile),
                   columns=['x', 'y'])
     approx_mass = c.apply(
-        lambda x: _estimate_mass(image, x[0], x[1], diameter), axis=1)
+        lambda x: estimate_mass(image, x[0], x[1], diameter), axis=1)
     refined_c = c[approx_mass > minmass].apply(
-        lambda x: _refine_centroid(image, x[0], x[1], diameter, minmass), 
+        lambda x: refine_centroid(image, x[0], x[1], diameter, minmass), 
         axis=1)
     logger.info("%s local maxima, %s of qualifying mass", 
                 len(c), len(refined_c)) 
     if len(refined_c) == 0:
-        return DataFrame(columns=['x', 'y', 'mass', 'size', 'ecc']) # empty
-    refined_c.columns = ['x', 'y', 'mass', 'size', 'ecc']
+        return DataFrame(columns=['x', 'y', 'mass', 'size', 'ecc', 'signal']) # empty
+    refined_c.columns = ['x', 'y', 'mass', 'size', 'ecc', 'signal']
     return refined_c 
 
 def locate(image, diameter, minmass=100., separation=None, 
@@ -218,7 +220,7 @@ def locate(image, diameter, minmass=100., separation=None,
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc])
+    DataFrame([x, y, mass, size, ecc, signal])
 
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
@@ -228,11 +230,13 @@ def locate(image, diameter, minmass=100., separation=None,
         image = image - background
     if invert:
         image = 255 - image # Do not do in place -- can confuse repeated calls. 
+    noise = uncertainty.measure_noise(image, diameter) # Must happen before bandpass!
     image = bandpass(image, noise_size, smoothing_size)
     f = _locate_centroids(image, diameter, separation=separation,
                           percentile=percentile, minmass=minmass,
                           pickN=pickN)
-    return f
+    ep = uncertainty.static_error(f, noise, diameter, noise_size)
+    return f.join(ep)
 
 def batch(store, frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, invert=False, background=None,
@@ -264,7 +268,7 @@ def batch(store, frames, diameter, minmass=100, separation=None,
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc])
+    DataFrame([x, y, mass, size, ecc, signal])
 
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
@@ -329,7 +333,7 @@ def sample(frames, diameter, minmass=100, separation=None,
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc])
+    DataFrame([x, y, mass, size, ecc, signal])
     containing all the features from these sample frames
 
     Notes
