@@ -142,5 +142,19 @@ def track(frames, shift=True):
         data[i + 1] = analyze(img)
     data = data.dropna() # Discard unused rows.
     if shift:
-        data = data.where(data > 0, data + 180)
+        data = shift_ref_frame(data)
     return data
+
+def shift_ref_frame(data):
+    """Turn the reference frame to avoid jumps between 180 and 0 degrees.
+
+    Parameters
+    ----------
+    data : array of angles in degrees
+
+    Returns
+    -------
+    data
+    """
+    data -= data.min()
+    data = data % 180
