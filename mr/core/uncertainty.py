@@ -1,7 +1,6 @@
-from mr.core import feature
 import numpy as np
 from scipy.ndimage import morphology
-from mr.core.feature import bandpass, circular_mask
+from mr.core.preprocessing import bandpass, circular_mask
 
 def roi(image, diameter):
     """Return a mask selecting the neighborhoods of bright regions.
