@@ -4,11 +4,12 @@ import pandas as pd
 
 class Feature(pt.PointND):
     "Extends pt.PointND to carry meta information from feature identification."
-    def add_meta(self, mass, size, ecc, signal):
+    def add_meta(self, mass, size, ecc, signal, ep):
         self.mass = mass
         self.size = size
         self.ecc = ecc
         self.signal = signal
+        self.ep = ep
 
 def track(features, search_range=5, memory=0, box_size=100):
     """Link features into trajectories.
@@ -28,9 +29,9 @@ def track(features, search_range=5, memory=0, box_size=100):
         frame = []
         frames.append(frame)
         for i, vals in fs.iterrows():
-            x, y, mass, size, ecc, signal, frame_no = vals
-            f = Feature(frame_no, (x, y))
-            f.add_meta(mass, size, ecc, signal)
+            # Assume first two columns are x, y, and last is frame number.
+            f = Feature(vals[-1], (vals[0], vals[1]))
+            f.add_meta(*vals[2:-1])
             frame.append(f)
     
     hash_generator = lambda: pt.Hash_table((1300,1000), box_size)
@@ -40,9 +41,9 @@ def track(features, search_range=5, memory=0, box_size=100):
     probes = []
     for t in tracks:
         probe = pd.DataFrame(
-            map(lambda x: list(x.pos) + [x.mass, x.size, x.ecc, x.signal], t.points), 
+            map(lambda x: list(x.pos) + [x.mass, x.size, x.ecc, x.signal, x.ep], t.points), 
             index=map(lambda x: x.t, t.points),
-            columns = ['x', 'y', 'mass', 'size', 'ecc', 'signal'])
+            columns = ['x', 'y', 'mass', 'size', 'ecc', 'signal', 'ep'])
         probes.append(probe)
     probes = pd.concat(probes, keys=np.arange(len(probes)), 
                        names=['probe', 'frame'])
