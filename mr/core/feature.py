@@ -29,7 +29,7 @@ from scipy.ndimage import fourier
 from scipy.ndimage import measurements
 from scipy.ndimage import interpolation
 from scipy import stats
-from mr.utils import memo
+from mr.core.utils import memo
 from mr.core import uncertainty
 from mr.core import plots
 from mr.core.preprocessing import bandpass, circular_mask
