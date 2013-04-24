@@ -15,52 +15,50 @@ MINMASS = 3000
 MPP = 100/285.
 FPS = 24.
 
-def curpath():
-    path, _ = os.path.split(os.path.abspath(__file__))
-    return path
+path, _ = os.path.split(os.path.abspath(__file__))
 
 class TestWaterViscosity(unittest.TestCase):
     def setUp(self):
-        VIDEO_PATH = os.path.join(curpath(), 'water/bulk-water.mov')
-        STORE_PATH = os.path.join(curpath(), 'water/expected.h5')
-        self.store = pd.HDFStore(STORE_PATH)
+        VIDEO_PATH = os.path.join(path, 'water/bulk-water.mov')
+        STORE_PATH = os.path.join(path, 'water/expected2.h5')
+        self.store = pd.HDFStore(STORE_PATH, 'r')
         self.frames = mr.Video(VIDEO_PATH)
 
     @slow
     def test_batch_locate(self):
-        MAX_FRAME = 10
+        MAX_FRAME = 2
         temp_store = pd.HDFStore('temp_for_testing.h5')
         try:
             features = mr.batch(
                 temp_store, self.frames[:MAX_FRAME], DIAMETER, MINMASS)
         finally:
             os.remove('temp_for_testing.h5') 
-        expected_features = self.store['features']
-        assert_frame_equal(
-            features, expected_features[expected_features.frame <= MAX_FRAME])
+        expected = self.store.select('all_features', 'frame<=%s' % MAX_FRAME)
+        print features.frame.max(), expected.frame.max()
+        assert_frame_equal(features, expected)
 
     @slow
     def test_track(self):
-        features = self.store['features']
-        trajectories = mr.track(features[features['ecc'] < 0.1])
-        trajectories = mr.bust_ghosts(trajectories, 50)
-        assert_frame_equal(trajectories, self.store['raw_trajectories'])
+        features = self.store.select('sample_features')
+        t = mr.track(features)
+        expected = self.store.select('sample_traj')
+        assert_frame_equal(t, expected)
 
     def test_drift(self):
-        drift = mr.motion.compute_drift(self.store['raw_trajectories'], 5)
+        drift = mr.motion.compute_drift(self.store['good_traj'])
         assert_frame_equal(drift, self.store['drift'])
 
     def test_drift_subtraction(self):
-        trajectories = mr.subtract_drift(self.store['raw_trajectories'],
-                                                self.store['drift'])
-        assert_frame_equal(trajectories, self.store['trajectories'])
+        trajectories = mr.subtract_drift(self.store['good_traj'],
+                                         self.store['drift'])
+        assert_frame_equal(trajectories, self.store['tm'])
 
     def test_individual_msds(self):
-        imsds = mr.imsd(self.store['trajectories'], MPP, FPS)
+        imsds = mr.imsd(self.store['tm'], MPP, FPS)
         assert_frame_equal(imsds, self.store['individual_msds'])
 
     def test_ensemble_msds(self):
-        em = mr.emsd(self.store['trajectories'], MPP, FPS)
+        em = mr.emsd(self.store['tm'], MPP, FPS)
         assert_frame_equal(em, self.store['ensemble_msd'])
 
     def test_fit_powerlaw(self):
