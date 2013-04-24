@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 
-from mr.fitting import fit # Sue me.
+from mr.core.fitting import fit # Sue me.
 
 class TestFit(unittest.TestCase):
     def setUp(self):
