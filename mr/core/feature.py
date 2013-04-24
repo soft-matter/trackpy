@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
+from __future__ import division
 import re
 import os
 import logging
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 @memo
 def rgmask(diameter):
-    r = int(diameter)/2
+    r = int(diameter)//2
     points = np.arange(-r, r + 1)
     x, y = np.meshgrid(points, points)
     mask = x**2 + y**2
@@ -48,7 +49,7 @@ def rgmask(diameter):
 
 @memo
 def thetamask(diameter):
-    r = int(diameter)/2
+    r = int(diameter)//2
     return circular_mask(diameter) * \
         np.fromfunction(lambda y, x: np.arctan2(r-y,x-r), (diameter, diameter)) 
 
@@ -83,7 +84,7 @@ def local_maxima(image, diameter, separation, percentile=64):
         maxima_map, _Cfilters.nullify_secondary_maxima(), 
         footprint=circular_mask(separation), mode='constant')
     # Also, do not accept peaks near the edges.
-    margin = int(separation)/2
+    margin = int(separation)//2
     peak_map[..., :margin] = 0
     peak_map[..., -margin:] = 0
     peak_map[:margin, ...] = 0
@@ -97,7 +98,7 @@ def local_maxima(image, diameter, separation, percentile=64):
 
 def estimate_mass(image, x, y, diameter):
     "Compute the total brightness in the neighborhood of a local maximum."
-    r = int(diameter)/2
+    r = int(diameter)//2
     x0 = x - r
     x1 = x + r + 1
     y0 = y - r
@@ -110,7 +111,7 @@ def refine_centroid(image, x, y, diameter, minmass=100, iterations=10):
     hone in on its center-of-brightness. Return its coordinates, integrated
     brightness, size (Rg), and eccentricity (0=circular)."""
     # Define the square neighborhood of (x, y).
-    r = int(diameter)/2
+    r = int(diameter)//2
     x0, y0 = x - r, y - r
     x1, y1 = x + r + 1, y + r + 1
     neighborhood = circular_mask(diameter)*image[y0:y1, x0:x1]
@@ -156,7 +157,7 @@ def _locate_centroids(image, diameter, separation=None,
         raise ValueError, "Feature diameter must be an odd number. Round up."
     if not separation:
         separation = diameter + 1
-    image = (255./image.max()*image.clip(min=0.)).astype(np.uint8)
+    image = (255/image.max()*image.clip(min=0.)).astype(np.uint8)
     c = DataFrame(local_maxima(image, diameter, separation, percentile),
                   columns=['x', 'y'])
     approx_mass = c.apply(
@@ -279,7 +280,8 @@ def batch(store, frames, diameter, minmass=100, separation=None,
         logger.info("Frame %d: %d features", frame_no, len(centroids))
         if len(centroids) == 0:
             continue
-        store.append(table, centroids)
+        indexed = ['frames'] # columns on which you can perform queries
+        store.append(table, centroids, data_columns=indexed)
         store.flush() # Force save. Not essential.
     store.get_storer(table).attrs.meta = meta
     return store[table]
