@@ -1,4 +1,4 @@
-from mr.utils import memo
+from mr.core.utils import memo
 import numpy as np
 from scipy.ndimage import filters
 from scipy.ndimage import fourier
