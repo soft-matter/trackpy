@@ -280,7 +280,7 @@ def batch(store, frames, diameter, minmass=100, separation=None,
         logger.info("Frame %d: %d features", frame_no, len(centroids))
         if len(centroids) == 0:
             continue
-        indexed = ['frames'] # columns on which you can perform queries
+        indexed = ['frame'] # columns on which you can perform queries
         store.append(table, centroids, data_columns=indexed)
         store.flush() # Force save. Not essential.
     store.get_storer(table).attrs.meta = meta
