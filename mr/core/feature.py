@@ -252,7 +252,7 @@ def batch(store, frames, diameter, minmass=100, separation=None,
     """
     timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d %H%M%S')
     if table is None:
-        table = 'features_' + timestamp + '.h5'
+        table = 'features ' + timestamp
     # Gather meta information and pack it into a Series.
     try: 
         source = frames.filename
