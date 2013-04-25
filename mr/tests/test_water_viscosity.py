@@ -20,7 +20,7 @@ path, _ = os.path.split(os.path.abspath(__file__))
 class TestWaterViscosity(unittest.TestCase):
     def setUp(self):
         VIDEO_PATH = os.path.join(path, 'water/bulk-water.mov')
-        STORE_PATH = os.path.join(path, 'water/expected2.h5')
+        STORE_PATH = os.path.join(path, 'water/expected.h5')
         self.store = pd.HDFStore(STORE_PATH, 'r')
         self.frames = mr.Video(VIDEO_PATH)
 
