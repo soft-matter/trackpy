@@ -266,6 +266,9 @@ class PointND(Point):
         '''
         return np.sqrt(np.sum((self.pos - other_point.pos) ** 2))
 
+    def __str__(self):
+        return "({t}, {p})".format(t=self.t, p=self.pos)
+
 
 def link_full(levels, dims, search_range, hash_cls, memory=0, track_cls=Track):
     '''
@@ -307,6 +310,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     :py:class:`~trackpy.tracking.Point` objects.
 
     '''
+
     #    print "starting linking"
     # initial source set
     prev_set = set(levels[0])
@@ -337,12 +341,9 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
         # create a second copy that will be used as the source in
         # the next loop
         tmp_set = set(cur_level)
-        # memory set
-        new_mem_set = set()
 
         # fill in first 'cur' hash and set up attributes for keeping
         # track of possible connections
-
         for p in cur_set:
             cur_hash.add_point(p)
             p.back_cands = []
@@ -414,13 +415,16 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
 
             spl, dpl = _private_linker(s_sn, len(d_sn), search_range)
 
-            # strip the distance information off the subnet sets and
-            # remove the linked particles
+            # Identify the particles in the destination set that were not linked to
             d_remain = set(d for d in d_sn if d is not None)
             d_remain -= set(d for d in dpl if d is not None)
-            s_remain = set(s for s in s_sn if s is not None)
-            s_remain -= set(s for s in spl if s is not None)
+            for dp in d_remain:
+                # if unclaimed destination particle, a track in born!
+                track_lst.append(track_cls(dp))
+                # clean up
+                del dp.back_cands
 
+            new_mem_set = set()
             for sp, dp in zip(spl, dpl):
                 # do linking and clean up
                 if sp is not None and dp is not None:
@@ -429,17 +433,10 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
                     del dp.back_cands
                 if sp is not None:
                     del sp.forward_cands
-            for sp in s_remain:
-                # clean up
-                del sp.forward_cands
-            for dp in d_remain:
-                # if unclaimed destination particle, a track in born!
-                track_lst.append(track_cls(dp))
-                # clean up
-                del dp.back_cands
-            # tack all of the unmatched source particles into the new
-            # memory set
-            new_mem_set |= s_remain
+                    if dp is None:
+                        # add the unmatched source particles to the new
+                        # memory set
+                        new_mem_set.add(sp)
 
         # set prev_hash to cur hash
         prev_hash = cur_hash
