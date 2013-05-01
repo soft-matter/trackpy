@@ -39,8 +39,8 @@ def test_memory():
     safe_disp = 1 + random_x.max() - random_x.min()  # Definitely large enough
     t0 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=0)
     assert len(t0) == 3, len(t0)
-    t5 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=5)
-    assert len(t5) == 2, len(t5)
+    t2 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=2)
+    assert len(t2) == 2, len(t2)
 
 
 def test_memory_removal():
@@ -54,6 +54,18 @@ def test_memory_removal():
     levels.append([PointND(3, [1, 1]), PointND(3, [2, 1]), PointND(3, [4, 1])])
     t = link(levels, 5, hash_generator((10, 10), 1), memory=2)
     assert len(t) == 3, len(t)
+
+ 
+def test_memory_with_late_appearance():
+    a = [p[0] for p in unit_steps()]
+    b = [p[0] for p in random_walk()]
+    gapped = lambda: deepcopy([[a[0]], [a[1], b[1]], [a[2]],
+                              [a[3]], [a[4], b[4]]])
+    safe_disp = 1 + random_x.max() - random_x.min()  # Definitely large enough
+    t0 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=1)
+    assert len(t0) == 3, len(t0)
+    t2 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=4)
+    assert len(t2) == 2, len(t2)
 
 
 def test_box_size():
