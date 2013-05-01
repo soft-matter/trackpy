@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.org/tacaswell/trackpy.png
-   :target: https://travis-ci.org/tacaswell/trackpy
+[![build status](https://travis-ci.org/tacaswell/trackpy.png)](https://travis-ci.org/tacaswell/trackpy)
+   :target:
 
 
 trackpy
