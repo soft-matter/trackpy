@@ -40,7 +40,7 @@ def test_memory():
     t0 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=0)
     assert len(t0) == 3, len(t0)
     t5 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=5)
-    assert len(t5) == 1, len(t5)
+    assert len(t5) == 2, len(t5)
 
 
 def test_box_size():
