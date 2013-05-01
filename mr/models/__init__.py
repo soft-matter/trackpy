@@ -1,1 +1,2 @@
-from mr.models import *
+import mr.models.power_fluid
+import mr.models.viscous
