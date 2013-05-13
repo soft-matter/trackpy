@@ -272,7 +272,7 @@ class PointND(Point):
 
 def link_full(levels, dims, search_range, hash_cls, memory=0, track_cls=Track):
     '''
-    :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
+    :param levels: Nested iterables of :py:class:`~trackpy.tracking.Point` objects
     :type levels: Iterable of iterables
     :param dims: The dimensions of the data
     :param hash_cls: A class that provides :py:func:`add_particle` and
