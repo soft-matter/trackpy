@@ -241,3 +241,18 @@ def examine_jumps(data, jumps):
     for jump in jumps:
         axes2.plot(jump, data[jump], 'ko')
     fig2.show()
+
+@_make_axes
+def plot_displacements(t, frame1, frame2, ax=None):
+    a = t[t.frame == frame1]
+    b = t[t.frame == frame2]
+    j= a.set_index('probe')[['x', 'y']].join(
+        b.set_index('probe')[['x', 'y']], rsuffix='_b')
+    j['dx'] = j.x_b - j.x
+    j['dy'] = j.y_b - j.y
+    arrow_specs = j[['x', 'y', 'dx', 'dy']].dropna()
+    for _, row in arrow_specs.iterrows():
+        ax.arrow(*list(row), head_width=4)
+    ax.set_xlim(arrow_specs.x.min(), arrow_specs.x.max())
+    ax.set_ylim(arrow_specs.y.min(), arrow_specs.y.max())
+    return ax
