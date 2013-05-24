@@ -7,5 +7,7 @@ except ImportError:
     """The module cv2 could not be found. All dependent video tools
     will not be imported."""
 
+from tif import tif_frames
+
 # Legacy
 # from muxing import *
