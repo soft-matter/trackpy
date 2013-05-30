@@ -305,3 +305,23 @@ def is_localized(traj, threshold=0.4):
 
 def is_diffusive(traj, threshold=0.9):
     raise NotImplementedError, "I will rewrite this."
+
+def join_frames(t, frame1, frame2):
+    a = t[t.frame == frame1]
+    b = t[t.frame == frame2]
+    j = a.set_index('probe')[['x', 'y']].join(
+         b.set_index('probe')[['x', 'y']], rsuffix='_b')
+    j['dx'] = j.x_b - j.x
+    j['dy'] = j.y_b - j.y
+    j['direction']  = np.arctan2(j.dy, j.dx).apply(lambda x: x % np.pi)
+    return j
+
+def direction_corr(t, frame1, frame2):
+    j = join_frames(t, frame1, frame2)
+    cosine = np.cos(np.subtract.outer(j.direction, j.direction))
+    dx = np.subtract.outer(j.x, j.x)
+    dy = np.subtract.outer(j.y, j.y)
+    dr = np.sqrt(dx**2 + dy**2)
+    pairwise = DataFrame({'r': dr[np.triu_indices_from(dr, 1)], 
+                          'cos': cosine[np.triu_indices_from(cosine, 1)]})
+    return pairwise
