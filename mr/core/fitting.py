@@ -143,6 +143,7 @@ def NLS(data, model_func, params, weights=None,
     r.stderr = stderr.T
     r.residuals = pd.concat(residuals, axis=1)
     r.fits = pd.concat(fits, axis=1)
+    r.model = lambda x: model_func(x, result.params) # curried
     if plot:
         import plots
         plots.fit(data, r.fits, inverted_model)
