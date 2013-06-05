@@ -41,7 +41,7 @@ def make_axes(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if 'ax' not in kwargs:
+        if kwargs.get('ax') is None:
             kwargs['ax'] = plt.gca()
             func(*args, **kwargs)
             if not kwargs['ax'].get_legend_handles_labels() == ([], []):
