@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from scipy import stats
+from scipy.interpolate import UnivariateSpline
 import lmfit
 from lmfit import Parameters
 
@@ -89,60 +90,48 @@ def NLS(data, model_func, params, weights=None,
     This wraps lmfit, which extends scipy.optimize.leastsq, which itself wraps 
     an old Fortran MINPACK implementation of the Levenburg-Marquardt algorithm. 
     """
+    p = params # notational convenience
     pd.set_option('use_inf_as_null', True)
     def residual_func(params, x, y, weights):
-        f = x.apply(lambda x: model_func(x, params))
-        if log_residual:
-            e = (np.log(y) - np.log(f))
-            e.fillna(e.mean(), inplace=True)
-        else:
-            e = (y - f)
-            e.fillna(e.mean(), inplace=True)
+        modeled_y = x.apply(lambda x: model_func(x, params))
+        e = (y - modeled_y)
+        e.fillna(e.mean(), inplace=True)
         if weights is None:
             return e.values
         else:
             return e.mul(weights).values
-    # If we are given a params-generating function, generate sample
-    # params to index the results DataFrame. 
-    ys = DataFrame(data) # in case it's a Series
+    def inverse_residual_func(params, x, y, weights):
+        modeled_x = y.apply(lambda y: model_func(y, params)).dropna()
+        spline = UnivariateSpline(modeled_x, y.reindex(modeled_x.index), k=3)
+        modeled_y = spline(x)
+        e = (y - modeled_y)
+        e.fillna(e.mean(), inplace=True)
+        if weights is None:
+            return e.values
+        else:
+            return e.mul(weights).values
+        
     x = Series(data.index.values, index=data.index, dtype=np.float64)
     if weights is not None:
         assert weights.size == x.size, \
             "weights must be an array-like sequence the same length as data."
         weights = Series(np.asarray(weights), index=x.index)
-    if hasattr(params, '__call__'):
-        p = params(ys.icol(0))
-    else:
-        p = params
     values = DataFrame(index=p.keys())
     stderr = DataFrame(index=p.keys())
-    residuals = {}
-    fits = {}
-    for col in ys:
-        y = ys[col].dropna()
-        # If need be, generate params using this column's data. 
-        if hasattr(params, '__call__'):
-            p = params(y)
-        else:
-            p = params
-        if not inverted_model:
-            result = lmfit.minimize(residual_func, p, args=(x, y, weights))
-        else:
-            result = lmfit.minimize(residual_func, p, args=(y, x, weights))
-        result_params = Series(result.params)
-        values[col] = result_params.apply(lambda param: param.value)
-        stderr[col] = result_params.apply(lambda param: param.stderr)
-        residuals[col] = Series(result.residual, index=x)
-        if not inverted_model:
-            fits[col] = x.apply(lambda x: model_func(x, result.params))
-        else:
-            fits[col] = y.apply(lambda y: model_func(y, result.params))
+    y = data.dropna().astype('float64')
+    if not inverted_model:
+        result = lmfit.minimize(residual_func, p, args=(x, y, weights))
+    else:
+        result = lmfit.minimize(inverse_residual_func, p, args=(x, y, weights))
+    result_params = Series(result.params)
+    values = result_params.apply(lambda param: param.value)
+    stderr = result_params.apply(lambda param: param.stderr)
+    residual = Series(result.residual, index=x)
     pd.reset_option('use_inf_as_null')
     r = Result()
     r.values = values.T
     r.stderr = stderr.T
-    r.residuals = pd.concat(residuals, axis=1)
-    r.fits = pd.concat(fits, axis=1)
+    r.residual = residual
     r.model = lambda x: model_func(x, result.params) # curried
     if plot:
         import plots
