@@ -43,10 +43,11 @@ def make_axes(func):
     def wrapper(*args, **kwargs):
         if kwargs.get('ax') is None:
             kwargs['ax'] = plt.gca()
-            func(*args, **kwargs)
+            result = func(*args, **kwargs)
             if not kwargs['ax'].get_legend_handles_labels() == ([], []):
                 plt.legend(loc='best')
             plt.show()
+            return result
         else:
             return func(*args, **kwargs)
     return wrapper
