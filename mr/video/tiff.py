@@ -9,7 +9,6 @@ class PseudoCapture(object):
         self.tiff = Image.open(filename)
         self.count = self._count_frames()
         self.end = False
-        print self.tiff.tell()
     def read(self):
         if self.end:
             return False, np.array([])
