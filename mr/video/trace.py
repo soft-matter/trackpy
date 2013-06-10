@@ -32,7 +32,7 @@ def circle(features, frames, high_contrast=True, write_file=None):
                 frame = 255/(frame.max() - frame.min())*(frame - frame.min())
             # Colorize frame to allow colored annotations.
             if len(frame.shape) == 2:
-                frame = cv2.cvtColor(frame, cv2.cv.CV_GRAY2RGB)
+                frame = cv2.cvtColor(frame.astype('uint8'), cv2.cv.CV_GRAY2RGB)
             try:
                 these_centers = centers.loc[frame_no, ['x', 'y']]
             except KeyError:
