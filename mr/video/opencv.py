@@ -2,15 +2,7 @@ import os
 import cv2
 import numpy as np
 
-def open_video(filename):
-    """Thin convenience function for return an opencv2 Capture object."""
-    # ffmpeg -i unreadable.avi -sameq -r 30 readable.avi
-    if not os.path.isfile(filename):
-        raise ValueError, "%s is not a file." % filename
-    capture = cv2.VideoCapture(filename)
-    return capture
-
-class Video(object):
+class Frame(object):
     """Iterable object that returns frames of video as numpy arrays of integers
     0-255.
 
@@ -41,7 +33,7 @@ class Video(object):
         self.filename = filename
         self.gray = gray
         self.invert = invert
-        self.capture = open_video(self.filename)
+        self.capture = self._open(self.filename)
         self.shape = (self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH),
                       self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
         self.cursor = 0
@@ -85,7 +77,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
     def rewind(self):
         """Reopen the video file to start at the beginning. ('Seeking'
         capabilities in the underlying OpenCV library are not reliable.)"""
-        self.capture = open_video(self.filename)
+        self.capture = self._open(self.filename)
         self.cursor = 0
 
     def next(self):
@@ -113,42 +105,14 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         video_copy.endpoint = stop
         return video_copy
 
-def frame_generator(filename, start_frame=0,
-                    gray=True, invert=True):
-    """Return a generator that yields frames of video as image arrays.
-
-    Parameters
-    ----------
-    filename: path to video file
-    start_frame: Fast-forward to frame number
-    gray: Convert frames to grayscale. True by default.
-    invert: Invert black and white. True by default.
-
-    Returns
-    -------
-    a generator object that yields a frame on each iteration until it reaches
-    the end of the captured video
-    """
+def open_video(filename):
+    """Thin convenience function for return an opencv2 Capture object."""
+    # ffmpeg -i unreadable.avi -sameq -r 30 readable.avi
     if not os.path.isfile(filename):
         raise ValueError, "%s is not a file." % filename
     capture = cv2.VideoCapture(filename)
-    count = int(capture.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-    if start_frame > 0:
-        print "Seeking through video to starting frame..."
-        [capture.read()[0] for _ in range(start_frame)] # seek
-    for i in range(count - start_frame):
-        ret, frame = capture.read()
-        if not ret:
-            # A failsafe: the frame count is not always accurate.
-            return
-        if i < start_frame:
-            continue # seek without yielding frames
-        if gray:
-            frame = cv2.cvtColor(frame, cv2.cv.CV_RGB2GRAY)
-        if invert:
-            invert_in_place(frame)
-        yield frame 
+    return capture
 
-def invert_in_place(a):
-    a *= -1
-    a += 255
+class Video(Frame):
+    def _open(self, filename):
+        return open_video(filename)
