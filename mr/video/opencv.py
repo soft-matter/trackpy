@@ -100,7 +100,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         else:
             start = val
             stop = None    
-        video_copy = Video(self.filename, self.gray, self.invert)
+        video_copy = self.__class__(self.filename, self.gray, self.invert)
         video_copy.seek_forward(start)
         video_copy.endpoint = stop
         return video_copy
