@@ -55,7 +55,7 @@ def bust_ghosts(tracks, threshold=100):
     -------
     a subset of tracks
     """
-    return tracks.groupby('probe').filter(lambda x: len(x) >= threshold)
+    return tracks.groupby('probe').filter(lambda x: np.size(x.icol(0)) >= threshold)
 
 def bust_clusters(tracks, quantile=0.8):
     """Filter out trajectories with a mean probe size above a given quantile.
