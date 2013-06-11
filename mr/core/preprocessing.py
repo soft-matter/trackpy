@@ -26,3 +26,27 @@ def circular_mask(diameter, side_length=None):
     x, y = np.meshgrid(points, points)
     z = np.sqrt(x**2 + y**2)
     return z <= r
+
+@memo
+def rgmask(diameter):
+    r = int(diameter)//2
+    points = np.arange(-r, r + 1)
+    x, y = np.meshgrid(points, points)
+    mask = x**2 + y**2
+    mask[mask > r**2] = 0
+    return mask
+
+@memo
+def thetamask(diameter):
+    r = int(diameter)//2
+    return circular_mask(diameter) * \
+        np.fromfunction(lambda y, x: np.arctan2(r-y,x-r), (diameter, diameter)) 
+
+@memo
+def sinmask(diameter):
+    return circular_mask(diameter)*np.sin(2*thetamask(diameter))
+
+@memo
+def cosmask(diameter):
+    return circular_mask(diameter)*np.cos(2*thetamask(diameter))
+

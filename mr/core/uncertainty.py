@@ -23,9 +23,9 @@ def roi(image, diameter):
 def measure_noise(image, diameter):
     "Compute the standard deviation of the dark pixels outside the signal."
     signal_mask = roi(image, diameter)
-    return image[~signal_mask].std()
+    return image[~signal_mask].mean(), image[~signal_mask].std()
 
-def static_error(features, noise, diameter, noise_size=1):
+def static_error(features, noise, diameter, suffix, noise_size=1):
     """Compute the uncertainty in particle position ("the static error").
 
     Parameters
@@ -47,12 +47,12 @@ def static_error(features, noise, diameter, noise_size=1):
     """
     # If this is just one frame, noise is a scalar.
     if np.isscalar(noise):
-        N_S = noise/features['signal']
+        N_S = noise/features['signal' + suffix]
     # Otherwise, join by frame number.
     else:
         noise.name = 'noise'
-        N_S = features.join(noise, on='frame')['noise']/features['signal']
+        N_S = features.join(noise, on='frame')['noise']/features['signal' + suffix]
     ep = N_S*noise_size/(2*np.pi**0.5)*(diameter/features['size'])**2 # Savin & Doyle, Eq. 55
-    ep.name = 'ep' # so it can be joined
+    ep.name = 'ep' + suffix # so it can be joined
     return ep
 
