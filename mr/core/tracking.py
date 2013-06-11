@@ -24,7 +24,6 @@ def track(features, search_range=5, memory=0, box_size=100):
     frames = []
     # Make a sequential index and promote it to a column called 'index'.
     trajectories = features.reset_index(drop=True).reset_index()
-    print trajectories.columns
     for frame_no, fs in trajectories.groupby('frame'):
         frame = []
         frames.append(frame)
@@ -45,16 +44,31 @@ def track(features, search_range=5, memory=0, box_size=100):
     return trajectories
 
 def bust_ghosts(tracks, threshold=100):
-    """Discard trajectories with few points. They are often specious.
+    """Filter out trajectories with few points. They are often specious.
 
     Parameters
     ----------
-    tracks : DataFrame of with a 'probe' column
+    tracks : DataFrame with a 'probe' column
     threshold : minimum number of points to survive. 100 by default.
 
     Returns
     -------
-    tracks, culled
+    a subset of tracks
     """
-    b = tracks.groupby('probe').frame.transform(len) > threshold
-    return tracks[b]
+    return tracks.groupby('probe').filter(lambda x: len(x) >= threshold)
+
+def bust_clusters(tracks, quantile=0.8):
+    """Filter out trajectories with a mean probe size above a given quantile.
+
+    Parameters
+    ----------
+    tracks: DataFrame with 'probe' and 'size' columns
+    quantile : quantile of probe 'size' above which to cut off
+
+    Returns
+    -------
+    a subset of tracks
+    """
+    threshold = tracks['size'].quantile(quantile)
+    f = lambda x: x['size'].mean() < threshold # filtering function
+    return tracks.groupby('probe').filter(f)
