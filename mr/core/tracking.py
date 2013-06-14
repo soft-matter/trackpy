@@ -4,12 +4,9 @@ import pandas as pd
 
 class Feature(pt.PointND):
     "Extends pt.PointND to carry meta information from feature identification."
-    def add_meta(self, mass, size, ecc, signal, ep):
-        self.mass = mass
-        self.size = size
-        self.ecc = ecc
-        self.signal = signal
-        self.ep = ep
+    def tag_id(self, id):
+        self.id = id # unique ID derived from sequential index
+                     # of features DataFrame
 
 def track(features, search_range=5, memory=0, box_size=100):
     """Link features into trajectories.
@@ -25,41 +22,55 @@ def track(features, search_range=5, memory=0, box_size=100):
     """
     print "Building Feature objects..."
     frames = []
-    for frame_no, fs in features.groupby(features['frame']):
+    # Make a sequential index and promote it to a column called 'index'.
+    trajectories = features.reset_index(drop=True).reset_index()
+    for frame_no, fs in trajectories.groupby('frame'):
         frame = []
         frames.append(frame)
         for i, vals in fs.iterrows():
-            # Assume first two columns are x, y, and last is frame number.
-            f = Feature(vals[-1], (vals[0], vals[1]))
-            f.add_meta(*vals[2:-1])
+            f = Feature(vals['frame'], (vals['x'], vals['y']))
+            f.tag_id(vals['index'])
             frame.append(f)
+    del trajectories['index']
     
     hash_generator = lambda: pt.Hash_table((1300,1000), box_size)
     print "Doing the actual work..."
     tracks = pt.link(frames, search_range, hash_generator, memory)
     print "Organizing the output..."
-    probes = []
-    for t in tracks:
-        probe = pd.DataFrame(
-            map(lambda x: list(x.pos) + [x.mass, x.size, x.ecc, x.signal, x.ep], t.points), 
-            index=map(lambda x: x.t, t.points),
-            columns = ['x', 'y', 'mass', 'size', 'ecc', 'signal', 'ep'])
-        probes.append(probe)
-    probes = pd.concat(probes, keys=np.arange(len(probes)), 
-                       names=['probe', 'frame'])
-    return probes.reset_index()
+    trajectories['probe'] = np.nan
+    for probe_id, t in enumerate(tracks):
+        for p in t.points:
+            trajectories.at[p.id, 'probe'] = probe_id
+    return trajectories
 
 def bust_ghosts(tracks, threshold=100):
-    """Discard trajectories with few points. They are often specious.
+    """Filter out trajectories with few points. They are often specious.
 
     Parameters
     ----------
-    tracks : DataFrame of with a 'probe' column
+    tracks : DataFrame with a 'probe' column
     threshold : minimum number of points to survive. 100 by default.
 
     Returns
     -------
-    tracks, culled
+    a subset of tracks
     """
-    b = tracks.groupby('probe').frame.transform(len) > threshold
-    return tracks[b]
+    return tracks.groupby('probe').filter(lambda x: np.size(x.icol(0)) >= threshold)
+
+def bust_clusters(tracks, quantile=0.8, threshold=None):
+    """Filter out trajectories with a mean probe size above a given quantile.
+
+    Parameters
+    ----------
+    tracks: DataFrame with 'probe' and 'size' columns
+    quantile : quantile of probe 'size' above which to cut off
+    threshold : If specified, ignore quantile.
+
+    Returns
+    -------
+    a subset of tracks
+    """
+    if threshold is None:
+        threshold = tracks['size'].quantile(quantile)
+    f = lambda x: x['size'].mean() < threshold # filtering function
+    return tracks.groupby('probe').filter(f)

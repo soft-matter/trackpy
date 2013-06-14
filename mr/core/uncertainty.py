@@ -23,7 +23,7 @@ def roi(image, diameter):
 def measure_noise(image, diameter):
     "Compute the standard deviation of the dark pixels outside the signal."
     signal_mask = roi(image, diameter)
-    return image[~signal_mask].std()
+    return image[~signal_mask].mean(), image[~signal_mask].std()
 
 def static_error(features, noise, diameter, noise_size=1):
     """Compute the uncertainty in particle position ("the static error").
