@@ -75,6 +75,7 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
     traj : DataFrame including columns x and y
     colorby: {'probe', 'frame'}
     mpp : microns per pixel
+    label : Set to True to write probe ID numbers next to trajectories.
     superimpose : filepath of background image, default None
     cmap : This is only used in colorby='frame' mode.
         Default = mpl.cm.winter
@@ -192,8 +193,15 @@ def subpx_bias(f, ax=None):
 
 @make_axes
 def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
-    data.dropna().plot(style='o', logx=logx, logy=logy, ax=ax)
-    datalines = ax.get_lines() 
+    data = data.dropna()
+    x, y = data.index.values.astype('float64'), data.values
+    datalines = plt.plot(x, y, 'o', label=data.name)
+    ax = datalines[0].get_axes()
+    if logx:
+        ax.set_xscale('log')
+    if logy:
+        ax.set_yscale('log')
+    print [d.get_color() for d in datalines]
     if not inverted_model:
         fitlines = ax.plot(fits.index, fits)
     else:
@@ -206,7 +214,6 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
     [f.set_color(d.get_color()) for d, f in zip(datalines, fitlines)]
     if logx:
         ax.set_xscale('log') # logx kwarg does not always take. Bug?
-    return ax
 
 @make_axes
 def plot_principal_axes(img, x_bar, y_bar, cov, ax=None):
