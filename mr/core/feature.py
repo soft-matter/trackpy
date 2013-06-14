@@ -123,9 +123,8 @@ def refine_centroid(raw_image, bp_image, x, y, diameter, minmass=100, iterations
                   (np.sum(neighborhood*sinmask(diameter)))**2) / \
                   (mass - neighborhood[r, r] + 1e-6)
     raw_neighborhood = raw_image[y0:y1, x0:x1][circular_mask(diameter)]
-    signal_D = raw_neighborhood.max() - raw_neighborhood.mean()
-    signal_B = raw_neighborhood.max() # black_level subtracted later
-    return Series([xc, yc, mass, Rg, ecc, signal_D, signal_B])
+    signal = raw_neighborhood.max() # black_level subtracted later
+    return Series([xc, yc, mass, Rg, ecc, signal])
 
 def locate(image, diameter, minmass=100., separation=None, 
            noise_size=1, smoothing_size=None, invert=False,
@@ -179,16 +178,14 @@ def locate(image, diameter, minmass=100., separation=None,
         axis=1)
     logger.info("%s local maxima, %s of qualifying mass", 
                 count_local_maxima, len(f)) 
-    columns = ['x', 'y', 'mass', 'size', 'ecc', 'signal_D', 'signal_B']
+    columns = ['x', 'y', 'mass', 'size', 'ecc', 'signal']
     if len(f) == 0:
         return DataFrame(columns=columns) # empty
     f.columns = columns
     black_level, noise = uncertainty.measure_noise(image, diameter)
-    f['signal_B'] -= black_level
-    ep_D = uncertainty.static_error(f, noise, diameter, '_D', noise_size)
-    f = f.join(ep_D)
-    ep_B = uncertainty.static_error(f, noise, diameter, '_B', noise_size)
-    f = f.join(ep_B)
+    f['signal'] -= black_level
+    ep = uncertainty.static_error(f, noise, diameter, noise_size)
+    f = f.join(ep)
     return f
 
 def batch(store, frames, diameter, minmass=100, separation=None,
