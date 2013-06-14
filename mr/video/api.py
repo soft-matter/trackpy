@@ -7,7 +7,7 @@ except ImportError:
     """The module cv2 could not be found. All dependent video tools
     will not be imported."""
 
-from tiff import TiffStack
+# from tiff import TiffStack
 
 # Legacy
 # from muxing import *

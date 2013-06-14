@@ -1,38 +1,28 @@
 import os
 import cv2
 import numpy as np
-from PIL import Image
+from libtiff import TIFF
 from mr.video.opencv import Video
 
 class PseudoCapture(object):
     def __init__(self, filename):
-        self.tiff = Image.open(filename)
+        self.filename = filename
+        self.tiff = TIFF.open(filename)
         self.count = self._count_frames()
         self.end = False
+        self.generator = self.tiff.iter_images()
     def read(self):
-        if self.end:
-            return False, np.array([])
-        image = np.array(self.tiff.getdata()).reshape(self.tiff.size[::-1])
         try:
-            self.tiff.seek(self.tiff.tell() + 1)
-        except EOFError:
-            self.end = True 
-        return True, image
+            return True, self.generator.next()
+        except StopIteration:
+            return False, np.array([])
     def _count_frames(self):
-        count = 0
-        while True:
-            try:
-                self.tiff.seek(count)
-                count += 1
-            except EOFError:
-                break 
-        self.tiff.seek(0)
-        return count
+        return sum([1 for _ in TIFF.open(self.filename).iter_images()])
     def get(self, code):
         if code == cv2.cv.CV_CAP_PROP_FRAME_WIDTH:
-            return self.tiff.size[0]
+            return self.tiff.read_image().shape[0]
         if code == cv2.cv.CV_CAP_PROP_FRAME_HEIGHT:
-            return self.tiff.size[1]
+            return self.tiff.read_image().shape[1]
         if code == cv2.cv.CV_CAP_PROP_FRAME_COUNT:
             return self.count 
 

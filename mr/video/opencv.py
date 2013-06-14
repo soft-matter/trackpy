@@ -41,7 +41,7 @@ class Frame(object):
         self.endpoint = None
 
     def __repr__(self):
-        return """<Video Frames>
+        return """<Frames>
 Source File: %s
 Frame Dimensions: %d x %d
 Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
