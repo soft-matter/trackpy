@@ -76,7 +76,7 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
     colorby: {'probe', 'frame'}
     mpp : microns per pixel
     label : Set to True to write probe ID numbers next to trajectories.
-    superimpose : filepath of background image, default None
+    superimpose : background image, default None
     cmap : This is only used in colorby='frame' mode.
         Default = mpl.cm.winter
     ax : matplotlib axes object, defaults to current axes
@@ -86,7 +86,7 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
     None
     """
     # Axes labels
-    if superimpose or mpp == 1:
+    if (superimpose is not None) or (mpp == 1):
         logger.warning("Using units of px, not microns")
         ax.set_xlabel('x [px]')
         ax.set_ylabel('y [px]')
@@ -94,11 +94,11 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
         ax.set_xlabel('x [um]')
         ax.set_ylabel('y [um]')
     # Background image
-    if superimpose:
-        image = 1-plt.imread(superimpose)
-        ax.imshow(image, cmap=plt.cm.gray)
-        ax.set_xlim(0, image.shape[1])
-        ax.set_ylim(0, image.shape[0])
+    if superimpose is not None:
+        print superimpose.shape
+        ax.imshow(superimpose, cmap=plt.cm.gray)
+        ax.set_xlim(0, superimpose.shape[1])
+        ax.set_ylim(0, superimpose.shape[0])
     # Trajectories
     if colorby == 'probe':
         # Unstack probes into columns.
