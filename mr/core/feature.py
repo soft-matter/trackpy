@@ -36,6 +36,7 @@ from mr.core import plots
 from mr.core.preprocessing import (bandpass, circular_mask, rgmask, thetamask,
                                    sinmask, cosmask)
 import _Cfilters
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,11 @@ def local_maxima(image, diameter, separation, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
     # Find the threshold brightness, representing the given
     # percentile among all NON-ZERO pixels in the image.
-    flat = np.ravel(image)
+    flat = np.ravel(image) 
+    nonblack = flat[flat > 0]
+    if len(nonblack) == 0:
+        warnings.warn("All pixels are black.")
+        return np.empty((0, 2))
     threshold = stats.scoreatpercentile(flat[flat > 0], percentile)
     # The intersection of the image with its dilation gives local maxima.
     assert image.dtype == np.uint8, "Perform dilation on exact (uint8) data." 
@@ -51,9 +56,10 @@ def local_maxima(image, diameter, separation, percentile=64):
         image, footprint=circular_mask(diameter, separation))
     maxima = np.where((image == dilation) & (image > threshold))
     if not np.size(maxima) > 0:
-        raise ValueError, ("Bad image! Found zero maxima above the {}"
+        warnings.warn("Found zero maxima above the {}"
                            "-percentile treshold at {}.".format(
                            percentile, threshold))
+        return np.empty((0, 2))
     # Flat peaks, for example, return multiple maxima.
     # Eliminate redundancies within the separation distance.
     maxima_map = np.zeros_like(image)
@@ -128,7 +134,7 @@ def refine_centroid(raw_image, bp_image, x, y, diameter, minmass=100, iterations
 
 def locate(image, diameter, minmass=100., separation=None, 
            noise_size=1, smoothing_size=None, invert=False,
-           percentile=64, pickN=None):
+           percentile=64, pickN=None, preprocess=True):
     """Read an image, do optional image preparation and cleanup, and locate 
     Gaussian-like blobs of a given size above a given total brightness.
 
@@ -147,6 +153,7 @@ def locate(image, diameter, minmass=100., separation=None,
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
     pickN : Not Implemented
+    preprocess : Set to False to turn out automatic preprocessing.
 
     Returns
     -------
@@ -162,11 +169,14 @@ def locate(image, diameter, minmass=100., separation=None,
         separation = diameter + 1
     smoothing_size = smoothing_size if smoothing_size else diameter # default
 
-    # Invert, and make a bandpassed version.
-    if invert:
-        image = 255 - image # Do not do in place -- can confuse repeated calls. 
-    bp_image = bandpass(image, noise_size, smoothing_size)
-    bp_image = (255/bp_image.max()*bp_image.clip(min=0.)).astype(np.uint8)
+    if preprocess:
+        # Invert, and make a bandpassed version.
+        if invert:
+            image = 255 - image # Do not do in place -- can confuse repeated calls. 
+        bp_image = bandpass(image, noise_size, smoothing_size)
+    else:
+        bp_image = image.copy()
+        bp_image = (255/bp_image.max()*bp_image.clip(min=0.)).astype(np.uint8)
 
     f = DataFrame(local_maxima(bp_image, diameter, separation, percentile),
                   columns=['x', 'y'])
@@ -188,15 +198,15 @@ def locate(image, diameter, minmass=100., separation=None,
     f = f.join(ep)
     return f
 
-def batch(store, frames, diameter, minmass=100, separation=None,
+def batch(frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, invert=False,
-          percentile=64, pickN=None, table=None):
+          percentile=64, pickN=None, preprocess=True, 
+          store=None, table=None):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
 
     Parameters
     ----------
-    store : HDFStore
     frames : iterable frames
         For example, frames = mr.video.frame_generator('video_file.avi')
                   or frames = [array1, array2, array3]
@@ -212,6 +222,8 @@ def batch(store, frames, diameter, minmass=100, separation=None,
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
     pickN : Not Implemented
+    preprocess : Set to False to turn out automatic preprocessing.
+    store : HDFStore
     table : string specifying a HDFStore table. Default: 'features_timestamp'.
 
     Returns
@@ -236,6 +248,7 @@ def batch(store, frames, diameter, minmass=100, separation=None,
                          'diameter', 'minmass', 'separation', 'noise_size', 
                          'smoothing_size', 'invert', 'percentile', 'pickN',
                          'timestamp'])
+    all_centroids = [] 
     for i, image in enumerate(frames):
         # If frames has a cursor property, use it. Otherwise, just count
         # the frames from 0.
@@ -245,16 +258,22 @@ def batch(store, frames, diameter, minmass=100, separation=None,
             frame_no = i 
         centroids = locate(image, diameter, minmass, separation, 
                            noise_size, smoothing_size, invert,
-                           percentile, pickN)
+                           percentile, pickN, preprocess)
         centroids['frame'] = frame_no
         logger.info("Frame %d: %d features", frame_no, len(centroids))
         if len(centroids) == 0:
             continue
         indexed = ['frame'] # columns on which you can perform queries
-        store.append(table, centroids, data_columns=indexed)
-        store.flush() # Force save. Not essential.
-    store.get_storer(table).attrs.meta = meta
-    return store[table]
+        if store is not None:
+            store.append(table, centroids, data_columns=indexed)
+            store.flush() # Force save. Not essential.
+        else:
+            all_centroids.append(centroids)
+    if store is not None:
+        store.get_storer(table).attrs.meta = meta
+        return store[table]
+    else:
+        return pd.concat(all_centroids)
 
 def sample(frames, diameter, minmass=100, separation=None,
            noise_size=1, smoothing_size=None, invert=False, background=None,
