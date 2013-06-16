@@ -2,7 +2,7 @@ import os
 import cv2
 import numpy as np
 
-class Frame(object):
+class Frames(object):
     """Iterable object that returns frames of video as numpy arrays of integers
     0-255.
 
@@ -113,6 +113,6 @@ def open_video(filename):
     capture = cv2.VideoCapture(filename)
     return capture
 
-class Video(Frame):
+class Video(Frames):
     def _open(self, filename):
         return open_video(filename)
