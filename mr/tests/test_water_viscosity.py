@@ -31,7 +31,7 @@ class TestWaterViscosity(unittest.TestCase):
         temp_store = pd.HDFStore('temp_for_testing.h5')
         try:
             features = mr.batch(
-                temp_store, self.frames[:MAX_FRAME], DIAMETER, MINMASS)
+                self.frames[:MAX_FRAME], DIAMETER, MINMASS, store=temp_store) 
         finally:
             os.remove('temp_for_testing.h5') 
         self.assertTrue(True)

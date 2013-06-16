@@ -176,7 +176,7 @@ def locate(image, diameter, minmass=100., separation=None,
         bp_image = bandpass(image, noise_size, smoothing_size)
     else:
         bp_image = image.copy()
-        bp_image = (255/bp_image.max()*bp_image.clip(min=0.)).astype(np.uint8)
+    bp_image = (255/bp_image.max()*bp_image.clip(min=0.)).astype(np.uint8)
 
     f = DataFrame(local_maxima(bp_image, diameter, separation, percentile),
                   columns=['x', 'y'])
