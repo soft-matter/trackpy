@@ -1,7 +1,8 @@
 try:
     import cv2
-    from mr.video.opencv import Video
+    from mr.video.opencv import Video, Frames
     from mr.video.trace import circle
+    from mr.video.basic import play
 except ImportError:
     raise UserWarning, \
     """The module cv2 could not be found. All dependent video tools
