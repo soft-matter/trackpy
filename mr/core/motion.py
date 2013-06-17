@@ -69,8 +69,8 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     # Estimated statistically independent measurements = 2N/t
     if detail:
         results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))
-    results['lagt'] = results.index/fps
-    return results
+    results['lagt'] = results.index.values/fps
+    return results[:-1]
 
 def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     """Compute the mean squared displacements of probes individually.
@@ -103,9 +103,10 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     results = pd.concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes probes into columns.
     results = results.swaplevel(0, 1)[statistic].unstack()
+    results.index.name = 'lag time [s]'
     return results
 
-def emsd(traj, mpp, fps, max_lagtime=100):
+def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean squared displacements of an ensemble of probes. 
     
     Parameters
@@ -116,9 +117,12 @@ def emsd(traj, mpp, fps, max_lagtime=100):
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
+    detail : Set to True to include <x>, <y>, <x^2>, <y^2>. Returns
+        only <r^2> by default.
 
     Returns
     -------
+    Series[msd, index=t] or, if detail=True,
     DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
     
     Notes
@@ -135,9 +139,11 @@ def emsd(traj, mpp, fps, max_lagtime=100):
     results = results.div(msds['N'].mean(level=1), axis=0) # weights normalized
     # Above, lagt is lumped in with the rest for simplicity and speed.
     # Here, rebuild it from the frame index.
-    results['lagt'] = results.index/fps
-    del results['N']
-    return results.set_index('lagt')
+    results.set_index('lagt', inplace=True)
+    results.index.name = 'lag time [s]'
+    if not detail:
+        return results['msd'] 
+    return results
 
 def compute_drift(traj, smoothing=0):
     """Return the ensemble drift, x(t).
