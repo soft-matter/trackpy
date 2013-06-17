@@ -95,7 +95,6 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
         ax.set_ylabel('y [um]')
     # Background image
     if superimpose is not None:
-        print superimpose.shape
         ax.imshow(superimpose, cmap=plt.cm.gray)
         ax.set_xlim(0, superimpose.shape[1])
         ax.set_ylim(0, superimpose.shape[0])
@@ -126,7 +125,7 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
         first_frame = int(traj['frame'].min())
         coords = unstacked.fillna(method='backfill').stack().loc[first_frame]
         for probe_id, coord in coords.iterrows():
-            plt.text(coord['x'], coord['y'], str(probe_id),
+            plt.text(coord['x'], coord['y'], "%d" % probe_id,
                      horizontalalignment='center',
                      verticalalignment='center')
     ax.invert_yaxis()
