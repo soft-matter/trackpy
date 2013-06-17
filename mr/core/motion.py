@@ -137,7 +137,7 @@ def emsd(traj, mpp, fps, max_lagtime=100):
     # Here, rebuild it from the frame index.
     results['lagt'] = results.index/fps
     del results['N']
-    return results
+    return results.set_index('lagt')
 
 def compute_drift(traj, smoothing=0):
     """Return the ensemble drift, x(t).

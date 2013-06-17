@@ -57,7 +57,7 @@ class TestWaterViscosity(unittest.TestCase):
 
     def test_ensemble_msds(self):
         em = mr.emsd(self.store['tm'], MPP, FPS)
-        assert_frame_equal(em, self.store['ensemble_msd'])
+        assert_frame_equal(em, self.store['ensemble_msd'].set_index('lagt'))
 
     def test_fit_powerlaw(self):
         EXPECTED_VISCOSITY = 1.01
