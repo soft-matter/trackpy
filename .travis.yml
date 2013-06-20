@@ -1,0 +1,11 @@
+language: python
+python:
+  - "2.7"
+# command to install dependencies
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get -qq install libhdf5-serial-dev hdf5-tools
+  - sudo apt-get -qq install python-opencv 
+install: "pip install requirements.txt --use-mirrors"
+# command to run tests
+script: nosetests

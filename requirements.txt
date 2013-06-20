@@ -1,0 +1,5 @@
+numpy
+scipy
+pandas
+pytables
+git://github.com/tacaswell/trackpy.git#egg=trackpy
