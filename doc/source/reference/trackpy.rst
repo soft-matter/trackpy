@@ -9,5 +9,4 @@
 .. toctree::
 
    trackpy.tracking
-
-	
+   trackpy.identification

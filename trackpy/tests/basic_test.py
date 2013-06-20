@@ -15,7 +15,9 @@
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 import trackpy.tracking as pt
+import trackpy.identification as tid
 import numpy as np
+import random
 
 
 def test_easy_tracking():
@@ -49,7 +51,6 @@ def test_pathological_tracking():
     levels = []
     shift = 1
 
-
     for j in range(level_count):
         level = []
         for k in np.arange(p_count) * 2:
@@ -68,3 +69,20 @@ def test_pathological_tracking():
 
         assert np.sum(dx) == level_count - 1
         assert np.sum(dy) == (level_count - 1) * shift
+
+
+def test_iden():
+    SEED = 314
+    random.seed(SEED)
+
+    X = range(10, 200, 20)
+    Y = range(10, 200, 20)
+    random.shuffle(X)
+    random.shuffle(Y)
+    img = tid.gen_fake_data(np.vstack([X, Y]), 5, 2.5, (210, 210))
+    bp_img = tid.band_pass(img, 2, 2.5)
+
+    res_lm = tid.find_local_max(bp_img, 3, .5)
+
+    locs, mass, r2 = tid.subpixel_centroid(bp_img, res_lm, 3)
+    assert np.all(np.abs(locs - res_lm) < .05)
