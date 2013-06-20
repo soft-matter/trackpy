@@ -4,6 +4,7 @@ python:
 # command to install dependencies
 before_install:
   - sudo apt-get -qq update
+  - sudo apt-get -qq install gfortran
   - sudo apt-get -qq install libhdf5-serial-dev hdf5-tools
   - sudo apt-get -qq install python-opencv 
 install: "pip install -r requirements.txt --use-mirrors"
