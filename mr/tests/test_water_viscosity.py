@@ -1,5 +1,6 @@
 """Reproduce a control experiment."""
 import unittest
+import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
@@ -17,21 +18,28 @@ FPS = 24.
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
+def _skip_if_no_cv2():
+    try:
+        import cv2
+    except ImportError:
+        raise nose.SkipTest('OpenCV not installed. Skipping.')
+
 class TestWaterViscosity(unittest.TestCase):
     def setUp(self):
         VIDEO_PATH = os.path.join(path, 'water/bulk-water.mov')
         STORE_PATH = os.path.join(path, 'water/expected.h5')
         self.store = pd.HDFStore(STORE_PATH, 'r')
-        self.frames = mr.Video(VIDEO_PATH)
 
     @slow
     def test_batch_locate_usage(self):
+        _skip_if_no_cv2()
         # Only checking that it doesn't raise an error.
+        frames = mr.Video(VIDEO_PATH)
         MAX_FRAME = 2
         temp_store = pd.HDFStore('temp_for_testing.h5')
         try:
             features = mr.batch(
-                self.frames[:MAX_FRAME], DIAMETER, MINMASS, store=temp_store) 
+                frames[:MAX_FRAME], DIAMETER, MINMASS, store=temp_store) 
         finally:
             os.remove('temp_for_testing.h5') 
         self.assertTrue(True)
