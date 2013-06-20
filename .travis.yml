@@ -4,7 +4,7 @@ python:
 # command to install dependencies
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get -qq install python-numpy python-scipy python-opencv 
+  - sudo apt-get install python-numpy python-scipy python-opencv 
   - sudo apt-get -qq install libhdf5-serial-dev hdf5-tools
 install: 
    - "pip install numexpr"
