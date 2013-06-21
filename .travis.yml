@@ -15,18 +15,12 @@ before_install:
   - mkvirtualenv py27
   - workon py27
   - sudo apt-get install libatlas-base-dev liblapack-dev
-  - pip install numpy
-  - pip install scipy
-  - pip install matplotlib
-  - pip install -e git+https://github.com/ipython/ipython.git#egg=ipython
-  - cd ~/.virtualenvs/py27/src/ipython
-  - python setupegg.py install
-  - pip install nose cython numexpr
-  - pip install -e git+https://github.com/wesm/pandas#egg=pandas
 install: 
-   - "python -c 'import numpy'"
-   - "python -c 'import scipy'"
-   - "python -c 'import scipy.ndimage'"
-   - "pip install -r requirements.txt --use-mirrors"
+  - pip install -q numpy
+  - pip install -q scipy
+  - pip install -q matplotlib
+  - pip install -q nose cython numexpr
+  - pip install -q -e git+https://github.com/pydata/pandas#egg=pandas
+  - pip install -r requirements.txt --use-mirrors
 # command to run tests
 script: nosetests
