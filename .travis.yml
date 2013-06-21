@@ -8,7 +8,7 @@ before_install:
   - sudo apt-get install python-dev python-pip python-virtualenv
   - sudo pip install virtualenvwrapper
   - echo "source /usr/local/bin/virtualenvwrapper.sh" >> ~/.bashrc
-  - echo "WORKON_HOME=$HOME/.virtualenvs" >> ~/.bashrc
+  - echo "echo WORKON_HOME=$HOME/.virtualenvs" >> ~/.bashrc
   - source ~/.bashrc
   - mkvirtualenv py27
   - workon py27
