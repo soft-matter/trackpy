@@ -5,6 +5,7 @@ python:
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install gfortran g++
+  - sudo apt-get install libhdf5-serial-dev hdf5-tools
   - sudo apt-get install python-dev python-pip
   - sudo apt-get install python-virtualenv
   - sudo pip install virtualenvwrapper
