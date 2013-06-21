@@ -5,7 +5,8 @@ python:
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install gfortran g++
-  - sudo apt-get install python-dev python-pip python-virtualenv
+  - sudo apt-get install python-dev python-pip
+  - sudo apt-get python-virtualenv
   - sudo pip install virtualenvwrapper
   - echo "source /usr/local/bin/virtualenvwrapper.sh" >> ~/.bashrc
   - echo "export WORKON_HOME=$HOME/.virtualenvs" >> ~/.bashrc
