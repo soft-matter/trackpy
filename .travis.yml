@@ -17,8 +17,6 @@ before_install:
   - sudo apt-get install libatlas-base-dev liblapack-dev
   - pip install numpy
   - pip install scipy
-  - apt-cache depends python-matplotlib | awk '/Depends:/{print $2}' | xargs dpkg --get-selections
-  - apt-get build-dep python-matplotlib
   - pip install matplotlib
   - pip install -e git+https://github.com/ipython/ipython.git#egg=ipython
   - cd ~/.virtualenvs/py27/src/ipython
