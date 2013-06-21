@@ -8,10 +8,9 @@ before_install:
   - sudo apt-get install python-dev python-pip
   - sudo apt-get install python-virtualenv
   - sudo pip install virtualenvwrapper
-  - source /usr/local/bin/virtualenvwrapper.sh
-  - cat /usr/local/bin/virtualenvwrapper.sh
   - export WORKON_HOME=$HOME/.virtualenvs
-  - echo $WORKON_HOME
+  - export VIRTUALENVWRAPPER_PYTHON=`which python`
+  - source /usr/local/bin/virtualenvwrapper.sh
   - mkvirtualenv py27
   - workon py27
   - sudo apt-get install libatlas-base-dev liblapack-dev
