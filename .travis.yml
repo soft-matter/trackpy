@@ -16,11 +16,11 @@ before_install:
   - workon py27
   - sudo apt-get install libatlas-base-dev liblapack-dev
 install: 
-  - pip install -q numpy
-  - pip install -q scipy
-  - pip install -q matplotlib
-  - pip install -q nose cython numexpr
-  - pip install -q -e git+https://github.com/pydata/pandas#egg=pandas
+  - pip install numpy
+  - pip install scipy
+  - pip install matplotlib
+  - pip install nose cython numexpr
+  - pip install -e git+https://github.com/pydata/pandas#egg=pandas
   - pip install -r requirements.txt --use-mirrors
 # command to run tests
 script: nosetests
