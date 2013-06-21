@@ -7,6 +7,8 @@ What is it
 
 **mr** is a Python package providing tools for passive and active microrheology experiments.
 
+[![build status](https://travis-ci.org/danielballan/mr.png)](https://travis-ci.org/danielballan/mr)
+
 Main Features
 =============
 
