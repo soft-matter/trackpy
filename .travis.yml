@@ -9,6 +9,7 @@ before_install:
 install: 
    - "pip install numexpr"
    - "pip install cython"
+   - "pip install pyopencv"
    - "python -c 'import numpy'"
    - "python -c 'import cv'"
    - "python -c 'import scipy'"
