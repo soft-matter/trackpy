@@ -6,11 +6,13 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install gfortran g++
   - sudo apt-get install python-dev python-pip
-  - sudo apt-get python-virtualenv
+  - sudo apt-get install python-virtualenv
   - sudo pip install virtualenvwrapper
   - echo "source /usr/local/bin/virtualenvwrapper.sh" >> ~/.bashrc
   - echo "export WORKON_HOME=$HOME/.virtualenvs" >> ~/.bashrc
   - source ~/.bashrc
+  - cat ~/.bashrc
+  - echo $WORKON_HOME
   - mkvirtualenv py27
   - workon py27
   - sudo apt-get install libatlas-base-dev liblapack-dev
