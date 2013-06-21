@@ -1,3 +1,0 @@
-lmfit
-git+https://github.com/PyTables/PyTables.git@v.3.0.0#egg=tables
-git+https://github.com/tacaswell/trackpy.git#egg=trackpy
