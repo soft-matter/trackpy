@@ -11,6 +11,7 @@ before_install:
   - export WORKON_HOME=$HOME/.virtualenvs
   - export VIRTUALENVWRAPPER_PYTHON=`which python`
   - source /usr/local/bin/virtualenvwrapper.sh
+  - pip install virtualenvwrapper
   - mkvirtualenv py27
   - workon py27
   - sudo apt-get install libatlas-base-dev liblapack-dev
