@@ -10,7 +10,7 @@ install:
    - "pip install numexpr"
    - "pip install cython"
    - "python -c 'import numpy'"
-   - "python -c 'import cv2'"
+   - "python -c 'import cv'"
    - "python -c 'import scipy'"
    - "python -c 'import scipy.ndimage'"
    - "pip install -r requirements.txt --use-mirrors"
