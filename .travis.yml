@@ -4,14 +4,26 @@ python:
 # command to install dependencies
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install python-numpy python-scipy python-opencv 
-  - sudo apt-get -qq install libhdf5-serial-dev hdf5-tools
+  - sudo apt-get install gfortran g++
+  - sudo apt-get install python-dev python-pip python-virtualenv
+  - sudo pip install virtualenvwrapper
+  - echo "source /usr/local/bin/virtualenvwrapper.sh" >> ~/.bashrc
+  - echo "WORKON_HOME=$HOME/.virtualenvs" >> ~/.bashrc
+  - source ~/.bashrc
+  - mkvirtualenv py27
+  - workon py27
+  - sudo apt-get install libatlas-base-dev liblapack-dev
+  - pip install numpy scipy
+  - apt-cache depends python-matplotlib | awk '/Depends:/{print $2}' | xargs dpkg --get-selections
+  - apt-get build-dep python-matplotlib
+  - pip install matplotlib
+  - pip install -e git+https://github.com/ipython/ipython.git#egg=ipython
+  - cd ~/.virtualenvs/py27/src/ipython
+  - python setupegg.py install
+  - pip install nose cython numexpr
+  - pip install -e git+https://github.com/wesm/pandas#egg=pandas
 install: 
-   - "pip install numexpr"
-   - "pip install cython"
-   - "pip install pyopencv"
    - "python -c 'import numpy'"
-   - "python -c 'import cv'"
    - "python -c 'import scipy'"
    - "python -c 'import scipy.ndimage'"
    - "pip install -r requirements.txt --use-mirrors"
