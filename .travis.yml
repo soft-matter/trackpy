@@ -2,27 +2,19 @@ language: python
 python:
   - "2.7"
 # command to install dependencies
+
+virtualenv:
+  system_site_packages: true
+
 before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install gfortran g++
-  - sudo apt-get install libhdf5-serial-dev hdf5-tools
-  - sudo apt-get install python-dev python-pip
-  - sudo apt-get install python-virtualenv
-  - sudo pip install virtualenvwrapper
-  - export WORKON_HOME=$HOME/.virtualenvs
-  - export VIRTUALENVWRAPPER_PYTHON=`which python`
-  - source /usr/local/bin/virtualenvwrapper.sh
-  - pip install virtualenvwrapper
-  - mkvirtualenv py27
-  - workon py27
-  - sudo apt-get install libatlas-base-dev liblapack-dev
-install: 
-  - pip install numpy
-  - pip install scipy
-  - pip install matplotlib
+  - ci/before_install.sh
+
+install:
   - pip install nose cython numexpr
   - pip install -e git+https://github.com/pydata/pandas#egg=pandas
-  - pip install -r requirements.txt --use-mirrors
+  - pip install lmfit
+  - pip install git+https://github.com/PyTables/PyTables.git@v.3.0.0#egg=tables
+  - pip install git+https://github.com/tacaswell/trackpy.git#egg=trackpy
   - python setup.py build_ext install
 # command to run tests
 script: nosetests
