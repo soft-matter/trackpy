@@ -13,7 +13,7 @@ setup(
     author_email = "dallan@pha.jhu.edu",
     url = "https://github.com/danielballan/mr",
     packages = ['mr'],
-    long_description = read('README.rst'),
+    long_description = read('README.md'),
     ext_modules = [Extension('_Cfilters', ['mr/src/Cfilters.c'])],
     package_dir = {'mr': 'mr'},
     package_data = {'mr': ['doc/*', 'db_schema.sql']},
