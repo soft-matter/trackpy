@@ -44,7 +44,8 @@ Essential:
 
 Recommended:
 
-  * ``pyopencv`` for processing video files directly
+  * [``cv2``](http://opencv.org/downloads.html) Python bindings to OpenCV, 
+    used for processing video files directly
 
 Optional:
 
