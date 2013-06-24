@@ -24,9 +24,28 @@ def _skip_if_no_cv2():
     except ImportError:
         raise nose.SkipTest('OpenCV not installed. Skipping.')
 
+def fit_powerlaw(data):
+    """Fit a powerlaw by doing a linear regression in log space."""
+    import numpy as np
+    from scipy import stats
+    ys = DataFrame(data)
+    x = Series(data.index.values, index=data.index, dtype=np.float64)
+    values = DataFrame(index=['n', 'A'])
+    fits = {}
+    for col in ys:
+        y = ys[col].dropna()
+        slope, intercept, r, p, stderr = \
+            stats.linregress(np.log(x), np.log(y))
+        print 'slope', slope, ', intercept', intercept
+        values[col] = [slope, np.exp(intercept)]
+        fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope)
+    values = values.T
+    fits = pd.concat(fits, axis=1)
+    return values
+
 class TestWaterViscosity(unittest.TestCase):
     def setUp(self):
-        VIDEO_PATH = os.path.join(path, 'water/bulk-water.mov')
+        self.VIDEO_PATH = os.path.join(path, 'water/bulk-water.mov')
         STORE_PATH = os.path.join(path, 'water/expected.h5')
         self.store = pd.HDFStore(STORE_PATH, 'r')
 
@@ -34,7 +53,7 @@ class TestWaterViscosity(unittest.TestCase):
     def test_batch_locate_usage(self):
         _skip_if_no_cv2()
         # Only checking that it doesn't raise an error.
-        frames = mr.Video(VIDEO_PATH)
+        frames = mr.Video(self.VIDEO_PATH)
         MAX_FRAME = 2
         temp_store = pd.HDFStore('temp_for_testing.h5')
         try:
@@ -75,7 +94,7 @@ class TestWaterViscosity(unittest.TestCase):
         EXPECTED_VISCOSITY = 1.01
         EXPECTED_N = 1.0
         em = self.store['ensemble_msd'].msd
-        fit = mr.fit_powerlaw(em, plot=False)
+        fit = fit_powerlaw(em)
         A = fit['A'].values[0]
         n = fit['n'].values[0]
         viscosity = 1.740/A
