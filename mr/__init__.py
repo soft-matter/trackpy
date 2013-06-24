@@ -37,5 +37,3 @@ if 'DISPLAY' not in os.environ:
 from mr.core.api import *
 from mr.video.api import *
 from mr import wire
-
-from mr import models
