@@ -41,8 +41,23 @@ class TestVideo(unittest.TestCase):
         self.v.rewind()
         assert_equal(self.v.next(), self.frame0)
 
-    def test_slicing(self):
+    def test_getting_slice(self):
         _skip_if_no_cv2()
         frame0, frame1 = list(self.v[0:1])
         assert_equal(frame0, self.frame0)
         assert_equal(frame1, self.frame1)
+
+    def test_getting_single_frame(self):
+        _skip_if_no_cv2()
+        assert_equal(self.v[1], self.frame1)
+        assert_equal(self.v[0], self.frame0)
+        assert_equal(self.v[0], self.frame0)
+        assert_equal(self.v[1], self.frame1)
+        assert_equal(self.v[1], self.frame1)
+
+    def test_getting_list(self):
+        _skip_if_no_cv2()
+        actual = list(self.v[[1, 0, 0, 1, 1]])
+        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
+                    self.frame1]
+        [assert_equal(a, b) for a, b in zip(actual, expected)]

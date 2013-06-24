@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import collections
 
 class Frames(object):
     
@@ -52,12 +53,24 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         return frame
 
     def __getitem__(self, val):
+        if isinstance(val, int):
+            if val > self.cursor:
+                self.seek_forward(val - self.cursor)
+                return self.next()
+            elif self.cursor == val:
+                return self.next()
+            else:
+                video_copy = self.__class__(self.filename, 
+                                            self.gray, self.invert)
+                video_copy.seek_forward(val)
+                return video_copy.next()
         if isinstance(val, slice):
             start, stop, step = val.indices(self.count)
             if step != 1:
                 raise NotImplementedError, \
                     "Step must be 1."
-        else:
+        elif isinstance(val, collections.Iterable):
+            return (self[i] for i in val)
             start = val
             stop = None    
         video_copy = self.__class__(self.filename, self.gray, self.invert)
