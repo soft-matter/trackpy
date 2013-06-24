@@ -43,8 +43,17 @@ def make_axes(func):
     def wrapper(*args, **kwargs):
         if kwargs.get('ax') is None:
             kwargs['ax'] = plt.gca()
+            # Delete legend keyword so remaining ones can be passed to plot().
+            try:
+                legend = kwargs['legend']
+            except KeyError:
+                legend = None
+            else:
+                del kwargs['legend']
+                print 'hi'
             result = func(*args, **kwargs)
-            if not kwargs['ax'].get_legend_handles_labels() == ([], []):
+            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or \
+                    legend is False):
                 plt.legend(loc='best')
             plt.show()
             return result
@@ -192,7 +201,8 @@ def subpx_bias(f, ax=None):
     return ax
 
 @make_axes
-def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
+def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None,
+        **kwargs):
     data = data.dropna()
     x, y = data.index.values.astype('float64'), data.values
     datalines = plt.plot(x, y, 'o', label=data.name)
@@ -201,11 +211,11 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None):
         ax.set_xscale('log')
     if logy:
         ax.set_yscale('log')
-    print [d.get_color() for d in datalines]
     if not inverted_model:
-        fitlines = ax.plot(fits.index, fits)
+        fitlines = ax.plot(fits.index, fits, **kwargs)
     else:
-        fitlines = ax.plot(fits.reindex(data.dropna().index), data.dropna())
+        fitlines = ax.plot(fits.reindex(data.dropna().index), 
+                           data.dropna(), **kwargs)
     # Restrict plot axis to domain of the data, not domain of the fit.
     xmin = data.index.values[data.index.values > 0].min() if logx \
         else data.index.values.min()

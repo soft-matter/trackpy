@@ -20,25 +20,27 @@ import collections
 import functools
 import re
 from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+from scipy import stats
 
-def fit_powerlaw(data, plot=True):
+def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
-    ys = DataFrame(data)
-    x = Series(data.index.values, index=data.index, dtype=np.float64)
-    values = DataFrame(index=['n', 'A'])
+    ys = pd.DataFrame(data)
+    x = pd.Series(data.index.values, index=data.index, dtype=np.float64)
+    values = pd.DataFrame(index=['n', 'A'])
     fits = {}
     for col in ys:
         y = ys[col].dropna()
         slope, intercept, r, p, stderr = \
             stats.linregress(np.log(x), np.log(y))
-        print 'slope', slope, ', intercept', intercept
         values[col] = [slope, np.exp(intercept)]
         fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope)
     values = values.T
     fits = pd.concat(fits, axis=1)
     if plot:
         import plots
-        plots.fit(data, fits, logx=True, logy=True)
+        plots.fit(data, fits, logx=True, logy=True, legend=False, **kwargs)
     return values
 
 class memo(object):

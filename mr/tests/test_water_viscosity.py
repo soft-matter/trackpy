@@ -75,7 +75,7 @@ class TestWaterViscosity(unittest.TestCase):
         EXPECTED_VISCOSITY = 1.01
         EXPECTED_N = 1.0
         em = self.store['ensemble_msd'].msd
-        fit = fit_powerlaw(em)
+        fit = mr.fit_powerlaw(em)
         A = fit['A'].values[0]
         n = fit['n'].values[0]
         viscosity = 1.740/A
