@@ -103,6 +103,8 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     results = pd.concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes probes into columns.
     results = results.swaplevel(0, 1)[statistic].unstack()
+    lagt = results.index.values.astype('float64')/float(fps)
+    results.set_index(lagt, inplace=True)
     results.index.name = 'lag time [s]'
     return results
 
