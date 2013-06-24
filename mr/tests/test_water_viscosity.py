@@ -24,25 +24,6 @@ def _skip_if_no_cv2():
     except ImportError:
         raise nose.SkipTest('OpenCV not installed. Skipping.')
 
-def fit_powerlaw(data):
-    """Fit a powerlaw by doing a linear regression in log space."""
-    import numpy as np
-    from scipy import stats
-    ys = DataFrame(data)
-    x = Series(data.index.values, index=data.index, dtype=np.float64)
-    values = DataFrame(index=['n', 'A'])
-    fits = {}
-    for col in ys:
-        y = ys[col].dropna()
-        slope, intercept, r, p, stderr = \
-            stats.linregress(np.log(x), np.log(y))
-        print 'slope', slope, ', intercept', intercept
-        values[col] = [slope, np.exp(intercept)]
-        fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope)
-    values = values.T
-    fits = pd.concat(fits, axis=1)
-    return values
-
 class TestWaterViscosity(unittest.TestCase):
     def setUp(self):
         self.VIDEO_PATH = os.path.join(path, 'water/bulk-water.mov')

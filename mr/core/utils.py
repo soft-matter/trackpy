@@ -21,6 +21,26 @@ import functools
 import re
 from datetime import datetime, timedelta
 
+def fit_powerlaw(data, plot=True):
+    """Fit a powerlaw by doing a linear regression in log space."""
+    ys = DataFrame(data)
+    x = Series(data.index.values, index=data.index, dtype=np.float64)
+    values = DataFrame(index=['n', 'A'])
+    fits = {}
+    for col in ys:
+        y = ys[col].dropna()
+        slope, intercept, r, p, stderr = \
+            stats.linregress(np.log(x), np.log(y))
+        print 'slope', slope, ', intercept', intercept
+        values[col] = [slope, np.exp(intercept)]
+        fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope)
+    values = values.T
+    fits = pd.concat(fits, axis=1)
+    if plot:
+        import plots
+        plots.fit(data, fits, logx=True, logy=True)
+    return values
+
 class memo(object):
    """Decorator. Caches a function's return value each time it is called.
    If called later with the same arguments, the cached value is returned
