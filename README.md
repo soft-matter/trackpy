@@ -12,30 +12,45 @@ What is it
 Main Features
 =============
 
-    - The widely-used particle locating algorithm originally implemented
-      by John Crocker and Eric Weeks in IDL is reimplemented in
-      Python. Wherever possible, I use existing tools from scipy and numpy modules. 
-      Each logical step is broken into a single-purpose function,
-      rendering a succinct and modular code that is easy to customize and maintain. Key
-      array-intensive steps that are not available from Python's standard scientific modules are
-      written in C and imported.
-    - The trajectories of colloidal probes can be characteristized, grouped, and
-      plotted using a suite of convenient functions.
-    - Various models (with more to come) relate probe statistics to rheological response, including
-      the Generalized Stokes-Einstein implementation used in the Crocker/Grier code.
-    - A sql module provides convenient functions for storing and loading data
-      from a MySQL database. (A sample database schema is included.)
-    - A wrapper for the powerful video handling software FFmpeg slices video and helps with book-keeping.
-
+  * The widely-used particle locating algorithm originally implemented
+    by John Crocker and Eric Weeks in IDL is reimplemented in
+    Python. Wherever possible, I use existing tools from widely-used Python
+    modules. Each logical step is broken into a single-purpose function,
+    rendering a modular code that is easy to customize and maintain. 
+  * A suite of tests confirms basic results (e.g., computing the viscosity of
+    water from a video of diffusing particles).
+  * For performance, array-intensive steps that are not available in
+    standard scientific modules are written in C and imported.
+  * Results are given as DataFrames (see Python pandas). Particle trajectories can be 
+    characterized, grouped, and plotted using a suite of convenient functions.
+  * Various models relate probe statistics to rheological response, including
+    the Generalized Stokes-Einstein implementation used in the Crocker/Grier 
+    code.
+  * Feature locations are saved one frame at a time to conserve memory. They
+    can be saved to a CSV file, a SQL database, an HDF5 datastore, or any
+    custom-made storage.
 
 Dependencies
-============
+------------
 
-  * numpy
-  * scipy
-  * pandas
-  * MySQLdb (optional)
-  * [trackpy](https://github.com/tacaswell/trackpy)
+Essential:
+
+  * ``numpy``
+  * ``scipy``
+  * ``matplotlib``
+  * ``pandas``
+  * ``lmfit``
+  * ``[trackpy]``(https://github.com/tacaswell/trackpy)
+
+Recommended:
+
+  * ``pyopencv`` for processing video files directly
+
+Optional:
+
+  * ``MySQLdb`` for saving results in a MySQL database
+  * ``PyTables`` for saving results in an HDF5 datastore
+  * 
 
 Related Projects
 ================

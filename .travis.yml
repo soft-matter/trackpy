@@ -12,7 +12,6 @@ before_install:
 install:
   - pip install nose cython numexpr
   - pip install -e git+https://github.com/pydata/pandas#egg=pandas
-  - pip install lmfit
   - pip install git+https://github.com/PyTables/PyTables.git@v.3.0.0#egg=tables
   - pip install git+https://github.com/tacaswell/trackpy.git#egg=trackpy
   - python setup.py build_ext install
