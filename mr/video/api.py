@@ -11,7 +11,15 @@ else:
     from mr.video.trace import circle
     from mr.video.basic import play
 
-# from tiff import TiffStack
+try:
+    import libtiff
+except ImportError:
+    warnings.warn(
+        """The module libtiff could not be found. If you wish you load
+        multi-frame tiff files using mr.TiffStack, you must first install
+        libtiff.""")
+else:
+    from mr.video.tiff import TiffStack
 
 # Legacy
 # from muxing import *

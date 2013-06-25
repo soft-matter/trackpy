@@ -19,8 +19,8 @@ class TestVideo(unittest.TestCase):
     def setUp(self):
         _skip_if_no_cv2()
         self.filename = os.path.join(path, '../water/bulk-water.mov')
-        self.frame0 = np.load(os.path.join(path, 'frame0.npy'))
-        self.frame1 = np.load(os.path.join(path, 'frame1.npy'))
+        self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
         self.v = mr.Video(self.filename)
 
     def test_shape(self):
@@ -57,6 +57,47 @@ class TestVideo(unittest.TestCase):
 
     def test_getting_list(self):
         _skip_if_no_cv2()
+        actual = list(self.v[[1, 0, 0, 1, 1]])
+        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
+                    self.frame1]
+        [assert_equal(a, b) for a, b in zip(actual, expected)]
+
+
+class TestTiffStack(unittest.TestCase):
+
+    def setUp(self):
+        self.filename = os.path.join(path, '../video/stuck.tif')
+        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
+        self.v = mr.TiffStack(self.filename)
+
+    def test_shape(self):
+        assert_equal(self.v.shape, (512, 512))
+
+    def test_count(self):
+        assert_equal(self.v.count, 300)
+
+    def test_iterator(self):
+        assert_equal(self.v.next(), self.frame0)
+        assert_equal(self.v.next(), self.frame1)
+
+    def test_rewind(self):
+        self.v.rewind()
+        assert_equal(self.v.next(), self.frame0)
+
+    def test_getting_slice(self):
+        frame0, frame1 = list(self.v[0:1])
+        assert_equal(frame0, self.frame0)
+        assert_equal(frame1, self.frame1)
+
+    def test_getting_single_frame(self):
+        assert_equal(self.v[1], self.frame1)
+        assert_equal(self.v[0], self.frame0)
+        assert_equal(self.v[0], self.frame0)
+        assert_equal(self.v[1], self.frame1)
+        assert_equal(self.v[1], self.frame1)
+
+    def test_getting_list(self):
         actual = list(self.v[[1, 0, 0, 1, 1]])
         expected = [self.frame1, self.frame0, self.frame0, self.frame1,
                     self.frame1]

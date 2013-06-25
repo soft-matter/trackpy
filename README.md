@@ -25,15 +25,15 @@ Features
   * For performance, array-intensive steps that are not available in
     standard scientific modules are written in C and imported.
   * Results are given as DataFrames, high-performance spreadsheet-like objects 
-    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html). 
-    Particle trajectories can be 
+    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html) which can easily be saved to a **CSV file, Excel spreadsheet, 
+    SQL database, HDF5 file**, or other.
+  * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
+    **multi-frame TIFF, or a directory of images (TIFF, PNG, JPG, etc.)**.
+  * Particle trajectories can be 
     characterized, grouped, and plotted using a suite of convenient functions.
   * Various models relate probe statistics to rheological response, including
     the Generalized Stokes-Einstein implementation used in the Crocker/Grier 
     code.
-  * Feature locations are saved one frame at a time to conserve memory. They
-    can be saved to a CSV file, a SQL database, an HDF5 datastore, or any
-    custom-made storage.
 
 Dependencies
 ------------
@@ -46,13 +46,12 @@ Essential:
   * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html)
   * [``trackpy``](https://github.com/tacaswell/trackpy)
 
-Recommended:
-
-  * [``cv2``](http://opencv.org/downloads.html) Python bindings to OpenCV, 
-    used for processing video files directly
 
 Optional:
 
+  * [``cv2``](http://opencv.org/downloads.html) for reading video files
+      and viewing video with annotations
+  * ``libtiff`` for reading multi-frame tiff images
   * ``MySQLdb`` for saving results in a MySQL database
   * ``PyTables`` for saving results in an HDF5 datastore
 
