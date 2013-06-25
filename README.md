@@ -21,7 +21,7 @@ Features
     rendering a modular code that is **easy to customize and maintain**. 
   * To verify the code, a **suite of tests reproduces basic results** (e.g., 
     computing the viscosity of water from a video of diffusing particles).
-  * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457]).
+  * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457).
   * For performance, array-intensive steps that are not available in
     standard scientific modules are written in C and imported.
   * Results are given as DataFrames, high-performance spreadsheet-like objects 
