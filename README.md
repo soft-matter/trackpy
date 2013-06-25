@@ -18,9 +18,10 @@ Features
     by John Crocker and Eric Weeks in IDL is reimplemented in
     Python. Wherever possible, existing tools from widely-used Python modules 
     are employed. Each logical step is broken into a single-purpose function,
-    rendering a modular code that is easy to customize and maintain. 
-  * A suite of tests verified the code by reproducing basic results (e.g., 
+    rendering a modular code that is **easy to customize and maintain**. 
+  * To verify the code, a **suite of tests reproduces basic results** (e.g., 
     computing the viscosity of water from a video of diffusing particles).
+  * **Uncertainty is estimated** using a method [http://dx.doi.org/10.1529/biophysj.104.042457](proposed in this paper).
   * For performance, array-intensive steps that are not available in
     standard scientific modules are written in C and imported.
   * Results are given as DataFrames, high-performance spreadsheet-like objects 
