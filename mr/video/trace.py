@@ -1,8 +1,9 @@
 import cv2
 import numpy as np
 import pandas as pd
+import warnings
 
-def circle(features, frames, high_contrast=True, write_file=None):
+def circle(features, frames, wait=1, high_contrast=True, write_file=None):
     """Play video, circling features in each frame.
 
     Parameters
@@ -10,6 +11,9 @@ def circle(features, frames, high_contrast=True, write_file=None):
     features : DataFrame including columns 'frame', 'x', and 'y'
     frames : iterable container of image arrays, like a list of images or a 
         Video object (See mr.opencv.video.Video.)
+    wait : delay between frames, default 1
+    high_contrast : Rescale brightness to use full gamut. Default True.
+    write_file : Save the annotated movie to a file.
     """
     RADIUS = 10
     COLOR = (0, 200, 0)
@@ -17,6 +21,7 @@ def circle(features, frames, high_contrast=True, write_file=None):
     centers = features.set_index('frame')[['x', 'y']]
     cv2.namedWindow("playback")
     if write_file is not None:
+        warnings.warn("The write_file feature is not ready for prime time!")
         fourcc = cv2.cv.CV_FOURCC('P', 'I', 'M', '1')
         writer = cv2.VideoWriter(write_file, fourcc, 30, (660, 492))
 
@@ -54,6 +59,6 @@ def circle(features, frames, high_contrast=True, write_file=None):
             cv2.imshow("playback", frame)
             if write_file:
                 writer.write(frame)
-            cv2.waitKey(1)
+            cv2.waitKey(wait)
     except KeyboardInterrupt:
         return frame
