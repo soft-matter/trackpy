@@ -36,13 +36,7 @@ class TestWaterViscosity(unittest.TestCase):
         # Only checking that it doesn't raise an error.
         frames = mr.Video(self.VIDEO_PATH)
         MAX_FRAME = 2
-        temp_store = pd.HDFStore('temp_for_testing.h5')
-        try:
-            features = mr.batch(
-                frames[:MAX_FRAME], DIAMETER, MINMASS, store=temp_store) 
-        finally:
-            os.remove('temp_for_testing.h5') 
-        self.assertTrue(True)
+        features = mr.batch(frames[:MAX_FRAME], DIAMETER, MINMASS)
 
     @slow
     def test_track_usage(self):

@@ -203,7 +203,7 @@ def locate(image, diameter, minmass=100., separation=None,
 def batch(frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, invert=False,
           percentile=64, pickN=None, preprocess=True, 
-          store=None, table=None):
+          store=None, conn=None, sql_flavor=None, table=None):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
 
@@ -216,17 +216,20 @@ def batch(frames, diameter, minmass=100, separation=None,
     minmass : minimum integrated brightness
        Default is 100, but a good value is often much higher. This is a 
        crucial parameter for elminating spurrious features.
-    separation : feature separation in px
-    noise_size : scale of Gaussian blurring. Default 1.
-    smoothing_size : defauls to separation
+    separation : feature separation in px. Default = 1 + diamter.
+    noise_size : scale of Gaussian blurring. Default = 1.
+    smoothing_size : Default = separation.
     invert : Set to True if features are darker than background. False by
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
     pickN : Not Implemented
     preprocess : Set to False to turn out automatic preprocessing.
-    store : HDFStore
-    table : string specifying a HDFStore table. Default: 'features_timestamp'.
+    store : Optional HDFStore
+    conn : Optional connection to a SQL database
+    sql_flavor : If using a SQL connection, specify 'sqlite' or 'MySQL'.
+    table : If using HDFStore or SQL, specify table name.
+        Default: 'features_timestamp'.
 
     Returns
     -------
@@ -235,9 +238,9 @@ def batch(frames, diameter, minmass=100, separation=None,
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
     """
-    timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d %H%M%S')
+    timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S')
     if table is None:
-        table = 'features ' + timestamp
+        table = 'features-' + timestamp
     # Gather meta information and pack it into a Series.
     try: 
         source = frames.filename
@@ -269,10 +272,18 @@ def batch(frames, diameter, minmass=100, separation=None,
         if store is not None:
             store.append(table, centroids, data_columns=indexed)
             store.flush() # Force save. Not essential.
+        elif conn is not None:
+            if sql_flavor is None:
+                raise ValueError, \
+                    "Specifiy sql_flavor: MySQL or sqlite."
+            pd.io.sql.write_frame(centroids, table, conn,
+                                  flavor=sql_flavor, if_exists='append')
         else:
             all_centroids.append(centroids)
     if store is not None:
         store.get_storer(table).attrs.meta = meta
         return store[table]
+    elif conn is not None:
+        return pd.io.sql.read_frame("SELECT * FROM %s" % table, conn)
     else:
-        return pd.concat(all_centroids)
+        return pd.concat(all_centroids).reset_index(drop=True)

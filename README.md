@@ -53,8 +53,8 @@ Optional:
   * [``cv2``](http://opencv.org/downloads.html) for reading video files
       and viewing video with annotations
   * ``libtiff`` for reading multi-frame tiff images
-  * ``MySQLdb`` for saving results in a MySQL database
-  * ``PyTables`` for saving results in an HDF5 datastore
+  * ``PyTables`` for saving results in an HDF5 file
+  * ``sqlite`` or ``MySQLdb`` for saving results in a SQL database
 
 Related Projects
 ----------------
