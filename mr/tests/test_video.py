@@ -84,7 +84,7 @@ class TestTiffStack(unittest.TestCase):
 
     def test_count(self):
         _skip_if_no_libtiff()
-        assert_equal(self.v.count, 300)
+        assert_equal(self.v.count, 5)
 
     def test_iterator(self):
         _skip_if_no_libtiff()
