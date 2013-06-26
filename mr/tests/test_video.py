@@ -73,7 +73,7 @@ class TestTiffStack(unittest.TestCase):
 
     def setUp(self):
         _skip_if_no_libtiff()
-        self.filename = os.path.join(path, '../video/stuck.tif')
+        self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
         self.v = mr.TiffStack(self.filename)
@@ -120,7 +120,7 @@ class TestTiffStack(unittest.TestCase):
 class TestImageSequence(unittest.TestCase):
 
     def setUp(self):
-        self.filename = os.path.join(path, '../video/image_sequence')
+        self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
         self.v = mr.ImageSequence(self.filename)

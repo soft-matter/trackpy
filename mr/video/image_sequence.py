@@ -8,6 +8,7 @@ class PseudoCapture(object):
         self.filename = directory # used by Frames 
         self.files = [os.path.join(directory, f) \
                       for f in os.listdir(directory)]
+        self.files.sort()
         self.end = False
         self.generator = (imread(f) for f in self.files)
     def read(self):
