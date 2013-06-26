@@ -16,6 +16,11 @@ def bandpass(image, lshort, llong):
     result -= 1 # Features must be at least 1 ADU above the background.
     return result.real.clip(min=0.)
 
+def scale_to_gamut(image, original_dtype):
+    max_value = np.iinfo(original_dtype).max
+    scaled = (max_value/image.max()*image.clip(min=0.))
+    return scaled.astype(original_dtype)
+
 @memo
 def circular_mask(diameter, side_length=None):
     """A circle of 1's inscribed in a square of 0's,

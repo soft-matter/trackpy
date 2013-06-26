@@ -34,7 +34,7 @@ from mr.core.utils import memo
 from mr.core import uncertainty
 from mr.core import plots
 from mr.core.preprocessing import (bandpass, circular_mask, rgmask, thetamask,
-                                   sinmask, cosmask)
+                                   sinmask, cosmask, scale_to_gamut)
 import _Cfilters
 import warnings
 
@@ -51,7 +51,8 @@ def local_maxima(image, diameter, separation, percentile=64):
         return np.empty((0, 2))
     threshold = stats.scoreatpercentile(flat[flat > 0], percentile)
     # The intersection of the image with its dilation gives local maxima.
-    assert image.dtype == np.uint8, "Perform dilation on exact (uint8) data." 
+    assert np.issubdtype(image.dtype, np.integer), \
+        "Perform dilation on exact (i.e., integer) data." 
     dilation = morphology.grey_dilation(
         image, footprint=circular_mask(diameter, separation))
     maxima = np.where((image == dilation) & (image > threshold))
@@ -168,15 +169,16 @@ def locate(image, diameter, minmass=100., separation=None,
     if not separation:
         separation = diameter + 1
     smoothing_size = smoothing_size if smoothing_size else diameter # default
-
     if preprocess:
-        # Invert, and make a bandpassed version.
         if invert:
-            image = 255 - image # Do not do in place -- can confuse repeated calls. 
+            # Tempting to do this in place, but if it is called multiple
+            # times on the same image, chaos reigns.
+            max_value = np.iinfo(image.dtype).max
+            image = image ^ max_value
         bp_image = bandpass(image, noise_size, smoothing_size)
     else:
         bp_image = image.copy()
-    bp_image = (255/bp_image.max()*bp_image.clip(min=0.)).astype(np.uint8)
+    bp_image = scale_to_gamut(bp_image, image.dtype)
 
     f = DataFrame(local_maxima(bp_image, diameter, separation, percentile),
                   columns=['x', 'y'])
