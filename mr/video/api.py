@@ -1,5 +1,7 @@
 import warnings
 
+from mr.video.image_sequence import ImageSequence
+
 try:
     import cv2
 except ImportError:
@@ -7,7 +9,7 @@ except ImportError:
         """The module cv2 could not be found. All dependent video tools
         will not be imported.""")
 else:
-    from mr.video.opencv import Video, Frames
+    from mr.video.opencv import Video
     from mr.video.trace import circle
     from mr.video.basic import play
 

@@ -8,8 +8,8 @@ class PseudoCapture(object):
     def __init__(self, filename):
         self.filename = filename
         self.tiff = TIFF.open(filename)
-        self.count = self._count_frames()
-        self.shape = self.tiff.read_image().shape
+        self._count = self._count_frames() # used once by TiffStack
+        self._shape = self.tiff.read_image().shape # used once by TiffStack
         self.end = False
         self.generator = self.tiff.iter_images()
     def read(self):
@@ -31,8 +31,8 @@ class TiffStack(Frames):
     def __init__(self, filename, gray=False, invert=False):
         Frames.__init__(self, filename, gray, invert)
         dummy_instance = self._open(filename)
-        self.count = dummy_instance.count
-        self.shape = dummy_instance.shape
+        self.count = dummy_instance._count
+        self.shape = dummy_instance._shape
 
     def _open(self, filename):
         return open_tiffstack(filename)
