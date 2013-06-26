@@ -72,38 +72,38 @@ class TestVideo(unittest.TestCase):
 class TestTiffStack(unittest.TestCase):
 
     def setUp(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         self.filename = os.path.join(path, '../video/stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
         self.v = mr.TiffStack(self.filename)
 
     def test_shape(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         assert_equal(self.v.shape, (512, 512))
 
     def test_count(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         assert_equal(self.v.count, 300)
 
     def test_iterator(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         assert_equal(self.v.next(), self.frame0)
         assert_equal(self.v.next(), self.frame1)
 
     def test_rewind(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         self.v.rewind()
         assert_equal(self.v.next(), self.frame0)
 
     def test_getting_slice(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         frame0, frame1 = list(self.v[0:1])
         assert_equal(frame0, self.frame0)
         assert_equal(frame1, self.frame1)
 
     def test_getting_single_frame(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         assert_equal(self.v[1], self.frame1)
         assert_equal(self.v[0], self.frame0)
         assert_equal(self.v[0], self.frame0)
@@ -111,7 +111,7 @@ class TestTiffStack(unittest.TestCase):
         assert_equal(self.v[1], self.frame1)
 
     def test_getting_list(self):
-        skip_if_no_libtiff()
+        _skip_if_no_libtiff()
         actual = list(self.v[[1, 0, 0, 1, 1]])
         expected = [self.frame1, self.frame0, self.frame0, self.frame1,
                     self.frame1]
