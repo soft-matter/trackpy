@@ -126,7 +126,7 @@ class TestImageSequence(unittest.TestCase):
         self.v = mr.ImageSequence(self.filename)
 
     def test_shape(self):
-        assert_equal(self.v.shape, (512, 512))
+        assert_equal(self.v.shape, (424, 640))
 
     def test_count(self):
         assert_equal(self.v.count, 5)
