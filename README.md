@@ -28,7 +28,8 @@ Features
     from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html) which can easily be saved to a **CSV file, Excel spreadsheet, 
     SQL database, HDF5 file**, or other.
   * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
-    **multi-frame TIFF, or a directory of images (TIFF, PNG, JPG, etc.)**.
+    **multi-frame TIFF, or a directory of sequential images (TIFF, 
+    PNG, JPG, etc.)**.
   * Particle trajectories can be 
     characterized, grouped, and plotted using a suite of convenient functions.
   * Various models relate probe statistics to rheological response, including
