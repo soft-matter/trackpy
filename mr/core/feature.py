@@ -203,7 +203,8 @@ def locate(image, diameter, minmass=100., separation=None,
 def batch(frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, invert=False,
           percentile=64, pickN=None, preprocess=True, 
-          store=None, conn=None, sql_flavor=None, table=None):
+          store=None, conn=None, sql_flavor=None, table=None,
+          do_not_return=False):
     """Process a list of images, doing optional image preparation and cleanup, 
     locating Gaussian-like blobs of a given size above a given total brightness.
 
@@ -230,6 +231,8 @@ def batch(frames, diameter, minmass=100, separation=None,
     sql_flavor : If using a SQL connection, specify 'sqlite' or 'MySQL'.
     table : If using HDFStore or SQL, specify table name.
         Default: 'features_timestamp'.
+    do_not_return : Save the result frame by frame, but do not return it when
+        finished. Conserved memory for parallel jobs.
 
     Returns
     -------
@@ -280,6 +283,8 @@ def batch(frames, diameter, minmass=100, separation=None,
                                   flavor=sql_flavor, if_exists='append')
         else:
             all_centroids.append(centroids)
+    if do_not_return:
+        return None
     if store is not None:
         store.get_storer(table).attrs.meta = meta
         return store[table]
