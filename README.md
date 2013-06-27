@@ -18,8 +18,7 @@ Features
   * The [widely-used particle locating algorithm](http://www.physics.emory.edu/~weeks/idl/tracking.html) originally implemented
     by John Crocker and Eric Weeks in IDL is reimplemented in
     Python. Wherever possible, existing tools from widely-used Python modules 
-    are employed. Each logical step is broken into a single-purpose function,
-    rendering a modular code that is **easy to customize and maintain**. 
+    are employed.
   * To verify the code, a **suite of tests reproduces basic results** (e.g., 
     computing the viscosity of water from a video of diffusing particles).
   * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457).
