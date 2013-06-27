@@ -123,14 +123,13 @@ def analyze(frame, angle_only=True, plot=False):
     else:
         return results
 
-def track(frames, shift=True):
+def track(frames):
     """Track the orientation of a wire through many frames.
 
     Parameters
     ----------
     frames : an iterable, such as a list of images or a mr.Video
         object
-    shift : automatically put angles in the 0-180 degree range
 
     Returns
     -------
@@ -141,12 +140,13 @@ def track(frames, shift=True):
     for i, img in enumerate(frames):
         data[i + 1] = analyze(img)
     data = data.dropna() # Discard unused rows.
-    if shift:
-        shift_ref_frame(data)
     return data
 
+def periodic_shift(data, shift, period=180):
+    return np.mod(data + shift, period) - shift
+
 def shift_ref_frame(data):
-    """Rotate the reference frame to avoid jumps between 180 and 0 degrees.
+    """Choose a branch cut that avoids splitting the range of observations.
 
     Parameters
     ----------
@@ -156,5 +156,8 @@ def shift_ref_frame(data):
     -------
     None   
     """
-    data -= data.min()
-    data = data % 180
+    trial_shifts = np.linspace(0, 360, 360)
+    spans = np.array([np.ptp(periodic_shift(data, s)) for s in trial_shifts])
+    good_shift = trial_shifts[spans.argmin()]
+    print good_shift
+    return periodic_clip(data, good_shift)
