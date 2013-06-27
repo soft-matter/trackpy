@@ -6,8 +6,9 @@ What is it?
 
 **mr** is a Python package providing tools for passive and active microrheology experiments.
 
-Example:
+Examples and Tutorials:
   * [Compute the viscosity of water from a video of colloids in Brownian motion.](http://nbviewer.ipython.org/url/raw.github.com/danielballan/mr/master/examples/mr%20simple%20example.ipynb)
+  * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/url/raw.github.com/danielballan/mr/master/examples/tools%20for%20large%20or%20concurrent%20jobs.ipynb)
 
 [![build status](https://travis-ci.org/danielballan/mr.png)](https://travis-ci.org/danielballan/mr)
 
