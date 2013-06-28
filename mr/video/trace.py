@@ -21,9 +21,14 @@ def circle(features, frames, wait=1, high_contrast=True, write_file=None):
     centers = features.set_index('frame')[['x', 'y']]
     cv2.namedWindow("playback")
     if write_file is not None:
+        try: 
+            shape = frames.shape
+        except AttributeError:
+            raise ValueError, \
+                "To use write_file, frames must be a subclass of Frames."
         warnings.warn("The write_file feature is not ready for prime time!")
         fourcc = cv2.cv.CV_FOURCC('P', 'I', 'M', '1')
-        writer = cv2.VideoWriter(write_file, fourcc, 30, (660, 492))
+        writer = cv2.VideoWriter(write_file, fourcc, 30, frames.shape)
 
     print "Press Ctrl+C to interrupt video."
     try:
@@ -61,4 +66,4 @@ def circle(features, frames, wait=1, high_contrast=True, write_file=None):
                 writer.write(frame)
             cv2.waitKey(wait)
     except KeyboardInterrupt:
-        return frame
+        pass
