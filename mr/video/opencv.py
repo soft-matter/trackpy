@@ -41,8 +41,8 @@ class Video(Frames):
     """
     def __init__(self, filename, gray=True, invert=True):
         Frames.__init__(self, filename, gray, invert)
-        self.shape = (self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH),
-                      self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+        self.shape = (int(self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)),
+                      int(self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)))
         self.count = int(self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 
     def _open(self, filename):
