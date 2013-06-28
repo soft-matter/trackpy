@@ -3,6 +3,7 @@ import numpy as np
 import collections
 
 class Frames(object):
+    "Base class for iterable objects that return images as numpy arrays."
     
     def __init__(self, filename, gray=True, invert=True):
         self.filename = filename
@@ -50,6 +51,21 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
             raise StopIteration
         frame = self._process(frame)
         self.cursor += 1
+        return frame
+
+    def _process(self, frame):
+        """Subclasses can override this with faster ways, but this
+        pure numpy implementation is general."""
+        if self.gray:
+            if len(frame.shape) == 2:
+                pass # already gray
+            elif len(frame.shape) == 3: 
+                frame = np.mean(frame, axis=2).astype(frame.dtype)
+            else:
+                raise ValueError, \
+                   "Frames are not 2- or 3-dimensional arrays. What now?"
+        if self.invert:
+            frame ^= np.iinfo(frame.dtype).max
         return frame
 
     def __getitem__(self, val):

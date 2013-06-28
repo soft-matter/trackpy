@@ -27,8 +27,33 @@ def open_tiffstack(filename):
     return capture
 
 class TiffStack(Frames):
+    """Iterable object that returns frames of video as numpy arrays.
 
-    def __init__(self, filename, gray=False, invert=False):
+    Parameters
+    ----------
+    filename : string
+    gray : Convert color image to grayscale. True by default.
+    invert : Invert black and white. True by default.
+
+    Examples
+    --------
+    >>> video = TiffStack('filename')
+    >>> imshow(video[0]) # Show the first frame.
+    >>> imshow(video[1][0:10][0:10]) # Show one corner of the second frame.
+
+    >>> for frame in video[:]:
+    ...    # Do something with every frame.
+ 
+    >>> for frame in video[10:20]:
+    ...    # Do something with frames 10-20.
+
+    >>> for frame in video[[5, 7, 13]]:
+    ...    # Do something with frames 5, 7, and 13.
+ 
+    >>> frame_count = video.count # Number of frames in video
+    >>> frame_shape = video.shape # Pixel dimensions of video
+    """
+    def __init__(self, filename, gray=True, invert=True):
         Frames.__init__(self, filename, gray, invert)
         dummy_instance = self._open(filename)
         self.count = dummy_instance._count
@@ -36,13 +61,3 @@ class TiffStack(Frames):
 
     def _open(self, filename):
         return open_tiffstack(filename)
-
-    def _process(self, frame):
-        if self.gray:
-            raise NotImplementedError, \
-                "You must convert to the images to grayscale on your own."
-        if self.invert:
-            raise NotImplementedError, \
-                "You must convert to the images to grayscale on your own."
-        return frame
-

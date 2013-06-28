@@ -12,8 +12,7 @@ def open_video(filename):
     return capture
 
 class Video(Frames):
-    """Iterable object that returns frames of video as numpy arrays of integers
-    0-255.
+    """Iterable object that returns frames of video as numpy arrays.
 
     Parameters
     ----------
@@ -50,8 +49,8 @@ class Video(Frames):
 
     def _process(self, frame):
         if self.gray:
+            # Use opencv since we need this dependecy anyway.
             frame = cv2.cvtColor(frame, cv2.cv.CV_RGB2GRAY)
         if self.invert:
-            frame *= -1
-            frame += 255
+            frame ^= np.iinfo(frame.dtype).max
         return frame 
