@@ -73,6 +73,12 @@ class TestVideo(unittest.TestCase):
         inverted_video = mr.Video(self.filename, invert=False)
         assert_equal(inverted_video[0], inverted_frame0)
 
+    def test_integer_attributes(self):
+        assert_equal(len(self.v.shape), 2)
+        self.assertTrue(isinstance(self.v.shape[0], int))
+        self.assertTrue(isinstance(self.v.shape[1], int))
+        self.assertTrue(isinstance(self.v.count, int))
+
 
 class TestTiffStack(unittest.TestCase):
 
@@ -127,6 +133,12 @@ class TestTiffStack(unittest.TestCase):
         inverted_tiff_stack = mr.TiffStack(self.filename, invert=True)
         assert_equal(inverted_tiff_stack[0], inverted_frame0)
 
+    def test_integer_attributes(self):
+        assert_equal(len(self.v.shape), 2)
+        self.assertTrue(isinstance(self.v.shape[0], int))
+        self.assertTrue(isinstance(self.v.shape[1], int))
+        self.assertTrue(isinstance(self.v.count, int))
+
 
 class TestImageSequence(unittest.TestCase):
 
@@ -172,3 +184,8 @@ class TestImageSequence(unittest.TestCase):
         inverted_sequence = mr.ImageSequence(self.filename, invert=True)
         assert_equal(inverted_sequence[0], inverted_frame0)
 
+    def test_integer_attributes(self):
+        assert_equal(len(self.v.shape), 2)
+        self.assertTrue(isinstance(self.v.shape[0], int))
+        self.assertTrue(isinstance(self.v.shape[1], int))
+        self.assertTrue(isinstance(self.v.count, int))
