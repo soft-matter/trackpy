@@ -314,22 +314,59 @@ def is_localized(traj, threshold=0.4):
 def is_diffusive(traj, threshold=0.9):
     raise NotImplementedError, "I will rewrite this."
 
-def join_frames(t, frame1, frame2):
+def relate_frames(t, frame1, frame2):
     a = t[t.frame == frame1]
     b = t[t.frame == frame2]
     j = a.set_index('probe')[['x', 'y']].join(
          b.set_index('probe')[['x', 'y']], rsuffix='_b')
     j['dx'] = j.x_b - j.x
     j['dy'] = j.y_b - j.y
-    j['direction']  = np.arctan2(j.dy, j.dx).apply(lambda x: x % np.pi)
+    j['dr'] = np.sqrt(j['dx']**2 + j['dy']**2)
+    j['direction']  = np.arctan2(j.dy, j.dx)
     return j
 
 def direction_corr(t, frame1, frame2):
-    j = join_frames(t, frame1, frame2)
+    """Compute the cosine between every pair of probes' displacements.
+
+    Parameters
+    ----------
+    t : DataFrame containing columns probe, frame, x, and y
+    frame1 : frame number
+    frame2 : frame number
+
+    Returns
+    -------
+    DataFrame, indexed by probe, including dx, dy, and direction
+    """
+    j = relate_frames(t, frame1, frame2)
     cosine = np.cos(np.subtract.outer(j.direction, j.direction))
-    dx = np.subtract.outer(j.x, j.x)
-    dy = np.subtract.outer(j.y, j.y)
-    dr = np.sqrt(dx**2 + dy**2)
-    pairwise = DataFrame({'r': dr[np.triu_indices_from(dr, 1)], 
-                          'cos': cosine[np.triu_indices_from(cosine, 1)]})
-    return pairwise
+    r = np.sqrt(np.subtract.outer(j.x, j.x)**2 +
+                np.subtract.outer(j.y, j.y)**2)
+    upper_triangle = np.triu.indices_from(r, 1)
+    result = DataFrame({'r': r[upper_triangle],
+                        'cos': cosine[upper_triangle]})
+    return result 
+
+def velocity_corr(t, frame1, frame2):
+    """Compute the velocity correlation between 
+    every pair of probes' displacements.
+
+    Parameters
+    ----------
+    t : DataFrame containing columns probe, frame, x, and y
+    frame1 : frame number
+    frame2 : frame number
+
+    Returns
+    -------
+    DataFrame, indexed by probe, including dx, dy, and direction
+    """
+    j = relate_frames(t, frame1, frame2)
+    cosine = np.cos(np.subtract.outer(j.direction, j.direction))
+    r = np.sqrt(np.subtract.outer(j.x, j.x)**2 +
+                np.subtract.outer(j.y, j.y)**2)
+    dot_product = cosine*np.abs(np.multiply.outer(j.dr, j.dr))
+    upper_triangle = np.triu.indices_from(r, 1)
+    result = DataFrame({'r': r[upper_triangle],
+                        'dot_product': dot_product[upper_triangle]})
+    return result 
