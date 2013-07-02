@@ -342,7 +342,7 @@ def direction_corr(t, frame1, frame2):
     cosine = np.cos(np.subtract.outer(j.direction, j.direction))
     r = np.sqrt(np.subtract.outer(j.x, j.x)**2 +
                 np.subtract.outer(j.y, j.y)**2)
-    upper_triangle = np.triu.indices_from(r, 1)
+    upper_triangle = np.triu_indices_from(r, 1)
     result = DataFrame({'r': r[upper_triangle],
                         'cos': cosine[upper_triangle]})
     return result 
@@ -366,7 +366,7 @@ def velocity_corr(t, frame1, frame2):
     r = np.sqrt(np.subtract.outer(j.x, j.x)**2 +
                 np.subtract.outer(j.y, j.y)**2)
     dot_product = cosine*np.abs(np.multiply.outer(j.dr, j.dr))
-    upper_triangle = np.triu.indices_from(r, 1)
+    upper_triangle = np.triu_indices_from(r, 1)
     result = DataFrame({'r': r[upper_triangle],
                         'dot_product': dot_product[upper_triangle]})
     return result 
