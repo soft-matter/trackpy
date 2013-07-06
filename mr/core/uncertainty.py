@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 from scipy.ndimage import morphology
 from mr.core.preprocessing import bandpass, circular_mask
@@ -52,7 +53,7 @@ def static_error(features, noise, diameter, noise_size=1):
     else:
         noise.name = 'noise'
         N_S = features.join(noise, on='frame')['noise']/features['signal']
-    s = 2*(diameter/features['size'])**2
+    s = 2*((diameter//2-1)/features['size'])**2
     ep = N_S*noise_size/(2*np.pi**0.5)*s/(1-np.exp(-s))
     # ^ Savin & Doyle, Eq. 50
     ep.name = 'ep' # so it can be joined
