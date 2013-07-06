@@ -3,7 +3,7 @@ import numpy as np
 from scipy.ndimage import filters
 from scipy.ndimage import fourier
 
-def bandpass(image, lshort, llong):
+def bandpass(image, lshort, llong, threshold=1):
     """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
     retaining features of intermediate scale."""
@@ -13,7 +13,7 @@ def bandpass(image, lshort, llong):
     smoothed_background = filters.uniform_filter(image, 2*llong+1)
     result = np.fft.ifft2(fourier.fourier_gaussian(np.fft.fft2(image), lshort))
     result -= smoothed_background
-    result -= 1 # Features must be at least 1 ADU above the background.
+    result -= threshold # Features must be this level above the background.
     return result.real.clip(min=0.)
 
 def scale_to_gamut(image, original_dtype):

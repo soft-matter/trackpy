@@ -134,7 +134,7 @@ def refine_centroid(raw_image, bp_image, x, y, diameter, minmass=100, iterations
     return Series([xc, yc, mass, Rg, ecc, signal])
 
 def locate(image, diameter, minmass=100., separation=None, 
-           noise_size=1, smoothing_size=None, invert=False,
+           noise_size=1, smoothing_size=None, threshold=1, invert=False,
            percentile=64, pickN=None, preprocess=True):
     """Read an image, do optional image preparation and cleanup, and locate 
     Gaussian-like blobs of a given size above a given total brightness.
@@ -149,6 +149,8 @@ def locate(image, diameter, minmass=100., separation=None,
     separation : feature separation in px
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
+    threshold : Clip bandpass result below this value.
+        Default 1; use 8 for 16-bit images.
     invert : Set to True if features are darker than background. False by
         default.
     percentile : Features must have a peak brighter than pixels in this
@@ -175,7 +177,7 @@ def locate(image, diameter, minmass=100., separation=None,
             # times on the same image, chaos reigns.
             max_value = np.iinfo(image.dtype).max
             image = image ^ max_value
-        bp_image = bandpass(image, noise_size, smoothing_size)
+        bp_image = bandpass(image, noise_size, smoothing_size, threshold)
     else:
         bp_image = image.copy()
     bp_image = scale_to_gamut(bp_image, image.dtype)
@@ -194,14 +196,14 @@ def locate(image, diameter, minmass=100., separation=None,
     if len(f) == 0:
         return DataFrame(columns=columns) # empty
     f.columns = columns
-    black_level, noise = uncertainty.measure_noise(image, diameter)
+    black_level, noise = uncertainty.measure_noise(image, diameter, threshold)
     f['signal'] -= black_level
     ep = uncertainty.static_error(f, noise, diameter, noise_size)
     f = f.join(ep)
     return f
 
 def batch(frames, diameter, minmass=100, separation=None,
-          noise_size=1, smoothing_size=None, invert=False,
+          noise_size=1, smoothing_size=None, threshold=1, invert=False,
           percentile=64, pickN=None, preprocess=True, 
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False):
@@ -220,6 +222,8 @@ def batch(frames, diameter, minmass=100, separation=None,
     separation : feature separation in px. Default = 1 + diamter.
     noise_size : scale of Gaussian blurring. Default = 1.
     smoothing_size : Default = separation.
+    threshold : Clip bandpass result below this value.
+        Default 1; use 8 for 16-bit images.
     invert : Set to True if features are darker than background. False by
         default.
     percentile : Features must have a peak brighter than pixels in this
@@ -265,7 +269,7 @@ def batch(frames, diameter, minmass=100, separation=None,
         except AttributeError:
             frame_no = i 
         centroids = locate(image, diameter, minmass, separation, 
-                           noise_size, smoothing_size, invert,
+                           noise_size, smoothing_size, threshold, invert,
                            percentile, pickN, preprocess)
         centroids['frame'] = frame_no
         logger.info("Frame %d: %d features", frame_no, len(centroids))
