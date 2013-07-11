@@ -95,6 +95,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     -----
     Input units are pixels and frames. Output units are microns and seconds.
     """
+    traj.set_index('frame', inplace=True, drop=False) # to be sure
     ids = []
     msds = []
     for pid, ptraj in traj.groupby('probe'):
@@ -131,6 +132,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     -----
     Input units are pixels and frames. Output units are microns and seconds.
     """
+    traj.set_index('frame', inplace=True, drop=False) # to be sure
     ids = []
     msds = []
     for pid, ptraj in traj.groupby('probe'):
