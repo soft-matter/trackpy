@@ -8,7 +8,7 @@ path, _ = os.path.split(os.path.abspath(__file__))
 
 class TestLabeling(unittest.TestCase):
     def setUp(self):
-        self.sparse = pd.load(os.path.join(path, 'misc', 
+        self.sparse = pd.read_pickle(os.path.join(path, 'misc', 
                                            'sparse_trajectories.df'))
 
     @slow
