@@ -97,3 +97,8 @@ def time_interval(raw):
     m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
     h, m, s = map(int, m.group(1,2,3))
     return timedelta(hours=h, minutes=m, seconds=s)
+
+def suppress_plotting():
+    import matplotlib as mpl
+    mpl.pyplot.switch_backend('Agg') # does not plot to screen
+

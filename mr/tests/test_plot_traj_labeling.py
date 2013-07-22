@@ -3,6 +3,7 @@ from numpy.testing.decorators import slow
 import os
 import pandas as pd
 from mr import ptraj
+from mr.core.utils import suppress_plotting
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
@@ -13,4 +14,5 @@ class TestLabeling(unittest.TestCase):
 
     @slow
     def test_labeling_sparse_trajectories(self):
+        suppress_plotting()
         ptraj(self.sparse, label=True) # No errors?

@@ -4,6 +4,7 @@ import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
+from mr.core.utils import suppress_plotting
 
 import os
 import pandas as pd
@@ -66,6 +67,7 @@ class TestWaterViscosity(unittest.TestCase):
         assert_series_equal(em, self.store['ensemble_msd'].msd)
 
     def test_fit_powerlaw(self):
+        suppress_plotting()
         EXPECTED_VISCOSITY = 1.01
         EXPECTED_N = 1.0
         em = self.store['ensemble_msd'].msd
