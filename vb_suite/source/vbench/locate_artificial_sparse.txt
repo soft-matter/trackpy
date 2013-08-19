@@ -1,0 +1,52 @@
+**Benchmark setup**
+
+.. code-block:: python
+
+    
+    import mr
+    import numpy as np
+    
+    
+    def draw_gaussian_spot(image, pos, r):
+        assert image.shape[0] != image.shape[1],         "For stupid numpy broadcasting reasons, don't make the image square."
+        x, y = np.meshgrid(*np.array(map(np.arange, image.shape)) - pos)
+        max_value = np.iinfo(image.dtype).max
+        spot = max_value*np.exp(-(x**2 + y**2)/r).T
+        image += spot
+    
+    def gen_random_locations(shape, count):
+        np.random.seed(0)
+        return np.array([map(np.random.randint, shape) for _ in xrange(count)])
+    
+    def draw_spots(shape, locations, r):
+        image = np.zeros(shape, dtype='uint8')
+        for x in locations:
+            draw_gaussian_spot(image, x, r)
+        return image
+    
+    SHAPE = (1200, 1000)
+    COUNT = 10
+    R = 7
+    locations = gen_random_locations(SHAPE, COUNT)
+    img = draw_spots(SHAPE, locations, R)
+    for module in ['mr', 'mr.feature', 'mr.core.feature']:
+        try:
+            locate = __import__(module).locate
+        except ImportError:
+            continue
+        except AttributeError:
+            continue
+        else:
+            break
+    
+
+**Benchmark statement**
+
+.. code-block:: python
+
+    locate(img, 7)
+
+**Performance graph**
+
+.. image:: vbench/figures/locate_artificial_sparse.png
+   :width: 6in
