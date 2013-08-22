@@ -55,7 +55,14 @@ def bust_ghosts(tracks, threshold=100):
     -------
     a subset of tracks
     """
-    return tracks.reset_index().groupby('probe').filter(lambda x: x.frame.count() >= threshold).set_index('frame')
+    try:
+        tracks['frame']
+        tracks['probe']
+    except KeyError:
+        raise ValueError, "Tracks must contain columns 'frame' and 'probe'."
+    grouped = tracks.reset_index(drop=True).groupby('probe')
+    filtered = grouped.filter(lambda x: x.frame.count() >= threshold)
+    return filtered.set_index('frame', drop=False)
 
 def bust_clusters(tracks, quantile=0.8, threshold=None):
     """Filter out trajectories with a mean probe size above a given quantile.
