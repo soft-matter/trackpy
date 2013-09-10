@@ -308,7 +308,7 @@ def is_not_dirt(traj, threshold=3, mpp=1):
     extremes = traj.groupby('probe')['x', 'y'].agg(['max', 'min'])
     diag_size = np.sqrt((extremes[('x', 'max')] - extremes[('x', 'min')])**2
                         + (extremes[('y', 'max')] - extremes[('y', 'min')])**2)
-    return diag_size > threshold 
+    return diag_size.index[diag_size > threshold].astype('int')
 
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "I will rewrite this."
