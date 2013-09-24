@@ -5,9 +5,11 @@ from numpy.distutils.core import setup, Extension
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
+from mr import version
+
 setup(
     name = "mr",
-    version = "0.1",
+    version = __version__,
     description = "microrheology toolkit",
     author = "Daniel Allan",
     author_email = "dallan@pha.jhu.edu",
