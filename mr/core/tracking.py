@@ -19,6 +19,11 @@ def track(features, search_range=5, memory=0, box_size=100):
     memory : Number of frames through which a probe is allowed to "disappear"
         and reappear and be considered the same probe. Default 0.
     box_size : A parameter of the underlying algorithm.
+
+    Note
+    ----
+    The index of the features DataFrame is dropped, and the result is given
+    with a sequential integer index.
     """
     print "Building Feature objects..."
     frames = []
