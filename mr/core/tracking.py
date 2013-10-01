@@ -46,7 +46,59 @@ def track(features, search_range=5, memory=0, box_size=100):
     for probe_id, t in enumerate(tracks):
         for p in t.points:
             trajectories.at[p.id, 'probe'] = probe_id
-    return trajectories
+    return trajectories.sort(['probe', 'frame']).reset_index(drop=True)
+
+def kdtree_track(f, max_disp):
+    from scipy.spatial import KDTree
+    from itertools import count
+    position_cols, frame_col = ['x', 'y'], 'frame' # DataFrame column names; could generalize to 3D
+    first_iteration = True
+    t = f.copy() # TODO BAD MEMORY USE -- CHANGE LATER?
+    t['probe'] = np.nan
+    for frame_no, frame in f.groupby(frame_col):
+        if first_iteration:
+            trees = [KDTree(frame[position_cols])]
+            probes = np.arange(len(frame[position_cols])) # give probes id numbers...
+            t['probe'][f[frame_col] == frame_no] = probes
+            c = count(len(frame[position_cols])) # ...and use this counter for any new probes
+            def probe_id(i=None):
+                if i is None:
+                    return next(c)
+            first_iteration = False
+            continue
+
+        # Set up.
+        trees.append(KDTree(frame[position_cols]))
+        backward = trees[-1].query_ball_tree(trees[-2], max_disp)
+        forward = trees[-2].query_ball_tree(trees[-1], max_disp)
+        distances = trees[-1].count_neighbors(trees[-2], max_disp)
+        probes = -1*np.ones(len(frame)) # placeholder
+
+        # Process probes with only one candidate in range.
+        for i, b in enumerate(backward):
+            if len(b) == 0:
+                # no backward candidates
+                probes[i] = probe_id()
+            if len(b) == 1:
+                # one backward candidate
+                candidate = b[0]
+                if len(forward[candidate]) == 1:
+                    # unambiguous
+                    probe[i] = candidate
+                else:
+                    # ambiguous
+             
+        distances = trees[-1].sparse_distance_matrix(trees[-2], max_disp).toarray()
+        count_forward = (distances != 0)
+        one_match = num_matches == 1 # boolean mask
+        # Is the match a UNIQUE match?
+        distances[distances == 0] = max_disp + 1 # Replace placeholder before using argmin.
+        probes[one_match] = distances[one_match].argmin(1)
+        mult_matches = num_matches > 1
+        # TODO The following is obviously problematic.
+        probes[mult_matches] = distances[mult_matches].argmin(1) 
+        t['probe'][f[frame_col] == frame_no] = probes
+    return t.sort(['probe', frame_col]).reset_index(drop=True)
 
 def bust_ghosts(tracks, threshold=100):
     """Filter out trajectories with few points. They are often specious.
