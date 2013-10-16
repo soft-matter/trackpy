@@ -1,9 +1,11 @@
+# This downloads and install setuptools if it is not installed.
+from ez_setup import use_setuptools
+use_setuptools()
+
 import os
 import setuptools
 from numpy.distutils.core import setup, Extension
-
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+import warnings
 
 MAJOR = 0
 MINOR = 3
@@ -17,7 +19,6 @@ print FULLVERSION
 
 if not ISRELEASED:
     FULLVERSION += '.dev'
-    print FULLVERSION
     try:
         import subprocess
         try:
@@ -34,17 +35,12 @@ if not ISRELEASED:
         if sys.version_info[0] >= 3:
             rev = rev.decode('ascii')
 
-        print FULLVERSION
         FULLVERSION = rev.lstrip('v')
-        print FULLVERSION
 
     except:
-        import warnings
         warnings.warn("WARNING: Couldn't get git revision")
 else:
     FULLVERSION += QUALIFIER
-
-print FULLVERSION
 
 def write_version_py(filename=None):
     cnt = """\
@@ -63,7 +59,11 @@ short_version = '%s'
 
 write_version_py()
 
-setup(
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+# Installation tries ext_modules but omits them if compiling fails.
+setup_parameters = dict(
     name = "mr",
     version = FULLVERSION,
     description = "microrheology toolkit",
@@ -76,3 +76,12 @@ setup(
     package_dir = {'mr': 'mr'},
     package_data = {'mr': ['doc/*', 'db_schema.sql']},
 )
+
+try:
+    setup(**setup_parameters)
+except SystemExit:
+    warnings.warn(
+        """DON'T PANIC! Compiling C is not working, so I will fall back
+on pure Python code that does the same thing, just slower.""")
+    del setup_parameters['ext_modules']
+    setup(**setup_parameters)
