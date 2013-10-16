@@ -72,7 +72,7 @@ setup(
     author = "Daniel Allan",
     author_email = "dallan@pha.jhu.edu",
     url = "https://github.com/danielballan/mr",
-    packages = ['mr'],
+    packages = ['mr', 'mr.core', 'mr.video', 'mr.wire', 'mr.uncertainty'],
     long_description = read('README.md'),
     ext_modules = [Extension('_Cfilters', ['mr/src/Cfilters.c'])],
     package_dir = {'mr': 'mr'},
