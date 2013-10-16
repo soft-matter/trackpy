@@ -1,5 +1,4 @@
 import os
-import warnings
 import setuptools
 from numpy.distutils.core import setup, Extension
 
@@ -40,6 +39,7 @@ if not ISRELEASED:
         print FULLVERSION
 
     except:
+        import warnings
         warnings.warn("WARNING: Couldn't get git revision")
 else:
     FULLVERSION += QUALIFIER
