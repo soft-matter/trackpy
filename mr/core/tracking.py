@@ -8,7 +8,7 @@ class Feature(pt.PointND):
         self.id = id # unique ID derived from sequential index
                      # of features DataFrame
 
-def track(features, search_range=5, memory=0, box_size=100):
+def track(features, search_range=5, memory=0, hash_size=(1300, 1000), box_size=100):
     """Link features into trajectories.
 
     Parameters
@@ -38,7 +38,7 @@ def track(features, search_range=5, memory=0, box_size=100):
             frame.append(f)
     del trajectories['index']
     
-    hash_generator = lambda: pt.Hash_table((1300,1000), box_size)
+    hash_generator = lambda: pt.Hash_table(hash_size, box_size)
     print "Doing the actual work..."
     tracks = pt.link(frames, search_range, hash_generator, memory)
     print "Organizing the output..."
@@ -87,7 +87,7 @@ def kdtree_track(f, max_disp):
                     probe[i] = candidate
                 else:
                     # ambiguous
-             
+                    pass 
         distances = trees[-1].sparse_distance_matrix(trees[-2], max_disp).toarray()
         count_forward = (distances != 0)
         one_match = num_matches == 1 # boolean mask

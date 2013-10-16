@@ -39,21 +39,6 @@ class TestWaterViscosity(unittest.TestCase):
         MAX_FRAME = 2
         features = mr.batch(frames[:MAX_FRAME], DIAMETER, MINMASS)
 
-    @slow
-    def test_track_usage(self):
-        # Only checking that it doesn't raise an error
-        features = self.store.select('sample_features')
-        t = mr.track(features)
-
-    def test_drift(self):
-        drift = mr.motion.compute_drift(self.store['good_traj'])
-        assert_frame_equal(drift, self.store['drift'])
-
-    def test_drift_subtraction(self):
-        trajectories = mr.subtract_drift(self.store['good_traj'],
-                                         self.store['drift'])
-        assert_frame_equal(trajectories, self.store['tm'])
-
     def test_individual_msds(self):
         imsds = mr.imsd(self.store['tm'], MPP, FPS)
         assert_frame_equal(imsds, self.store['individual_msds'])
