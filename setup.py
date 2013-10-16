@@ -6,7 +6,6 @@ from numpy.distutils.core import setup, Extension
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
-print 'AHHHHHHHHHHH AHHHHHHHHHH'
 MAJOR = 0
 MINOR = 3
 MICRO = 0
@@ -16,10 +15,10 @@ QUALIFIER = ''
 
 FULLVERSION = VERSION
 print FULLVERSION
-print VERSION
 
 if not ISRELEASED:
     FULLVERSION += '.dev'
+    print FULLVERSION
     try:
         import subprocess
         try:
@@ -36,16 +35,16 @@ if not ISRELEASED:
         if sys.version_info[0] >= 3:
             rev = rev.decode('ascii')
 
+        print FULLVERSION
         FULLVERSION = rev.lstrip('v')
+        print FULLVERSION
 
     except:
         warnings.warn("WARNING: Couldn't get git revision")
 else:
     FULLVERSION += QUALIFIER
 
-
 print FULLVERSION
-print VERSION
 
 def write_version_py(filename=None):
     cnt = """\
