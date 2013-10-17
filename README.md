@@ -11,7 +11,7 @@ Examples and Tutorials:
   * [Load frames from a video file, a multi-frame TIFF, or a folder of images.](http://nbviewer.ipython.org/url/raw.github.com/danielballan/mr/master/examples/loading%20video%20frames.ipynb)
   * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/url/raw.github.com/danielballan/mr/master/examples/tools%20for%20large%20or%20concurrent%20jobs.ipynb)
 
-[![build status](https://travis-ci.org/danielballan/mr.png)](https://travis-ci.org/danielballan/mr)
+[![build status](https://travis-ci.org/danielballan/mr.png)](https://travis-ci.org/danielballan/mr.png?branch=master)
 
 Features
 --------
@@ -69,6 +69,6 @@ Background
 
 This package was developed and is maintained by Daniel Allan, as part of his
 PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
-University in Baltimore, MD.
+University in Baltimore, MD. The work was supported by the National Science Foundation under grant number CBET-1033985.
 
 Dan can be reached at dallan@pha.jhu.edu.
