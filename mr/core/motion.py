@@ -95,10 +95,9 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     -----
     Input units are pixels and frames. Output units are microns and seconds.
     """
-    traj.set_index('frame', inplace=True, drop=False) # to be sure
     ids = []
     msds = []
-    for pid, ptraj in traj.groupby('probe'):
+    for pid, ptraj in traj.reset_index(drop=True).groupby('probe'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, False))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
@@ -132,10 +131,9 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     -----
     Input units are pixels and frames. Output units are microns and seconds.
     """
-    traj.set_index('frame', inplace=True, drop=False) # to be sure
     ids = []
     msds = []
-    for pid, ptraj in traj.groupby('probe'):
+    for pid, ptraj in traj.reset_index(drop=True).groupby('probe'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, True))
         ids.append(pid)
     msds = pd.concat(msds, keys=ids, names=['probe', 'frame'])

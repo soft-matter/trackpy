@@ -12,6 +12,7 @@ from pandas import DataFrame, Series
 
 import mr
 
+MAX_FRAME = 300
 DIAMETER = 11
 MINMASS = 3000
 MPP = 100/285.
@@ -28,34 +29,22 @@ def _skip_if_no_cv2():
 class TestWaterViscosity(unittest.TestCase):
     def setUp(self):
         self.VIDEO_PATH = os.path.join(path, 'water/bulk-water.mov')
-        STORE_PATH = os.path.join(path, 'water/expected.h5')
-        self.store = pd.HDFStore(STORE_PATH, 'r')
 
     @slow
-    def test_batch_locate_usage(self):
+    def test_water_viscosity(self):
         _skip_if_no_cv2()
         # Only checking that it doesn't raise an error.
         frames = mr.Video(self.VIDEO_PATH)
-        MAX_FRAME = 2
-        features = mr.batch(frames[:MAX_FRAME], DIAMETER, MINMASS)
+        f = mr.batch(frames[:MAX_FRAME], DIAMETER, MINMASS)
 
-    def test_individual_msds(self):
-        imsds = mr.imsd(self.store['tm'], MPP, FPS)
-        assert_frame_equal(imsds, self.store['individual_msds'])
-
-    def test_ensemble_msds(self):
-        detailed_em = mr.emsd(self.store['tm'], MPP, FPS, detail=True)
-        print detailed_em.columns
-        print self.store['ensemble_msd'].columns
-        assert_frame_equal(detailed_em, self.store['ensemble_msd'])
-        em = mr.emsd(self.store['tm'], MPP, FPS)
-        assert_series_equal(em, self.store['ensemble_msd'].msd)
-
-    def test_fit_powerlaw(self):
+        t = mr.track(features, 5)
+        t1 = mr.bust_ghosts(t, 20)
+        d = mr.drift(t1, 5)
+        tm = mr.subtract_drift(t1, d)
+        em = mr.emsd(tm, MPP, FPS)
         suppress_plotting()
         EXPECTED_VISCOSITY = 1.01
         EXPECTED_N = 1.0
-        em = self.store['ensemble_msd'].msd
         fit = mr.fit_powerlaw(em)
         A = fit['A'].values[0]
         n = fit['n'].values[0]
