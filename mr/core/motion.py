@@ -54,7 +54,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     --------
     imsd() and emsd()
     """
-    pos = traj[['x', 'y']]
+    pos = traj.set_index('frame')[['x', 'y']]
     t = traj['frame']
     # Reindex with consecutive frames, placing NaNs in the gaps. 
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
@@ -97,7 +97,9 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     """
     ids = []
     msds = []
-    for pid, ptraj in traj.reset_index(drop=True).groupby('probe'):
+    # Note: Index is set by msd, so we don't need to worry
+    # about conformity here.
+    for pid, ptraj in traj.groupby('probe'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, False))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
@@ -199,7 +201,7 @@ def subtract_drift(traj, drift=None):
 
     if drift is None: 
         drift = compute_drift(traj)
-    return traj.set_index('frame', drop=False).sub(drift, fill_value = 0)
+    return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
 
 def is_typical(msds, frame=23, lower=0.1, upper=0.9):
     """Examine individual probe MSDs, distinguishing outliers from those
