@@ -36,7 +36,6 @@ class TestWaterViscosity(unittest.TestCase):
         # Only checking that it doesn't raise an error.
         frames = mr.Video(self.VIDEO_PATH)
         f = mr.batch(frames[:MAX_FRAME], DIAMETER, MINMASS)
-
         t = mr.track(features, 5)
         t1 = mr.bust_ghosts(t, 20)
         d = mr.drift(t1, 5)
