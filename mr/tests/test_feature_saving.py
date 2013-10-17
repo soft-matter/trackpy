@@ -35,6 +35,6 @@ class TestFeatureSaving(unittest.TestCase):
         except:
             nose.SkipTest('Cannot make an HDF5 file. Skipping')
         f = mr.batch(self.v[[0, 1]], *self.PARAMS, store=store,
-                     table='features').reset_index(drop=True) 
+                     table='features')
         assert_frame_equal(f, self.expected)
         os.remove(STORE_NAME)
