@@ -35,7 +35,7 @@ from mr.core import uncertainty
 from mr.core import plots
 from mr.core.preprocessing import (bandpass, circular_mask, rgmask, thetamask,
                                    sinmask, cosmask, scale_to_gamut)
-import _Cfilters
+from C_fallback_python import nullify_secondary_maxima
 import warnings
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def local_maxima(image, diameter, separation, percentile=64):
     maxima_map = np.zeros_like(image)
     maxima_map[maxima] = image[maxima]
     peak_map = filters.generic_filter(
-        maxima_map, _Cfilters.nullify_secondary_maxima(), 
+        maxima_map, nullify_secondary_maxima(), 
         footprint=circular_mask(separation), mode='constant')
     # Also, do not accept peaks near the edges.
     margin = int(separation)//2
