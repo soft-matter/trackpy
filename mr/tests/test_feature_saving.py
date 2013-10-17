@@ -30,11 +30,15 @@ class TestFeatureSaving(unittest.TestCase):
 
     def test_HDFStore(self):
         STORE_NAME = 'temp_for_testing.h5'
+        if os.path.isfile(STORE_NAME):
+            os.remove(STORE_NAME)
         try:
             store = pd.HDFStore(STORE_NAME)
         except:
             nose.SkipTest('Cannot make an HDF5 file. Skipping')
-        f = mr.batch(self.v[[0, 1]], *self.PARAMS, store=store,
-                     table='features')
-        assert_frame_equal(f, self.expected)
-        os.remove(STORE_NAME)
+        else:
+            f = mr.batch(self.v[[0, 1]], *self.PARAMS, store=store,
+                         table='features')
+            assert_frame_equal(f.reset_index(drop=True), 
+                           self.expected.reset_index(drop=True))
+            os.remove(STORE_NAME)
