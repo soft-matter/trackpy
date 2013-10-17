@@ -63,11 +63,9 @@ short_version = '%s'
 
 write_version_py()
 
-from mr import __version__
-
 setup(
     name = "mr",
-    version = __version__,
+    version = FULLVERSION,
     description = "microrheology toolkit",
     author = "Daniel Allan",
     author_email = "dallan@pha.jhu.edu",
