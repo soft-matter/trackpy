@@ -8,7 +8,7 @@ class Feature(pt.PointND):
         self.id = id # unique ID derived from sequential index
                      # of features DataFrame
 
-def track(features, search_range=5, memory=0, hash_size=(1300, 1000), box_size=100):
+def track(features, search_range=5, memory=0, hash_size=None, box_size=None):
     """Link features into trajectories.
 
     Parameters
@@ -18,13 +18,19 @@ def track(features, search_range=5, memory=0, hash_size=(1300, 1000), box_size=1
         Default is 5 px.
     memory : Number of frames through which a probe is allowed to "disappear"
         and reappear and be considered the same probe. Default 0.
-    box_size : A parameter of the underlying algorithm.
+    hash_size : Dimensions of the search space, inferred from data by default.
+    box_size : A parameter of the underlying algorith, defaults to same
+        as search_range, which gives reasonably optimal performance.
 
     Note
     ----
     The index of the features DataFrame is dropped, and the result is given
     with a sequential integer index.
     """
+    if box_size is None:
+        box_size = search_range
+    if hash_size is None:
+        hash_size = np.ceil(features[['x', 'y']].max())
     print "Building Feature objects..."
     frames = []
     # Make a sequential index and promote it to a column called 'index'.

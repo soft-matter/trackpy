@@ -19,7 +19,7 @@ class CommonTrackingTests(object):
     def test_one_trivial_stepper(self):
         # One 1D stepper
         N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.zeros(N), 'frame': np.arange(N)})
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         actual = self.track(f, 5)
         expected = f.copy()
         expected['probe'] = np.zeros(N)
