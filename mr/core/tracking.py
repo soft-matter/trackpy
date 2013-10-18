@@ -1,6 +1,7 @@
-import trackpy.tracking as pt
+import itertools
 import numpy as np
 import pandas as pd
+import trackpy.tracking as pt
 
 class Feature(pt.PointND):
     "Extends pt.PointND to carry meta information from feature identification."
@@ -54,93 +55,129 @@ def track(features, search_range=5, memory=0, hash_size=None, box_size=None):
             trajectories.at[p.id, 'probe'] = probe_id
     return trajectories.sort(['probe', 'frame']).reset_index(drop=True)
 
-def kdtree_track(f, max_disp):
+def kdtree_track_dataframe(features, search_range):
+    frames = (frame for frame in features.groupby('frame'))
+    label_gen = kdtree_track(frames, search_range)
+    features['probe'] = np.nan # placeholder
+    while True:
+        try:
+            frame_no, labels = next(label_gen)
+            features['probe'][features['frame'] == frame_no] = labels
+        except StopIteration:
+            break
+    return features.sort(['probe', 'frame']).reset_index(drop=True)
+
+def kdtree_track(frames, search_range, memory=0, position_cols=['x', 'y']):
+    """Track particles.
+
+    Parameters
+    ----------
+    frames : iterable, could be a generator for optimal memeory usage
+    search_range : maximum displacement between frames
+    memory : largest gap before a trajectory is considered ended
+    position_cols : DataFrame column names (unlimited dimensions)
+    """
     from scipy.spatial import KDTree
     from itertools import count
-    position_cols, frame_col = ['x', 'y'], 'frame' # DataFrame column names; could generalize to 3D
-    first_iteration = True
-    t = f.copy() # TODO BAD MEMORY USE -- CHANGE LATER?
-    t['probe'] = np.nan
-    for frame_no, frame in f.groupby(frame_col):
-        if first_iteration:
-            trees = [KDTree(frame[position_cols])]
-            probes = np.arange(len(frame[position_cols])) # give probes id numbers...
-            t['probe'][f[frame_col] == frame_no] = probes
-            c = count(len(frame[position_cols])) # ...and use this counter for any new probes
-            def probe_id(i=None):
-                if i is None:
-                    return next(c)
-            first_iteration = False
-            continue
+    max_disp = search_range # just a more succinct variable name
+    
+    # Process the first frame, and yield labels.
+    frame_no, frame = next(frames)
+    num_labels = len(frame[position_cols])
+    labels = np.arange(num_labels)
+    labeler = itertools.count(num_labels)
+    trees = [KDTree(frame[position_cols])]
+    prev_labels = labels
+    yield frame_no, labels
 
+    # Process the rest of the frames, yielding labels for each.
+    for frame_no, frame in frames:
+        # print 'frame_no', frame_no
         # Set up.
         trees.append(KDTree(frame[position_cols]))
-        backward = trees[-1].query_ball_tree(trees[-2], max_disp)
-        forward = trees[-2].query_ball_tree(trees[-1], max_disp)
-        distances = trees[-1].count_neighbors(trees[-2], max_disp)
-        probes = -1*np.ones(len(frame)) # placeholder
+        backward = _regularize(trees[-1].query_ball_tree(trees[-2], max_disp))
+        forward = _regularize(trees[-2].query_ball_tree(trees[-1], max_disp))
+        distances = trees[-1].sparse_distance_matrix(trees[-2], max_disp)
+        labels = -1*np.ones(len(frame)) # an integer placeholder
 
-        # Process probes with only one candidate in range.
         for i, b in enumerate(backward):
+            # If it already has a label, skip it.
+            if labels[i] != -1:
+                continue 
+            # To begin, two simple cases
             if len(b) == 0:
-                # no backward candidates
-                probes[i] = probe_id()
-            if len(b) == 1:
-                # one backward candidate
-                candidate = b[0]
-                if len(forward[candidate]) == 1:
-                    # unambiguous
-                    probe[i] = candidate
+                # No backward candidates -- must be new.
+                labels[i] = next(labeler)
+                continue
+            first_candidate = b[0] # maybe only candidate
+            if len(b) == 1 and len(forward[first_candidate]) == 1:
+                # One backward candidate which in turn
+                # has one forward candidate -- link 'em!
+                labels[i] = first_candidate
+                continue
+
+            # print 'after trivial:', labels
+            # Initalize containers for a subnetwork of candidates.
+            source = set()
+            dest = set([i])
+            stable = False
+            # Fill the subnetwork iteratively until there are no more
+            # connections in range.
+            while not stable:
+                subnet_size = map(len, [source, dest])
+                [source.add(j) for d in dest for j in backward[d]]
+                [dest.add(j) for s in source for j in forward[s]]
+                stable = subnet_size == map(len, [source, dest])
+            # print 'source, dest:', subnet_source, subnet_dest
+            source = brute_force(distances, list(source), list(dest), max_disp)
+            # Map source tree indices to existing labels using prev_labels.
+            # print 'source_indexes:', source_indexes
+            for d, s in zip(dest, source):
+                if np.isnan(s):
+                    labels[d] = next(labeler)
                 else:
-                    # ambiguous
-                    pass 
-        distances = trees[-1].sparse_distance_matrix(trees[-2], max_disp).toarray()
-        count_forward = (distances != 0)
-        one_match = num_matches == 1 # boolean mask
-        # Is the match a UNIQUE match?
-        distances[distances == 0] = max_disp + 1 # Replace placeholder before using argmin.
-        probes[one_match] = distances[one_match].argmin(1)
-        mult_matches = num_matches > 1
-        # TODO The following is obviously problematic.
-        probes[mult_matches] = distances[mult_matches].argmin(1) 
-        t['probe'][f[frame_col] == frame_no] = probes
-    return t.sort(['probe', frame_col]).reset_index(drop=True)
+                    labels[d] = prev_labels[s]
+                # print 'in labeling loop:', labels
+        prev_labels = labels
+        # print frame
+        # print 'final:', frame_no, labels
+        yield frame_no, labels
 
-def bust_ghosts(tracks, threshold=100):
-    """Filter out trajectories with few points. They are often specious.
+def _regularize(mixed_types):
+    "Fix irregular output from KDTree, which gives one-elements lists as ints."
+    return [[x] if not isinstance(x, list) else x for x in mixed_types]
 
-    Parameters
-    ----------
-    tracks : DataFrame with a 'probe' column
-    threshold : minimum number of points to survive. 100 by default.
-
-    Returns
-    -------
-    a subset of tracks
-    """
+def _distance(link, distances, penalty):
+    """If link does not existing in the (sparse) matrix of distances
+    return a penalty."""
     try:
-        tracks['frame']
-        tracks['probe']
-    except KeyError:
-        raise ValueError, "Tracks must contain columns 'frame' and 'probe'."
-    grouped = tracks.reset_index(drop=True).groupby('probe')
-    filtered = grouped.filter(lambda x: x.frame.count() >= threshold)
-    return filtered.set_index('frame', drop=False)
+        result = distances[link]
+    except (IndexError, ValueError):
+        return penalty
+    else:
+        if result > 0:
+            return result
+        else:  # result == 0
+            return np.inf # particles not in range to link
 
-def bust_clusters(tracks, quantile=0.8, threshold=None):
-    """Filter out trajectories with a mean probe size above a given quantile.
-
-    Parameters
-    ----------
-    tracks: DataFrame with 'probe' and 'size' columns
-    quantile : quantile of probe 'size' above which to cut off
-    threshold : If specified, ignore quantile.
-
-    Returns
-    -------
-    a subset of tracks
-    """
-    if threshold is None:
-        threshold = tracks['size'].quantile(quantile)
-    f = lambda x: x['size'].mean() < threshold # filtering function
-    return tracks.groupby('probe').filter(f)
+def brute_force(distances, source, dest, search_range):
+    "Return source tree index coresponding to each dest tree index."
+    smallest_total = None
+    count_missing = len(dest) - len(source)
+    penalty = abs(count_missing)*search_range
+    if count_missing == 0:
+        pass
+    elif count_missing > 0:
+        source = np.append(source, [np.nan]*count_missing)
+    else:  # count_missing < 0
+        dest = np.append(dest, [np.nan]*-count_missing)
+    distance = lambda link: _distance(link, distances, penalty)
+    # print distances
+    for source_permutation in itertools.permutations(source):
+        proposed_links = [(s, d) for d, s in zip(dest, source_permutation)]
+        total = np.sum([distance(link) for link in proposed_links])
+        # print source_permutation, [distance(link) for link in proposed_links]
+        if total < smallest_total or smallest_total is None:
+            smallest_total = total 
+            best_links = source_permutation
+    return best_links
