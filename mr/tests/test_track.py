@@ -50,6 +50,33 @@ class CommonTrackingTests(object):
         actual = self.track(f1, 5)
         assert_frame_equal(actual, expected)
 
+    def test_two_isolated_steppers_one_gapped(self):
+        N = 5
+        Y = 25
+        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
+        # established and not arbitrary.
+        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        a = a.drop(3).reset_index(drop=True)
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
+        f = pd.concat([a, b])
+        actual = self.track(f, 5)
+        expected = f.copy()
+        expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
+        expected.sort(['probe', 'frame'], inplace=True)
+        expected.reset_index(drop=True, inplace=True)
+        assert_frame_equal(actual, expected)
+
+        # Sort rows by frame (normal use)
+        actual = self.track(f.sort('frame'), 5)
+        assert_frame_equal(actual, expected)
+
+        # Shuffle rows (crazy!)
+        np.random.seed(0)
+        f1 = f.reset_index(drop=True)
+        f1.reindex(np.random.permutation(f1.index))
+        actual = self.track(f1, 5)
+        assert_frame_equal(actual, expected)
+
     def test_two_nearby_steppers(self):
         N = 5
         Y = 2
@@ -75,6 +102,34 @@ class CommonTrackingTests(object):
         actual = self.track(f1, 5)
         assert_frame_equal(actual, expected)
 
+    def test_two_nearby_steppers_one_gapped(self):
+        N = 5
+        Y = 2
+        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
+        # established and not arbitrary.
+        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
+        a = a.drop(3).reset_index(drop=True)
+        f = pd.concat([a, b])
+        actual = self.track(f, 5)
+        expected = f.copy().reset_index(drop=True)
+        expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
+        expected.sort(['probe', 'frame'], inplace=True)
+        expected.reset_index(drop=True, inplace=True)
+        print actual
+        print expected
+        assert_frame_equal(actual, expected)
+
+        # Sort rows by frame (normal use)
+        actual = self.track(f.sort('frame'), 5)
+        assert_frame_equal(actual, expected)
+
+        # Shuffle rows (crazy!)
+        np.random.seed(0)
+        f1 = f.reset_index(drop=True)
+        f1.reindex(np.random.permutation(f1.index))
+        actual = self.track(f1, 5)
+        assert_frame_equal(actual, expected)
 
     def test_isolated_continuous_random_walks(self):
         # Two 2D random walks
@@ -148,9 +203,9 @@ class CommonTrackingTests(object):
 
 class TestKDTreeTracking(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-        self.track = mr.core.tracking.kdtree_track_dataframe
+        self.track = mr.link
 
-class TestCaswellTracking(CommonTrackingTests, unittest.TestCase):
+class TestTrackpyTracking(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-        self.track = mr.track
+        self.track = mr.link_trackpy
 
