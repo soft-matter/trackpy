@@ -1,13 +1,17 @@
 from __future__ import division
-import mr
+import os
 import numpy as np
+import pandas as pd
 from pandas import DataFrame, Series
+import mr
 
 import unittest
 import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
+
+path, _ = os.path.split(os.path.abspath(__file__))
 
 def draw_gaussian_spot(image, pos, r):
     assert image.shape[0] != image.shape[1], \
@@ -38,8 +42,15 @@ def compare(shape, count, radius):
 class TestFeatureIdentification(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.features = pd.read_pickle(
+            os.path.join(path, 'data', 'features_size9_masscut2000.df'))
+        self.v = mr.ImageSequence(
+            os.path.join(path, 'video', 'image_sequence'))
 
     def test_simple_sparse(self):
         actual, expected = compare((200, 300), 4, 3)
         assert_allclose(actual, expected, atol=0.5)
+
+    def test_real_data(self):
+        actual = mr.batch(self.v[:], 9, 2000)
+        assert_allclose(actual, self.features, atol=0.5)

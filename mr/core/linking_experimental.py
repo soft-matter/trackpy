@@ -1,61 +1,6 @@
 import itertools
 import numpy as np
 import pandas as pd
-import trackpy.tracking as pt
-
-class Feature(pt.PointND):
-    "Extends pt.PointND to carry meta information from feature identification."
-    def tag_id(self, id):
-        self.id = id # unique ID derived from sequential index
-                     # of features DataFrame
-
-def link_trackpy(features, search_range=5, memory=0, hash_size=None, box_size=None):
-    """Link features into trajectories, assinging a label to each trajectory.
-
-    Notes
-    -----
-    This function wraps Thomas Caswell's implementation, trackpy. See also
-    link, which relies on scipy.
-
-    Parameters
-    ----------
-    features : DataFrame including x, y, frame
-    search_range : maximum displacement of a probe between two frames
-        Default is 5 px.
-    memory : Number of frames through which a probe is allowed to "disappear"
-        and reappear and be considered the same probe. Default 0.
-    hash_size : Dimensions of the search space, inferred from data by default.
-    box_size : A parameter of the underlying algorith, defaults to same
-        as search_range, which gives reasonably optimal performance.
-
-    Note
-    ----
-    The index of the features DataFrame is dropped, and the result is given
-    with a sequential integer index.
-    """
-    if box_size is None:
-        box_size = search_range
-    if hash_size is None:
-        hash_size = np.ceil(features[['x', 'y']].max())
-    frames = []
-    # Make a sequential index and promote it to a column called 'index'.
-    trajectories = features.reset_index(drop=True).reset_index()
-    for frame_no, fs in trajectories.groupby('frame'):
-        frame = []
-        frames.append(frame)
-        for i, vals in fs.iterrows():
-            f = Feature(vals['frame'], (vals['x'], vals['y']))
-            f.tag_id(vals['index'])
-            frame.append(f)
-    del trajectories['index']
-    
-    hash_generator = lambda: pt.Hash_table(hash_size, box_size)
-    tracks = pt.link(frames, search_range, hash_generator, memory)
-    trajectories['probe'] = np.nan
-    for probe_id, t in enumerate(tracks):
-        for p in t.points:
-            trajectories.at[p.id, 'probe'] = probe_id
-    return trajectories.sort(['probe', 'frame']).reset_index(drop=True)
 
 def link(features, search_range, memory=0, position_cols=['x', 'y']):
     """Link features into trajectories, assinging a label to each trajectory.
@@ -106,7 +51,7 @@ def link_iterator(frames, search_range, memory=0, position_cols=['x', 'y']):
     -------
     frame_no, labels
     """
-    from scipy.spatial import cKDTree
+    from scipy.spatial import KDTree
     from itertools import count
     max_disp = search_range # just a more succinct variable name
 
@@ -120,15 +65,15 @@ link_trackpy.""")
     num_labels = len(frame[position_cols])
     labels = np.arange(num_labels)
     labeler = itertools.count(num_labels)
-    trees = [cKDTree(frame[position_cols])]
+    trees = [KDTree(frame[position_cols])]
     prev_labels = labels
     yield frame_no, labels
 
     # Process the rest of the frames, yielding labels for each.
     for frame_no, frame in frames:
-        # print 'frame_no', frame_no
+        print 'frame_no', frame_no
         # Set up.
-        trees.append(cKDTree(frame[position_cols]))
+        trees.append(KDTree(frame[position_cols]))
         backward = _regularize(trees[-1].query_ball_tree(trees[-2], max_disp))
         forward = _regularize(trees[-2].query_ball_tree(trees[-1], max_disp))
         distances = trees[-1].sparse_distance_matrix(trees[-2], max_disp)
@@ -180,7 +125,7 @@ link_trackpy.""")
         yield frame_no, labels
 
 def _regularize(mixed_types):
-    "Fix irregular output from cKDTree, which gives one-elements lists as ints."
+    "Fix irregular output from KDTree, which gives one-elements lists as ints."
     return [[x] if not isinstance(x, list) else x for x in mixed_types]
 
 def _distance(link, distances, penalty):
@@ -207,7 +152,7 @@ def brute_force(distances, source, dest, search_range):
 
     Parameters
     ----------
-    distances : (sparse) matrix from scipy.spatial.cKDTree
+    distances : (sparse) matrix from scipy.spatial.KDTree
     source : list of relevant matrix indexes
     dest : list of relevant matrix indexes
     search_range : i.e., maximum allowed displacement
@@ -241,5 +186,3 @@ def brute_force(distances, source, dest, search_range):
             best_links = source_permutation
     # print 'best_links:', best_links
     return best_links
-
-track = link_trackpy # legacy

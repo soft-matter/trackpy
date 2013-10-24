@@ -1,4 +1,5 @@
 from __future__ import division
+import os
 import mr
 import numpy as np
 import pandas as pd
@@ -11,6 +12,9 @@ from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal, assert_index_equal)
 
+path, _ = os.path.split(os.path.abspath(__file__))
+path = os.path.join(path, 'data')
+
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
@@ -20,7 +24,7 @@ class CommonTrackingTests(object):
         # One 1D stepper
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy()
         expected['probe'] = np.zeros(N)
         assert_frame_equal(actual, expected)
@@ -33,21 +37,21 @@ class CommonTrackingTests(object):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.track(f.sort('frame'), 5)
+        actual = self.link(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.track(f1, 5)
+        actual = self.link(f1, 5)
         assert_frame_equal(actual, expected)
 
     def test_two_isolated_steppers_one_gapped(self):
@@ -59,7 +63,7 @@ class CommonTrackingTests(object):
         a = a.drop(3).reset_index(drop=True)
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy()
         expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
@@ -67,14 +71,14 @@ class CommonTrackingTests(object):
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.track(f.sort('frame'), 5)
+        actual = self.link(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.track(f1, 5)
+        actual = self.link(f1, 5)
         assert_frame_equal(actual, expected)
 
     def test_two_nearby_steppers(self):
@@ -85,21 +89,21 @@ class CommonTrackingTests(object):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.track(f.sort('frame'), 5)
+        actual = self.link(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.track(f1, 5)
+        actual = self.link(f1, 5)
         assert_frame_equal(actual, expected)
 
     def test_two_nearby_steppers_one_gapped(self):
@@ -111,24 +115,49 @@ class CommonTrackingTests(object):
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
         f = pd.concat([a, b])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
-        print actual
-        print expected
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.track(f.sort('frame'), 5)
+        actual = self.link(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.track(f1, 5)
+        actual = self.link(f1, 5)
+        assert_frame_equal(actual, expected)
+ 
+    def test_memory_on_one_gap(self):
+        N = 5
+        Y = 2
+        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
+        # established and not arbitrary.
+        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
+        a = a.drop(3).reset_index(drop=True)
+        f = pd.concat([a, b])
+        actual = self.link(f, 5, memory=1)
+        expected = f.copy().reset_index(drop=True)
+        expected['probe'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
+        expected.sort(['probe', 'frame'], inplace=True)
+        expected.reset_index(drop=True, inplace=True)
+        assert_frame_equal(actual, expected)
+
+        # Sort rows by frame (normal use)
+        actual = self.link(f.sort('frame'), 5, memory=1)
+        assert_frame_equal(actual, expected)
+
+        # Shuffle rows (crazy!)
+        np.random.seed(0)
+        f1 = f.reset_index(drop=True)
+        f1.reindex(np.random.permutation(f1.index))
+        actual = self.link(f1, 5, memory=1)
         assert_frame_equal(actual, expected)
 
     def test_isolated_continuous_random_walks(self):
@@ -140,7 +169,7 @@ class CommonTrackingTests(object):
         a = DataFrame({'x': M + random_walk(N), 'y': M + random_walk(N), 'frame': np.arange(N)})
         b = DataFrame({'x': M + random_walk(N - 1), 'y': M + Y + random_walk(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
@@ -156,7 +185,7 @@ class CommonTrackingTests(object):
             return DataFrame({'x': x + random_walk(N - i), 'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
         f = pd.concat([walk(*pos) for pos in initial_positions])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         expected.sort(['probe', 'frame'], inplace=True)
@@ -171,7 +200,7 @@ class CommonTrackingTests(object):
         a = DataFrame({'x': M + random_walk(N), 'y': M + random_walk(N), 'frame': np.arange(N)})
         b = DataFrame({'x': M + random_walk(N - 1), 'y': M + Y + random_walk(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
@@ -188,7 +217,7 @@ class CommonTrackingTests(object):
             return DataFrame({'x': x + random_walk(N - i), 'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
         f = pd.concat([walk(*pos) for pos in initial_positions])
-        actual = self.track(f, 5)
+        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         expected.sort(['probe', 'frame'], inplace=True)
@@ -198,14 +227,51 @@ class CommonTrackingTests(object):
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.track(f1, 5)
+        actual = self.link(f1, 5)
         assert_frame_equal(actual, expected)
 
-class TestKDTreeTracking(CommonTrackingTests, unittest.TestCase):
-    def setUp(self):
-        self.track = mr.link
+    def test_start_at_frame_other_than_zero(self):
+        # One 1D stepper
+        N = 5
+        FIRST_FRAME = 3
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
+                      'frame': FIRST_FRAME + np.arange(N)})
+        actual = self.link(f, 5)
+        expected = f.copy()
+        expected['probe'] = np.zeros(N)
+        assert_frame_equal(actual, expected)
+
+    def test_blank_frame_no_memory(self):
+        # One 1D stepper
+        N = 5
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
+                      'frame': [0, 1, 2, 4, 5]})
+        actual = self.link(f, 5)
+        expected = f.copy()
+        expected['probe'] = np.zeros(N)
+        assert_frame_equal(actual, expected)
+        # This doesn't error, but we might wish it would
+        # give the probe a new ID after the gap. It just
+        # ignores the missing frame.
+
+    # THIS DOES NOT WORK BECAUSE ORDER IS ARBIRARY!
+    # Think of way to make this into a working test someday....
+    # def test_real_data(self):
+    #     load = lambda filename: pd.read_pickle(os.path.join(path, filename))
+    #     features = load('features_size9_masscut2000.df')
+    #     traj_no_memory = load('traj_search5_memory0.df')
+    #     traj_memory = load('traj_search5_memory2.df')
+
+    #     actual = self.link(features, 5, memory=0)
+    #     assert_allclose(actual, traj_no_memory, atol=0.1)
+    #     actual = self.link(features, 5, memory=2)
+    #     assert_allclose(actual, traj_memory, atol=0.1)
+
+#class TestKDTreeTracking(CommonTrackingTests, unittest.TestCase):
+#    def setUp(self):
+#        self.link = mr.linking_experimental.link
 
 class TestTrackpyTracking(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-        self.track = mr.link_trackpy
+        self.link = mr.link
 
