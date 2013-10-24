@@ -21,7 +21,7 @@ import six
 from six.moves import zip
 
 import numpy as np
-from collections import deque
+from collections import deque, Iterable
 
 
 class Hash_table(object):
@@ -184,6 +184,10 @@ class Track(object):
     def __repr__(self):
         return "<%s %d>" % (self.__class__.__name__, self.indx)
 
+    @classmethod
+    def reset_counter(cls, c=0):
+        cls.count = 0
+
 
 class Point(object):
     '''
@@ -304,7 +308,6 @@ def link_full(levels, dims, search_range, hash_cls, memory=0, track_cls=Track):
     hash_generator = lambda: hash_cls(dims, search_range)
     return link(levels, search_range, hash_generator, memory, track_cls)
 
-
 def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     '''
     :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
@@ -322,10 +325,44 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     :py:class:`~trackpy.tracking.Point` objects.
 
     '''
+    levels = iter(levels)
+    gen = link_generator(
+        levels, search_range, hash_generator, memory, track_cls,
+        yield_levels=False)
+    track_lst = []
+    while True:
+        try:
+            track_lst = next(gen)
+        except StopIteration:
+            return track_lst
+        
 
+def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Track,
+                   yield_levels=True):
+    '''
+    :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
+    :type levels: Iterable of iterables
+    :param search_range: the maximum distance features can move between frames
+    :param hash_generator: a callable that will return a new empty object that supports :py:func:`add_particle` and
+                :py:func:`get_region`
+    :param memory: the maximum number of frames that a feature can skip along a track
+    :param track_cls: The class to use for the returned track objects
+    :type track_cls: :py:class:`~trackpy.tracking.Track`
+
+    Generic version of linking algorithm, should work for any
+    dimension.  All information about dimensionality and the metric
+    are encapsulated in the hash_table and
+    :py:class:`~trackpy.tracking.Point` objects.
+
+    '''
+    # Number tracks starting from zero.
+    try:
+        track_cls.reset_counter()
+    except AttributeError:
+        pass
     #    print "starting linking"
     # initial source set
-    prev_set = set(levels[0])
+    prev_set = set(next(levels))
     prev_hash = hash_generator()
     # set up the particles in the previous level for
     # linking
@@ -344,7 +381,12 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
     for j in range(memory):
         mem_history.append(set())
 
-    for cur_level in levels[1:]:
+    if yield_levels:
+        yield prev_set
+    else:
+        yield track_lst
+
+    for cur_level in levels:
         # make a new hash object
         cur_hash = hash_generator()
 
@@ -483,7 +525,10 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
         # add in the memory points
         # store the current level for use in next loop
 
-    return track_lst
+        if yield_levels:
+            yield cur_level
+        else:
+            yield track_lst
 
 
 class SubnetOversizeException(Exception):
