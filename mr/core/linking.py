@@ -1,4 +1,5 @@
 import itertools
+import os
 import warnings
 import numpy as np
 import pandas as pd
@@ -28,7 +29,8 @@ class DummyTrack(object):
     def reset_counter(cls, c=0):
         cls.track_id = itertools.count(c)
 
-def link(features, search_range, memory=0, pos_columns=['x', 'y']):
+def link(features, search_range, memory=0, hash_size=None, box_size=None,
+         pos_columns=['x', 'y'], t_column='frame'):
     """Link features into trajectories, assinging a label to each trajectory.
 
     Notes
@@ -38,21 +40,30 @@ def link(features, search_range, memory=0, pos_columns=['x', 'y']):
 
     Parameters
     ----------
-    frames : iterable that returns a DataFrame for each frame
+    frames : a DataFrame of positions to be linked through time
     search_range : maximum displacement between frames
     memory : largest gap before a trajectory is considered ended
+    hash_size: region filled by data, detected automatically if not specified
+    box_size : parameter to optimize algorithm, set to same as search_range
+        if not specified, which gives reasonably optimal performance 
     pos_columns : DataFrame column names (unlimited dimensions)
+        Default is ['x', 'y']
+    t_column : DataFrame column name. Default is 'frame'.
 
     Returns
     -------
     features DataFrame, now with additional column of trajectory labels
     """
-    MARGIN = 1 # avoid OutOfHashException
-    hash_size = features[pos_columns].max() + MARGIN
+    if box_size is None:
+        box_size = search_range
+    if hash_size is None:
+        MARGIN = 1 # avoid OutOfHashException
+        hash_size = features[pos_columns].max() + MARGIN
     features.reset_index(inplace=True, drop=True)
-    numbered_frames = (frame for frame in features.groupby('frame'))
+    numbered_frames = (frame for frame in features.groupby(t_column))
     label_generator = \
-        link_iterator(numbered_frames, search_range, hash_size, memory)
+        link_iterator(numbered_frames, search_range, hash_size, memory,
+                      box_size, pos_columns, t_column)
     features['probe'] = np.nan # placeholder
     while True:
         try:
@@ -60,10 +71,10 @@ def link(features, search_range, memory=0, pos_columns=['x', 'y']):
             features['probe'].update(labels)
         except StopIteration:
             break
-    return features.sort(['probe', 'frame']).reset_index(drop=True)
+    return features.sort(['probe', t_column]).reset_index(drop=True)
 
 def link_iterator(numbered_frames, search_range, hash_size, memory=0,
-                  box_size=None, pos_columns=['x', 'y']):
+                  box_size=None, pos_columns=['x', 'y'], t_column='frame'):
     """Link features into trajectories, assinging a label to each trajectory.
 
     Notes
@@ -82,6 +93,7 @@ def link_iterator(numbered_frames, search_range, hash_size, memory=0,
     box_size : A parameter of the underlying algorith, defaults to same
         as search_range, which gives reasonably optimal performance.
     pos_columns: DataFrame column names (unlimited dimensions)
+    t_column : DataFrame column name. Default is 'frame'.
 
     Returns
     -------
@@ -132,10 +144,13 @@ class LinkOnDisk(object):
     using only a modest amount of memory.
     """
 
-    def __init__(self, filename, key, pos_columns=['x', 'y'], max_frame=None):
+    def __init__(self, filename, key, pos_columns=['x', 'y'], 
+                 t_column='frame', max_frame=None):
         self.filename = filename
         self.key = key
         self.pos_columns = pos_columns
+        self.t_column = t_column
+        self.check_file_exists()
         if max_frame is None:
             self.last_frame = self.detect_last_frame()
             print "Detected last frame is Frame %d" % self.last_frame 
@@ -146,6 +161,10 @@ class LinkOnDisk(object):
         self.first_frame = 0
         self.size = self.detect_size() # for hash
 
+    def check_file_exists(self):
+        if not os.path.isfile(self.filename):
+            raise ValueError(
+                "%s is not a path to an HDFStore file." % self.filename)
 
     def link(self, search_range, memory=0, hash_size=None, box_size=None):
         if hash_size is None:
@@ -182,7 +201,8 @@ class LinkOnDisk(object):
     def detect_last_frame(self):
         with pd.get_store(self.filename) as store:
             last_frame = 0
-            for chunk in store.select_column(self.key, 'frame', iterator=True):
+            for chunk in store.select_column(self.key, self.t_column, 
+                                             iterator=True):
                 chunk_max = chunk.max()
                 if chunk_max > last_frame:
                     last_frame = chunk_max
@@ -208,9 +228,9 @@ def numbered_frames_from_sql(table, conn, sql_flavor,
         yield frame_no, frame
 
 
-def labeled_frame_to_sql(frame_no_and_labels, table, conn, sql_flavor):
+def labeled_frame_to_sql(frame_no_and_labels, table, conn, sql_flavor, t_column):
     frame_no, labels = frame_no_and_labels
-    frame['frame'] = frame_no
+    frame[t_column] = frame_no
     frame.to_sql(table, conn, sql_flavor, if_exists='append')
 
 track = link # legacy
