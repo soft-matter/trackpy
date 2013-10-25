@@ -10,7 +10,7 @@ before_install:
 
 install:
   - pip install -e git+https://github.com/pydata/pandas#egg=pandas
-  # - pip install git+https://github.com/PyTables/PyTables.git@v.3.0.0#egg=tables
+  - pip install git+https://github.com/PyTables/PyTables.git@v.3.0.0#egg=tables
   - pip install git+https://github.com/tacaswell/trackpy.git#egg=trackpy
   - pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/
   - python setup.py build_ext install

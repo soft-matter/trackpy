@@ -12,6 +12,7 @@ class PointNDWithID(trackpy.PointND):
         self.id = id  # unique ID derived from sequential index
 
 class DummyTrack(object):
+    "Does not store points, thereby conserving memory. Use with link_iterator."
 
     track_id = itertools.count(0)
 
@@ -145,17 +146,21 @@ class LinkOnDisk(object):
     """
 
     def __init__(self, filename, key, pos_columns=['x', 'y'], 
-                 t_column='frame', max_frame=None):
+                 t_column='frame', max_frame=None, use_tabular_copy=False):
         self.filename = filename
         self.key = key
         self.pos_columns = pos_columns
         self.t_column = t_column
+        self.max_frame = max_frame
         self.check_file_exists()
-        if max_frame is None:
+        if use_tabular_copy:
+            self.key = make_tabular_copy(self.filename, self.key)
+        self.check_node_is_tabular()
+        if self.max_frame is None:
             self.last_frame = self.detect_last_frame()
             print "Detected last frame is Frame %d" % self.last_frame 
         else:
-            self.last_frame = max_frame
+            self.last_frame = self.max_frame
         # We are assuming that the first frame is Frame 0. If we're wrong,
         # we only waste a little time in the loop.
         self.first_frame = 0
@@ -166,6 +171,11 @@ class LinkOnDisk(object):
             raise ValueError(
                 "%s is not a path to an HDFStore file." % self.filename)
 
+    def check_node_is_tabular(self):
+        if not is_tabular(self.filename, self.key):
+            raise ValueError("""This node is not tabular. Call with use_tabular_copy=True to proceed.""")
+
+
     def link(self, search_range, memory=0, hash_size=None, box_size=None):
         if hash_size is None:
             MARGIN = 1  # to avoid OutOfHashException
@@ -175,6 +185,13 @@ class LinkOnDisk(object):
             link_iterator(numbered_frames, search_range, hash_size,
                           memory, box_size, self.pos_columns)
         self.label_generator = label_generator
+
+    def numbered_frames(self):
+        with pd.get_store(self.filename) as store:
+            for frame_no in xrange(self.first_frame, 1 + self.last_frame):
+                frame = store.select(self.key, 'frame == %d' % frame_no, 
+                                     columns=self.pos_columns)
+                yield frame_no, frame
 
     def save(self, out_filename, out_key):
         with pd.get_store(out_filename) as out_store:
@@ -188,17 +205,13 @@ class LinkOnDisk(object):
                     frame = store.select(self.key, 'frame == %d' % frame_no)
                     frame['probe'] = -1  # an integer placeholder
                     frame['probe'].update(labels)
-                    out_store.append(out_key, frame)
-                    print "Frame %d written." % frame_no
-
-    def numbered_frames(self):
-        with pd.get_store(self.filename) as store:
-            for frame_no in xrange(self.first_frame, 1 + self.last_frame):
-                frame = store.select(self.key, 'frame == %d' % frame_no, 
-                                     columns=self.pos_columns)
-                yield frame_no, frame
+                    out_store.append(out_key, frame, 
+                                     data_columns=frame.columns)
+                    print "Frame %d written with %d probes tracked." \
+                        % (frame_no, len(frame))
 
     def detect_last_frame(self):
+        print "Detecting last frame..."
         with pd.get_store(self.filename) as store:
             last_frame = 0
             for chunk in store.select_column(self.key, self.t_column, 
@@ -209,13 +222,26 @@ class LinkOnDisk(object):
         return last_frame
 
     def detect_size(self):
+        print "Detecting range of position data..."
         with pd.get_store(self.filename) as store:
             size = np.zeros(len(self.pos_columns))
             for chunk in store.select(self.key, iterator=True,
                                       columns=self.pos_columns):
                 size = np.maximum(size, chunk.max())
         return size.values 
-            
+
+def is_tabular(filename, key):
+    with pd.get_store(filename) as store:
+        pandas_type = getattr(getattr(getattr(store._handle.root, key, None),
+                                  '_v_attrs', None), 'pandas_type', None)
+        return pandas_type == 'frame_table'
+
+def make_tabular_copy(filename, key):
+    tabular_key = key + '/tabular'
+    print "Making a tabular copy of %s at %s" % (key, tabular_key)
+    with pd.get_store(filename) as store:
+        store.append(tabular_key, store.get(key), data_columns=['frame'])
+    return tabular_key
 
 def numbered_frames_from_sql(table, conn, sql_flavor,
                              pos_columns=['x', 'y']):

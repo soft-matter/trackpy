@@ -15,6 +15,13 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
+def _skip_if_no_pytables():
+    try:
+        import tables
+    except ImportError:
+        raise nose.SkipTest('PyTables not installed. Skipping.')
+
+
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
@@ -275,3 +282,42 @@ class TestTrackpyTracking(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
         self.link = mr.link
 
+class TestLinkOnDisk(unittest.TestCase):
+
+    def setUp(self):
+        _skip_if_no_pytables()
+        filename = os.path.join(path, 'features_size9_masscut2000.df')
+        f = pd.read_pickle(filename)
+        self.key = 'features'
+        with pd.get_store('temp1.h5') as store:
+            store.put(self.key, f)
+        with pd.get_store('temp2.h5') as store:
+            store.append(self.key, f, data_columns=['frame'])
+
+    def test_nontabular_raises(self):
+        # Attempting to Link a non-tabular node should raise.
+        _skip_if_no_pytables()
+        f = lambda: mr.LinkOnDisk('temp1.h5', self.key)
+        self.assertRaises(ValueError, f)
+
+    def test_nontabular_with_use_tabular_copy(self):
+        # simple smoke test
+        _skip_if_no_pytables()
+        linker = mr.LinkOnDisk('temp1.h5', self.key, use_tabular_copy=True)
+        linker.link(8, 2)
+        linker.save('temp3.h5', 'traj')
+
+    def test_tabular(self):
+        # simple smoke test
+        _skip_if_no_pytables()
+        linker = mr.LinkOnDisk('temp2.h5', self.key)
+        linker.link(8, 2)
+        linker.save('temp4.h5', 'traj')
+
+    def tearDown(self):
+        temp_files = ['temp1.h5', 'temp2.h5', 'temp3.h5', 'temp4.h5']
+        for filename in temp_files:
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
