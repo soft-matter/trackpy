@@ -12,11 +12,6 @@ class PointNDWithID(trackpy.PointND):
         trackpy.PointND.__init__(self, t, pos)  # initialize base class
         self.id = id  # unique ID derived from sequential index
 
-    def __repr__(self):
-        coords = (', '.join(["{:.3f}"]*len(self.pos))).format(*self.pos)
-        in_track = " in Track %d" % self.track.id if self.track else ""
-        return "<PointNDWithID at (" +  coords + ")" + in_track + ">"
-
 class DummyTrack(object):
     "Does not store points, thereby conserving memory. Use with link_iterator."
 
