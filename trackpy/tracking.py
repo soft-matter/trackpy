@@ -177,6 +177,9 @@ class Track(object):
         Returns the last point on the track'''
         return self.points[-1]
 
+    def __repr__(self):
+        return "<%s %d>" % (self.__class__.__name__, self.indx)
+
 
 class Point(object):
     '''
@@ -268,6 +271,11 @@ class PointND(Point):
 
     def __str__(self):
         return "({t}, {p})".format(t=self.t, p=self.pos)
+
+    def __repr__(self):
+        coords = '(' + (', '.join(["{:.3f}"]*len(self.pos))).format(*self.pos) + ')'
+        track = " in Track %d" % self.track.indx if self.track else ""
+        return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">" 
 
 
 def link_full(levels, dims, search_range, hash_cls, memory=0, track_cls=Track):
@@ -368,7 +376,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
 
         new_mem_set = set()
         # while there are particles left to link, link
-        while len(prev_set) > 0 and len(cur_set) > 0:
+        while len(cur_set) > 0:
             p = cur_set.pop()
             bc_c = len(p.back_cands)
             # no backwards candidates
@@ -383,12 +391,15 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
                 # one backwards candidate
                 b_c_p = p.back_cands[0]
                 # and only one forward candidate
-                if len(b_c_p[0].forward_cands) == 1:
+                b_c_p_0 = b_c_p[0]
+                if len(b_c_p_0.forward_cands) == 1:
                     # add to the track of the candidate
-                    b_c_p[0].track.add_point(p)
+                    b_c_p_0.track.add_point(p)
+                    _maybe_remove(mem_set, b_c_p_0)
                     # clean up tracking apparatus
                     del p.back_cands
-                    del b_c_p[0].forward_cands
+                    del b_c_p_0.forward_cands
+                    prev_set.discard(b_c_p_0)
                     # short circuit loop
                     continue
             # we need to generate the sub networks
@@ -429,6 +440,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
                 # do linking and clean up
                 if sp is not None and dp is not None:
                     sp.track.add_point(dp)
+                    _maybe_remove(mem_set, sp)
                 if dp is not None:
                     del dp.back_cands
                 if sp is not None:
@@ -437,6 +449,11 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
                         # add the unmatched source particles to the new
                         # memory set
                         new_mem_set.add(sp)
+
+        # Remember the source particles left unlinked that were not in
+        # a subnetwork.
+        for sp in prev_set:
+            new_mem_set.add(sp)
 
         # set prev_hash to cur hash
         prev_hash = cur_hash
@@ -630,5 +647,11 @@ def nonrecursive_link(source_list, dest_size, search_range):
     #    print 'done'
     return source_list, best_back
 
+def _maybe_remove(s, p):
+    # Begging forgiveness is faster than asking permission
+    try:
+        s.remove(p)
+    except KeyError:
+        pass
 
 _private_linker = nonrecursive_link
