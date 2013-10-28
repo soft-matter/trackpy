@@ -410,7 +410,7 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
 
         new_mem_set = set()
         # while there are particles left to link, link
-        while len(prev_set) > 0 and len(cur_set) > 0:
+        while len(cur_set) > 0:
             p = cur_set.pop()
             bc_c = len(p.back_cands)
             # no backwards candidates
@@ -428,9 +428,11 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
                 if len(b_c_p[0].forward_cands) == 1:
                     # add to the track of the candidate
                     b_c_p[0].track.add_point(p)
+                    _maybe_remove(mem_set, b_c_p[0])
                     # clean up tracking apparatus
                     del p.back_cands
                     del b_c_p[0].forward_cands
+                    prev_set.discard(b_c_p[0])
                     # short circuit loop
                     continue
             # we need to generate the sub networks
@@ -471,6 +473,7 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
                 # do linking and clean up
                 if sp is not None and dp is not None:
                     sp.track.add_point(dp)
+                    _maybe_remove(mem_set, sp)
                 if dp is not None:
                     del dp.back_cands
                 if sp is not None:
@@ -479,6 +482,11 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
                         # add the unmatched source particles to the new
                         # memory set
                         new_mem_set.add(sp)
+
+        # Remember the source particles left unlinked that were not in
+        # a subnetwork.
+        for sp in prev_set:
+            new_mem_set.add(sp)
 
         # set prev_hash to cur hash
         prev_hash = cur_hash
@@ -674,6 +682,12 @@ def nonrecursive_link(source_list, dest_size, search_range):
         # print '-------------------------'
     #    print 'done'
     return source_list, best_back
+
+def _maybe_remove(s, p):
+    try:
+        s.remove(p)
+    except KeyError:
+        pass
 
 
 _private_linker = nonrecursive_link

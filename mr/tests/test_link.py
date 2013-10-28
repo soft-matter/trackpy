@@ -261,6 +261,12 @@ class CommonTrackingTests(object):
         # give the probe a new ID after the gap. It just
         # ignores the missing frame.
 
+    def test_real_data_that_causes_duplicate_bug(self):
+        filename = 'reproduce_duplicate_track_assignment.df'
+        f = pd.read_pickle(os.path.join(path, filename))
+        mr.link(f, 8, 2) # not all parameters reproduce it, but these do
+        # If there are duplicates, _verify_integrity will raise and this will error.
+
     # THIS DOES NOT WORK BECAUSE ORDER IS ARBIRARY!
     # Think of way to make this into a working test someday....
     # def test_real_data(self):

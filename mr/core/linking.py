@@ -7,9 +7,15 @@ import customized_trackpy.tracking as trackpy
 
 class PointNDWithID(trackpy.PointND):
     "Extends pt.PointND to carry meta information from feature identification."
+
     def __init__(self, t, pos, id):
         trackpy.PointND.__init__(self, t, pos)  # initialize base class
         self.id = id  # unique ID derived from sequential index
+
+    def __repr__(self):
+        coords = (', '.join(["{:.3f}"]*len(self.pos))).format(*self.pos)
+        in_track = " in Track %d" % self.track.id if self.track else ""
+        return "<PointNDWithID at (" +  coords + ")" + in_track + ">"
 
 class DummyTrack(object):
     "Does not store points, thereby conserving memory. Use with link_iterator."
@@ -24,14 +30,13 @@ class DummyTrack(object):
 
     def add_point(self, point):
         point.add_to_track(self)
-        return self.id
 
     @classmethod
     def reset_counter(cls, c=0):
         cls.track_id = itertools.count(c)
 
 def link(features, search_range, memory=0, hash_size=None, box_size=None,
-         pos_columns=['x', 'y'], t_column='frame'):
+         pos_columns=['x', 'y'], t_column='frame', verify_integrity=True):
     """Link features into trajectories, assinging a label to each trajectory.
 
     Notes
@@ -64,7 +69,7 @@ def link(features, search_range, memory=0, hash_size=None, box_size=None,
     numbered_frames = (frame for frame in features.groupby(t_column))
     label_generator = \
         link_iterator(numbered_frames, search_range, hash_size, memory,
-                      box_size, pos_columns, t_column)
+                      box_size, pos_columns, t_column, verify_integrity)
     features['probe'] = np.nan # placeholder
     while True:
         try:
@@ -75,7 +80,8 @@ def link(features, search_range, memory=0, hash_size=None, box_size=None,
     return features.sort(['probe', t_column]).reset_index(drop=True)
 
 def link_iterator(numbered_frames, search_range, hash_size, memory=0,
-                  box_size=None, pos_columns=['x', 'y'], t_column='frame'):
+                  box_size=None, pos_columns=['x', 'y'], t_column='frame',
+                  verify_integrity=True):
     """Link features into trajectories, assinging a label to each trajectory.
 
     Notes
@@ -114,8 +120,9 @@ def link_iterator(numbered_frames, search_range, hash_size, memory=0,
     for level in labeled_levels:
         index = map(lambda x: x.id, level)
         labels = pd.Series(map(lambda x: x.track.id, level), index)
-        frame_no = next(iter(level)).t
-        _verify_integrity(frame_no, labels) # may issue warnings
+        frame_no = next(iter(level)).t  # uses an arbitary element from the set
+        if verify_integrity:
+            _verify_integrity(frame_no, labels) # may issue warnings
         yield frame_no, labels
 
 def _level_generator(numbered_frames, pos_columns):
@@ -124,19 +131,15 @@ def _level_generator(numbered_frames, pos_columns):
         level = map(build_pt, frame[pos_columns].iterrows())
         yield level
 
+class UnknownLinkingError(Exception):
+    pass
+
 def _verify_integrity(frame_no, labels):
     if labels.duplicated().sum() > 0:
-        warnings.warn(
-            """There are two probes with the same label in Frame %d.
-Proceed with caution.""" % frame_no,
-            UserWarning)
+        raise UnknownLinkingError(
+            "There are two probes with the same label in Frame %d.")
     if np.any(labels < 0):
-        warnings.warn(
-            """Some probes were not labeled in Frame %d. 
-Missed probes are labeled -1. Proceed with caution.""" % frame_no,
-            UserWarning)
-
-CHUNK_SIZE=1000
+        raise UnknownLinkingError("Some probes were not labeled in Frame %d.")
 
 class LinkOnDisk(object):
     """This helper class manages the process of linking trajectories
@@ -176,14 +179,16 @@ class LinkOnDisk(object):
             raise ValueError("""This node is not tabular. Call with use_tabular_copy=True to proceed.""")
 
 
-    def link(self, search_range, memory=0, hash_size=None, box_size=None):
+    def link(self, search_range, memory=0, hash_size=None, box_size=None,
+             verify_integrity=True):
         if hash_size is None:
             MARGIN = 1  # to avoid OutOfHashException
             hash_size = self.size + 1
         numbered_frames = self.numbered_frames()
         label_generator = \
             link_iterator(numbered_frames, search_range, hash_size,
-                          memory, box_size, self.pos_columns)
+                          memory, box_size, self.pos_columns, self.t_column,
+                          verify_integrity)
         self.label_generator = label_generator
 
     def numbered_frames(self):
