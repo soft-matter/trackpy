@@ -144,3 +144,18 @@ class TestMSD(unittest.TestCase):
         assert_almost_equal(actual.index.values, expected.index.values)
         actual.index = expected.index
         assert_series_equal(np.round(actual), expected)
+
+class TestSpecial(unittest.TestCase):
+    
+    def setUp(self):
+        N = 10
+        Y = 1
+        a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
+                      'frame': np.arange(N), 'probe': np.zeros(N)})
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
+                       'frame': np.arange(1, N), 'probe': np.ones(N - 1)})
+        self.steppers = conformity(pd.concat([a, b]))
+
+    def test_theta_entropy(self):
+        # just a smoke test
+        self.steppers.groupby('probe').agg(mr.motion.theta_entropy)
