@@ -43,6 +43,19 @@ def test_memory():
     assert len(t5) == 2, len(t5)
 
 
+def test_memory_removal():
+    """BUG: A particle remains in memory after its Track is resumed, leaving two
+    copies that can independently pick up desinations, leaving two Points in the
+    same Track in a single level."""
+    levels  = []
+    levels.append([PointND(0, [1, 1]), PointND(0, [4, 1])])  # two points
+    levels.append([PointND(1, [1, 1])])  # one vanishes, but is remembered
+    levels.append([PointND(2, [1, 1]), PointND(2, [2, 1])]) # resume Track in memory
+    levels.append([PointND(3, [1, 1]), PointND(3, [2, 1]), PointND(3, [4, 1])])
+    t = link(levels, 5, hash_generator((10, 10), 1), memory=2)
+    assert len(t) == 3, len(t)
+
+
 def test_box_size():
     """No matter what the box size, there should be one track, and it should
     contain all the points."""
