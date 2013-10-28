@@ -369,12 +369,47 @@ def velocity_corr(t, frame1, frame2):
                         'dot_product': dot_product[upper_triangle]})
     return result 
 
-def theta_entropy(pos, bins=24):
+def theta_entropy(pos, bins=24, plot=True):
     """Plot the distrbution of directions and return its Shannon entropy.
 
     Parameters
     ----------
     pos : DataFrame with columns x and y, indexed by frame
+    bins : number of equally-spaced bins in distribution. Default 24.
+    plot : plot direction historgram if True
+
+    Returns
+    -------
+    float : Shannon entropy
+
+    Examples
+    --------
+    >>> theta_entropy(t[t['probe'] == 3].set_index('frame'))
+
+    >>> S = t.set_index('frame').groupby('probe').apply(mr.theta_entropy)
+    """
+
+    disp = pos - pos.shift(1)
+    direction = np.arctan2(disp['y'], disp['x'])
+    bins = np.linspace(-np.pi, np.pi, bins + 1)
+    if plot:
+        Series(direction).hist(bins=bins)
+    return shannon_entropy(direction.dropna(), bins) 
+
+def shannon_entropy(x, bins):
+    """Compute the Shannon entropy of the distribution of x."""
+    hist = np.histogram(x, bins)[0]
+    hist = hist.astype('float64')/hist.sum()  # normalize probablity dist.
+    entropy = -np.sum(np.nan_to_num(hist*np.log(hist)))
+    return entropy
+
+def min_rolling_theta_entropy(pos, window=24, bins=24):
+    """Compute the minimum Shannon entropy in any window.
+
+    Parameters
+    ----------
+    pos : DataFrame with columns x and y, indexed by frame
+    window : number of observations per window
     bins : number of equally-spaced bins in distribution. Default 24.
 
     Returns
@@ -385,15 +420,13 @@ def theta_entropy(pos, bins=24):
     --------
     >>> theta_entropy(t[t['probe'] == 3].set_index('frame'))
 
-    >>> S = t.set_index('frame')groupby('probe').agg(theta_entropy)
+    >>> S = t.set_index('frame').groupby('probe').apply(
+    ...     mr.min_rolling_theta_entropy)
     """
 
     disp = pos - pos.shift(1)
     direction = np.arctan2(disp['y'], disp['x'])
-    print type(direction)
     bins = np.linspace(-np.pi, np.pi, bins + 1)
-    Series(direction).hist(bins=bins)
-    hist = np.histogram(direction.dropna(), bins)[0]
-    hist = hist.astype('float64')/hist.sum()
-    entropy = -np.sum(hist*np.log(hist))
-    return entropy 
+    f = lambda x: shannon_entropy(x, bins)
+    return pd.rolling_apply(direction.dropna(), window, f).min()
+
