@@ -281,34 +281,30 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     else:
         return vh
 
-def is_not_dirt(traj, threshold=3, mpp=1):
-    """Identify which probes are so localized that they are probably dirt.
+def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
+    """Measure the diagonal size of a trajectory.
     
     Parameters
     ----------
-    traj : DataFrame of trajectories of multiple probes, including 
-        columns probe, frame, x, and y
-    threshold : minimum displacement of non-dirt
-    mpp : microns per pixel, assumed to be 1
+    single_trajectory : DataFrame containing a single trajectory
+    pos_columns = ['x', 'y']
+    t_column = 'frame'
 
     Returns
     -------
-    boolean Series indexed by probe ID. False = dirt.
-
-    Notes
-    -----
-    Use this before you subtract the overall drift, not after.
+    float : length of diangonal of rectangular box containing the trajectory
 
     Example
     -------
-    >>> notdirt = is_not_dirt(t)
-    >>> t.set_index('probe').ix[notdirt].reset_index().set_index('frame', drop=False)
+    >>> diagonal_size(single_trajectory)
+
+    >>> many_trajectories.groupby('probe').agg(mr.diagonal_size)
+
+    >>> many_trajectories.groupby('probe').filter(lambda x: mr.diagonal_size(x) > 5)
     """
     
-    extremes = traj.groupby('probe')['x', 'y'].agg(['max', 'min'])
-    diag_size = np.sqrt((extremes[('x', 'max')] - extremes[('x', 'min')])**2
-                        + (extremes[('y', 'max')] - extremes[('y', 'min')])**2)
-    return diag_size.index[diag_size > threshold].astype('int')
+    pos = single_trajectory.set_index(t_column)[pos_columns]
+    return np.sqrt(np.sum(pos.apply(np.ptp)**2))
 
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError, "I will rewrite this."
