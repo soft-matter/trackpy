@@ -102,3 +102,33 @@ def suppress_plotting():
     import matplotlib as mpl
     mpl.pyplot.switch_backend('Agg') # does not plot to screen
 
+
+# HH:MM:SS, H:MM:SS, MM:SS, M:SS all OK
+lazy_timestamp_pat = r'\d?\d?:?\d?\d:\d\d'
+
+# a time stamp followed by any text comment
+ltp = lazy_timestamp_pat
+video_log_pattern = r'(' + ltp + r')-?(' + ltp + r')? ?(RF)?(.+)?'
+
+def lazy_timestamp(partial_timestamp):
+    """Regularize a lazy timestamp like '0:37' -> '00:00:37'.
+HH:MM:SS, H:MM:SS, MM:SS, and M:SS all OK.
+
+    Parameters
+    ----------
+    partial_timestamp : string or other object
+
+    Returns
+    -------
+    regularized string
+    """
+    if not isinstance(partial_timestamp, str):
+        # might be NaN or other unprocessable entry
+        return partial_timestamp
+    input_format = '\d?\d?:?\d?\d:\d\d'
+    if not re.match(input_format, partial_timestamp):
+        raise ValueError("Input string cannot be regularized.")
+    partial_digits = list(partial_timestamp)
+    digits = ['0', '0', ':', '0', '0', ':', '0', '0']
+    digits[-len(partial_digits):] = partial_digits
+    return ''.join(digits)
