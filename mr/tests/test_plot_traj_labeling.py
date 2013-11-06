@@ -3,13 +3,13 @@ from numpy.testing.decorators import slow
 import os
 import pandas as pd
 from mr import ptraj
-from mr.core.utils import suppress_plotting
+from mr.utils import suppress_plotting
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
 class TestLabeling(unittest.TestCase):
     def setUp(self):
-        self.sparse = pd.read_pickle(os.path.join(path, 'misc', 
+        self.sparse = pd.read_pickle(os.path.join(path, 'data', 
                                            'sparse_trajectories.df'))
 
     @slow

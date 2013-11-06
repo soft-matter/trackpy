@@ -70,7 +70,7 @@ setup_parameters = dict(
     author = "Daniel Allan",
     author_email = "dallan@pha.jhu.edu",
     url = "https://github.com/danielballan/mr",
-    packages = ['mr', 'mr.core', 'mr.video', 'mr.wire', 'mr.uncertainty', 'customized_trackpy'],
+    packages = ['mr', 'mr.video', 'mr.wire', 'customized_trackpy'],
     long_description = read('README.md'),
     ext_modules = [Extension('_Cfilters', ['mr/src/Cfilters.c'])],
     package_dir = {'mr': 'mr'},
@@ -83,5 +83,6 @@ except SystemExit:
     warnings.warn(
         """DON'T PANIC! Compiling C is not working, so I will fall back
 on pure Python code that does the same thing, just slower.""")
+    # Try again without ext_modules.
     del setup_parameters['ext_modules']
     setup(**setup_parameters)
