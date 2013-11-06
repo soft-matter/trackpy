@@ -132,3 +132,6 @@ HH:MM:SS, H:MM:SS, MM:SS, and M:SS all OK.
     digits = ['0', '0', ':', '0', '0', ':', '0', '0']
     digits[-len(partial_digits):] = partial_digits
     return ''.join(digits)
+
+def random_walk(N):
+    return np.cumsum(np.random.randn(N), 1)
