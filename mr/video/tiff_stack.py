@@ -2,7 +2,7 @@ import os
 from libtiff import TIFF
 import PIL.ImageOps
 import numpy as np
-from mr.video.frames import Frames
+from mr.video.base_frames import BaseFrames
 
 class PseudoCapture(object):
     def __init__(self, filename):
@@ -26,7 +26,7 @@ def open_tiffstack(filename):
     capture = PseudoCapture(filename)
     return capture
 
-class TiffStack(Frames):
+class TiffStack(BaseFrames):
     """Iterable object that returns frames of video as numpy arrays.
 
     Parameters
@@ -54,7 +54,7 @@ class TiffStack(Frames):
     >>> frame_shape = video.shape # Pixel dimensions of video
     """
     def __init__(self, filename, gray=True, invert=True):
-        Frames.__init__(self, filename, gray, invert)
+        BaseFrames.__init__(self, filename, gray, invert)
         dummy_instance = self._open(filename)
         self.count = dummy_instance._count
         self.shape = dummy_instance._shape

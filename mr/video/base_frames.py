@@ -2,7 +2,7 @@ import os
 import numpy as np
 import collections
 
-class Frames(object):
+class BaseFrames(object):
     "Base class for iterable objects that return images as numpy arrays."
     
     def __init__(self, filename, gray=True, invert=True):

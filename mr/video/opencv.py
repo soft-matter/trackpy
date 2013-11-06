@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import cv2
-from mr.video.frames import Frames
+from mr.video.base_frames import BaseFrames
 
 def open_video(filename):
     """Thin convenience function for return an opencv2 Capture object."""
@@ -11,7 +11,7 @@ def open_video(filename):
     capture = cv2.VideoCapture(filename)
     return capture
 
-class Video(Frames):
+class Video(BaseFrames):
     """Iterable object that returns frames of video as numpy arrays.
 
     Parameters
@@ -39,7 +39,7 @@ class Video(Frames):
     >>> frame_shape = video.shape # Pixel dimensions of video
     """
     def __init__(self, filename, gray=True, invert=True):
-        Frames.__init__(self, filename, gray, invert)
+        BaseFrames.__init__(self, filename, gray, invert)
         self.shape = (int(self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)),
                       int(self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)))
         self.count = int(self.capture.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))

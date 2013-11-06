@@ -2,26 +2,31 @@ import warnings
 
 from mr.video.image_sequence import ImageSequence
 
+def require_cv2_Video(*args, **kwargs):
+    raise ImportError("""To import frames from video files, you must install 
+OpenCV and the Python module cv2.""")
+
+def require_cv2_tools(*args, **kwargs):
+    raise ImportError("""To use video tools, you must install 
+OpenCV and the Python module cv2.""")
+
+def require_libtiff(*args, **kwargs):
+    raise ImportError("""To import tiff stacks, you must install libtiff.""")
+
 try:
     import cv2
 except ImportError:
-    warnings.warn(
-        """The module cv2 could not be found. All dependent video tools
-        will not be imported.""")
+    Video = require_cv2_Video
+    circle = require_cv2_tools
+    play = require_cv2_tools
 else:
     from mr.video.opencv import Video
-    from mr.video.trace import circle
-    from mr.video.basic import play
+    from mr.video.annotate import circle
+    from mr.video.playback import play
 
 try:
     import libtiff
 except ImportError:
-    warnings.warn(
-        """The module libtiff could not be found. If you wish you load
-        multi-frame tiff files using mr.TiffStack, you must first install
-        libtiff.""")
+    TiffStack = require_libtiff
 else:
-    from mr.video.tiff import TiffStack
-
-# Legacy
-# from muxing import *
+    from mr.video.tiff_stack import TiffStack

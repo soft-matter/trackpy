@@ -1,11 +1,11 @@
 import os
 import numpy as np
 from scipy.ndimage import imread
-from mr.video.frames import Frames
+from mr.video.base_frames import BaseFrames
 
 class PseudoCapture(object):
     def __init__(self, directory):
-        self.filename = directory # used by Frames 
+        self.filename = directory # used by BaseFrames 
         self.files = [os.path.join(directory, f) \
                       for f in os.listdir(directory)]
         self.files.sort()
@@ -23,7 +23,7 @@ def open_image_sequence(directory):
     capture = PseudoCapture(directory)
     return capture
 
-class ImageSequence(Frames):
+class ImageSequence(BaseFrames):
     """Iterable object that returns frames of video as numpy arrays.
 
     Parameters
@@ -52,7 +52,7 @@ class ImageSequence(Frames):
     """
 
     def __init__(self, directory, gray=True, invert=True):
-        Frames.__init__(self, directory, gray, invert)
+        BaseFrames.__init__(self, directory, gray, invert)
         dummy_instance = self._open(directory)
         self.count = len(dummy_instance.files)
         self.shape = imread(dummy_instance.files[0]).shape
