@@ -133,5 +133,30 @@ HH:MM:SS, H:MM:SS, MM:SS, and M:SS all OK.
     digits[-len(partial_digits):] = partial_digits
     return ''.join(digits)
 
+def timedelta_to_frame(timedeltas, fps):
+    """Convert timedelta times into frame numbers.
+
+    Parameters
+    ----------
+    timedelta : DataFrame or Series of timedelta64 datatype
+    fps : frames per second (integer)
+
+    Result
+    ------
+    DataFrame
+
+    Note
+    ----
+    This sounds like a stupidly easy operation, but handling missing data
+    and multiplication is tricky with timedeltas.
+    """
+    ns = timedeltas.values
+    seconds = ns*1e-9
+    frame_numbers = seconds*fps
+    result = pd.DataFrame(frame_numbers, dtype=np.int64,
+                          index=timedeltas.index, columns=timedeltas.columns)
+    result = result.where(timedeltas.notnull(), np.nan)
+    return result
+
 def random_walk(N):
     return np.cumsum(np.random.randn(N), 1)
