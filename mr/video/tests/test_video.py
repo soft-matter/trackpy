@@ -6,7 +6,7 @@ import numpy as np
 from numpy.testing import (assert_equal)
 
 path, _ = os.path.split(os.path.abspath(__file__))
-path = os.path.join(path, 'video')
+path = os.path.join(path, 'data')
 
 def _skip_if_no_cv2():
     try:
@@ -24,7 +24,7 @@ class TestVideo(unittest.TestCase):
 
     def setUp(self):
         _skip_if_no_cv2()
-        self.filename = os.path.join(path, '../water/bulk-water.mov')
+        self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
         self.v = mr.Video(self.filename)
