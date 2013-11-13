@@ -17,126 +17,136 @@
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
 from __future__ import division
-import re
-import os
+from scipy import ndimage
+from scipy import stats
 import logging
+import warnings
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from pandas import DataFrame, Series
-from scipy.ndimage import morphology
-from scipy.ndimage import filters
-from scipy.ndimage import fourier
-from scipy.ndimage import measurements
-from scipy.ndimage import interpolation
-from scipy import stats
-from mr.utils import memo
 from mr import uncertainty
-from mr import plots
-from mr.preprocessing import (bandpass, circular_mask, rgmask, thetamask,
-                              sinmask, cosmask, scale_to_gamut)
+from mr.preprocessing import bandpass, scale_to_gamut
 from C_fallback_python import nullify_secondary_maxima
-import warnings
+
 
 logger = logging.getLogger(__name__)
 
-def local_maxima(image, diameter, separation, percentile=64):
+
+def local_maxima(image, radius, separation, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
-    # Find the threshold brightness, representing the given
-    # percentile among all NON-ZERO pixels in the image.
-    flat = np.ravel(image) 
-    nonblack = flat[flat > 0]
-    if len(nonblack) == 0:
-        warnings.warn("All pixels are black.")
-        return np.empty((0, 2))
-    threshold = stats.scoreatpercentile(flat[flat > 0], percentile)
+
+    # Compute a threshold based on percentile.
+    not_black = image[np.nonzero(image)]
+    threshold = stats.scoreatpercentile(not_black, percentile)
+    ndim = image.ndim
+
     # The intersection of the image with its dilation gives local maxima.
-    assert np.issubdtype(image.dtype, np.integer), \
-        "Perform dilation on exact (i.e., integer) data." 
-    dilation = morphology.grey_dilation(
-        image, footprint=circular_mask(diameter, separation))
+    if not np.issubdtype(image.dtype, np.integer):
+        raise TypeError("Perform dilation on exact (i.e., integer) data.")
+    footprint = binary_mask(radius, ndim, separation)
+    dilation = ndimage.grey_dilation(image, footprint=footprint,
+                                     mode='constant')
     maxima = np.where((image == dilation) & (image > threshold))
     if not np.size(maxima) > 0:
-        warnings.warn("Found zero maxima above the {}"
-                           "-percentile treshold at {}.".format(
-                           percentile, threshold))
-        return np.empty((0, 2))
-    # Flat peaks, for example, return multiple maxima.
-    # Eliminate redundancies within the separation distance.
+        _warn_no_maxima()
+        return np.empty((0, ndim))
+
+    # Flat peaks, for example, return multiple maxima. Eliminate them.
     maxima_map = np.zeros_like(image)
     maxima_map[maxima] = image[maxima]
-    peak_map = filters.generic_filter(
-        maxima_map, nullify_secondary_maxima(), 
-        footprint=circular_mask(separation), mode='constant')
-    # Also, do not accept peaks near the edges.
-    margin = int(separation)//2
-    peak_map[..., :margin] = 0
-    peak_map[..., -margin:] = 0
-    peak_map[:margin, ...] = 0
-    peak_map[-margin:, ...] = 0
-    peaks = np.where(peak_map != 0)
-    if not np.size(peaks) > 0:
-        raise ValueError, "Bad image! All maxima were in the margins."
-    # Return coords in as a numpy array, shaped so it can be passed directly
-    # to the DataFrame constructor.
-    return np.array([peaks[1], peaks[0]]).T # columns: x, y
+    footprint = binary_mask(separation, ndim, separation)
+    maxima_map = ndimage.generic_filter(
+        maxima_map, nullify_secondary_maxima(), footprint=footprint,
+        mode='constant')
+    maxima = np.where(maxima_map > 0)
 
-def estimate_mass(image, x, y, diameter):
+    # Do not accept peaks near the edges.
+    margin = int(separation)//2
+    maxima_map[..., -margin:] = 0
+    maxima_map[..., :margin] = 0
+    if ndim > 1:
+        maxima_map[..., -margin:, :] = 0
+        maxima_map[..., :margin, :] = 0
+    if ndim > 2:
+        maxima_map[..., -margin:, :, :] = 0
+        maxima_map[..., :margin, :, :] = 0
+    if ndim > 3:
+        raise NotImplementedError("I tap out beyond three dimensions.")
+        # TODO Change if into loop using slice(None) as :
+    maxima = np.where(maxima_map > 0)
+    if not np.size(maxima) > 0:
+        raise ValueError("Bad image! All maxima were in the margins.")
+
+    # Return coords in as a numpy array shaped so it can be passed directly
+    # to the DataFrame constructor.
+    return np.vstack(maxima).T
+
+
+def estimate_mass(image, radius, coord):
     "Compute the total brightness in the neighborhood of a local maximum."
-    r = int(diameter)//2
-    x0 = x - r
-    x1 = x + r + 1
-    y0 = y - r
-    y1 = y + r + 1
-    neighborhood = circular_mask(diameter)*image[y0:y1, x0:x1]
+    square = [slice(c - radius, c + radius + 1) for c in coord]
+    neighborhood = binary_mask(radius, image.ndim)*image[square]
     return np.sum(neighborhood)
 
-def refine_centroid(raw_image, bp_image, x, y, diameter, minmass=100, iterations=10):
+# center_of_mass can have divide-by-zero errors, avoided thus:
+_safe_center_of_mass = lambda x: np.array(ndimage.center_of_mass(x + 1))
+
+
+def refine(raw_image, image, radius, coord, iterations=10):
     """Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
     brightness, size (Rg), and eccentricity (0=circular)."""
+
+    ndim = image.ndim
+    mask = binary_mask(radius, ndim)
+
     # Define the square neighborhood of (x, y).
-    r = int(diameter)//2
-    x0, y0 = x - r, y - r
-    x1, y1 = x + r + 1, y + r + 1
-    neighborhood = circular_mask(diameter)*bp_image[y0:y1, x0:x1]
-    yc, xc = measurements.center_of_mass(neighborhood)  # neighborhood coords
-    yc, xc = yc + y0, xc + x0  # image coords
-    ybounds = (0, bp_image.shape[0] - 1 - 2*r)
-    xbounds = (0, bp_image.shape[1] - 1 - 2*r)
-    if iterations < 1:
-        raise ValueError, "Set iterations=1 or more."
-    for iteration in xrange(iterations):
-        if (xc + r - x0 < 0.1 and yc + r - y0 < 0.1):
+    square = [slice(c - radius, c + radius + 1) for c in coord]
+    neighborhood = mask*image[square]
+    cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
+    cm_i = cm_n - radius + coord  # image coords
+    for iteration in range(iterations):
+        off_center = cm_n - radius
+        if np.all(off_center < 0.1):
             break  # Accurate enough.
         # Start with whole-pixel shifts.
-        if abs(xc - x0 - r) >= 0.6:
-            x0 = np.clip(round(xc) - r, *xbounds)
-            x1 = x0 + 2*r + 1
-        if abs(yc - y0 -r) >= 0.6:
-            y0 = np.clip(round(yc) - r, *ybounds)
-            y1 = y0 + 2*r + 1
+        new_coord = coord
+        new_coord[off_center > 0.6] += 1
+        new_coord[off_center < -0.6] -= 1
+        # Don't shift it outside the image!
+        upper_bound = np.array(image.shape) - 1 - radius
+        new_coord = np.clip(new_coord, radius, upper_bound)
         # if abs(xc - x0 - r) < 0.6 and (yc -y0 -r) < 0.6:
             # Subpixel interpolation using a second-order spline.
-            # interpolation.shift(neighborhood,[yc, xc],mode='constant',cval=0., order=2)
-        neighborhood = circular_mask(diameter)*bp_image[y0:y1, x0:x1]    
-        yc, xc = measurements.center_of_mass(neighborhood)  # neighborhood coordinates
-        yc, xc = yc + y0, xc + x0  # image coords
-    
-    # Characterize the neighborhood of our final centroid.
-    mass = neighborhood.sum() 
-    Rg = np.sqrt(np.sum(rgmask(diameter)*neighborhood)/mass)
-    ecc = np.sqrt((np.sum(neighborhood*cosmask(diameter)))**2 + 
-                  (np.sum(neighborhood*sinmask(diameter)))**2) / \
-                  (mass - neighborhood[r, r] + 1e-6)
-    raw_neighborhood = raw_image[y0:y1, x0:x1][circular_mask(diameter)]
-    signal = raw_neighborhood.max() # black_level subtracted later
-    return Series([xc, yc, mass, Rg, ecc, signal])
+            # ndimage.shift(neighborhood,[yc, xc],mode='constant',cval=0.,
+            # order=2)
+        square = [slice(c - radius, c + radius + 1) for c in new_coord]
+        neighborhood = mask*image[square]
+        cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
+        cm_i = cm_n - radius + coord  # image coords
 
-def locate(image, diameter, minmass=100., separation=None, 
+    # Characterize the neighborhood of our final centroid.
+    mass = neighborhood.sum()
+    Rg = np.sqrt(np.sum(radius_mask(radius, ndim)*neighborhood)/mass)
+    # I only know how to measure eccentricity in 2D.
+    if ndim == 2:
+        ecc = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
+                      np.sum(neighborhood*sinmask(radius))**2)
+        ecc /= (mass - neighborhood[radius, radius] + 1e-6)
+    else:
+        ecc = np.nan
+    raw_neighborhood = mask*raw_image[square]
+    signal = raw_neighborhood.max()  # black_level subtracted later
+
+    # matplotlib and ndimage have opposite conventions for xy <-> yx.
+    final_coords = cm_i[..., ::-1]
+    return np.array(list(final_coords) + [mass, Rg, ecc, signal])
+
+
+def locate(image, diameter, minmass=100., separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
            percentile=64, pickN=None, preprocess=True):
-    """Read an image, do optional image preparation and cleanup, and locate 
+    """Read an image, do optional image preparation and cleanup, and locate
     Gaussian-like blobs of a given size above a given total brightness.
 
     Parameters
@@ -144,7 +154,7 @@ def locate(image, diameter, minmass=100., separation=None,
     image: image array
     diameter : feature size in px
     minmass : minimum integrated brightness
-       Default is 100, but a good value is often much higher. This is a 
+       Default is 100, but a good value is often much higher. This is a
        crucial parameter for elminating spurrious features.
     separation : feature separation in px
     noise_size : scale of Gaussian blurring. Default 1.
@@ -165,15 +175,19 @@ def locate(image, diameter, minmass=100., separation=None,
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
     """
-    # Validate parameters.
+
+    # Validate parameters and set defaults.
     if not diameter & 1:
-        raise ValueError, "Feature diameter must be an odd number. Round up."
+        raise ValueError("Feature diameter must be an odd number. Round up.")
     if not separation:
-        separation = diameter + 1
-    smoothing_size = smoothing_size if smoothing_size else diameter # default
+        separation = int(diameter) + 1
+    radius = int(diameter)//2
+    if smoothing_size is None:
+        smoothing_size = diameter
+    image = np.squeeze(image)
     if preprocess:
         if invert:
-            # Tempting to do this in place, but if it is called multiple
+            # It is tempting to do this in place, but if it is called multiple
             # times on the same image, chaos reigns.
             max_value = np.iinfo(image.dtype).max
             image = image ^ max_value
@@ -182,33 +196,48 @@ def locate(image, diameter, minmass=100., separation=None,
         bp_image = image.copy()
     bp_image = scale_to_gamut(bp_image, image.dtype)
 
-    f = DataFrame(local_maxima(bp_image, diameter, separation, percentile),
-                  columns=['x', 'y'])
-    approx_mass = f.apply(
-        lambda x: estimate_mass(bp_image, x[0], x[1], diameter), axis=1)
-    count_local_maxima = len(f)
-    f = f[approx_mass > minmass].apply(
-        lambda x: refine_centroid(image, bp_image, x[0], x[1], diameter, minmass), 
-        axis=1)
-    logger.info("%s local maxima, %s of qualifying mass", 
-                count_local_maxima, len(f)) 
-    columns = ['x', 'y', 'mass', 'size', 'ecc', 'signal']
-    if len(f) == 0:
-        return DataFrame(columns=columns) # empty
-    f.columns = columns
+    # Find local maxima.
+    coords = local_maxima(bp_image, radius, separation, percentile)
+    count_maxima = coords.shape[0]
+
+    # Keep only the massive ones.
+    approx_mass = np.empty(count_maxima)  # initialize to avoid appending
+    for i in range(count_maxima):
+        approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
+    coords = coords[approx_mass > minmass]
+    count_qualified = coords.shape[0]
+
+    # Refine their locations and characterize mass, size, etc.
+    ndim = image.ndim
+    refined_coords = np.empty((count_qualified, ndim + 4))
+    for i in range(count_qualified):
+        refined_coords[i] = refine(image, bp_image, radius, coords[i])
+
+    # Present the results in a DataFrame.
+    logger.info("%s local maxima, %s of qualifying mass",
+                count_maxima, count_qualified)
+    if ndim < 4:
+        coord_columns = ['x', 'y', 'z'][:image.ndim]
+    else:
+        coord_columns = map(lambda i: 'x' + str(i), range(ndim))
+    columns = coord_columns + ['mass', 'size', 'ecc', 'signal']
+    if len(refined_coords) == 0:
+        return DataFrame(columns=columns)  # TODO fill with np.empty
+    f = DataFrame(refined_coords, columns=columns)
     black_level, noise = uncertainty.measure_noise(image, diameter, threshold)
     f['signal'] -= black_level
     ep = uncertainty.static_error(f, noise, diameter, noise_size)
     f = f.join(ep)
     return f
 
+
 def batch(frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
-          percentile=64, pickN=None, preprocess=True, 
+          percentile=64, pickN=None, preprocess=True,
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False):
-    """Process a list of images, doing optional image preparation and cleanup, 
-    locating Gaussian-like blobs of a given size above a given total brightness.
+    """Process a list of images, doing optional image preparation and cleanup,
+    locating Gaussian-like blobs of a given size.
 
     Parameters
     ----------
@@ -217,7 +246,7 @@ def batch(frames, diameter, minmass=100, separation=None,
                   or frames = [array1, array2, array3]
     diameter : feature size in px
     minmass : minimum integrated brightness
-       Default is 100, but a good value is often much higher. This is a 
+       Default is 100, but a good value is often much higher. This is a
        crucial parameter for elminating spurrious features.
     separation : feature separation in px. Default = 1 + diamter.
     noise_size : scale of Gaussian blurring. Default = 1.
@@ -249,40 +278,39 @@ def batch(frames, diameter, minmass=100, separation=None,
     if table is None:
         table = 'features-' + timestamp
     # Gather meta information and pack it into a Series.
-    try: 
+    try:
         source = frames.filename
     except:
         source = None
-    meta = Series([source, diameter, minmass, separation, noise_size, 
-                   smoothing_size, invert, percentile, pickN, 
-                   pd.Timestamp(timestamp)], 
-                  index=['source', 
-                         'diameter', 'minmass', 'separation', 'noise_size', 
+    meta = Series([source, diameter, minmass, separation, noise_size,
+                   smoothing_size, invert, percentile, pickN,
+                   pd.Timestamp(timestamp)],
+                  index=['source',
+                         'diameter', 'minmass', 'separation', 'noise_size',
                          'smoothing_size', 'invert', 'percentile', 'pickN',
                          'timestamp'])
-    all_centroids = [] 
+    all_centroids = []
     for i, image in enumerate(frames):
         # If frames has a cursor property, use it. Otherwise, just count
         # the frames from 0.
         try:
             frame_no = frames.cursor - 1
         except AttributeError:
-            frame_no = i 
-        centroids = locate(image, diameter, minmass, separation, 
+            frame_no = i
+        centroids = locate(image, diameter, minmass, separation,
                            noise_size, smoothing_size, threshold, invert,
                            percentile, pickN, preprocess)
         centroids['frame'] = frame_no
         logger.info("Frame %d: %d features", frame_no, len(centroids))
         if len(centroids) == 0:
             continue
-        indexed = ['frame'] # columns on which you can perform queries
+        indexed = ['frame']  # columns on which you can perform queries
         if store is not None:
             store.append(table, centroids, data_columns=indexed)
-            store.flush() # Force save. Not essential.
+            store.flush()  # Force save. Not essential.
         elif conn is not None:
             if sql_flavor is None:
-                raise ValueError, \
-                    "Specifiy sql_flavor: MySQL or sqlite."
+                raise ValueError("Specifiy sql_flavor: MySQL or sqlite.")
             pd.io.sql.write_frame(centroids, table, conn,
                                   flavor=sql_flavor, if_exists='append')
         else:
@@ -296,3 +324,43 @@ def batch(frames, diameter, minmass=100, separation=None,
         return pd.io.sql.read_frame("SELECT * FROM %s" % table, conn)
     else:
         return pd.concat(all_centroids).reset_index(drop=True)
+
+
+def binary_mask(radius, ndim, separation=None):
+    points = np.arange(-radius, radius + 1)
+    if ndim > 1:
+        coords = np.array(np.meshgrid(*([points]*ndim)))
+    else:
+        coords = points.reshape(1, -1)
+    r = np.sqrt(np.sum(coords**2, 0))
+    return r <= radius
+
+
+def radius_mask(radius, ndim):
+    points = np.arange(-radius, radius + 1)
+    if ndim > 1:
+        coords = np.array(np.meshgrid(*([points]*ndim)))
+    else:
+        coords = points.reshape(1, -1)
+    r = np.sqrt(np.sum(coords**2, 0))
+    r[r > radius] = 0
+    return r
+
+
+def theta_mask(radius):
+    # 2D only
+    tan_of_coord = lambda y, x: np.arctan2(radius - y, x - radius)
+    diameter = 2*radius + 1
+    return np.fromfunction(tan_of_coord, (diameter, diameter))
+
+
+def sinmask(radius):
+    return np.sin(2*theta_mask(radius))
+
+
+def cosmask(radius):
+    return np.cos(2*theta_mask(radius))
+
+
+def _warn_no_maxima():
+    warnings.warn("No local maxima were found.", UserWarning)
