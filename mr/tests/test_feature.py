@@ -25,16 +25,16 @@ def gen_random_locations(shape, count):
     np.random.seed(0)
     return np.array([map(np.random.randint, shape) for _ in xrange(count)])
 
-def draw_spots(shape, locations, r):
-    image = np.zeros(shape, dtype='uint8')
+def draw_spots(shape, locations, r, noise_level):
+    image = np.random.randint(0, 1 + noise_level, shape).astype('uint8')
     for x in locations:
         draw_gaussian_spot(image, x, r)
     return image
 
-def compare(shape, count, radius):
+def compare(shape, count, radius, noise_level):
     pos = gen_random_locations(shape, count) 
-    image = draw_spots(shape, pos, radius)
-    f = mr.locate(image, 2*radius + 1)
+    image = draw_spots(shape, pos, radius, noise_level)
+    f = mr.locate(image, 2*radius + 1, minmass=2000)
     actual = f[['x', 'y']].sort(['x', 'y'])
     expected = DataFrame(pos, columns=['y', 'x'])[['x', 'y']].sort(['x', 'y']) 
     return actual, expected
@@ -48,7 +48,15 @@ class TestFeatureIdentification(unittest.TestCase):
             os.path.join(path, 'video', 'image_sequence'))
 
     def test_simple_sparse(self):
-        actual, expected = compare((200, 300), 4, 3)
+        actual, expected = compare((200, 300), 4, 3, noise_level=0)
+        assert_allclose(actual, expected, atol=0.5)
+
+    def test_noisy_sparse(self):
+        actual, expected = compare((200, 300), 4, 3, noise_level=1)
+        assert_allclose(actual, expected, atol=0.5)
+
+    def test_more_noisy_sparse(self):
+        actual, expected = compare((200, 300), 4, 3, noise_level=2)
         assert_allclose(actual, expected, atol=0.5)
 
 #    Unit tests on uncontrolled data are problematic. Revisit later.
