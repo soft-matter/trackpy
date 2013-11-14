@@ -4,7 +4,8 @@ mr: microrheology toolkit
 What is it?
 -----------
 
-**mr** is a Python package providing tools for passive and active microrheology experiments.
+**mr** is a Python package providing tools for particle tracking and
+microrheology experiments
 
 Examples and Tutorials:
   * [Compute the viscosity of water from a video of colloids in Brownian motion.](http://nbviewer.ipython.org/url/raw.github.com/soft-matter/mr/master/examples/mr%20simple%20example.ipynb)
@@ -16,29 +17,43 @@ Examples and Tutorials:
 Features
 --------
 
+### Basics
+
   * The [widely-used particle locating algorithm](http://www.physics.emory.edu/~weeks/idl/tracking.html) originally implemented
     by John Crocker and Eric Weeks in IDL is reimplemented in
     Python. Wherever possible, existing tools from widely-used Python modules 
     are employed.
-  * To verify the code, a **suite of tests reproduces basic results** (e.g., 
-    computing the viscosity of water from a video of diffusing particles).
-  * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457).
-  * For performance, array-intensive steps that are not available in
-    standard scientific modules are written in C and imported.
-  * Results are given as DataFrames, high-performance spreadsheet-like objects 
-    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html) which can easily be saved to a **CSV file, Excel spreadsheet, 
-    SQL database, HDF5 file**, or other.
+  * The module is actively used and tested on **Windows, Mac OSX, and Linux**,
+    and it uses only free, open-source software.
   * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
     **multi-frame TIFF, or a directory of sequential images (TIFF, 
     PNG, JPG, etc.)**.
+  * Results are given as DataFrames, high-performance spreadsheet-like objects 
+    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html) which can easily be saved to a **CSV file, Excel spreadsheet, 
+    SQL database, HDF5 file**, and more.
   * Particle trajectories can be 
     characterized, grouped, and plotted using a suite of convenient functions.
-  * Various models relate probe statistics to rheological response, including
-    the Generalized Stokes-Einstein implementation used in the Crocker/Grier 
-    code.
+  * To verify correctness and stability, a **suite of over 50 tests reproduces
+    basic results**. 
 
-Dependencies
-------------
+### Special Capabilities
+
+  * Both feature-finding and trajectory-linking can be performed on
+    infinite videos using a fixed, modest amount of memory. (Results
+    can be read and saved to disk throughout.)
+  * Feature-finding can be performed on "images" with any dimensions,
+    making possible some creative applications.
+  * Currently, trajectory-linking is supported in 2 and 3 dimensions.
+  * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457).
+  * For performance, array-intensive steps that are not available in
+    standard scientific modules are written in C and imported. 
+
+Installation & Dependencies
+---------------------------
+
+To get started with Python on any platform, just download and install
+[Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with these
+common scientific Python packages.
 
 Essential:
 
@@ -46,8 +61,12 @@ Essential:
   * ``scipy``
   * ``matplotlib``
   * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html)
-  * [``trackpy``](https://github.com/tacaswell/trackpy)
 
+You will also need these, which -- like ``mr`` itself -- are part of the
+github.com/soft-matter organization.
+
+  * [``trackpy``](https://github.com/soft-matter/trackpy)
+  * [``yaml-serialize``](https://github.com/soft-matter/trackpy)
 
 Optional:
 
@@ -56,6 +75,8 @@ Optional:
   * ``libtiff`` for reading multi-frame tiff images
   * ``PyTables`` for saving results in an HDF5 file
   * ``sqlite`` or ``MySQLdb`` for saving results in a SQL database
+  * [``pyFFTW``](https://github.com/hgomersall/pyFFTW) to speed up the band 
+      pass, which is one of the slower steps in feature-finding
 
 Related Projects
 ----------------
