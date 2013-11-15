@@ -75,7 +75,8 @@ def local_maxima(image, radius, separation, percentile=64):
         # TODO Change if into loop using slice(None) as :
     maxima = np.where(maxima_map > 0)
     if not np.size(maxima) > 0:
-        raise ValueError("Bad image! All maxima were in the margins.")
+        warnings.warn("Bad image! All maxima were in the margins.",
+                      UserWarning)
 
     # Return coords in as a numpy array shaped so it can be passed directly
     # to the DataFrame constructor.
@@ -155,7 +156,7 @@ def refine(raw_image, image, radius, coord, iterations=10):
 
 def locate(image, diameter, minmass=100., separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
-           percentile=64, pickN=None, preprocess=True):
+           percentile=64, topn=None, preprocess=True):
     """Read an image, do optional image preparation and cleanup, and locate
     Gaussian-like blobs of a given size above a given total brightness.
 
@@ -175,7 +176,8 @@ def locate(image, diameter, minmass=100., separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    pickN : Not Implemented
+    topn : Return only the N brightest features. If None (default), return
+        all features. Overrides minmass.
     preprocess : Set to False to turn out automatic preprocessing.
 
     Returns
@@ -210,11 +212,14 @@ def locate(image, diameter, minmass=100., separation=None,
     coords = local_maxima(bp_image, radius, separation, percentile)
     count_maxima = coords.shape[0]
 
-    # Keep only the massive ones.
+    # Keep only the massive ones, using topn or minmass.
     approx_mass = np.empty(count_maxima)  # initialize to avoid appending
     for i in range(count_maxima):
         approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
-    coords = coords[approx_mass > minmass]
+    if topn is not None:
+        coords = coords[np.argsort(approx_mass)][:topn]
+    else:
+        coords = coords[approx_mass > minmass]
     count_qualified = coords.shape[0]
 
     # Refine their locations and characterize mass, size, etc.
@@ -243,7 +248,7 @@ def locate(image, diameter, minmass=100., separation=None,
 
 def batch(frames, diameter, minmass=100, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
-          percentile=64, pickN=None, preprocess=True,
+          percentile=64, topn=None, preprocess=True,
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False):
     """Process a list of images, doing optional image preparation and cleanup,
@@ -267,7 +272,8 @@ def batch(frames, diameter, minmass=100, separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    pickN : Not Implemented
+    topn : Return only the N brightest features. If None (default), return
+        all features. Overrides minmass.
     preprocess : Set to False to turn out automatic preprocessing.
     store : Optional HDFStore
     conn : Optional connection to a SQL database
@@ -293,11 +299,11 @@ def batch(frames, diameter, minmass=100, separation=None,
     except:
         source = None
     meta = Series([source, diameter, minmass, separation, noise_size,
-                   smoothing_size, invert, percentile, pickN,
+                   smoothing_size, invert, percentile, topn,
                    pd.Timestamp(timestamp)],
                   index=['source',
                          'diameter', 'minmass', 'separation', 'noise_size',
-                         'smoothing_size', 'invert', 'percentile', 'pickN',
+                         'smoothing_size', 'invert', 'percentile', 'topn',
                          'timestamp'])
     all_centroids = []
     for i, image in enumerate(frames):
@@ -309,7 +315,7 @@ def batch(frames, diameter, minmass=100, separation=None,
             frame_no = i
         centroids = locate(image, diameter, minmass, separation,
                            noise_size, smoothing_size, threshold, invert,
-                           percentile, pickN, preprocess)
+                           percentile, topn, preprocess)
         centroids['frame'] = frame_no
         logger.info("Frame %d: %d features", frame_no, len(centroids))
         if len(centroids) == 0:
@@ -337,6 +343,7 @@ def batch(frames, diameter, minmass=100, separation=None,
 
 
 def binary_mask(radius, ndim, separation=None):
+    "circular mask in a square array"
     points = np.arange(-radius, radius + 1)
     if ndim > 1:
         coords = np.array(np.meshgrid(*([points]*ndim)))
