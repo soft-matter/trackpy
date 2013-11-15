@@ -184,3 +184,23 @@ class TestFeatureIdentification(unittest.TestCase):
     def test_multiple_more_noisy_sparse(self):
         actual, expected = compare((200, 300), 4, 2, noise_level=2)
         assert_allclose(actual, expected, atol=0.5)
+
+    def test_topn(self):
+        L = 21
+        dims = (L, L + 2)  # avoid square images in tests
+        cols = ['x', 'y']
+        PRECISION = 0.1
+
+        # two neighboring pixels of equal brightness
+        pos1 = np.array([7, 7])
+        pos2 = np.array([10, 14])
+        pos3 = np.array([7, 14])
+        image = np.ones(dims, dtype='uint8')
+        image[tuple(pos1[::-1])] = 100
+        image[tuple(pos2[::-1])] = 80
+        image[tuple(pos3[::-1])] = 90
+        actual = mr.locate(image, 5, 1, topn=2, preprocess=False)[cols]
+        actual = actual.sort(['x', 'y'])  # sort for reliable comparison
+        expected = DataFrame([[7, 7], [7, 14]], columns=cols).sort(['x', 'y'])
+        assert_allclose(actual, expected, atol=PRECISION)
+
