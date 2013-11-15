@@ -39,14 +39,16 @@ Features
 ### Special Capabilities
 
   * Both feature-finding and trajectory-linking can be performed on
-    infinite videos using a fixed, modest amount of memory. (Results
+    **arbitrarily long videos** using a fixed, modest amount of memory. (Results
     can be read and saved to disk throughout.)
-  * Feature-finding can be performed on "images" with any dimensions,
+  * Feature-finding works on **images with any number of dimensions**,
     making possible some creative applications.
-  * Currently, trajectory-linking is supported in 2 and 3 dimensions.
+  * Trajectory-linking is supported in 2 and 3 dimensions.
   * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457).
-  * For performance, array-intensive steps that are not available in
-    standard scientific modules are written in C and imported. 
+  * **High-performance** components (C extensions, FFTW support) are used
+  if available. Since these can be tricky to install on some machines,
+  the code will automatically fall back on slower pure Python implementations
+  as needed.
 
 Installation & Dependencies
 ---------------------------
