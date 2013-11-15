@@ -107,18 +107,12 @@ def refine(raw_image, image, radius, coord, iterations=10):
     cm_i = cm_n - radius + coord  # image coords
     allow_moves = True
     for iteration in range(iterations):
-        print 'iteration', iteration
         off_center = cm_n - radius
-        print neighborhood
-        print coord
-        print 'offset', off_center
         if np.all(np.abs(off_center) < 0.005):
-            print 'good enough'
             break  # Accurate enough.
 
         # If we're off by more than half a pixel in any direction, move.
         elif np.any(np.abs(off_center) > 0.6) and allow_moves:
-            print 'whole pixel'
             new_coord = coord
             new_coord[off_center > 0.6] -= 1
             new_coord[off_center < -0.6] += 1
@@ -130,7 +124,6 @@ def refine(raw_image, image, radius, coord, iterations=10):
 
         # If we're off by less than half a pixel, interpolate.
         else:
-            print 'interpolate'
             # second-order spline.
             neighborhood = ndimage.shift(neighborhood, -off_center, order=2,
                                          mode='constant', cval=0)
