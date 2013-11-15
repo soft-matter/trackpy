@@ -100,30 +100,47 @@ def refine(raw_image, image, radius, coord, iterations=10):
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
 
-    # Define the square neighborhood of (x, y).
+    # Define the circular neighborhood of (x, y).
     square = [slice(c - radius, c + radius + 1) for c in coord]
     neighborhood = mask*image[square]
     cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
     cm_i = cm_n - radius + coord  # image coords
+    allow_moves = True
     for iteration in range(iterations):
+        print 'iteration', iteration
         off_center = cm_n - radius
-        if np.all(off_center < 0.1):
+        print neighborhood
+        print coord
+        print 'offset', off_center
+        if np.all(np.abs(off_center) < 0.005):
+            print 'good enough'
             break  # Accurate enough.
-        # Start with whole-pixel shifts.
-        new_coord = coord
-        new_coord[off_center > 0.6] += 1
-        new_coord[off_center < -0.6] -= 1
-        # Don't shift it outside the image!
-        upper_bound = np.array(image.shape) - 1 - radius
-        new_coord = np.clip(new_coord, radius, upper_bound)
-        # if abs(xc - x0 - r) < 0.6 and (yc -y0 -r) < 0.6:
-            # Subpixel interpolation using a second-order spline.
-            # ndimage.shift(neighborhood,[yc, xc],mode='constant',cval=0.,
-            # order=2)
-        square = [slice(c - radius, c + radius + 1) for c in new_coord]
-        neighborhood = mask*image[square]
+
+        # If we're off by more than half a pixel in any direction, move.
+        elif np.any(np.abs(off_center) > 0.6) and allow_moves:
+            print 'whole pixel'
+            new_coord = coord
+            new_coord[off_center > 0.6] -= 1
+            new_coord[off_center < -0.6] += 1
+            # Don't move outside the image!
+            upper_bound = np.array(image.shape) - 1 - radius
+            new_coord = np.clip(new_coord, radius, upper_bound)
+            square = [slice(c - radius, c + radius + 1) for c in new_coord]
+            neighborhood = mask*image[square]
+
+        # If we're off by less than half a pixel, interpolate.
+        else:
+            print 'interpolate'
+            # second-order spline.
+            neighborhood = ndimage.shift(neighborhood, -off_center, order=2,
+                                         mode='constant', cval=0)
+            new_coord = coord + off_center
+            # Disallow any whole-pixels moves on future iterations.
+            allow_moves = False
+
         cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
-        cm_i = cm_n - radius + coord  # image coords
+        cm_i = cm_n - radius + new_coord  # image coords
+        coord = new_coord
 
     # Characterize the neighborhood of our final centroid.
     mass = neighborhood.sum()
