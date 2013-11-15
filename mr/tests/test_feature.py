@@ -191,9 +191,9 @@ class TestFeatureIdentification(unittest.TestCase):
         cols = ['x', 'y']
         PRECISION = 0.1
 
-        # two neighboring pixels of equal brightness
+        # top 2
         pos1 = np.array([7, 7])
-        pos2 = np.array([10, 14])
+        pos2 = np.array([14, 14])
         pos3 = np.array([7, 14])
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 100
@@ -204,3 +204,8 @@ class TestFeatureIdentification(unittest.TestCase):
         expected = DataFrame([[7, 7], [7, 14]], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
+        # top 1
+        actual = mr.locate(image, 5, 1, topn=1, preprocess=False)[cols]
+        actual = actual.sort(['x', 'y'])  # sort for reliable comparison
+        expected = DataFrame([[7, 7]], columns=cols).sort(['x', 'y'])
+        assert_allclose(actual, expected, atol=PRECISION)

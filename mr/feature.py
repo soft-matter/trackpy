@@ -176,8 +176,8 @@ def locate(image, diameter, minmass=100., separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    topn : Return only the N brightest features. If None (default), return
-        all features. Overrides minmass.
+    topn : Return only the N brightest features above minmass. 
+        If None (default), return all features above minmass.
     preprocess : Set to False to turn out automatic preprocessing.
 
     Returns
@@ -212,14 +212,10 @@ def locate(image, diameter, minmass=100., separation=None,
     coords = local_maxima(bp_image, radius, separation, percentile)
     count_maxima = coords.shape[0]
 
-    # Keep only the massive ones, using topn or minmass.
     approx_mass = np.empty(count_maxima)  # initialize to avoid appending
     for i in range(count_maxima):
         approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
-    if topn is not None:
-        coords = coords[np.argsort(approx_mass)][:topn]
-    else:
-        coords = coords[approx_mass > minmass]
+    coords = coords[approx_mass > minmass]
     count_qualified = coords.shape[0]
 
     # Refine their locations and characterize mass, size, etc.
@@ -232,6 +228,14 @@ def locate(image, diameter, minmass=100., separation=None,
     exact_mass = refined_coords[:, ndim]
     refined_coords = refined_coords[exact_mass > minmass]
     count_qualified = refined_coords.shape[0]
+
+    if topn is not None and count_qualified > topn:
+        if topn == 1:
+            # special case for high performance and correct shape
+            refined_coords = refined_coords[np.argmax(exact_mass)]
+            refined_coords = refined_coords.reshape(1, -1)
+        else:
+            refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
 
     # Present the results in a DataFrame.
     logger.info("%s local maxima, %s of qualifying mass",
@@ -277,8 +281,8 @@ def batch(frames, diameter, minmass=100, separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    topn : Return only the N brightest features. If None (default), return
-        all features. Overrides minmass.
+    topn : Return only the N brightest features above minmass. 
+        If None (default), return all features above minmass.
     preprocess : Set to False to turn out automatic preprocessing.
     store : Optional HDFStore
     conn : Optional connection to a SQL database
