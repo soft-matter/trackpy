@@ -23,6 +23,8 @@ Features
     by John Crocker and Eric Weeks in IDL is reimplemented in
     Python. Wherever possible, existing tools from widely-used Python modules 
     are employed.
+  * This reimplemention is full-featured, including subpixel precision down to
+    0.1 pixels, verified with test cases.
   * The module is actively used and tested on **Windows, Mac OSX, and Linux**,
     and it uses only free, open-source software.
   * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
