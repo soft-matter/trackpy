@@ -228,6 +228,11 @@ def locate(image, diameter, minmass=100., separation=None,
     for i in range(count_qualified):
         refined_coords[i] = refine(image, bp_image, radius, coords[i])
 
+    # Filter by minmass again, using final ("exact") mass.
+    exact_mass = refined_coords[:, ndim]
+    refined_coords = refined_coords[exact_mass > minmass]
+    count_qualified = refined_coords.shape[0]
+
     # Present the results in a DataFrame.
     logger.info("%s local maxima, %s of qualifying mass",
                 count_maxima, count_qualified)

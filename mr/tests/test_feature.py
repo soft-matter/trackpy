@@ -40,7 +40,7 @@ def draw_spots(shape, locations, r, noise_level):
 def compare(shape, count, radius, noise_level):
     pos = gen_random_locations(shape, count) 
     image = draw_spots(shape, pos, radius, noise_level)
-    f = mr.locate(image, 2*radius + 1, minmass=2000)
+    f = mr.locate(image, 2*radius + 1, minmass=1800)
     actual = f[['x', 'y']].sort(['x', 'y'])
     expected = DataFrame(pos, columns=['y', 'x'])[['x', 'y']].sort(['x', 'y']) 
     return actual, expected
