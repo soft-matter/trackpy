@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from scipy import stats
+import warnings
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
@@ -54,7 +55,9 @@ class memo(object):
    def __call__(self, *args):
       if not isinstance(args, collections.Hashable):
          # uncacheable. a list, for instance.
-         # better to not cache than blow up.
+         warnings.warn("A memoization cache is being used on an uncacheable " +
+                       "object. Proceeding by bypassing the cache.",
+                       UserWarning)
          return self.func(*args)
       if args in self.cache:
          return self.cache[args]
