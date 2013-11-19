@@ -27,6 +27,7 @@ from pandas import DataFrame, Series
 from mr import uncertainty
 from mr.preprocessing import bandpass, scale_to_gamut
 from C_fallback_python import nullify_secondary_maxima
+from mr.utils import memo
 
 
 logger = logging.getLogger(__name__)
@@ -176,8 +177,8 @@ def locate(image, diameter, minmass=100., separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    topn : Return only the N brightest features. If None (default), return
-        all features. Overrides minmass.
+    topn : Return only the N brightest features above minmass. 
+        If None (default), return all features above minmass.
     preprocess : Set to False to turn out automatic preprocessing.
 
     Returns
@@ -212,14 +213,10 @@ def locate(image, diameter, minmass=100., separation=None,
     coords = local_maxima(bp_image, radius, separation, percentile)
     count_maxima = coords.shape[0]
 
-    # Keep only the massive ones, using topn or minmass.
     approx_mass = np.empty(count_maxima)  # initialize to avoid appending
     for i in range(count_maxima):
         approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
-    if topn is not None:
-        coords = coords[np.argsort(approx_mass)][:topn]
-    else:
-        coords = coords[approx_mass > minmass]
+    coords = coords[approx_mass > minmass]
     count_qualified = coords.shape[0]
 
     # Refine their locations and characterize mass, size, etc.
@@ -227,6 +224,19 @@ def locate(image, diameter, minmass=100., separation=None,
     refined_coords = np.empty((count_qualified, ndim + 4))
     for i in range(count_qualified):
         refined_coords[i] = refine(image, bp_image, radius, coords[i])
+
+    # Filter by minmass again, using final ("exact") mass.
+    exact_mass = refined_coords[:, ndim]
+    refined_coords = refined_coords[exact_mass > minmass]
+    count_qualified = refined_coords.shape[0]
+
+    if topn is not None and count_qualified > topn:
+        if topn == 1:
+            # special case for high performance and correct shape
+            refined_coords = refined_coords[np.argmax(exact_mass)]
+            refined_coords = refined_coords.reshape(1, -1)
+        else:
+            refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
 
     # Present the results in a DataFrame.
     logger.info("%s local maxima, %s of qualifying mass",
@@ -272,8 +282,8 @@ def batch(frames, diameter, minmass=100, separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    topn : Return only the N brightest features. If None (default), return
-        all features. Overrides minmass.
+    topn : Return only the N brightest features above minmass. 
+        If None (default), return all features above minmass.
     preprocess : Set to False to turn out automatic preprocessing.
     store : Optional HDFStore
     conn : Optional connection to a SQL database
@@ -342,6 +352,7 @@ def batch(frames, diameter, minmass=100, separation=None,
         return pd.concat(all_centroids).reset_index(drop=True)
 
 
+@memo
 def binary_mask(radius, ndim, separation=None):
     "circular mask in a square array"
     points = np.arange(-radius, radius + 1)
@@ -353,6 +364,7 @@ def binary_mask(radius, ndim, separation=None):
     return r <= radius
 
 
+@memo
 def radius_mask(radius, ndim):
     points = np.arange(-radius, radius + 1)
     if ndim > 1:
@@ -364,6 +376,7 @@ def radius_mask(radius, ndim):
     return r
 
 
+@memo
 def theta_mask(radius):
     # 2D only
     tan_of_coord = lambda y, x: np.arctan2(radius - y, x - radius)
@@ -371,13 +384,16 @@ def theta_mask(radius):
     return np.fromfunction(tan_of_coord, (diameter, diameter))
 
 
+@memo
 def sinmask(radius):
     return np.sin(2*theta_mask(radius))
 
 
+@memo
 def cosmask(radius):
     return np.cos(2*theta_mask(radius))
 
 
+@memo
 def _warn_no_maxima():
     warnings.warn("No local maxima were found.", UserWarning)
