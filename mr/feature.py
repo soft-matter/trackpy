@@ -231,6 +231,7 @@ def locate(image, diameter, minmass=100., separation=None,
     count_qualified = refined_coords.shape[0]
 
     if topn is not None and count_qualified > topn:
+        exact_mass = exact_mass[exact_mass > minmass]
         if topn == 1:
             # special case for high performance and correct shape
             refined_coords = refined_coords[np.argmax(exact_mass)]
