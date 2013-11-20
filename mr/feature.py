@@ -139,7 +139,7 @@ def refine(raw_image, image, radius, coord, iterations=10):
 
     # Characterize the neighborhood of our final centroid.
     mass = neighborhood.sum()
-    Rg = np.sqrt(np.sum(radius_mask(radius, ndim)*neighborhood)/mass)
+    Rg = np.sqrt(np.sum(r_squared_mask(radius, ndim)*neighborhood)/mass)
     # I only know how to measure eccentricity in 2D.
     if ndim == 2:
         ecc = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
@@ -366,15 +366,15 @@ def binary_mask(radius, ndim, separation=None):
 
 
 @memo
-def radius_mask(radius, ndim):
+def r_squared_mask(radius, ndim):
     points = np.arange(-radius, radius + 1)
     if ndim > 1:
         coords = np.array(np.meshgrid(*([points]*ndim)))
     else:
         coords = points.reshape(1, -1)
-    r = np.sqrt(np.sum(coords**2, 0))
-    r[r > radius] = 0
-    return r
+    r2 = np.sum(coords**2, 0)
+    r2[r2 > radius**2] = 0
+    return r2
 
 
 @memo

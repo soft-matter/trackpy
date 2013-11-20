@@ -14,14 +14,14 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-def draw_gaussian_spot(image, pos, r, max_value=None):
+def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
     if image.shape[0] == image.shape[1]:
         raise ValueError("For stupid numpy broadcasting reasons, don't make" +
                          "the image square.")
     x, y = np.meshgrid(*np.array(map(np.arange, image.shape)) - pos)
     if max_value is None:
         max_value = np.iinfo(image.dtype).max - 1
-    spot = max_value*np.exp(-(x**2 + y**2)/(2*r**2)).T
+    spot = max_value*np.exp(-((x/(1 - ecc))**2 + (y*(1 - ecc))**2)/(2*r**2)).T
     image += spot
 
 
@@ -209,3 +209,75 @@ class TestFeatureIdentification(unittest.TestCase):
         actual = actual.sort(['x', 'y'])  # sort for reliable comparison
         expected = DataFrame([[7, 7]], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
+
+    def test_rg(self):
+        # For Gaussians with radii 2, 3, 5, and 7 px, with proportionately
+        # chosen feature (mask) sizes, the 'size' comes out to be within 10%
+        # of the true Gaussian width.
+
+        # The IDL code has mistake in this area, documented here:
+        # http://www.physics.emory.edu/~weeks/idl/radius.html
+
+        L = 101 
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = np.array([50, 55])
+        cols = ['x', 'y']
+
+        SIZE = 2
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 7, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+
+        SIZE = 3
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 11, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+
+        SIZE = 5
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 17, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+        
+        SIZE = 7
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 23, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+        
+    def test_eccentricity(self):
+        # Eccentricity (elongation) is measured with good accuracy and
+        # ~0.02 precision, as long as the mask is large enough to cover
+        # the whole object.
+        L = 101 
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = np.array([50, 55])
+        cols = ['x', 'y']
+
+        ECC = 0
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
+        actual = mr.locate(image, 21, 1, preprocess=False)['ecc']
+        expected = ECC
+        assert_allclose(actual, expected, atol=0.02)
+
+        ECC = 0.2
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
+        actual = mr.locate(image, 21, 1, preprocess=False)['ecc']
+        expected = ECC
+        assert_allclose(actual, expected, atol=0.02)
+
+        ECC = 0.5
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
+        actual = mr.locate(image, 21, 1, preprocess=False)['ecc']
+        expected = ECC
+        assert_allclose(actual, expected, atol=0.02)
+
