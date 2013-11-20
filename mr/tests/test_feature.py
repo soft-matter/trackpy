@@ -14,14 +14,14 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-def draw_gaussian_spot(image, pos, r, max_value=None):
+def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
     if image.shape[0] == image.shape[1]:
         raise ValueError("For stupid numpy broadcasting reasons, don't make" +
                          "the image square.")
     x, y = np.meshgrid(*np.array(map(np.arange, image.shape)) - pos)
     if max_value is None:
         max_value = np.iinfo(image.dtype).max - 1
-    spot = max_value*np.exp(-(x**2 + y**2)/(2*r**2)).T
+    spot = max_value*np.exp(-((x/(1 - ecc))**2 + (y*(1 - ecc))**2)/(2*r**2)).T
     image += spot
 
 
@@ -251,3 +251,33 @@ class TestFeatureIdentification(unittest.TestCase):
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
         
+    def test_eccentricity(self):
+        # Eccentricity (elongation) is measured with good accuracy and
+        # ~0.02 precision, as long as the mask is large enough to cover
+        # the whole object.
+        L = 101 
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = np.array([50, 55])
+        cols = ['x', 'y']
+
+        ECC = 0
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
+        actual = mr.locate(image, 21, 1, preprocess=False)['ecc']
+        expected = ECC
+        assert_allclose(actual, expected, atol=0.02)
+
+        ECC = 0.2
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
+        actual = mr.locate(image, 21, 1, preprocess=False)['ecc']
+        expected = ECC
+        assert_allclose(actual, expected, atol=0.02)
+
+        ECC = 0.5
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
+        actual = mr.locate(image, 21, 1, preprocess=False)['ecc']
+        expected = ECC
+        assert_allclose(actual, expected, atol=0.02)
+
