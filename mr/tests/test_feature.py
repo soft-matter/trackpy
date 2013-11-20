@@ -209,3 +209,45 @@ class TestFeatureIdentification(unittest.TestCase):
         actual = actual.sort(['x', 'y'])  # sort for reliable comparison
         expected = DataFrame([[7, 7]], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
+
+    def test_rg(self):
+        # For Gaussians with radii 2, 3, 5, and 7 px, with proportionately
+        # chosen feature (mask) sizes, the 'size' comes out to be within 10%
+        # of the true Gaussian width.
+
+        # The IDL code has mistake in this area, documented here:
+        # http://www.physics.emory.edu/~weeks/idl/radius.html
+
+        L = 101 
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = np.array([50, 55])
+        cols = ['x', 'y']
+
+        SIZE = 2
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 7, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+
+        SIZE = 3
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 11, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+
+        SIZE = 5
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 17, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+        
+        SIZE = 7
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], SIZE)
+        actual = mr.locate(image, 23, 1, preprocess=False)['size']
+        expected = SIZE
+        assert_allclose(actual, expected, rtol=0.1)
+        
