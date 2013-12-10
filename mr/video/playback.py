@@ -15,7 +15,9 @@ def play(frames, wait=10, label=True):
                 text_pos = (20, 80)
                 cv2.putText(
                     frame,"Frame %d" % frame_no, text_pos, FONT, 2, 255,
-                    thickness=4, linetype=cv2.CV_AA)
+                    thickness=4)
+                    # removed linetype because of this bug:
+                    # http://code.opencv.org/issues/1973
             cv2.imshow('playback', frame)
             cv2.waitKey(wait) 
     except KeyboardInterrupt:
