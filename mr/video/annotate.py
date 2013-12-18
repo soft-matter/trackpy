@@ -67,3 +67,6 @@ def circle(features, frames, wait=1, high_contrast=True, write_file=None):
             cv2.waitKey(wait)
     except KeyboardInterrupt:
         pass
+    finally:
+        cv2.destroyWindow('playback')
+        cv2.waitKey(1)  # a bug work-around to poke destroy

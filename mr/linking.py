@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import customized_trackpy.tracking as trackpy
+from print_update import print_update
 
 class PointNDWithID(trackpy.PointND):
     "Extends pt.PointND to carry meta information from feature identification."
@@ -118,6 +119,8 @@ def link_iterator(numbered_frames, search_range, hash_size, memory=0,
         frame_no = next(iter(level)).t  # uses an arbitary element from the set
         if verify_integrity:
             _verify_integrity(frame_no, labels) # may issue warnings
+        msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
+        print_update(msg)
         yield frame_no, labels
 
 def _level_generator(numbered_frames, pos_columns):

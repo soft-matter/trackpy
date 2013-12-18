@@ -28,6 +28,7 @@ from mr import uncertainty
 from mr.preprocessing import bandpass, scale_to_gamut
 from C_fallback_python import nullify_secondary_maxima
 from mr.utils import memo
+from .print_update import print_update
 
 
 logger = logging.getLogger(__name__)
@@ -328,7 +329,9 @@ def batch(frames, diameter, minmass=100, separation=None,
                            noise_size, smoothing_size, threshold, invert,
                            percentile, topn, preprocess)
         centroids['frame'] = frame_no
-        logger.info("Frame %d: %d features", frame_no, len(centroids))
+        message = "Frame %d: %d features" % (frame_no, len(centroids))
+        logger.info(message)
+        print_update(message)
         if len(centroids) == 0:
             continue
         indexed = ['frame']  # columns on which you can perform queries
