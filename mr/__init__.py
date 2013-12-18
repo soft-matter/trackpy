@@ -30,10 +30,6 @@ import pandas as pd
 # SSH-safe matplotlib import
 import matplotlib as mpl
 import os
-if 'DISPLAY' not in os.environ:
-    print "No $DISPLAY variable found. Using the Agg matplotlib backend."
-    mpl.use('Agg') # suppress plot display
-
 from mr.api import *
 from mr.video.api import *
 from mr import wire
