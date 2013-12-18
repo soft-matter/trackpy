@@ -22,7 +22,7 @@ import warnings
 
 # Configure logging for all modules in this package.
 FORMAT = "%(name)s.%(funcName)s:  %(message)s"
-logging.basicConfig(level=logging.INFO, format=FORMAT)
+logging.basicConfig(level=logging.WARN, format=FORMAT)
 
 import numpy as np
 import pandas as pd
