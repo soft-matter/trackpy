@@ -184,7 +184,7 @@ def mass_ecc(f, ax=None):
 @make_axes
 def mass_size(f, ax=None):
     """Plot each probe's mass versus size."""
-    ax.plot(f['mass'], f['size'], 'ko', alpha=0.3)
+    ax.plot(f['mass'], f['size'], 'ko', alpha=0.1)
     ax.set_xlabel('mass')
     ax.set_ylabel('size')
     return ax
