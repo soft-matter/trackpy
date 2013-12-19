@@ -9,7 +9,6 @@ before_install:
   - ci/before_install.sh
 
 install:
-  - pip install -e git+https://github.com/pydata/pandas#egg=pandas
   - pip install -e git+https://github.com/soft-matter/trackpy.git#egg=trackpy
   - pip install -e git+https://github.com/soft-matter/yaml-serialize.git#egg=yaml_serialize
   - pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/

@@ -6,6 +6,7 @@ from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
 import os
+from tempfile import NamedTemporaryFile
 import pandas as pd
 from pandas import DataFrame, Series
 
@@ -21,11 +22,14 @@ class TestFeatureSaving(unittest.TestCase):
         directory = os.path.join(path, 'video', 'image_sequence')
         self.v = mr.ImageSequence(directory)
         self.PARAMS = (11, 3000)
-        self.expected = mr.batch(self.v[[0, 1]], *self.PARAMS)
+        with NamedTemporaryFile() as temp:
+            self.expected = mr.batch(self.v[[0, 1]], *self.PARAMS,
+                                     meta=temp.name)
 
     def test_sqlite(self):
-        f = mr.batch(self.v[[0, 1]], *self.PARAMS, conn=self.db_conn,
-                     sql_flavor='sqlite', table='features')
+        with NamedTemporaryFile() as temp:
+            f = mr.batch(self.v[[0, 1]], *self.PARAMS, conn=self.db_conn,
+                     sql_flavor='sqlite', table='features', meta=temp.name)
         assert_frame_equal(f, self.expected)
 
     def test_HDFStore(self):
@@ -37,8 +41,9 @@ class TestFeatureSaving(unittest.TestCase):
         except:
             nose.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
-            f = mr.batch(self.v[[0, 1]], *self.PARAMS, store=store,
-                         table='features')
+            with NamedTemporaryFile() as temp:
+                f = mr.batch(self.v[[0, 1]], *self.PARAMS, store=store,
+                             table='features', meta=temp.name)
             assert_frame_equal(f.reset_index(drop=True), 
                            self.expected.reset_index(drop=True))
             os.remove(STORE_NAME)
