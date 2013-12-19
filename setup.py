@@ -12,4 +12,5 @@ setup(
     author_email='tcaswell@uchicago.edu',
     url='https://github.com/soft-matter/trackpy',
     packages=['trackpy'],
+    install_requires=['numpy', 'six', 'scipy']
     )
