@@ -8,6 +8,7 @@ virtualenv:
   system_site_packages: true
 
 before_install:
+ - sudo apt-get install -qq python-scipy python3-scipy
  - pip install -q --use-mirrors nose numpy scipy
 
 install:
