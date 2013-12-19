@@ -91,6 +91,15 @@ def estimate_mass(image, radius, coord):
     neighborhood = binary_mask(radius, image.ndim)*image[square]
     return np.sum(neighborhood)
 
+
+def estimate_size(image, radius, coord, estimated_mass):
+    "Compute the total brightness in the neighborhood of a local maximum."
+    square = [slice(c - radius, c + radius + 1) for c in coord]
+    neighborhood = binary_mask(radius, image.ndim)*image[square]
+    Rg = np.sqrt(np.sum(r_squared_mask(radius, image.ndim)*neighborhood)/
+                 estimated_mass)
+    return Rg
+
 # center_of_mass can have divide-by-zero errors, avoided thus:
 _safe_center_of_mass = lambda x: np.array(ndimage.center_of_mass(x + 1))
 
@@ -156,7 +165,7 @@ def refine(raw_image, image, radius, coord, iterations=10):
     return np.array(list(final_coords) + [mass, Rg, ecc, signal])
 
 
-def locate(image, diameter, minmass=100., separation=None,
+def locate(image, diameter, minmass=100., maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
            percentile=64, topn=None, preprocess=True):
     """Read an image, do optional image preparation and cleanup, and locate
@@ -169,6 +178,7 @@ def locate(image, diameter, minmass=100., separation=None,
     minmass : minimum integrated brightness
        Default is 100, but a good value is often much higher. This is a
        crucial parameter for elminating spurrious features.
+    maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation in px
     noise_size : scale of Gaussian blurring. Default 1.
     smoothing_size : defauls to separation
@@ -217,7 +227,14 @@ def locate(image, diameter, minmass=100., separation=None,
     approx_mass = np.empty(count_maxima)  # initialize to avoid appending
     for i in range(count_maxima):
         approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
-    coords = coords[approx_mass > minmass]
+    if maxsize is not None:
+        approx_size = np.empty(count_maxima)
+        for i in range(count_maxima):
+            approx_size[i] = estimate_size(bp_image, radius, coords[i], 
+                                           approx_mass[i])
+        coords = coords[(approx_mass > minmass) & (approx_size < maxsize)]
+    else:
+        coords = coords[approx_mass > minmass]
     count_qualified = coords.shape[0]
 
     # Refine their locations and characterize mass, size, etc.
@@ -258,7 +275,7 @@ def locate(image, diameter, minmass=100., separation=None,
     return f
 
 
-def batch(frames, diameter, minmass=100, separation=None,
+def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
           percentile=64, topn=None, preprocess=True,
           store=None, conn=None, sql_flavor=None, table=None,
@@ -275,6 +292,7 @@ def batch(frames, diameter, minmass=100, separation=None,
     minmass : minimum integrated brightness
        Default is 100, but a good value is often much higher. This is a
        crucial parameter for elminating spurrious features.
+    maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation in px. Default = 1 + diamter.
     noise_size : scale of Gaussian blurring. Default = 1.
     smoothing_size : Default = separation.
@@ -325,7 +343,7 @@ def batch(frames, diameter, minmass=100, separation=None,
             frame_no = frames.cursor - 1
         except AttributeError:
             frame_no = i
-        centroids = locate(image, diameter, minmass, separation,
+        centroids = locate(image, diameter, minmass, maxsize, separation,
                            noise_size, smoothing_size, threshold, invert,
                            percentile, topn, preprocess)
         centroids['frame'] = frame_no
