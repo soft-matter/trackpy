@@ -10,6 +10,6 @@ setup(
     version='0.1',
     author='Thomas A Caswell',
     author_email='tcaswell@uchicago.edu',
-    url='https://github.com/tacaswell/trackpy',
+    url='https://github.com/soft-matter/trackpy',
     packages=['trackpy'],
     )
