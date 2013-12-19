@@ -94,14 +94,17 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
     -------
     None
     """
+    if (superimpose is not None) and (mpp != 1):
+        raise NotImplementedError("When superimposing over an image, you " +
+                                  "must plot in units of pixels. Leave " +
+                                  "microns per pixel mpp=1.")
     # Axes labels
-    if (superimpose is not None) or (mpp == 1):
-        logger.warning("Using units of px, not microns")
+    if mpp == 1:
         ax.set_xlabel('x [px]')
         ax.set_ylabel('y [px]')
     else:
-        ax.set_xlabel('x [um]')
-        ax.set_ylabel('y [um]')
+        ax.set_xlabel(r'x [$\mu$m]')
+        ax.set_ylabel(r'y [$\mu$m]')
     # Background image
     if superimpose is not None:
         ax.imshow(superimpose, cmap=plt.cm.gray)
