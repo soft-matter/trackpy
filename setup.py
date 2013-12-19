@@ -8,9 +8,9 @@ from numpy.distutils.core import setup, Extension
 import warnings
 
 MAJOR = 0
-MINOR = 3
+MINOR = 5
 MICRO = 0
-ISRELEASED = False
+ISRELEASED = True 
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
