@@ -19,11 +19,12 @@
 import collections
 import functools
 import re
+import warnings
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from scipy import stats
-import warnings
+import yaml
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
@@ -163,3 +164,8 @@ def timedelta_to_frame(timedeltas, fps):
 
 def random_walk(N):
     return np.cumsum(np.random.randn(N), 1)
+
+def record_meta(meta_data, filename):
+    with open(filename, 'w') as output:
+        output.write(yaml.dump(meta_data, default_flow_style=False))
+

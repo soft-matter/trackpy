@@ -27,11 +27,9 @@ from pandas import DataFrame, Series
 from mr import uncertainty
 from mr.preprocessing import bandpass, scale_to_gamut
 from C_fallback_python import nullify_secondary_maxima
-from mr.utils import memo
+from mr.utils import memo, record_meta
+import mr  # to get mr.__version__
 from .print_update import print_update
-
-
-logger = logging.getLogger(__name__)
 
 
 def local_maxima(image, radius, separation, percentile=64):
@@ -224,6 +222,8 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     coords = local_maxima(bp_image, radius, separation, percentile)
     count_maxima = coords.shape[0]
 
+    # Proactively filter based on estimated mass/size before
+    # refining positions.
     approx_mass = np.empty(count_maxima)  # initialize to avoid appending
     for i in range(count_maxima):
         approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
@@ -257,9 +257,7 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
         else:
             refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
 
-    # Present the results in a DataFrame.
-    logger.info("%s local maxima, %s of qualifying mass",
-                count_maxima, count_qualified)
+    # Return the results in a DataFrame.
     if ndim < 4:
         coord_columns = ['x', 'y', 'z'][:image.ndim]
     else:
@@ -279,7 +277,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
           percentile=64, topn=None, preprocess=True,
           store=None, conn=None, sql_flavor=None, table=None,
-          do_not_return=False):
+          do_not_return=False, meta=True):
     """Process a list of images, doing optional image preparation and cleanup,
     locating Gaussian-like blobs of a given size.
 
@@ -312,6 +310,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         Default: 'features_timestamp'.
     do_not_return : Save the result frame by frame, but do not return it when
         finished. Conserved memory for parallel jobs.
+    meta : By default, a YAML (plain text) log file is saved in the current
+        directory. You can specify a different filepath set False.
 
     Returns
     -------
@@ -320,21 +320,28 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     where mass means total integrated brightness of the blob
     and size means the radius of gyration of its Gaussian-like profile
     """
+    # Gather meta information and save as YAML in current directory.
     timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S')
-    if table is None:
-        table = 'features-' + timestamp
-    # Gather meta information and pack it into a Series.
     try:
         source = frames.filename
     except:
         source = None
-    meta = Series([source, diameter, minmass, separation, noise_size,
-                   smoothing_size, invert, percentile, topn,
-                   pd.Timestamp(timestamp)],
-                  index=['source',
-                         'diameter', 'minmass', 'separation', 'noise_size',
-                         'smoothing_size', 'invert', 'percentile', 'topn',
-                         'timestamp'])
+    meta_info = dict(timestamp=timestamp,
+                     mr_version=mr.__version__,
+                     source=source, diameter=diameter, minmass=minmass, 
+                     maxsize=maxsize, separation=separation, 
+                     noise_size=noise_size, smoothing_size=smoothing_size, 
+                     invert=invert, percentile=percentile, topn=topn, 
+                     preprocess=preprocess, store=store, conn=conn, 
+                     sql_flavor=sql_flavor, table=table,
+                     do_not_return=do_not_return)
+    if meta:
+        if isinstance(meta, str):
+            filename = meta
+        else:
+            filename = 'feature_log_%s.yml' % timestamp
+        record_meta(meta_info, filename)
+
     all_centroids = []
     for i, image in enumerate(frames):
         # If frames has a cursor property, use it. Otherwise, just count
@@ -348,28 +355,44 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                            percentile, topn, preprocess)
         centroids['frame'] = frame_no
         message = "Frame %d: %d features" % (frame_no, len(centroids))
-        logger.info(message)
         print_update(message)
         if len(centroids) == 0:
             continue
         indexed = ['frame']  # columns on which you can perform queries
+
+        # HDF Mode: Save iteratively in pandas HDFStore table.
         if store is not None:
             store.append(table, centroids, data_columns=indexed)
             store.flush()  # Force save. Not essential.
+
+        # SQL Mode: Save iteratively in SQL table.
         elif conn is not None:
             if sql_flavor is None:
                 raise ValueError("Specifiy sql_flavor: MySQL or sqlite.")
             pd.io.sql.write_frame(centroids, table, conn,
                                   flavor=sql_flavor, if_exists='append')
+
+        # Simple Mode: Accumulate all results in memory and return.
         else:
             all_centroids.append(centroids)
+
     if do_not_return:
         return None
     if store is not None:
-        store.get_storer(table).attrs.meta = meta
-        return store[table]
+        try:
+            store.get_storer(table).attrs.meta = meta
+            return store[table]
+        except MemoryError:
+            raise MemoryError("The batch was completed and saved " +
+                              "successfully but it is too large to return " +
+                              "en masse at this time.") 
     elif conn is not None:
-        return pd.io.sql.read_frame("SELECT * FROM %s" % table, conn)
+        try:
+            return pd.io.sql.read_frame("SELECT * FROM %s" % table, conn)
+        except MemoryError:
+            raise MemoryError("The batch was completed and saved " +
+                              "successfully but it is too large to return " +
+                              "en masse at this time.") 
     else:
         return pd.concat(all_centroids).reset_index(drop=True)
 
