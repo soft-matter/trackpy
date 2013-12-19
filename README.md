@@ -1,4 +1,4 @@
-[![build status](https://travis-ci.org/tacaswell/trackpy.png)](https://travis-ci.org/tacaswell/trackpy)
+[![build status](https://travis-ci.org/soft-matter/trackpy.png)](https://travis-ci.org/soft-matter/trackpy)
 
 
 
