@@ -275,7 +275,7 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     return f
 
 
-def batch(frames, diameter, minmass=100, separation=None,
+def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
           percentile=64, topn=None, preprocess=True,
           store=None, conn=None, sql_flavor=None, table=None,
@@ -292,6 +292,7 @@ def batch(frames, diameter, minmass=100, separation=None,
     minmass : minimum integrated brightness
        Default is 100, but a good value is often much higher. This is a
        crucial parameter for elminating spurrious features.
+    maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation in px. Default = 1 + diamter.
     noise_size : scale of Gaussian blurring. Default = 1.
     smoothing_size : Default = separation.
@@ -342,7 +343,7 @@ def batch(frames, diameter, minmass=100, separation=None,
             frame_no = frames.cursor - 1
         except AttributeError:
             frame_no = i
-        centroids = locate(image, diameter, minmass, separation,
+        centroids = locate(image, diameter, minmass, maxsize, separation,
                            noise_size, smoothing_size, threshold, invert,
                            percentile, topn, preprocess)
         centroids['frame'] = frame_no

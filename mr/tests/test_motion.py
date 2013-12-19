@@ -10,6 +10,7 @@ from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
+from mr.utils import suppress_plotting
 
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
@@ -158,4 +159,5 @@ class TestSpecial(unittest.TestCase):
 
     def test_theta_entropy(self):
         # just a smoke test
-        self.steppers.groupby('probe').agg(mr.motion.theta_entropy)
+        theta_entropy = lambda x: mr.motion.theta_entropy(x, plot=False)
+        self.steppers.groupby('probe').apply(theta_entropy)
