@@ -102,7 +102,8 @@ def estimate_size(image, radius, coord, estimated_mass):
 _safe_center_of_mass = lambda x: np.array(ndimage.center_of_mass(x + 1))
 
 
-def refine(raw_image, image, radius, coord, iterations=10):
+def refine(raw_image, image, radius, coord, iterations=10,
+           characterize=True):
     """Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
     brightness, size (Rg), and eccentricity (0=circular)."""
@@ -145,6 +146,12 @@ def refine(raw_image, image, radius, coord, iterations=10):
         cm_i = cm_n - radius + new_coord  # image coords
         coord = new_coord
 
+    # matplotlib and ndimage have opposite conventions for xy <-> yx.
+    final_coords = cm_i[..., ::-1]
+
+    if not characterize:
+        return final_coords
+
     # Characterize the neighborhood of our final centroid.
     mass = neighborhood.sum()
     Rg = np.sqrt(np.sum(r_squared_mask(radius, ndim)*neighborhood)/mass)
@@ -158,8 +165,6 @@ def refine(raw_image, image, radius, coord, iterations=10):
     raw_neighborhood = mask*raw_image[square]
     signal = raw_neighborhood.max()  # black_level subtracted later
 
-    # matplotlib and ndimage have opposite conventions for xy <-> yx.
-    final_coords = cm_i[..., ::-1]
     return np.array(list(final_coords) + [mass, Rg, ecc, signal])
 
 
