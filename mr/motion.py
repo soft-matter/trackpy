@@ -178,7 +178,8 @@ def compute_drift(traj, smoothing=0):
     # Keep only deltas between frames that are consecutive. 
     delta = delta[delta['frame'] == 1]
     # Restore the original frame column (replacing delta frame).
-    delta['frame'] = delta.index
+    del delta['frame']
+    delta.reset_index(inplace=True)
     dx = delta.groupby('frame').mean()
     if smoothing > 0:
         dx = pd.rolling_mean(dx, smoothing, min_periods=0)
