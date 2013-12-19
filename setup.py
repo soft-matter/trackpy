@@ -3,7 +3,7 @@
 import setuptools
 from distutils.core import setup
 
-print "Installing trackpy"
+print("Installing trackpy")
 
 setup(
     name='trackpy',

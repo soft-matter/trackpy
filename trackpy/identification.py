@@ -14,25 +14,28 @@
 #
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
-from __future__ import division
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
+import six
+from six.moves import zip
 import numpy as np
 import numpy.random as npr
 from scipy import ndimage
-
-import itertools
 
 
 def find_local_max(img, d_rad, threshold=1e-15):
     """
     This is effectively a replacement for pkfnd in the matlab/IDL code.
 
-    The output of this function is meant to be feed into :py:func:`~subpixel_centroid`
+    The output of this function is meant to be feed
+    into :py:func:`~subpixel_centroid`
 
     The magic of numpy means this should work for any dimension data.
 
     :param img: an ndarray representing the data to find the local maxes
-    :param d_rad: the radius of the dilation, the smallest possible spacing between local maximum
+    :param d_rad: the radius of the dilation, the smallest possible
+                    spacing between local maximum
     :param threshold: optional, voxels < threshold are ignored.
 
     :rtype: (d,N) array of the local maximums.
@@ -93,7 +96,7 @@ def subpixel_centroid(img, local_maxes, mask_rad):
     shifts_lst = []
     mass_lst = []
     r2_lst = []
-    for loc in itertools.izip(*local_maxes):
+    for loc in zip(*local_maxes):
 
         window = [slice(p - mask_rad, p + mask_rad + 1) for p in loc]
         img_win = img[window]
@@ -159,8 +162,9 @@ def gen_fake_data(list_of_locs, p_rad, hwhm, img_shape):
 
         return np.exp(-r / (hwhm ** 2))
 
-    for loc in itertools.izip(*list_of_locs):
-        window = [slice(int(p) - (p_rad + 2), int(p) + (p_rad + 2) + 1) for p in loc]
+    for loc in zip(*list_of_locs):
+        window = [slice(int(p) - (p_rad + 2), int(p) + (p_rad + 2) + 1)
+                  for p in loc]
 
         p = pixel_values(window, np.array(loc))
         img[window] += p

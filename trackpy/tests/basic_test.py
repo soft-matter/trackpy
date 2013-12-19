@@ -14,6 +14,11 @@
 #
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 import trackpy.tracking as pt
 import trackpy.identification as tid
 import numpy as np
@@ -31,7 +36,8 @@ def test_easy_tracking():
             level.append(pt.PointND(j, (j, k)))
         levels.append(level)
 
-    hash_generator = lambda: pt.Hash_table((level_count + 1, p_count * 2 + 1), .5)
+    hash_generator = lambda: pt.Hash_table((level_count + 1,
+                                            p_count * 2 + 1), .5)
     tracks = pt.link(levels, 1.5, hash_generator)
 
     assert len(tracks) == p_count
@@ -57,7 +63,9 @@ def test_pathological_tracking():
             level.append(pt.PointND(k // 2, (j, k + j * shift)))
         levels.append(level)
 
-    hash_generator = lambda: pt.Hash_table((level_count + 1, p_count * 2 + level_count * shift + 1), .5)
+    hash_generator = lambda: pt.Hash_table((level_count + 1,
+                                            p_count*2 + level_count*shift + 1),
+                                            .5)
     tracks = pt.link(levels, 8, hash_generator)
 
     assert len(tracks) == p_count, len(tracks)
@@ -75,8 +83,8 @@ def test_iden():
     SEED = 314
     random.seed(SEED)
 
-    X = range(10, 200, 20)
-    Y = range(10, 200, 20)
+    X = np.arange(10, 200, 20)
+    Y = np.arange(10, 200, 20)
     random.shuffle(X)
     random.shuffle(Y)
     img = tid.gen_fake_data(np.vstack([X, Y]), 5, 2.5, (210, 210))
