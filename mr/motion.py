@@ -233,8 +233,8 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
     typical_traj = traj.set_index('probe').ix[is_typical(m)].reset_index()\
         .set_index('frame', drop=False)
     """
-    a, b = msds.ix[frame].quantile(lower), msds.ix[frame].quantile(upper)
-    return (msds.ix[frame] > a) & (msds.ix[frame] < b)
+    a, b = msds.iloc[frame].quantile(lower), msds.iloc[frame].quantile(upper)
+    return (msds.iloc[frame] > a) & (msds.iloc[frame] < b)
 
 def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     """Compute the van Hove correlation function at given lagtime (frame span).
