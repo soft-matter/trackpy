@@ -36,10 +36,26 @@ def filter_clusters(tracks, quantile=0.8, threshold=None):
     -------
     a subset of tracks
     """
+    try:
+        tracks['frame']
+        tracks['probe']
+    except KeyError:
+        raise ValueError, "Tracks must contain columns 'frame' and 'probe'."
     if threshold is None:
         threshold = tracks['size'].quantile(quantile)
+
     f = lambda x: x['size'].mean() < threshold # filtering function
-    return tracks.groupby('probe').filter(f)
+    grouped = tracks.reset_index(drop=True).groupby('probe')
+    filtered = grouped.filter(f)
+    return filtered.set_index('frame', drop=False)
+
+
+def filter(tracks, condition_func):
+    "A workaround for a bug in pandas 0.12"
+    grouped = tracks.reset_index(drop=True).groupby('probe')
+    filtered = grouped.filter(condition_func)
+    return filtered.set_index('frame', drop=False)
+
 
 bust_ghosts = filter_stubs
 bust_clusters = filter_clusters

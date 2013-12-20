@@ -38,8 +38,7 @@ def bandpass(image, lshort, llong, threshold=1):
     boxcar = uniform_filter(image, 2*llong+1, **settings)
     gaussian = ifftn(fourier_gaussian(fftn(image), lshort))
     result = gaussian - boxcar
-    result -= threshold  # Features must be this level above the background.
-    return result.real.clip(min=0.)
+    return np.where(result > threshold, result.real, 0)
 
 
 def scale_to_gamut(image, original_dtype):
