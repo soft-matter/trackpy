@@ -30,6 +30,7 @@ from C_fallback_python import nullify_secondary_maxima
 from mr.utils import memo, record_meta
 import mr  # to get mr.__version__
 from .print_update import print_update
+import matplotlib.pyplot as plt
 
 
 def local_maxima(image, radius, separation, percentile=64):
@@ -99,11 +100,16 @@ def estimate_size(image, radius, coord, estimated_mass):
     return Rg
 
 # center_of_mass can have divide-by-zero errors, avoided thus:
-_safe_center_of_mass = lambda x: np.array(ndimage.center_of_mass(x + 1))
+def _safe_center_of_mass(x):
+    result = np.array(ndimage.center_of_mass(x))
+    if np.isnan(result).any():
+        return 0
+    else:
+        return result
 
 
 def refine(raw_image, image, radius, coord, iterations=10,
-           characterize=True):
+           characterize=True, walkthrough=False):
     """Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
     brightness, size (Rg), and eccentricity (0=circular)."""
@@ -119,6 +125,8 @@ def refine(raw_image, image, radius, coord, iterations=10,
     allow_moves = True
     for iteration in range(iterations):
         off_center = cm_n - radius
+        if walkthrough:
+            print off_center
         if np.all(np.abs(off_center) < 0.005):
             break  # Accurate enough.
 
@@ -142,9 +150,13 @@ def refine(raw_image, image, radius, coord, iterations=10,
             # Disallow any whole-pixels moves on future iterations.
             allow_moves = False
 
+
         cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
         cm_i = cm_n - radius + new_coord  # image coords
         coord = new_coord
+
+    if walkthrough:
+        plt.imshow(neighborhood)
 
     # matplotlib and ndimage have opposite conventions for xy <-> yx.
     final_coords = cm_i[..., ::-1]
