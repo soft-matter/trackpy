@@ -143,10 +143,8 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     results = results.div(msds['N'].mean(level=1), axis=0) # weights normalized
     # Above, lagt is lumped in with the rest for simplicity and speed.
     # Here, rebuild it from the frame index.
-    results.set_index('lagt', inplace=True)
-    results.index.name = 'lag time [s]'
     if not detail:
-        return results['msd'] 
+        return results.set_index('lagt')['msd']
     return results
 
 def compute_drift(traj, smoothing=0):
