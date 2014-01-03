@@ -100,10 +100,10 @@ def estimate_size(image, radius, coord, estimated_mass):
     return Rg
 
 # center_of_mass can have divide-by-zero errors, avoided thus:
-def _safe_center_of_mass(x):
+def _safe_center_of_mass(x, radius):
     result = np.array(ndimage.center_of_mass(x))
     if np.isnan(result).any():
-        return 0
+        return np.zeros_like(result) + radius
     else:
         return result
 
@@ -120,7 +120,7 @@ def refine(raw_image, image, radius, coord, iterations=10,
     # Define the circular neighborhood of (x, y).
     square = [slice(c - radius, c + radius + 1) for c in coord]
     neighborhood = mask*image[square]
-    cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
+    cm_n = _safe_center_of_mass(neighborhood, radius)  # neighborhood coords
     cm_i = cm_n - radius + coord  # image coords
     allow_moves = True
     for iteration in range(iterations):
@@ -133,8 +133,8 @@ def refine(raw_image, image, radius, coord, iterations=10,
         # If we're off by more than half a pixel in any direction, move.
         elif np.any(np.abs(off_center) > 0.6) and allow_moves:
             new_coord = coord
-            new_coord[off_center > 0.6] -= 1
-            new_coord[off_center < -0.6] += 1
+            new_coord[off_center > 0.6] += 1
+            new_coord[off_center < -0.6] -= 1
             # Don't move outside the image!
             upper_bound = np.array(image.shape) - 1 - radius
             new_coord = np.clip(new_coord, radius, upper_bound)
@@ -151,7 +151,7 @@ def refine(raw_image, image, radius, coord, iterations=10,
             allow_moves = False
 
 
-        cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
+        cm_n = _safe_center_of_mass(neighborhood, radius)  # neighborhood coords
         cm_i = cm_n - radius + new_coord  # image coords
         coord = new_coord
 
