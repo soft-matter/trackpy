@@ -30,6 +30,7 @@ from C_fallback_python import nullify_secondary_maxima
 from mr.utils import memo, record_meta
 import mr  # to get mr.__version__
 from .print_update import print_update
+import matplotlib.pyplot as plt
 
 
 def local_maxima(image, radius, separation, percentile=64):
@@ -99,33 +100,60 @@ def estimate_size(image, radius, coord, estimated_mass):
     return Rg
 
 # center_of_mass can have divide-by-zero errors, avoided thus:
-_safe_center_of_mass = lambda x: np.array(ndimage.center_of_mass(x + 1))
+def _safe_center_of_mass(x, radius):
+    result = np.array(ndimage.center_of_mass(x))
+    if np.isnan(result).any():
+        return np.zeros_like(result) + radius
+    else:
+        return result
 
 
-def refine(raw_image, image, radius, coord, iterations=10):
-    """Characterize the neighborhood of a local maximum, and iteratively
+def refine(raw_image, image, radius, coord, iterations=10,
+           characterize=True, walkthrough=False):
+    """Find the center of mass of a bright feature starting from an estimate.
+
+    Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
-    brightness, size (Rg), and eccentricity (0=circular)."""
+    brightness, size (Rg), eccentricity (0=circular), and signal strength.
+    
+    Parameters
+    ----------
+    raw_image : array (any dimensions)
+        used for final characterization
+    image : array (any dimension)
+        processed image, used for locating center of mass
+    coord : array
+        estimated position
+    iterations : integer
+        max number of loops to refine the center of mass, default 10
+    characterize : boolean
+        Compute and return mass, size, eccentricity, signal.
+    walkthrough : boolean
+        Print the offset on each loop and display final neighborhood image.
+    """
 
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
+    coord = np.asarray(coord).copy()  # Do not modify coords; use a copy.
 
     # Define the circular neighborhood of (x, y).
     square = [slice(c - radius, c + radius + 1) for c in coord]
     neighborhood = mask*image[square]
-    cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
+    cm_n = _safe_center_of_mass(neighborhood, radius)  # neighborhood coords
     cm_i = cm_n - radius + coord  # image coords
     allow_moves = True
     for iteration in range(iterations):
         off_center = cm_n - radius
+        if walkthrough:
+            print off_center
         if np.all(np.abs(off_center) < 0.005):
             break  # Accurate enough.
 
         # If we're off by more than half a pixel in any direction, move.
         elif np.any(np.abs(off_center) > 0.6) and allow_moves:
             new_coord = coord
-            new_coord[off_center > 0.6] -= 1
-            new_coord[off_center < -0.6] += 1
+            new_coord[off_center > 0.6] += 1
+            new_coord[off_center < -0.6] -= 1
             # Don't move outside the image!
             upper_bound = np.array(image.shape) - 1 - radius
             new_coord = np.clip(new_coord, radius, upper_bound)
@@ -141,9 +169,19 @@ def refine(raw_image, image, radius, coord, iterations=10):
             # Disallow any whole-pixels moves on future iterations.
             allow_moves = False
 
-        cm_n = _safe_center_of_mass(neighborhood)  # neighborhood coords
+
+        cm_n = _safe_center_of_mass(neighborhood, radius)  # neighborhood coords
         cm_i = cm_n - radius + new_coord  # image coords
         coord = new_coord
+
+    if walkthrough:
+        plt.imshow(neighborhood)
+
+    # matplotlib and ndimage have opposite conventions for xy <-> yx.
+    final_coords = cm_i[..., ::-1]
+
+    if not characterize:
+        return final_coords
 
     # Characterize the neighborhood of our final centroid.
     mass = neighborhood.sum()
@@ -158,8 +196,6 @@ def refine(raw_image, image, radius, coord, iterations=10):
     raw_neighborhood = mask*raw_image[square]
     signal = raw_neighborhood.max()  # black_level subtracted later
 
-    # matplotlib and ndimage have opposite conventions for xy <-> yx.
-    final_coords = cm_i[..., ::-1]
     return np.array(list(final_coords) + [mass, Rg, ecc, signal])
 
 
