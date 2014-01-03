@@ -110,12 +110,31 @@ def _safe_center_of_mass(x, radius):
 
 def refine(raw_image, image, radius, coord, iterations=10,
            characterize=True, walkthrough=False):
-    """Characterize the neighborhood of a local maximum, and iteratively
+    """Find the center of mass of a bright feature starting from an estimate.
+
+    Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
-    brightness, size (Rg), and eccentricity (0=circular)."""
+    brightness, size (Rg), eccentricity (0=circular), and signal strength.
+    
+    Parameters
+    ----------
+    raw_image : array (any dimensions)
+        used for final characterization
+    image : array (any dimension)
+        processed image, used for locating center of mass
+    coord : array
+        estimated position
+    iterations : integer
+        max number of loops to refine the center of mass, default 10
+    characterize : boolean
+        Compute and return mass, size, eccentricity, signal.
+    walkthrough : boolean
+        Print the offset on each loop and display final neighborhood image.
+    """
 
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
+    coord = np.asarray(coord).copy()  # Do not modify coords; use a copy.
 
     # Define the circular neighborhood of (x, y).
     square = [slice(c - radius, c + radius + 1) for c in coord]
