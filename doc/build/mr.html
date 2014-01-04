@@ -1,0 +1,1317 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr package &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="index.html" />
+    <link rel="next" title="mr.video package" href="mr.video.html" />
+    <link rel="prev" title="Welcome to mr’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="mr.video.html" title="mr.video package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to mr’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">mr  documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="mr-package">
+<h1>mr package<a class="headerlink" href="#mr-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mr.video.html">mr.video package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#module-mr.video.annotate">mr.video.annotate module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#module-mr.video.api">mr.video.api module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#module-mr.video.base_frames">mr.video.base_frames module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#module-mr.video.image_sequence">mr.video.image_sequence module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#module-mr.video.opencv">mr.video.opencv module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#module-mr.video.playback">mr.video.playback module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#mr-video-tiff-stack-module">mr.video.tiff_stack module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.video.html#module-mr.video">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mr.wire.html">mr.wire package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mr.wire.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.wire.html#module-mr.wire.curve_processing">mr.wire.curve_processing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.wire.html#module-mr.wire.rotation_curve">mr.wire.rotation_curve module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.wire.html#module-mr.wire.tracking">mr.wire.tracking module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mr.wire.html#module-mr.wire">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-mr.feature">
+<span id="mr-feature-module"></span><h2>mr.feature module<a class="headerlink" href="#module-mr.feature" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.feature.batch">
+<tt class="descclassname">mr.feature.</tt><tt class="descname">batch</tt><big>(</big><em>frames</em>, <em>diameter</em>, <em>minmass=100</em>, <em>maxsize=None</em>, <em>separation=None</em>, <em>noise_size=1</em>, <em>smoothing_size=None</em>, <em>threshold=1</em>, <em>invert=False</em>, <em>percentile=64</em>, <em>topn=None</em>, <em>preprocess=True</em>, <em>store=None</em>, <em>conn=None</em>, <em>sql_flavor=None</em>, <em>table=None</em>, <em>do_not_return=False</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Process a list of images, doing optional image preparation and cleanup,
+locating Gaussian-like blobs of a given size.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>frames</strong> : iterable frames</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>For example, frames = mr.video.frame_generator(&#8216;video_file.avi&#8217;)</dt>
+<dd><p class="first last">or frames = [array1, array2, array3]</p>
+</dd>
+</dl>
+</div></blockquote>
+<p><strong>diameter</strong> : feature size in px</p>
+<p><strong>minmass</strong> : minimum integrated brightness</p>
+<blockquote>
+<div><p>Default is 100, but a good value is often much higher. This is a
+crucial parameter for elminating spurrious features.</p>
+</div></blockquote>
+<p><strong>maxsize</strong> : maximum radius-of-gyration of brightness, default None</p>
+<p><strong>separation</strong> : feature separation in px. Default = 1 + diamter.</p>
+<p><strong>noise_size</strong> : scale of Gaussian blurring. Default = 1.</p>
+<p><strong>smoothing_size</strong> : Default = separation.</p>
+<p><strong>threshold</strong> : Clip bandpass result below this value.</p>
+<blockquote>
+<div><p>Default 1; use 8 for 16-bit images.</p>
+</div></blockquote>
+<p><strong>invert</strong> : Set to True if features are darker than background. False by</p>
+<blockquote>
+<div><p>default.</p>
+</div></blockquote>
+<p><strong>percentile</strong> : Features must have a peak brighter than pixels in this</p>
+<blockquote>
+<div><p>percentile. This helps eliminate spurrious peaks.</p>
+</div></blockquote>
+<p><strong>topn</strong> : Return only the N brightest features above minmass.</p>
+<blockquote>
+<div><p>If None (default), return all features above minmass.</p>
+</div></blockquote>
+<p><strong>preprocess</strong> : Set to False to turn out automatic preprocessing.</p>
+<p><strong>store</strong> : Optional HDFStore</p>
+<p><strong>conn</strong> : Optional connection to a SQL database</p>
+<p><strong>sql_flavor</strong> : If using a SQL connection, specify &#8216;sqlite&#8217; or &#8216;MySQL&#8217;.</p>
+<p><strong>table</strong> : If using HDFStore or SQL, specify table name.</p>
+<blockquote>
+<div><p>Default: &#8216;features_timestamp&#8217;.</p>
+</div></blockquote>
+<p><strong>do_not_return</strong> : Save the result frame by frame, but do not return it when</p>
+<blockquote>
+<div><p>finished. Conserved memory for parallel jobs.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>DataFrame([x, y, mass, size, ecc, signal])</strong> :</p>
+<p><strong>where mass means total integrated brightness of the blob</strong> :</p>
+<p class="last"><strong>and size means the radius of gyration of its Gaussian-like profile</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.feature.estimate_mass">
+<tt class="descclassname">mr.feature.</tt><tt class="descname">estimate_mass</tt><big>(</big><em>image</em>, <em>radius</em>, <em>coord</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#estimate_mass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.estimate_mass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the total brightness in the neighborhood of a local maximum.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.feature.estimate_size">
+<tt class="descclassname">mr.feature.</tt><tt class="descname">estimate_size</tt><big>(</big><em>image</em>, <em>radius</em>, <em>coord</em>, <em>estimated_mass</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#estimate_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.estimate_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the total brightness in the neighborhood of a local maximum.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.feature.local_maxima">
+<tt class="descclassname">mr.feature.</tt><tt class="descname">local_maxima</tt><big>(</big><em>image</em>, <em>radius</em>, <em>separation</em>, <em>percentile=64</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#local_maxima"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.local_maxima" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find local maxima whose brightness is above a given percentile.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.feature.locate">
+<tt class="descclassname">mr.feature.</tt><tt class="descname">locate</tt><big>(</big><em>image</em>, <em>diameter</em>, <em>minmass=100.0</em>, <em>maxsize=None</em>, <em>separation=None</em>, <em>noise_size=1</em>, <em>smoothing_size=None</em>, <em>threshold=1</em>, <em>invert=False</em>, <em>percentile=64</em>, <em>topn=None</em>, <em>preprocess=True</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#locate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.locate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read an image, do optional image preparation and cleanup, and locate
+Gaussian-like blobs of a given size above a given total brightness.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>image: image array</strong> :</p>
+<p><strong>diameter</strong> : feature size in px</p>
+<p><strong>minmass</strong> : minimum integrated brightness</p>
+<blockquote>
+<div><p>Default is 100, but a good value is often much higher. This is a
+crucial parameter for elminating spurrious features.</p>
+</div></blockquote>
+<p><strong>maxsize</strong> : maximum radius-of-gyration of brightness, default None</p>
+<p><strong>separation</strong> : feature separation in px</p>
+<p><strong>noise_size</strong> : scale of Gaussian blurring. Default 1.</p>
+<p><strong>smoothing_size</strong> : defauls to separation</p>
+<p><strong>threshold</strong> : Clip bandpass result below this value.</p>
+<blockquote>
+<div><p>Default 1; use 8 for 16-bit images.</p>
+</div></blockquote>
+<p><strong>invert</strong> : Set to True if features are darker than background. False by</p>
+<blockquote>
+<div><p>default.</p>
+</div></blockquote>
+<p><strong>percentile</strong> : Features must have a peak brighter than pixels in this</p>
+<blockquote>
+<div><p>percentile. This helps eliminate spurrious peaks.</p>
+</div></blockquote>
+<p><strong>topn</strong> : Return only the N brightest features above minmass.</p>
+<blockquote>
+<div><p>If None (default), return all features above minmass.</p>
+</div></blockquote>
+<p><strong>preprocess</strong> : Set to False to turn out automatic preprocessing.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>DataFrame([x, y, mass, size, ecc, signal])</strong> :</p>
+<p><strong>where mass means total integrated brightness of the blob</strong> :</p>
+<p class="last"><strong>and size means the radius of gyration of its Gaussian-like profile</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.feature.refine">
+<tt class="descclassname">mr.feature.</tt><tt class="descname">refine</tt><big>(</big><em>raw_image</em>, <em>image</em>, <em>radius</em>, <em>coord</em>, <em>iterations=10</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#refine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.refine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Characterize the neighborhood of a local maximum, and iteratively
+hone in on its center-of-brightness. Return its coordinates, integrated
+brightness, size (Rg), and eccentricity (0=circular).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.filtering">
+<span id="mr-filtering-module"></span><h2>mr.filtering module<a class="headerlink" href="#module-mr.filtering" title="Permalink to this headline">¶</a></h2>
+<p>Simple functions that eliminate spurrious trajectories
+by wrapping pandas group-by and filter capabilities.</p>
+<dl class="function">
+<dt id="mr.filtering.bust_clusters">
+<tt class="descclassname">mr.filtering.</tt><tt class="descname">bust_clusters</tt><big>(</big><em>tracks</em>, <em>quantile=0.8</em>, <em>threshold=None</em><big>)</big><a class="headerlink" href="#mr.filtering.bust_clusters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter out trajectories with a mean probe size above a given quantile.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks: DataFrame with &#8216;probe&#8217; and &#8216;size&#8217; columns</strong> :</p>
+<p><strong>quantile</strong> : quantile of probe &#8216;size&#8217; above which to cut off</p>
+<p><strong>threshold</strong> : If specified, ignore quantile.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.filtering.bust_ghosts">
+<tt class="descclassname">mr.filtering.</tt><tt class="descname">bust_ghosts</tt><big>(</big><em>tracks</em>, <em>threshold=100</em><big>)</big><a class="headerlink" href="#mr.filtering.bust_ghosts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter out trajectories with few points. They are often specious.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame with a &#8216;probe&#8217; column</p>
+<p><strong>threshold</strong> : minimum number of points to survive. 100 by default.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.filtering.filter_clusters">
+<tt class="descclassname">mr.filtering.</tt><tt class="descname">filter_clusters</tt><big>(</big><em>tracks</em>, <em>quantile=0.8</em>, <em>threshold=None</em><big>)</big><a class="reference internal" href="_modules/mr/filtering.html#filter_clusters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.filtering.filter_clusters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter out trajectories with a mean probe size above a given quantile.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks: DataFrame with &#8216;probe&#8217; and &#8216;size&#8217; columns</strong> :</p>
+<p><strong>quantile</strong> : quantile of probe &#8216;size&#8217; above which to cut off</p>
+<p><strong>threshold</strong> : If specified, ignore quantile.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.filtering.filter_stubs">
+<tt class="descclassname">mr.filtering.</tt><tt class="descname">filter_stubs</tt><big>(</big><em>tracks</em>, <em>threshold=100</em><big>)</big><a class="reference internal" href="_modules/mr/filtering.html#filter_stubs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.filtering.filter_stubs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter out trajectories with few points. They are often specious.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame with a &#8216;probe&#8217; column</p>
+<p><strong>threshold</strong> : minimum number of points to survive. 100 by default.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.linking">
+<span id="mr-linking-module"></span><h2>mr.linking module<a class="headerlink" href="#module-mr.linking" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="mr.linking.DummyTrack">
+<em class="property">class </em><tt class="descclassname">mr.linking.</tt><tt class="descname">DummyTrack</tt><big>(</big><em>point</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#DummyTrack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.DummyTrack" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Does not store points, thereby conserving memory. Use with link_iterator.</p>
+<p class="rubric">Methods</p>
+<dl class="method">
+<dt id="mr.linking.DummyTrack.add_point">
+<tt class="descname">add_point</tt><big>(</big><em>point</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#DummyTrack.add_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.DummyTrack.add_point" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="mr.linking.DummyTrack.reset_counter">
+<em class="property">classmethod </em><tt class="descname">reset_counter</tt><big>(</big><em>c=0</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#DummyTrack.reset_counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.DummyTrack.reset_counter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="mr.linking.DummyTrack.track_id">
+<tt class="descname">track_id</tt><em class="property"> = count(0)</em><a class="headerlink" href="#mr.linking.DummyTrack.track_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mr.linking.LinkOnDisk">
+<em class="property">class </em><tt class="descclassname">mr.linking.</tt><tt class="descname">LinkOnDisk</tt><big>(</big><em>filename, key, pos_columns=['x', 'y'], t_column='frame', max_frame=None, use_tabular_copy=False</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>This helper class manages the process of linking trajectories
+by loading frames one at a time and saving the results one frame
+at a time. This allows infinitely long videos to be analyzed
+using only a modest amount of memory.</p>
+<p class="rubric">Methods</p>
+<dl class="method">
+<dt id="mr.linking.LinkOnDisk.check_file_exists">
+<tt class="descname">check_file_exists</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk.check_file_exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk.check_file_exists" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.linking.LinkOnDisk.check_node_is_tabular">
+<tt class="descname">check_node_is_tabular</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk.check_node_is_tabular"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk.check_node_is_tabular" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.linking.LinkOnDisk.detect_last_frame">
+<tt class="descname">detect_last_frame</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk.detect_last_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk.detect_last_frame" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.linking.LinkOnDisk.detect_size">
+<tt class="descname">detect_size</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk.detect_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk.detect_size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.linking.LinkOnDisk.link">
+<tt class="descname">link</tt><big>(</big><em>search_range</em>, <em>memory=0</em>, <em>hash_size=None</em>, <em>box_size=None</em>, <em>verify_integrity=True</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk.link"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk.link" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.linking.LinkOnDisk.numbered_frames">
+<tt class="descname">numbered_frames</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk.numbered_frames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk.numbered_frames" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.linking.LinkOnDisk.save">
+<tt class="descname">save</tt><big>(</big><em>out_filename</em>, <em>out_key</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#LinkOnDisk.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.LinkOnDisk.save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mr.linking.PointNDWithID">
+<em class="property">class </em><tt class="descclassname">mr.linking.</tt><tt class="descname">PointNDWithID</tt><big>(</big><em>t</em>, <em>pos</em>, <em>id</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#PointNDWithID"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.PointNDWithID" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">customized_trackpy.tracking.PointND</span></tt></p>
+<p>Extends pt.PointND to carry meta information from feature identification.</p>
+<p class="rubric">Attributes</p>
+<p class="rubric">Methods</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="mr.linking.UnknownLinkingError">
+<em class="property">exception </em><tt class="descclassname">mr.linking.</tt><tt class="descname">UnknownLinkingError</tt><a class="reference internal" href="_modules/mr/linking.html#UnknownLinkingError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.UnknownLinkingError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></tt></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.linking.is_tabular">
+<tt class="descclassname">mr.linking.</tt><tt class="descname">is_tabular</tt><big>(</big><em>filename</em>, <em>key</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#is_tabular"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.is_tabular" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.linking.labeled_frame_to_sql">
+<tt class="descclassname">mr.linking.</tt><tt class="descname">labeled_frame_to_sql</tt><big>(</big><em>frame_no_and_labels</em>, <em>table</em>, <em>conn</em>, <em>sql_flavor</em>, <em>t_column</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#labeled_frame_to_sql"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.labeled_frame_to_sql" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.linking.link">
+<tt class="descclassname">mr.linking.</tt><tt class="descname">link</tt><big>(</big><em>features, search_range, memory=0, hash_size=None, box_size=None, pos_columns=['x', 'y'], t_column='frame', verify_integrity=True</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#link"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.link" title="Permalink to this definition">¶</a></dt>
+<dd><p>Link features into trajectories, assinging a label to each trajectory.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>frames</strong> : a DataFrame of positions to be linked through time</p>
+<p><strong>search_range</strong> : maximum displacement between frames</p>
+<p><strong>memory</strong> : largest gap before a trajectory is considered ended</p>
+<p><strong>hash_size: region filled by data, detected automatically if not specified</strong> :</p>
+<p><strong>box_size</strong> : parameter to optimize algorithm, set to same as search_range</p>
+<blockquote>
+<div><p>if not specified, which gives reasonably optimal performance</p>
+</div></blockquote>
+<p><strong>pos_columns</strong> : DataFrame column names (unlimited dimensions)</p>
+<blockquote>
+<div><p>Default is [&#8216;x&#8217;, &#8216;y&#8217;]</p>
+</div></blockquote>
+<p><strong>t_column</strong> : DataFrame column name. Default is &#8216;frame&#8217;.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>features DataFrame, now with additional column of trajectory labels</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>This function wraps trackpy, Thomas Caswell&#8217;s implementation
+of the Crocker-Grier algorithm.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.linking.link_iterator">
+<tt class="descclassname">mr.linking.</tt><tt class="descname">link_iterator</tt><big>(</big><em>numbered_frames, search_range, hash_size, memory=0, box_size=None, pos_columns=['x', 'y'], t_column='frame', verify_integrity=True</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#link_iterator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.link_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Link features into trajectories, assinging a label to each trajectory.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>frames</strong> : iterable that returns</p>
+<blockquote>
+<div><p>a number (frame no.) and an array of positions</p>
+</div></blockquote>
+<p><strong>search_range</strong> : maximum displacement between frames</p>
+<p><strong>memory</strong> : Number of frames through which a probe is allowed to &#8220;disappear&#8221;</p>
+<blockquote>
+<div><p>and reappear and be considered the same probe. Default 0.</p>
+</div></blockquote>
+<p><strong>hash_size</strong> : Dimensions of the search space, inferred from data by default.</p>
+<p><strong>box_size</strong> : A parameter of the underlying algorith, defaults to same</p>
+<blockquote>
+<div><p>as search_range, which gives reasonably optimal performance.</p>
+</div></blockquote>
+<p><strong>pos_columns: DataFrame column names (unlimited dimensions)</strong> :</p>
+<p><strong>t_column</strong> : DataFrame column name. Default is &#8216;frame&#8217;.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>features DataFrame, now with additional column of trajectory labels</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>This function wraps trackpy, Thomas Caswell&#8217;s implementation
+of the Crocker-Grier algorithm.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.linking.make_tabular_copy">
+<tt class="descclassname">mr.linking.</tt><tt class="descname">make_tabular_copy</tt><big>(</big><em>filename</em>, <em>key</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#make_tabular_copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.make_tabular_copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.linking.numbered_frames_from_sql">
+<tt class="descclassname">mr.linking.</tt><tt class="descname">numbered_frames_from_sql</tt><big>(</big><em>table, conn, sql_flavor, pos_columns=['x', 'y']</em><big>)</big><a class="reference internal" href="_modules/mr/linking.html#numbered_frames_from_sql"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.linking.numbered_frames_from_sql" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.linking.track">
+<tt class="descclassname">mr.linking.</tt><tt class="descname">track</tt><big>(</big><em>features, search_range, memory=0, hash_size=None, box_size=None, pos_columns=['x', 'y'], t_column='frame', verify_integrity=True</em><big>)</big><a class="headerlink" href="#mr.linking.track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Link features into trajectories, assinging a label to each trajectory.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>frames</strong> : a DataFrame of positions to be linked through time</p>
+<p><strong>search_range</strong> : maximum displacement between frames</p>
+<p><strong>memory</strong> : largest gap before a trajectory is considered ended</p>
+<p><strong>hash_size: region filled by data, detected automatically if not specified</strong> :</p>
+<p><strong>box_size</strong> : parameter to optimize algorithm, set to same as search_range</p>
+<blockquote>
+<div><p>if not specified, which gives reasonably optimal performance</p>
+</div></blockquote>
+<p><strong>pos_columns</strong> : DataFrame column names (unlimited dimensions)</p>
+<blockquote>
+<div><p>Default is [&#8216;x&#8217;, &#8216;y&#8217;]</p>
+</div></blockquote>
+<p><strong>t_column</strong> : DataFrame column name. Default is &#8216;frame&#8217;.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>features DataFrame, now with additional column of trajectory labels</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>This function wraps trackpy, Thomas Caswell&#8217;s implementation
+of the Crocker-Grier algorithm.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.motion">
+<span id="mr-motion-module"></span><h2>mr.motion module<a class="headerlink" href="#module-mr.motion" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.motion.compute_drift">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">compute_drift</tt><big>(</big><em>traj</em>, <em>smoothing=0</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#compute_drift"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.compute_drift" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the ensemble drift, x(t).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>traj</strong> : DataFrame of trajectories, including columns x, y, frame, and probe</p>
+<p><strong>smoothing</strong> : integer</p>
+<blockquote>
+<div><p>Smooth the drift using a forward-looking rolling mean over 
+this many frames.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>drift</strong> : DataFrame([x, y], index=frame)</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<p>compute_drift(traj).plot() # Default smoothing usually smooths too much.
+compute_drift(traj, 0).plot() # not smoothed
+compute_drift(traj, 15).plot() # Try various smoothing values.</p>
+<p>drift = compute_drift(traj, 15) # Save good drift curves.
+corrected_traj = subtract_drift(traj, drift) # Apply them.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.diagonal_size">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">diagonal_size</tt><big>(</big><em>single_trajectory, pos_columns=['x', 'y'], t_column='frame'</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#diagonal_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.diagonal_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Measure the diagonal size of a trajectory.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>single_trajectory</strong> : DataFrame containing a single trajectory</p>
+<p><strong>pos_columns = [&#8216;x&#8217;, &#8216;y&#8217;]</strong> :</p>
+<p><strong>t_column = &#8216;frame&#8217;</strong> :</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>float</strong> : length of diangonal of rectangular box containing the trajectory</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.direction_corr">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">direction_corr</tt><big>(</big><em>t</em>, <em>frame1</em>, <em>frame2</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#direction_corr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.direction_corr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the cosine between every pair of probes&#8217; displacements.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>t</strong> : DataFrame containing columns probe, frame, x, and y</p>
+<p><strong>frame1</strong> : frame number</p>
+<p><strong>frame2</strong> : frame number</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>DataFrame, indexed by probe, including dx, dy, and direction</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.emsd">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">emsd</tt><big>(</big><em>traj</em>, <em>mpp</em>, <em>fps</em>, <em>max_lagtime=100</em>, <em>detail=False</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#emsd"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.emsd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the mean squared displacements of an ensemble of probes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>traj</strong> : DataFrame of trajectories of multiple probes, including</p>
+<blockquote>
+<div><p>columns probe, frame, x, and y</p>
+</div></blockquote>
+<p><strong>mpp</strong> : microns per pixel</p>
+<p><strong>fps</strong> : frames per second</p>
+<p><strong>max_lagtime</strong> : intervals of frames out to which MSD is computed</p>
+<blockquote>
+<div><p>Default: 100</p>
+</div></blockquote>
+<p><strong>detail</strong> : Set to True to include &lt;x&gt;, &lt;y&gt;, &lt;x^2&gt;, &lt;y^2&gt;. Returns</p>
+<blockquote>
+<div><p>only &lt;r^2&gt; by default.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>Series[msd, index=t] or, if detail=True,</strong> :</p>
+<p class="last"><strong>DataFrame([&lt;x&gt;, &lt;y&gt;, &lt;x^2&gt;, &lt;y^2&gt;, msd], index=t)</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>Input units are pixels and frames. Output units are microns and seconds.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.imsd">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">imsd</tt><big>(</big><em>traj</em>, <em>mpp</em>, <em>fps</em>, <em>max_lagtime=100</em>, <em>statistic='msd'</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#imsd"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.imsd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the mean squared displacements of probes individually.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>traj</strong> : DataFrame of trajectories of multiple probes, including</p>
+<blockquote>
+<div><p>columns probe, frame, x, and y</p>
+</div></blockquote>
+<p><strong>mpp</strong> : microns per pixel</p>
+<p><strong>fps</strong> : frames per second</p>
+<p><strong>max_lagtime</strong> : intervals of frames out to which MSD is computed</p>
+<blockquote>
+<div><p>Default: 100</p>
+</div></blockquote>
+<p><strong>statistic</strong> : {&#8216;msd&#8217;, &#8216;&lt;x&gt;&#8217;, &#8216;&lt;y&gt;&#8217;, &#8216;&lt;x^2&gt;&#8217;, &#8216;&lt;y^2&gt;&#8217;}, default is &#8216;msd&#8217;</p>
+<blockquote>
+<div><p>The functions msd() and emsd() return all these as columns. For
+imsd() you have to pick one.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>DataFrame([Probe 1 msd, Probe 2 msd, ...], index=t)</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>Input units are pixels and frames. Output units are microns and seconds.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.is_diffusive">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">is_diffusive</tt><big>(</big><em>traj</em>, <em>threshold=0.9</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#is_diffusive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.is_diffusive" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.is_localized">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">is_localized</tt><big>(</big><em>traj</em>, <em>threshold=0.4</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#is_localized"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.is_localized" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.is_typical">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">is_typical</tt><big>(</big><em>msds</em>, <em>frame=23</em>, <em>lower=0.1</em>, <em>upper=0.9</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#is_typical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.is_typical" title="Permalink to this definition">¶</a></dt>
+<dd><p>Examine individual probe MSDs, distinguishing outliers from those
+in the central quantile.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>msds</strong> : DataFrame like the output of imsd()</p>
+<blockquote>
+<div><p>Columns correspond to probes, indexed by lagtime measured in frames.</p>
+</div></blockquote>
+<p><strong>frame</strong> : integer frame number</p>
+<blockquote>
+<div><p>Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).</p>
+</div></blockquote>
+<p><strong>lower</strong> : float between 0 and 1, default 0.1</p>
+<blockquote>
+<div><p>Probes with MSD up to this quantile are deemed outliers.</p>
+</div></blockquote>
+<p><strong>upper</strong> : float between 0 and 1, default 0.9</p>
+<blockquote>
+<div><p>Probes with MSD above this quantile are deemed outliers.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>Series of boolean values, indexed by probe number</strong> :</p>
+<p class="last"><strong>True = typical probe, False = outlier probe</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.min_rolling_theta_entropy">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">min_rolling_theta_entropy</tt><big>(</big><em>pos</em>, <em>window=24</em>, <em>bins=24</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#min_rolling_theta_entropy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.min_rolling_theta_entropy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the minimum Shannon entropy in any window.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>pos</strong> : DataFrame with columns x and y, indexed by frame</p>
+<p><strong>window</strong> : number of observations per window</p>
+<p><strong>bins</strong> : number of equally-spaced bins in distribution. Default 24.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>float</strong> : Shannon entropy</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">theta_entropy</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s">&#39;probe&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">S</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">&#39;probe&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">mr</span><span class="o">.</span><span class="n">min_rolling_theta_entropy</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.msd">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">msd</tt><big>(</big><em>traj</em>, <em>mpp</em>, <em>fps</em>, <em>max_lagtime=100</em>, <em>detail=False</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#msd"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.msd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the mean displacement and mean squared displacement of one 
+trajectory over a range of time intervals.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>traj</strong> : DataFrame with one trajectory, including columns frame, x, and y</p>
+<p><strong>mpp</strong> : microns per pixel</p>
+<p><strong>fps</strong> : frames per second</p>
+<p><strong>max_lagtime</strong> : intervals of frames out to which MSD is computed</p>
+<blockquote>
+<div><p>Default: 100</p>
+</div></blockquote>
+<p><strong>detail</strong> : See below. Default False.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>DataFrame([&lt;x&gt;, &lt;y&gt;, &lt;x^2&gt;, &lt;y^2&gt;, msd], index=t)</strong> :</p>
+<p><strong>If detail is True, the DataFrame also contains a column N,</strong> :</p>
+<p><strong>the estimated number of statistically independent measurements</strong> :</p>
+<p class="last"><strong>that comprise the result at each lagtime.</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p class="last"><a class="reference internal" href="#mr.motion.imsd" title="mr.motion.imsd"><tt class="xref py py-obj docutils literal"><span class="pre">imsd</span></tt></a></p>
+</div>
+<p class="rubric">Notes</p>
+<p>Input units are pixels and frames. Output units are microns and seconds.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.relate_frames">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">relate_frames</tt><big>(</big><em>t</em>, <em>frame1</em>, <em>frame2</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#relate_frames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.relate_frames" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.shannon_entropy">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">shannon_entropy</tt><big>(</big><em>x</em>, <em>bins</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#shannon_entropy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.shannon_entropy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the Shannon entropy of the distribution of x.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.subtract_drift">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">subtract_drift</tt><big>(</big><em>traj</em>, <em>drift=None</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#subtract_drift"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.subtract_drift" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a copy of probe trajectores with the overall drift subtracted out.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>traj</strong> : DataFrame of trajectories, including columns x, y, and frame</p>
+<p><strong>drift</strong> : optional DataFrame([x, y], index=frame) like output of</p>
+<blockquote>
+<div><p>compute_drift(). If no drift is passed, drift is computed from traj.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>traj</strong> : a copy, having modified columns x and y</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.theta_entropy">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">theta_entropy</tt><big>(</big><em>pos</em>, <em>bins=24</em>, <em>plot=True</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#theta_entropy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.theta_entropy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the distrbution of directions and return its Shannon entropy.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>pos</strong> : DataFrame with columns x and y, indexed by frame</p>
+<p><strong>bins</strong> : number of equally-spaced bins in distribution. Default 24.</p>
+<p><strong>plot</strong> : plot direction historgram if True</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>float</strong> : Shannon entropy</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">theta_entropy</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s">&#39;probe&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">S</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">&#39;probe&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">mr</span><span class="o">.</span><span class="n">theta_entropy</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.vanhove">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">vanhove</tt><big>(</big><em>pos</em>, <em>lagtime=23</em>, <em>mpp=1</em>, <em>ensemble=False</em>, <em>bins=24</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#vanhove"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.vanhove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the van Hove correlation function at given lagtime (frame span).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>pos</strong> : DataFrame of x or (or!) y positions, one column per probe, indexed</p>
+<blockquote>
+<div><p>by frame</p>
+</div></blockquote>
+<p><strong>lagtime</strong> : integer interval of frames</p>
+<blockquote>
+<div><p>Compare the correlation function at this lagtime. Default is 23 
+(1 second at 24 fps).</p>
+</div></blockquote>
+<p><strong>mpp</strong> : microns per pixel, DEFAULT TO 1 because it is usually fine to use</p>
+<blockquote>
+<div><p>pixels for this analysis</p>
+</div></blockquote>
+<p><strong>ensemble</strong> : boolean, defaults False</p>
+<p><strong>bins</strong> : integer or sequence</p>
+<blockquote>
+<div><p>Specify a number of equally spaced bins, or explicitly specifiy a
+sequence of bin edges. See np.histogram docs.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>vh</strong> : If ensemble=True, a DataFrame with each probe&#8217;s van Hove correlation</p>
+<blockquote class="last">
+<div><p>function, indexed by displacement. If ensemble=False, a Series with 
+the van Hove correlation function of the whole ensemble.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.motion.velocity_corr">
+<tt class="descclassname">mr.motion.</tt><tt class="descname">velocity_corr</tt><big>(</big><em>t</em>, <em>frame1</em>, <em>frame2</em><big>)</big><a class="reference internal" href="_modules/mr/motion.html#velocity_corr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.motion.velocity_corr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the velocity correlation between 
+every pair of probes&#8217; displacements.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>t</strong> : DataFrame containing columns probe, frame, x, and y</p>
+<p><strong>frame1</strong> : frame number</p>
+<p><strong>frame2</strong> : frame number</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>DataFrame, indexed by probe, including dx, dy, and direction</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.plots">
+<span id="mr-plots-module"></span><h2>mr.plots module<a class="headerlink" href="#module-mr.plots" title="Permalink to this headline">¶</a></h2>
+<p>These functions generate handy plots.</p>
+<dl class="function">
+<dt id="mr.plots.annotate">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">annotate</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#annotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.annotate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mark identified features with white circles.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>centroids</strong> : DataFrame including columns x and y</p>
+<p><strong>image</strong> : image array (or string path to image file)</p>
+<p><strong>circle_size</strong> : size of circle annotations in matplotlib&#8217;s annoying</p>
+<blockquote>
+<div><p>arbitrary units, default 170</p>
+</div></blockquote>
+<p><strong>invert</strong> : If you give a filepath as the image, specify whether to invert</p>
+<blockquote>
+<div><p>black and white. Default True.</p>
+</div></blockquote>
+<p><strong>ax</strong> : matplotlib axes object, defaults to current axes</p>
+<p><strong>Returns</strong> :</p>
+<p><strong>&#8212;&#8212;</strong> :</p>
+<p class="last"><strong>axes</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.examine_jumps">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">examine_jumps</tt><big>(</big><em>data</em>, <em>jumps</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#examine_jumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.examine_jumps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.fit">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">fit</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.fit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.make_axes">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">make_axes</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#make_axes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.make_axes" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator for plotting functions.
+NORMALLY: Direct the plotting function to the current axes, gca().</p>
+<blockquote>
+<div>When it&#8217;s done, make the legend and show that plot. 
+(Instant gratificaiton!)</div></blockquote>
+<dl class="docutils">
+<dt>BUT:      If the uses passes axes to plotting function, write on those axes</dt>
+<dd>and return them. The user has the option to draw a more complex 
+plot in multiple steps.</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.make_fig">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">make_fig</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#make_fig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.make_fig" title="Permalink to this definition">¶</a></dt>
+<dd><p>See make_axes.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.mass_ecc">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">mass_ecc</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#mass_ecc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.mass_ecc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot each probe&#8217;s mass versus eccentricity.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.mass_size">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">mass_size</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#mass_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.mass_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot each probe&#8217;s mass versus size.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.plot_displacements">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">plot_displacements</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#plot_displacements"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.plot_displacements" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.plot_principal_axes">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">plot_principal_axes</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#plot_principal_axes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.plot_principal_axes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot bars with a length of 2 stddev along the principal axes.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.plot_traj">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">plot_traj</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#plot_traj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.plot_traj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot traces of trajectories for each probe.
+Optionally superimpose it on a frame from the video.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>traj</strong> : DataFrame including columns x and y</p>
+<p><strong>colorby: {&#8216;probe&#8217;, &#8216;frame&#8217;}</strong> :</p>
+<p><strong>mpp</strong> : microns per pixel</p>
+<p><strong>label</strong> : Set to True to write probe ID numbers next to trajectories.</p>
+<p><strong>superimpose</strong> : background image, default None</p>
+<p><strong>cmap</strong> : This is only used in colorby=&#8217;frame&#8217; mode.</p>
+<blockquote>
+<div><p>Default = mpl.cm.winter</p>
+</div></blockquote>
+<p><strong>ax</strong> : matplotlib axes object, defaults to current axes</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>None</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.ptraj">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">ptraj</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mr.plots.ptraj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot traces of trajectories for each probe.
+Optionally superimpose it on a frame from the video.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>traj</strong> : DataFrame including columns x and y</p>
+<p><strong>colorby: {&#8216;probe&#8217;, &#8216;frame&#8217;}</strong> :</p>
+<p><strong>mpp</strong> : microns per pixel</p>
+<p><strong>label</strong> : Set to True to write probe ID numbers next to trajectories.</p>
+<p><strong>superimpose</strong> : background image, default None</p>
+<p><strong>cmap</strong> : This is only used in colorby=&#8217;frame&#8217; mode.</p>
+<blockquote>
+<div><p>Default = mpl.cm.winter</p>
+</div></blockquote>
+<p><strong>ax</strong> : matplotlib axes object, defaults to current axes</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>None</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.plots.subpx_bias">
+<tt class="descclassname">mr.plots.</tt><tt class="descname">subpx_bias</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/plots.html#subpx_bias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.plots.subpx_bias" title="Permalink to this definition">¶</a></dt>
+<dd><p>Histogram the fractional part of the x and y position.</p>
+<p class="rubric">Notes</p>
+<p>If subpixel accuracy is good, this should be flat. If it depressed in the
+middle, try using a larger value for feature diameter.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.preprocessing">
+<span id="mr-preprocessing-module"></span><h2>mr.preprocessing module<a class="headerlink" href="#module-mr.preprocessing" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.preprocessing.bandpass">
+<tt class="descclassname">mr.preprocessing.</tt><tt class="descname">bandpass</tt><big>(</big><em>image</em>, <em>lshort</em>, <em>llong</em>, <em>threshold=1</em><big>)</big><a class="reference internal" href="_modules/mr/preprocessing.html#bandpass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.preprocessing.bandpass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convolve with a Gaussian to remove short-wavelength noise,
+and subtract out long-wavelength variations,
+retaining features of intermediate scale.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.preprocessing.scale_to_gamut">
+<tt class="descclassname">mr.preprocessing.</tt><tt class="descname">scale_to_gamut</tt><big>(</big><em>image</em>, <em>original_dtype</em><big>)</big><a class="reference internal" href="_modules/mr/preprocessing.html#scale_to_gamut"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.preprocessing.scale_to_gamut" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-mr.trajectories">
+<span id="mr-trajectories-module"></span><h2>mr.trajectories module<a class="headerlink" href="#module-mr.trajectories" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="mr.trajectories.Trajectories">
+<em class="property">class </em><tt class="descclassname">mr.trajectories.</tt><tt class="descname">Trajectories</tt><big>(</big><em>data, pos_columns=['x', 'y']</em><big>)</big><a class="reference internal" href="_modules/mr/trajectories.html#Trajectories"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.trajectories.Trajectories" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> : an iterator or a callable that produces an iterator</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods</p>
+<dl class="method">
+<dt id="mr.trajectories.Trajectories.compute_drift">
+<tt class="descname">compute_drift</tt><big>(</big><em>smoothing=0</em>, <em>query=None</em><big>)</big><a class="reference internal" href="_modules/mr/trajectories.html#Trajectories.compute_drift"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.trajectories.Trajectories.compute_drift" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.trajectories.Trajectories.coverage">
+<tt class="descname">coverage</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/trajectories.html#Trajectories.coverage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.trajectories.Trajectories.coverage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.trajectories.Trajectories.lengths">
+<tt class="descname">lengths</tt><big>(</big><em>plot=True</em><big>)</big><a class="reference internal" href="_modules/mr/trajectories.html#Trajectories.lengths"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.trajectories.Trajectories.lengths" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.trajectories.Trajectories.regional_drift">
+<tt class="descname">regional_drift</tt><big>(</big><em>smoothing=0</em>, <em>divisions=None</em><big>)</big><a class="reference internal" href="_modules/mr/trajectories.html#Trajectories.regional_drift"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.trajectories.Trajectories.regional_drift" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.uncertainty">
+<span id="mr-uncertainty-module"></span><h2>mr.uncertainty module<a class="headerlink" href="#module-mr.uncertainty" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.uncertainty.binary_mask">
+<tt class="descclassname">mr.uncertainty.</tt><tt class="descname">binary_mask</tt><big>(</big><em>radius</em>, <em>ndim</em>, <em>separation=None</em><big>)</big><a class="reference internal" href="_modules/mr/uncertainty.html#binary_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.uncertainty.binary_mask" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.uncertainty.measure_noise">
+<tt class="descclassname">mr.uncertainty.</tt><tt class="descname">measure_noise</tt><big>(</big><em>image</em>, <em>diameter</em>, <em>threshold</em><big>)</big><a class="reference internal" href="_modules/mr/uncertainty.html#measure_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.uncertainty.measure_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the standard deviation of the dark pixels outside the signal.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.uncertainty.roi">
+<tt class="descclassname">mr.uncertainty.</tt><tt class="descname">roi</tt><big>(</big><em>image</em>, <em>diameter</em>, <em>threshold=1</em><big>)</big><a class="reference internal" href="_modules/mr/uncertainty.html#roi"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.uncertainty.roi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a mask selecting the neighborhoods of bright regions.
+See Biophysical journal 88(1) 623-638 Figure C.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>image</strong> : ndarray</p>
+<p><strong>diameter</strong> : feature size used for centroid identification</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>boolean ndarray, True around bright regions</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.uncertainty.static_error">
+<tt class="descclassname">mr.uncertainty.</tt><tt class="descname">static_error</tt><big>(</big><em>features</em>, <em>noise</em>, <em>diameter</em>, <em>noise_size=1</em><big>)</big><a class="reference internal" href="_modules/mr/uncertainty.html#static_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.uncertainty.static_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the uncertainty in particle position (&#8220;the static error&#8221;).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>features</strong> : DataFrame of features (or trajectories) including signal and size</p>
+<p><strong>noise</strong> : Series of noise measurements, indexed by frame</p>
+<p><strong>diameter</strong> : feature diameter used to locate centroids</p>
+<p><strong>noise_size</strong> : half-width of Gaussian blurring used in image preparation</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>Series of static error estimates, indexed like the trajectories</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.utils">
+<span id="mr-utils-module"></span><h2>mr.utils module<a class="headerlink" href="#module-mr.utils" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.utils.extract">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">extract</tt><big>(</big><em>pattern</em>, <em>string</em>, <em>group</em>, <em>convert=None</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#extract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.extract" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a pattern from a string. Optionally, convert it
+to a desired type (float, timestamp, etc.) by specifying a function.
+When the pattern is not found, gracefully return None.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.fit_powerlaw">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">fit_powerlaw</tt><big>(</big><em>data</em>, <em>plot=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#fit_powerlaw"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.fit_powerlaw" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit a powerlaw by doing a linear regression in log space.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.lazy_timestamp">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">lazy_timestamp</tt><big>(</big><em>partial_timestamp</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#lazy_timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.lazy_timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Regularize a lazy timestamp like &#8216;0:37&#8217; -&gt; &#8216;00:00:37&#8217;.
+HH:MM:SS, H:MM:SS, MM:SS, and M:SS all OK.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>partial_timestamp</strong> : string or other object</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><strong>regularized string</strong> :</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="mr.utils.memo">
+<em class="property">class </em><tt class="descclassname">mr.utils.</tt><tt class="descname">memo</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#memo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.memo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Decorator. Caches a function&#8217;s return value each time it is called.
+If called later with the same arguments, the cached value is returned
+(not reevaluated).
+<a class="reference external" href="http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize">http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize</a></p>
+<p class="rubric">Methods</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.random_walk">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">random_walk</tt><big>(</big><em>N</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#random_walk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.random_walk" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.suppress_plotting">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">suppress_plotting</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/utils.html#suppress_plotting"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.suppress_plotting" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.time_interval">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">time_interval</tt><big>(</big><em>raw</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#time_interval"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.time_interval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a time interval string into a timedelta type.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.timedelta_to_frame">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">timedelta_to_frame</tt><big>(</big><em>timedeltas</em>, <em>fps</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#timedelta_to_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.timedelta_to_frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert timedelta times into frame numbers.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>timedelta</strong> : DataFrame or Series of timedelta64 datatype</p>
+<p class="last"><strong>fps</strong> : frames per second (integer)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.timestamp">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">timestamp</tt><big>(</big><em>ts_string</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a timestamp string to a datetime type.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-mr" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">mr package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+</ul>
+</li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-mr.feature">mr.feature module</a></li>
+<li><a class="reference internal" href="#module-mr.filtering">mr.filtering module</a></li>
+<li><a class="reference internal" href="#module-mr.linking">mr.linking module</a></li>
+<li><a class="reference internal" href="#module-mr.motion">mr.motion module</a></li>
+<li><a class="reference internal" href="#module-mr.plots">mr.plots module</a></li>
+<li><a class="reference internal" href="#module-mr.preprocessing">mr.preprocessing module</a></li>
+<li><a class="reference internal" href="#module-mr.trajectories">mr.trajectories module</a></li>
+<li><a class="reference internal" href="#module-mr.uncertainty">mr.uncertainty module</a></li>
+<li><a class="reference internal" href="#module-mr.utils">mr.utils module</a></li>
+<li><a class="reference internal" href="#module-mr">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to mr&#8217;s documentation!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="mr.video.html"
+                        title="next chapter">mr.video package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/mr.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="mr.video.html" title="mr.video package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to mr’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">mr  documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>

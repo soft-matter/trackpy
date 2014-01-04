@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr.video.opencv &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mr.video.opencv</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">from</span> <span class="nn">mr.video.base_frames</span> <span class="kn">import</span> <span class="n">BaseFrames</span>
+
+<div class="viewcode-block" id="open_video"><a class="viewcode-back" href="../../../mr.video.html#mr.video.opencv.open_video">[docs]</a><span class="k">def</span> <span class="nf">open_video</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Thin convenience function for return an opencv2 Capture object.&quot;&quot;&quot;</span>
+    <span class="c"># ffmpeg -i unreadable.avi -sameq -r 30 readable.avi</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> is not a file.&quot;</span> <span class="o">%</span> <span class="n">filename</span>
+    <span class="n">capture</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoCapture</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">capture</span>
+</div>
+<div class="viewcode-block" id="Video"><a class="viewcode-back" href="../../../mr.video.html#mr.video.opencv.Video">[docs]</a><span class="k">class</span> <span class="nc">Video</span><span class="p">(</span><span class="n">BaseFrames</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Iterable object that returns frames of video as numpy arrays.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename : string</span>
+<span class="sd">    gray : Convert color image to grayscale. True by default.</span>
+<span class="sd">    invert : Invert black and white. True by default.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; video = Video(&#39;filename&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; imshow(video[0]) # Show the first frame.</span>
+<span class="sd">    &gt;&gt;&gt; imshow(video[1][0:10][0:10]) # Show one corner of the second frame.</span>
+
+<span class="sd">    &gt;&gt;&gt; for frame in video[:]:</span>
+<span class="sd">    ...    # Do something with every frame.</span>
+<span class="sd"> </span>
+<span class="sd">    &gt;&gt;&gt; for frame in video[10:20]:</span>
+<span class="sd">    ...    # Do something with frames 10-20.</span>
+
+<span class="sd">    &gt;&gt;&gt; for frame in video[[5, 7, 13]]:</span>
+<span class="sd">    ...    # Do something with frames 5, 7, and 13.</span>
+<span class="sd"> </span>
+<span class="sd">    &gt;&gt;&gt; frame_count = video.count # Number of frames in video</span>
+<span class="sd">    &gt;&gt;&gt; frame_shape = video.shape # Pixel dimensions of video</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">gray</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="n">BaseFrames</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">gray</span><span class="p">,</span> <span class="n">invert</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">capture</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">CV_CAP_PROP_FRAME_WIDTH</span><span class="p">)),</span>
+                      <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">capture</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">CV_CAP_PROP_FRAME_HEIGHT</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">capture</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">CV_CAP_PROP_FRAME_COUNT</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">open_video</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gray</span><span class="p">:</span>
+            <span class="c"># Use opencv since we need this dependecy anyway.</span>
+            <span class="n">frame</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">CV_RGB2GRAY</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">invert</span><span class="p">:</span>
+            <span class="n">frame</span> <span class="o">^=</span> <span class="n">np</span><span class="o">.</span><span class="n">iinfo</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">max</span>
+        <span class="k">return</span> <span class="n">frame</span> </div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>

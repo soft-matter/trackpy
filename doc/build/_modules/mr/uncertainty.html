@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr.uncertainty &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mr.uncertainty</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">morphology</span>
+<span class="kn">from</span> <span class="nn">mr.preprocessing</span> <span class="kn">import</span> <span class="n">bandpass</span>
+
+<div class="viewcode-block" id="roi"><a class="viewcode-back" href="../../mr.html#mr.uncertainty.roi">[docs]</a><span class="k">def</span> <span class="nf">roi</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a mask selecting the neighborhoods of bright regions.</span>
+<span class="sd">    See Biophysical journal 88(1) 623-638 Figure C.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    image : ndarray</span>
+<span class="sd">    diameter : feature size used for centroid identification</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    boolean ndarray, True around bright regions</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">signal_mask</span> <span class="o">=</span> <span class="n">bandpass</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">diameter</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">diameter</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span>
+    <span class="n">structure</span> <span class="o">=</span> <span class="n">binary_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+    <span class="n">signal_mask</span> <span class="o">=</span> <span class="n">morphology</span><span class="o">.</span><span class="n">binary_dilation</span><span class="p">(</span><span class="n">signal_mask</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">signal_mask</span>
+</div>
+<div class="viewcode-block" id="measure_noise"><a class="viewcode-back" href="../../mr.html#mr.uncertainty.measure_noise">[docs]</a><span class="k">def</span> <span class="nf">measure_noise</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>
+    <span class="s">&quot;Compute the standard deviation of the dark pixels outside the signal.&quot;</span>
+    <span class="n">signal_mask</span> <span class="o">=</span> <span class="n">roi</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">image</span><span class="p">[</span><span class="o">~</span><span class="n">signal_mask</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">image</span><span class="p">[</span><span class="o">~</span><span class="n">signal_mask</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="static_error"><a class="viewcode-back" href="../../mr.html#mr.uncertainty.static_error">[docs]</a><span class="k">def</span> <span class="nf">static_error</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">noise_size</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the uncertainty in particle position (&quot;the static error&quot;).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    features : DataFrame of features (or trajectories) including signal and size</span>
+<span class="sd">    noise : Series of noise measurements, indexed by frame</span>
+<span class="sd">    diameter : feature diameter used to locate centroids</span>
+<span class="sd">    noise_size : half-width of Gaussian blurring used in image preparation</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Series of static error estimates, indexed like the trajectories</span>
+
+<span class="sd">    Note</span>
+<span class="sd">    ----</span>
+<span class="sd">    This is based on the process described by Thierry Savin and Patrick S. Doyle in their</span>
+<span class="sd">    paper &quot;Static and Dynamic Errors in Particle Tracking Microrheology,&quot;</span>
+<span class="sd">    Biophysical Journal 88(1) 623-638.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># If this is just one frame, noise is a scalar.</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">noise</span><span class="p">):</span>
+        <span class="n">N_S</span> <span class="o">=</span> <span class="n">noise</span><span class="o">/</span><span class="n">features</span><span class="p">[</span><span class="s">&#39;signal&#39;</span><span class="p">]</span>
+    <span class="c"># Otherwise, join by frame number.</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">noise</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&#39;noise&#39;</span>
+        <span class="n">N_S</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">noise</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s">&#39;frame&#39;</span><span class="p">)[</span><span class="s">&#39;noise&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">features</span><span class="p">[</span><span class="s">&#39;signal&#39;</span><span class="p">]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="p">((</span><span class="n">diameter</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="n">features</span><span class="p">[</span><span class="s">&#39;size&#39;</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">ep</span> <span class="o">=</span> <span class="n">N_S</span><span class="o">*</span><span class="n">noise_size</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">**</span><span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="n">s</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">s</span><span class="p">))</span>
+    <span class="c"># ^ Savin &amp; Doyle, Eq. 50</span>
+    <span class="n">ep</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&#39;ep&#39;</span> <span class="c"># so it can be joined</span>
+    <span class="k">return</span> <span class="n">ep</span>
+</div>
+<div class="viewcode-block" id="binary_mask"><a class="viewcode-back" href="../../mr.html#mr.uncertainty.binary_mask">[docs]</a><span class="k">def</span> <span class="nf">binary_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">separation</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">radius</span><span class="p">,</span> <span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="p">([</span><span class="n">points</span><span class="p">]</span><span class="o">*</span><span class="n">ndim</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">points</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">coords</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">r</span> <span class="o">&lt;=</span> <span class="n">radius</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>
