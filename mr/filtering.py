@@ -7,8 +7,10 @@ def filter_stubs(tracks, threshold=100):
 
     Parameters
     ----------
-    tracks : DataFrame with a 'probe' column
-    threshold : minimum number of points to survive. 100 by default.
+    tracks : DataFrame
+        must include columns named 'frame' and 'probe'
+    threshold : integer, default 100
+        minimum number of points to survive
 
     Returns
     -------
@@ -28,9 +30,12 @@ def filter_clusters(tracks, quantile=0.8, threshold=None):
 
     Parameters
     ----------
-    tracks: DataFrame with 'probe' and 'size' columns
-    quantile : quantile of probe 'size' above which to cut off
-    threshold : If specified, ignore quantile.
+    tracks : DataFrame
+        must include columns named 'probe' and 'size'
+    quantile : number between 0 and 1
+        quantile of probe 'size' above which to cut off
+    threshold : number
+        If specified, ignore quantile.
 
     Returns
     -------
@@ -51,7 +56,21 @@ def filter_clusters(tracks, quantile=0.8, threshold=None):
 
 
 def filter(tracks, condition_func):
-    "A workaround for a bug in pandas 0.12"
+    """A workaround for a bug in pandas 0.12
+
+    Parameters
+    ----------
+    tracks : DataFrame
+        must include column named 'probe'
+    condition_func : function
+        The function is applied to each group of data. It must
+        return True or False.
+
+    Returns
+    -------
+    DataFrame
+        a subset of tracks
+    """
     grouped = tracks.reset_index(drop=True).groupby('probe')
     filtered = grouped.filter(condition_func)
     return filtered.set_index('frame', drop=False)

@@ -88,21 +88,17 @@
 <span id="mr-feature-module"></span><h2>mr.feature module<a class="headerlink" href="#module-mr.feature" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="mr.feature.batch">
-<tt class="descclassname">mr.feature.</tt><tt class="descname">batch</tt><big>(</big><em>frames</em>, <em>diameter</em>, <em>minmass=100</em>, <em>maxsize=None</em>, <em>separation=None</em>, <em>noise_size=1</em>, <em>smoothing_size=None</em>, <em>threshold=1</em>, <em>invert=False</em>, <em>percentile=64</em>, <em>topn=None</em>, <em>preprocess=True</em>, <em>store=None</em>, <em>conn=None</em>, <em>sql_flavor=None</em>, <em>table=None</em>, <em>do_not_return=False</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.batch" title="Permalink to this definition">¶</a></dt>
-<dd><p>Process a list of images, doing optional image preparation and cleanup,
-locating Gaussian-like blobs of a given size.</p>
+<tt class="descclassname">mr.feature.</tt><tt class="descname">batch</tt><big>(</big><em>frames</em>, <em>diameter</em>, <em>minmass=100</em>, <em>maxsize=None</em>, <em>separation=None</em>, <em>noise_size=1</em>, <em>smoothing_size=None</em>, <em>threshold=1</em>, <em>invert=False</em>, <em>percentile=64</em>, <em>topn=None</em>, <em>preprocess=True</em>, <em>store=None</em>, <em>conn=None</em>, <em>sql_flavor=None</em>, <em>table=None</em>, <em>do_not_return=False</em>, <em>meta=True</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Locate Gaussian-like blobs of a given approximate size.</p>
+<p>Preprocess the image by performing a band pass and a threshold.
+Locate all peaks of brightness, characterize the neighborhoods of the peaks
+and take only those with given total brightnesss (&#8220;mass&#8221;). Finally,
+refine the positions of each peak.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>frames</strong> : iterable frames</p>
-<blockquote>
-<div><dl class="docutils">
-<dt>For example, frames = mr.video.frame_generator(&#8216;video_file.avi&#8217;)</dt>
-<dd><p class="first last">or frames = [array1, array2, array3]</p>
-</dd>
-</dl>
-</div></blockquote>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>frames</strong> : list (or iterable) of images</p>
 <p><strong>diameter</strong> : feature size in px</p>
 <p><strong>minmass</strong> : minimum integrated brightness</p>
 <blockquote>
@@ -110,9 +106,18 @@ locating Gaussian-like blobs of a given size.</p>
 crucial parameter for elminating spurrious features.</p>
 </div></blockquote>
 <p><strong>maxsize</strong> : maximum radius-of-gyration of brightness, default None</p>
-<p><strong>separation</strong> : feature separation in px. Default = 1 + diamter.</p>
-<p><strong>noise_size</strong> : scale of Gaussian blurring. Default = 1.</p>
-<p><strong>smoothing_size</strong> : Default = separation.</p>
+<p><strong>separation</strong> : feature separation, in pixels</p>
+<blockquote>
+<div><p>Default is the feature diameter + 1.</p>
+</div></blockquote>
+<p><strong>noise_size</strong> : width of Gaussian blurring kernel, in pixels</p>
+<blockquote>
+<div><p>Default is 1.</p>
+</div></blockquote>
+<p><strong>smoothing_size</strong> : size of boxcar smoothing, in pixels</p>
+<blockquote>
+<div><p>Default is the same is feature separation.</p>
+</div></blockquote>
 <p><strong>threshold</strong> : Clip bandpass result below this value.</p>
 <blockquote>
 <div><p>Default 1; use 8 for 16-bit images.</p>
@@ -130,24 +135,33 @@ crucial parameter for elminating spurrious features.</p>
 <div><p>If None (default), return all features above minmass.</p>
 </div></blockquote>
 <p><strong>preprocess</strong> : Set to False to turn out automatic preprocessing.</p>
-<p><strong>store</strong> : Optional HDFStore</p>
-<p><strong>conn</strong> : Optional connection to a SQL database</p>
-<p><strong>sql_flavor</strong> : If using a SQL connection, specify &#8216;sqlite&#8217; or &#8216;MySQL&#8217;.</p>
-<p><strong>table</strong> : If using HDFStore or SQL, specify table name.</p>
-<blockquote>
-<div><p>Default: &#8216;features_timestamp&#8217;.</p>
-</div></blockquote>
-<p><strong>do_not_return</strong> : Save the result frame by frame, but do not return it when</p>
-<blockquote>
-<div><p>finished. Conserved memory for parallel jobs.</p>
-</div></blockquote>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>DataFrame([x, y, mass, size, ecc, signal])</strong> :</p>
-<p><strong>where mass means total integrated brightness of the blob</strong> :</p>
-<p class="last"><strong>and size means the radius of gyration of its Gaussian-like profile</strong> :</p>
+<blockquote class="last">
+<div><p>where mass means total integrated brightness of the blob,
+size means the radius of gyration of its Gaussian-like profile,
+and ecc is its eccentricity (1 is circular).</p>
+</div></blockquote>
 </td>
 </tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<dl class="last docutils">
+<dt><a class="reference internal" href="#mr.feature.locate" title="mr.feature.locate"><tt class="xref py py-obj docutils literal"><span class="pre">locate</span></tt></a></dt>
+<dd>performs location on a single image</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>This is an implementation of the Crocker-Grier centroid-finding algorithm.
+<a class="reference internal" href="#r1" id="id1">[R1]</a></p>
+<p class="rubric">References</p>
+<table class="docutils citation" frame="void" id="r1" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[R1]</td><td><em>(<a class="fn-backref" href="#id1">1</a>, <a class="fn-backref" href="#id2">2</a>)</em> Crocker, J.C., Grier, D.G. <a class="reference external" href="http://dx.doi.org/10.1006/jcis.1996.0217">http://dx.doi.org/10.1006/jcis.1996.0217</a></td></tr>
 </tbody>
 </table>
 </dd></dl>
@@ -173,13 +187,16 @@ crucial parameter for elminating spurrious features.</p>
 <dl class="function">
 <dt id="mr.feature.locate">
 <tt class="descclassname">mr.feature.</tt><tt class="descname">locate</tt><big>(</big><em>image</em>, <em>diameter</em>, <em>minmass=100.0</em>, <em>maxsize=None</em>, <em>separation=None</em>, <em>noise_size=1</em>, <em>smoothing_size=None</em>, <em>threshold=1</em>, <em>invert=False</em>, <em>percentile=64</em>, <em>topn=None</em>, <em>preprocess=True</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#locate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.locate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Read an image, do optional image preparation and cleanup, and locate
-Gaussian-like blobs of a given size above a given total brightness.</p>
+<dd><p>Locate Gaussian-like blobs of a given approximate size.</p>
+<p>Preprocess the image by performing a band pass and a threshold.
+Locate all peaks of brightness, characterize the neighborhoods of the peaks
+and take only those with given total brightnesss (&#8220;mass&#8221;). Finally,
+refine the positions of each peak.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>image: image array</strong> :</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>image</strong> : image array (any dimensions)</p>
 <p><strong>diameter</strong> : feature size in px</p>
 <p><strong>minmass</strong> : minimum integrated brightness</p>
 <blockquote>
@@ -187,9 +204,18 @@ Gaussian-like blobs of a given size above a given total brightness.</p>
 crucial parameter for elminating spurrious features.</p>
 </div></blockquote>
 <p><strong>maxsize</strong> : maximum radius-of-gyration of brightness, default None</p>
-<p><strong>separation</strong> : feature separation in px</p>
-<p><strong>noise_size</strong> : scale of Gaussian blurring. Default 1.</p>
-<p><strong>smoothing_size</strong> : defauls to separation</p>
+<p><strong>separation</strong> : feature separation, in pixels</p>
+<blockquote>
+<div><p>Default is the feature diameter + 1.</p>
+</div></blockquote>
+<p><strong>noise_size</strong> : width of Gaussian blurring kernel, in pixels</p>
+<blockquote>
+<div><p>Default is 1.</p>
+</div></blockquote>
+<p><strong>smoothing_size</strong> : size of boxcar smoothing, in pixels</p>
+<blockquote>
+<div><p>Default is the same is feature separation.</p>
+</div></blockquote>
 <p><strong>threshold</strong> : Clip bandpass result below this value.</p>
 <blockquote>
 <div><p>Default 1; use 8 for 16-bit images.</p>
@@ -210,20 +236,73 @@ crucial parameter for elminating spurrious features.</p>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>DataFrame([x, y, mass, size, ecc, signal])</strong> :</p>
-<p><strong>where mass means total integrated brightness of the blob</strong> :</p>
-<p class="last"><strong>and size means the radius of gyration of its Gaussian-like profile</strong> :</p>
+<blockquote class="last">
+<div><p>where mass means total integrated brightness of the blob,
+size means the radius of gyration of its Gaussian-like profile,
+and ecc is its eccentricity (1 is circular).</p>
+</div></blockquote>
 </td>
 </tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<dl class="last docutils">
+<dt><a class="reference internal" href="#mr.feature.batch" title="mr.feature.batch"><tt class="xref py py-obj docutils literal"><span class="pre">batch</span></tt></a></dt>
+<dd>performs location on many images in batch</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>This is an implementation of the Crocker-Grier centroid-finding algorithm.
+<a class="reference internal" href="#r2" id="id3">[R2]</a></p>
+<p class="rubric">References</p>
+<table class="docutils citation" frame="void" id="r2" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[R2]</td><td><em>(<a class="fn-backref" href="#id3">1</a>, <a class="fn-backref" href="#id4">2</a>)</em> Crocker, J.C., Grier, D.G. <a class="reference external" href="http://dx.doi.org/10.1006/jcis.1996.0217">http://dx.doi.org/10.1006/jcis.1996.0217</a></td></tr>
 </tbody>
 </table>
 </dd></dl>
 
 <dl class="function">
 <dt id="mr.feature.refine">
-<tt class="descclassname">mr.feature.</tt><tt class="descname">refine</tt><big>(</big><em>raw_image</em>, <em>image</em>, <em>radius</em>, <em>coord</em>, <em>iterations=10</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#refine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.refine" title="Permalink to this definition">¶</a></dt>
-<dd><p>Characterize the neighborhood of a local maximum, and iteratively
+<tt class="descclassname">mr.feature.</tt><tt class="descname">refine</tt><big>(</big><em>raw_image</em>, <em>image</em>, <em>radius</em>, <em>coord</em>, <em>iterations=10</em>, <em>characterize=True</em>, <em>walkthrough=False</em><big>)</big><a class="reference internal" href="_modules/mr/feature.html#refine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.feature.refine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the center of mass of a bright feature starting from an estimate.</p>
+<p>Characterize the neighborhood of a local maximum, and iteratively
 hone in on its center-of-brightness. Return its coordinates, integrated
-brightness, size (Rg), and eccentricity (0=circular).</p>
+brightness, size (Rg), eccentricity (0=circular), and signal strength.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>raw_image</strong> : array (any dimensions)</p>
+<blockquote>
+<div><p>used for final characterization</p>
+</div></blockquote>
+<p><strong>image</strong> : array (any dimension)</p>
+<blockquote>
+<div><p>processed image, used for locating center of mass</p>
+</div></blockquote>
+<p><strong>coord</strong> : array</p>
+<blockquote>
+<div><p>estimated position</p>
+</div></blockquote>
+<p><strong>iterations</strong> : integer</p>
+<blockquote>
+<div><p>max number of loops to refine the center of mass, default 10</p>
+</div></blockquote>
+<p><strong>characterize</strong> : boolean, True by default</p>
+<blockquote>
+<div><p>Compute and return mass, size, eccentricity, signal.</p>
+</div></blockquote>
+<p><strong>walkthrough</strong> : boolean, False by default</p>
+<blockquote class="last">
+<div><p>Print the offset on each loop and display final neighborhood image.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </div>
@@ -239,9 +318,18 @@ by wrapping pandas group-by and filter capabilities.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks: DataFrame with &#8216;probe&#8217; and &#8216;size&#8217; columns</strong> :</p>
-<p><strong>quantile</strong> : quantile of probe &#8216;size&#8217; above which to cut off</p>
-<p><strong>threshold</strong> : If specified, ignore quantile.</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame</p>
+<blockquote>
+<div><p>must include columns named &#8216;probe&#8217; and &#8216;size&#8217;</p>
+</div></blockquote>
+<p><strong>quantile</strong> : number between 0 and 1</p>
+<blockquote>
+<div><p>quantile of probe &#8216;size&#8217; above which to cut off</p>
+</div></blockquote>
+<p><strong>threshold</strong> : number</p>
+<blockquote>
+<div><p>If specified, ignore quantile.</p>
+</div></blockquote>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
@@ -259,11 +347,46 @@ by wrapping pandas group-by and filter capabilities.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame with a &#8216;probe&#8217; column</p>
-<p><strong>threshold</strong> : minimum number of points to survive. 100 by default.</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame</p>
+<blockquote>
+<div><p>must include columns named &#8216;frame&#8217; and &#8216;probe&#8217;</p>
+</div></blockquote>
+<p><strong>threshold</strong> : integer, default 100</p>
+<blockquote>
+<div><p>minimum number of points to survive</p>
+</div></blockquote>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.filtering.filter">
+<tt class="descclassname">mr.filtering.</tt><tt class="descname">filter</tt><big>(</big><em>tracks</em>, <em>condition_func</em><big>)</big><a class="headerlink" href="#mr.filtering.filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>A workaround for a bug in pandas 0.12</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame</p>
+<blockquote>
+<div><p>must include column named &#8216;probe&#8217;</p>
+</div></blockquote>
+<p><strong>condition_func</strong> : function</p>
+<blockquote>
+<div><p>The function is applied to each group of data. It must
+return True or False.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>DataFrame</strong> :</p>
+<blockquote class="last">
+<div><p>a subset of tracks</p>
+</div></blockquote>
 </td>
 </tr>
 </tbody>
@@ -278,9 +401,18 @@ by wrapping pandas group-by and filter capabilities.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks: DataFrame with &#8216;probe&#8217; and &#8216;size&#8217; columns</strong> :</p>
-<p><strong>quantile</strong> : quantile of probe &#8216;size&#8217; above which to cut off</p>
-<p><strong>threshold</strong> : If specified, ignore quantile.</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame</p>
+<blockquote>
+<div><p>must include columns named &#8216;probe&#8217; and &#8216;size&#8217;</p>
+</div></blockquote>
+<p><strong>quantile</strong> : number between 0 and 1</p>
+<blockquote>
+<div><p>quantile of probe &#8216;size&#8217; above which to cut off</p>
+</div></blockquote>
+<p><strong>threshold</strong> : number</p>
+<blockquote>
+<div><p>If specified, ignore quantile.</p>
+</div></blockquote>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
@@ -298,8 +430,14 @@ by wrapping pandas group-by and filter capabilities.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame with a &#8216;probe&#8217; column</p>
-<p><strong>threshold</strong> : minimum number of points to survive. 100 by default.</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tracks</strong> : DataFrame</p>
+<blockquote>
+<div><p>must include columns named &#8216;frame&#8217; and &#8216;probe&#8217;</p>
+</div></blockquote>
+<p><strong>threshold</strong> : integer, default 100</p>
+<blockquote>
+<div><p>minimum number of points to survive</p>
+</div></blockquote>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a subset of tracks</strong> :</p>
@@ -1195,6 +1333,11 @@ If called later with the same arguments, the cached value is returned
 <dl class="function">
 <dt id="mr.utils.random_walk">
 <tt class="descclassname">mr.utils.</tt><tt class="descname">random_walk</tt><big>(</big><em>N</em><big>)</big><a class="reference internal" href="_modules/mr/utils.html#random_walk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.utils.random_walk" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.utils.record_meta">
+<tt class="descclassname">mr.utils.</tt><tt class="descname">record_meta</tt><big>(</big><em>meta_data</em>, <em>filename</em><big>)</big><a class="headerlink" href="#mr.utils.record_meta" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="function">
