@@ -55,16 +55,47 @@ Features
 Installation & Dependencies
 ---------------------------
 
-To get started with Python on any platform, just download and install
-[Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with these
-common scientific Python packages.
+### For Python Novices
 
-Essential:
+Installation is simple on Windows, OSX, and Linux, even for Python novices.
+
+To get started with Python on any platform, just download and install
+[Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with the
+common scientific Python packages built in.
+
+If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit. 
+(One of the optional dependencies is not yet compatible with 64-bit Python.)
+
+Open a command prompt. That's "Terminal" on a Mac, and 
+"Start > Applications > Command Prompt" on Windows. Type these
+lines:
+
+    pip install http://github.com/soft-matter/yaml-serialize/zipball/master
+    pip install http://github.com/soft-matter/trackpy/zipball/master
+    pip install http://github.com/soft-matter/mr/zipball/master
+
+In the command prompt, type
+
+    ipython notebook
+
+This will automatically open a browser tab, ready to receive Pythonn commands.
+Follow the tutorials to get started.
+
+### For Experienced Python Users
+
+You can install any of the dependencies using pip. Or use conda, which comes
+with some of the essential dependencies included.
+
+If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit. 
+(One of the optional dependencies, ``opencv`` is easily compatible with 64-bit.)
+
+Essential Dependencies:
 
   * ``numpy``
   * ``scipy``
   * ``matplotlib``
   * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html)
+
 
 You will also need these, which -- like ``mr`` itself -- are part of the
 github.com/soft-matter organization.
@@ -72,7 +103,16 @@ github.com/soft-matter organization.
   * [``trackpy``](https://github.com/soft-matter/trackpy)
   * [``yaml-serialize``](https://github.com/soft-matter/trackpy)
 
-Optional:
+It is easier to install them using pip:
+
+    pip install http://github.com/soft-matter/yaml-serialize/zipball/master
+    pip install http://github.com/soft-matter/trackpy/zipball/master
+
+And finally, install ``mr`` itself.
+
+    pip install http://github.com/soft-matter/mr/zipball/master
+
+Optional Dependencies:
 
   * [``cv2``](http://opencv.org/downloads.html) for reading video files
       and viewing video with annotations
@@ -81,6 +121,42 @@ Optional:
   * ``sqlite`` or ``MySQLdb`` for saving results in a SQL database
   * [``pyFFTW``](https://github.com/hgomersall/pyFFTW) to speed up the band 
       pass, which is one of the slower steps in feature-finding
+
+To load video files directly, you need OpenCV. You can work around this
+requirement by converting any video files to folders full of images
+using a utility like [ImageJ](http://rsb.info.nih.gov/ij/). Reading folders
+of images is supported out of the box, without OpenCV.
+
+* Linux: OpenCV is included with Anaconda
+* OSX: OpenCV is easy to install on OSX using [homebrew](http://brew.sh/).
+* Windows: OpenCV can be installed on Windows in a few steps, outlined below.
+It is not as simple as the steps above, so beginners are encouraged
+to experiment with a folder full of images first.
+
+### Installing OpenCV on Windows
+
+1. Install the video software FFmepg using this [Windows installer](http://www.arachneweb.co.uk/software/windows/avchdview/FFmpegSetup.exe)
+Make note of the directory where it is installed. It can be anywhere but, whatever it is,
+you will need to know that location in the next step.
+2. Right click on Computer (or perhaps "My Computer"), and click Properties. 
+Click "Advanced System Settings", then "Properties". With "Path" highlighted,
+click "Edit." This is a list of file paths separated by semicolons, you must 
+type in an additional entry. ";C:\Program Files (x86)\ffmpeg" or wherever
+FFmpeg was installed in Step 1.
+3. Install the Windows 32 (Python 2.7) version of OpenCV available on [this page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv).
+4. Download [OpenCV for Windows].
+5. You will now have a large folder called ``opencv``. We just need one file 
+from this to make everything work.
+6. Copy the file ``opencv\3rdparty\ffmpeg\opencv_ffmpeg.dll``.
+7. Navigate to the directory where ffmpeg was installed, which you noted 
+in Step 1. From this directory, navigate into ``win32-static\bin".
+Paste ``opencv_ffmpeg.dll`` here.
+
+Now run ``ipython``. If you can execute ``import cv`` without any errors, the
+installation is probably successful. If you can read video files using
+``mr.Video('path/to/video_file.avi')`` then the installation is definitely working
+as expected.
+
 
 Related Projects
 ----------------
