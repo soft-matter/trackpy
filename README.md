@@ -59,7 +59,7 @@ Installation & Dependencies
 
 Installation is simple on Windows, OSX, and Linux, even for Python novices.
 
-To get started with Python on any platform, just download and install
+To get started with Python on any platform, download and install
 [Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with the
 common scientific Python packages built in.
 
@@ -78,16 +78,18 @@ In the command prompt, type
 
     ipython notebook
 
-This will automatically open a browser tab, ready to receive Pythonn commands.
+This will automatically open a browser tab, ready to interpret Python code.
 Follow the tutorials to get started.
 
 ### For Experienced Python Users
 
-You can install any of the dependencies using pip. Or use conda, which comes
+You can install any of the dependencies using pip or 
+[Anaconda]((https://store.continuum.io/cshop/anaconda/)), which comes
 with some of the essential dependencies included.
 
 If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit. 
-(One of the optional dependencies, ``opencv`` is easily compatible with 64-bit.)
+(One of the optional dependencies, ``opencv``, is not readily compatible with 64-bit
+Python.)
 
 Essential Dependencies:
 
@@ -103,7 +105,7 @@ github.com/soft-matter organization.
   * [``trackpy``](https://github.com/soft-matter/trackpy)
   * [``yaml-serialize``](https://github.com/soft-matter/trackpy)
 
-It is easier to install them using pip:
+Install using pip:
 
     pip install http://github.com/soft-matter/yaml-serialize/zipball/master
     pip install http://github.com/soft-matter/trackpy/zipball/master
