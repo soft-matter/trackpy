@@ -281,3 +281,16 @@ class TestFeatureIdentification(unittest.TestCase):
         expected = ECC
         assert_allclose(actual, expected, atol=0.02)
 
+
+    def test_whole_pixel_shifts(self):
+        L = 21
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = np.array([7, 13])
+        guess = np.array([6, 13])
+        cols = ['x', 'y']
+        expected = pos
+
+        image = np.ones(dims, dtype='uint8')
+        draw_gaussian_spot(image, pos[::-1], 2)
+        actual = mr.feature.refine(image, image, 6, guess, characterize=False)
+        assert_allclose(actual, expected, atol=0.1)
