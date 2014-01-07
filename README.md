@@ -146,12 +146,12 @@ click "Edit." This is a list of file paths separated by semicolons, you must
 type in an additional entry. ";C:\Program Files (x86)\ffmpeg" or wherever
 FFmpeg was installed in Step 1.
 3. Install the Windows 32 (Python 2.7) version of OpenCV available on [this page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv).
-4. Download [OpenCV for Windows].
-5. You will now have a large folder called ``opencv``. We just need one file 
+4. Download [OpenCV for Windows](http://opencv.org/).
+5. You will now have a folder called ``opencv``. We just need one file 
 from this to make everything work.
 6. Copy the file ``opencv\3rdparty\ffmpeg\opencv_ffmpeg.dll``.
 7. Navigate to the directory where ffmpeg was installed, which you noted 
-in Step 1. From this directory, navigate into ``win32-static\bin".
+in Step 1. From this directory, navigate into ``win32-static\bin``.
 Paste ``opencv_ffmpeg.dll`` here.
 
 Now run ``ipython``. If you can execute ``import cv`` without any errors, the
