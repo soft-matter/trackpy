@@ -294,3 +294,19 @@ class TestFeatureIdentification(unittest.TestCase):
         draw_gaussian_spot(image, pos[::-1], 2)
         actual = mr.feature.refine(image, image, 6, guess, characterize=False)
         assert_allclose(actual, expected, atol=0.1)
+
+        guess = np.array([7, 12])
+        actual = mr.feature.refine(image, image, 6, guess, characterize=False)
+        assert_allclose(actual, expected, atol=0.1)
+
+        guess = np.array([7, 14])
+        actual = mr.feature.refine(image, image, 6, guess, characterize=False)
+        assert_allclose(actual, expected, atol=0.1)
+
+        guess = np.array([6, 13])
+        actual = mr.feature.refine(image, image, 6, guess, characterize=False)
+        assert_allclose(actual, expected, atol=0.1)
+
+        guess = np.array([6, 12])
+        actual = mr.feature.refine(image, image, 6, guess, characterize=False)
+        assert_allclose(actual, expected, atol=0.1)
