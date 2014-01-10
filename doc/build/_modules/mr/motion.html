@@ -1,0 +1,524 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr.motion &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mr.motion</h1><div class="highlight"><pre>
+<span class="c"># Copyright 2012 Daniel B. Allan</span>
+<span class="c"># dallan@pha.jhu.edu, daniel.b.allan@gmail.com</span>
+<span class="c"># http://pha.jhu.edu/~dallan</span>
+<span class="c"># http://www.danallan.com</span>
+<span class="c">#</span>
+<span class="c"># This program is free software; you can redistribute it and/or modify</span>
+<span class="c"># it under the terms of the GNU General Public License as published by</span>
+<span class="c"># the Free Software Foundation; either version 3 of the License, or (at</span>
+<span class="c"># your option) any later version.</span>
+<span class="c">#</span>
+<span class="c"># This program is distributed in the hope that it will be useful, but</span>
+<span class="c"># WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU</span>
+<span class="c"># General Public License for more details.</span>
+<span class="c">#</span>
+<span class="c"># You should have received a copy of the GNU General Public License</span>
+<span class="c"># along with this program; if not, see &lt;http://www.gnu.org/licenses&gt;.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="kn">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">Series</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="msd"><a class="viewcode-back" href="../../mr.html#mr.motion.msd">[docs]</a><span class="k">def</span> <span class="nf">msd</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">mpp</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">max_lagtime</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the mean displacement and mean squared displacement of one </span>
+<span class="sd">    trajectory over a range of time intervals.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    traj : DataFrame with one trajectory, including columns frame, x, and y</span>
+<span class="sd">    mpp : microns per pixel</span>
+<span class="sd">    fps : frames per second</span>
+<span class="sd">    max_lagtime : intervals of frames out to which MSD is computed</span>
+<span class="sd">        Default: 100</span>
+<span class="sd">    detail : See below. Default False.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    DataFrame([&lt;x&gt;, &lt;y&gt;, &lt;x^2&gt;, &lt;y^2&gt;, msd], index=t)</span>
+<span class="sd">    </span>
+<span class="sd">    If detail is True, the DataFrame also contains a column N,</span>
+<span class="sd">    the estimated number of statistically independent measurements</span>
+<span class="sd">    that comprise the result at each lagtime.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Input units are pixels and frames. Output units are microns and seconds.</span>
+
+<span class="sd">    See also</span>
+<span class="sd">    --------</span>
+<span class="sd">    imsd() and emsd()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">traj</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">)[[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">]]</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">traj</span><span class="p">[</span><span class="s">&#39;frame&#39;</span><span class="p">]</span>
+    <span class="c"># Reindex with consecutive frames, placing NaNs in the gaps. </span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">pos</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="n">max_lagtime</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_lagtime</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">))</span> <span class="c"># checking to be safe</span>
+    <span class="n">lagtimes</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">max_lagtime</span><span class="p">)</span> 
+    <span class="n">disp</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">pos</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">lt</span><span class="p">))</span> <span class="k">for</span> <span class="n">lt</span> <span class="ow">in</span> <span class="n">lagtimes</span><span class="p">],</span>
+                     <span class="n">keys</span><span class="o">=</span><span class="n">lagtimes</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;lagt&#39;</span><span class="p">,</span> <span class="s">&#39;frames&#39;</span><span class="p">])</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">mpp</span><span class="o">*</span><span class="n">disp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;&lt;x&gt;&#39;</span><span class="p">,</span> <span class="s">&#39;&lt;y&gt;&#39;</span><span class="p">]</span>
+    <span class="n">results</span><span class="p">[[</span><span class="s">&#39;&lt;x^2&gt;&#39;</span><span class="p">,</span> <span class="s">&#39;&lt;y^2&gt;&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">mpp</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">disp</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">results</span><span class="p">[</span><span class="s">&#39;msd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mpp</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">disp</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c"># &lt;r^2&gt;</span>
+    <span class="c"># Estimated statistically independent measurements = 2N/t</span>
+    <span class="k">if</span> <span class="n">detail</span><span class="p">:</span>
+        <span class="n">results</span><span class="p">[</span><span class="s">&#39;N&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">disp</span><span class="o">.</span><span class="n">icol</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">div</span><span class="p">(</span><span class="n">Series</span><span class="p">(</span><span class="n">lagtimes</span><span class="p">))</span>
+    <span class="n">results</span><span class="p">[</span><span class="s">&#39;lagt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="o">/</span><span class="n">fps</span>
+    <span class="k">return</span> <span class="n">results</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="imsd"><a class="viewcode-back" href="../../mr.html#mr.motion.imsd">[docs]</a><span class="k">def</span> <span class="nf">imsd</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">mpp</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">max_lagtime</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">statistic</span><span class="o">=</span><span class="s">&#39;msd&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the mean squared displacements of probes individually.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    traj : DataFrame of trajectories of multiple probes, including </span>
+<span class="sd">        columns probe, frame, x, and y</span>
+<span class="sd">    mpp : microns per pixel</span>
+<span class="sd">    fps : frames per second</span>
+<span class="sd">    max_lagtime : intervals of frames out to which MSD is computed</span>
+<span class="sd">        Default: 100</span>
+<span class="sd">    statistic : {&#39;msd&#39;, &#39;&lt;x&gt;&#39;, &#39;&lt;y&gt;&#39;, &#39;&lt;x^2&gt;&#39;, &#39;&lt;y^2&gt;&#39;}, default is &#39;msd&#39;</span>
+<span class="sd">        The functions msd() and emsd() return all these as columns. For</span>
+<span class="sd">        imsd() you have to pick one.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    DataFrame([Probe 1 msd, Probe 2 msd, ...], index=t)</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Input units are pixels and frames. Output units are microns and seconds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ids</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">msds</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c"># Note: Index is set by msd, so we don&#39;t need to worry</span>
+    <span class="c"># about conformity here.</span>
+    <span class="k">for</span> <span class="n">pid</span><span class="p">,</span> <span class="n">ptraj</span> <span class="ow">in</span> <span class="n">traj</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">&#39;probe&#39;</span><span class="p">):</span>
+        <span class="n">msds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msd</span><span class="p">(</span><span class="n">ptraj</span><span class="p">,</span> <span class="n">mpp</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">max_lagtime</span><span class="p">,</span> <span class="bp">False</span><span class="p">))</span>
+        <span class="n">ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">msds</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="n">ids</span><span class="p">)</span>
+    <span class="c"># Swap MultiIndex levels so that unstack() makes probes into columns.</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">swaplevel</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="n">statistic</span><span class="p">]</span><span class="o">.</span><span class="n">unstack</span><span class="p">()</span>
+    <span class="n">lagt</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">&#39;float64&#39;</span><span class="p">)</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="n">fps</span><span class="p">)</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">lagt</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&#39;lag time [s]&#39;</span>
+    <span class="k">return</span> <span class="n">results</span>
+</div>
+<div class="viewcode-block" id="emsd"><a class="viewcode-back" href="../../mr.html#mr.motion.emsd">[docs]</a><span class="k">def</span> <span class="nf">emsd</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">mpp</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">max_lagtime</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the mean squared displacements of an ensemble of probes. </span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    traj : DataFrame of trajectories of multiple probes, including </span>
+<span class="sd">        columns probe, frame, x, and y</span>
+<span class="sd">    mpp : microns per pixel</span>
+<span class="sd">    fps : frames per second</span>
+<span class="sd">    max_lagtime : intervals of frames out to which MSD is computed</span>
+<span class="sd">        Default: 100</span>
+<span class="sd">    detail : Set to True to include &lt;x&gt;, &lt;y&gt;, &lt;x^2&gt;, &lt;y^2&gt;. Returns</span>
+<span class="sd">        only &lt;r^2&gt; by default.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Series[msd, index=t] or, if detail=True,</span>
+<span class="sd">    DataFrame([&lt;x&gt;, &lt;y&gt;, &lt;x^2&gt;, &lt;y^2&gt;, msd], index=t)</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Input units are pixels and frames. Output units are microns and seconds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ids</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">msds</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">pid</span><span class="p">,</span> <span class="n">ptraj</span> <span class="ow">in</span> <span class="n">traj</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">&#39;probe&#39;</span><span class="p">):</span>
+        <span class="n">msds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msd</span><span class="p">(</span><span class="n">ptraj</span><span class="p">,</span> <span class="n">mpp</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">max_lagtime</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
+        <span class="n">ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+    <span class="n">msds</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">msds</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="n">ids</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;probe&#39;</span><span class="p">,</span> <span class="s">&#39;frame&#39;</span><span class="p">])</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">msds</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">msds</span><span class="p">[</span><span class="s">&#39;N&#39;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="c"># weighted average</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">div</span><span class="p">(</span><span class="n">msds</span><span class="p">[</span><span class="s">&#39;N&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="c"># weights normalized</span>
+    <span class="c"># Above, lagt is lumped in with the rest for simplicity and speed.</span>
+    <span class="c"># Here, rebuild it from the frame index.</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;lagt&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&#39;lag time [s]&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">detail</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">results</span><span class="p">[</span><span class="s">&#39;msd&#39;</span><span class="p">]</span> 
+    <span class="k">return</span> <span class="n">results</span>
+</div>
+<div class="viewcode-block" id="compute_drift"><a class="viewcode-back" href="../../mr.html#mr.motion.compute_drift">[docs]</a><span class="k">def</span> <span class="nf">compute_drift</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">smoothing</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the ensemble drift, x(t).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    traj : DataFrame of trajectories, including columns x, y, frame, and probe</span>
+<span class="sd">    smoothing : integer</span>
+<span class="sd">        Smooth the drift using a forward-looking rolling mean over </span>
+<span class="sd">        this many frames.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    drift : DataFrame([x, y], index=frame)    </span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    compute_drift(traj).plot() # Default smoothing usually smooths too much.</span>
+<span class="sd">    compute_drift(traj, 0).plot() # not smoothed</span>
+<span class="sd">    compute_drift(traj, 15).plot() # Try various smoothing values.</span>
+
+<span class="sd">    drift = compute_drift(traj, 15) # Save good drift curves.</span>
+<span class="sd">    corrected_traj = subtract_drift(traj, drift) # Apply them.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Probe by probe, take the difference between frames.</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span>
+                       <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">traj</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">&#39;probe&#39;</span><span class="p">)])</span>
+    <span class="c"># Keep only deltas between frames that are consecutive. </span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">delta</span><span class="p">[</span><span class="n">delta</span><span class="p">[</span><span class="s">&#39;frame&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="c"># Restore the original frame column (replacing delta frame).</span>
+    <span class="k">del</span> <span class="n">delta</span><span class="p">[</span><span class="s">&#39;frame&#39;</span><span class="p">]</span>
+    <span class="n">delta</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="n">delta</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">smoothing</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">rolling_mean</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">smoothing</span><span class="p">,</span> <span class="n">min_periods</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">dx</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="mi">0</span><span class="p">)[[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">x</span>
+</div>
+<div class="viewcode-block" id="subtract_drift"><a class="viewcode-back" href="../../mr.html#mr.motion.subtract_drift">[docs]</a><span class="k">def</span> <span class="nf">subtract_drift</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">drift</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a copy of probe trajectores with the overall drift subtracted out.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    traj : DataFrame of trajectories, including columns x, y, and frame</span>
+<span class="sd">    drift : optional DataFrame([x, y], index=frame) like output of </span>
+<span class="sd">         compute_drift(). If no drift is passed, drift is computed from traj.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    traj : a copy, having modified columns x and y</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">drift</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> 
+        <span class="n">drift</span> <span class="o">=</span> <span class="n">compute_drift</span><span class="p">(</span><span class="n">traj</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">traj</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;frame&#39;</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">drift</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="is_typical"><a class="viewcode-back" href="../../mr.html#mr.motion.is_typical">[docs]</a><span class="k">def</span> <span class="nf">is_typical</span><span class="p">(</span><span class="n">msds</span><span class="p">,</span> <span class="n">frame</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span> <span class="n">lower</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="mf">0.9</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Examine individual probe MSDs, distinguishing outliers from those</span>
+<span class="sd">    in the central quantile.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    msds : DataFrame like the output of imsd()</span>
+<span class="sd">        Columns correspond to probes, indexed by lagtime measured in frames.</span>
+<span class="sd">    frame : integer frame number</span>
+<span class="sd">        Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).</span>
+<span class="sd">    lower : float between 0 and 1, default 0.1</span>
+<span class="sd">        Probes with MSD up to this quantile are deemed outliers.</span>
+<span class="sd">    upper : float between 0 and 1, default 0.9</span>
+<span class="sd">        Probes with MSD above this quantile are deemed outliers.</span>
+<span class="sd">        </span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Series of boolean values, indexed by probe number</span>
+<span class="sd">    True = typical probe, False = outlier probe</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    m = mr.imsd(traj, MPP, FPS)</span>
+<span class="sd">    # Index by probe ID, slice using boolean output from is_typical(), and then</span>
+<span class="sd">    # restore the original index, frame number.</span>
+<span class="sd">    typical_traj = traj.set_index(&#39;probe&#39;).ix[is_typical(m)].reset_index()\</span>
+<span class="sd">        .set_index(&#39;frame&#39;, drop=False)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">msds</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">frame</span><span class="p">]</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">lower</span><span class="p">),</span> <span class="n">msds</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">frame</span><span class="p">]</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">upper</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">msds</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">frame</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">a</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">msds</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">frame</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">b</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="vanhove"><a class="viewcode-back" href="../../mr.html#mr.motion.vanhove">[docs]</a><span class="k">def</span> <span class="nf">vanhove</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">lagtime</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span> <span class="n">mpp</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ensemble</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">24</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the van Hove correlation function at given lagtime (frame span).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pos : DataFrame of x or (or!) y positions, one column per probe, indexed</span>
+<span class="sd">        by frame</span>
+<span class="sd">    lagtime : integer interval of frames </span>
+<span class="sd">        Compare the correlation function at this lagtime. Default is 23 </span>
+<span class="sd">        (1 second at 24 fps).</span>
+<span class="sd">    mpp : microns per pixel, DEFAULT TO 1 because it is usually fine to use</span>
+<span class="sd">        pixels for this analysis</span>
+<span class="sd">    ensemble : boolean, defaults False</span>
+<span class="sd">    bins : integer or sequence</span>
+<span class="sd">        Specify a number of equally spaced bins, or explicitly specifiy a</span>
+<span class="sd">        sequence of bin edges. See np.histogram docs.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    vh : If ensemble=True, a DataFrame with each probe&#39;s van Hove correlation </span>
+<span class="sd">        function, indexed by displacement. If ensemble=False, a Series with </span>
+<span class="sd">        the van Hove correlation function of the whole ensemble.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    pos = traj.set_index([&#39;frame&#39;, &#39;probe&#39;])[&#39;x&#39;].unstack() # probes as columns</span>
+<span class="sd">    vh = vanhove(pos)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Reindex with consecutive frames, placing NaNs in the gaps. </span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">pos</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">assert</span> <span class="n">lagtime</span> <span class="o">&lt;=</span> <span class="n">pos</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> \
+        <span class="s">&quot;There is a no data out to frame </span><span class="si">%s</span><span class="s">. &quot;</span> <span class="o">%</span> <span class="n">frame</span>
+    <span class="n">disp</span> <span class="o">=</span> <span class="n">mpp</span><span class="o">*</span><span class="n">pos</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">lagtime</span><span class="p">))</span>
+    <span class="c"># Let np.histogram choose the best bins for all the data together.</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">disp</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">values</span><span class="p">)]</span>
+    <span class="n">global_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">bins</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c"># Use those bins to histogram each column by itself. </span>
+    <span class="n">vh</span> <span class="o">=</span> <span class="n">disp</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">global_bins</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="bp">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span> 
+    <span class="n">vh</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">global_bins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">ensemble</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">vh</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">vh</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">vh</span>
+</div>
+<div class="viewcode-block" id="diagonal_size"><a class="viewcode-back" href="../../mr.html#mr.motion.diagonal_size">[docs]</a><span class="k">def</span> <span class="nf">diagonal_size</span><span class="p">(</span><span class="n">single_trajectory</span><span class="p">,</span> <span class="n">pos_columns</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">],</span> <span class="n">t_column</span><span class="o">=</span><span class="s">&#39;frame&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Measure the diagonal size of a trajectory.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    single_trajectory : DataFrame containing a single trajectory</span>
+<span class="sd">    pos_columns = [&#39;x&#39;, &#39;y&#39;]</span>
+<span class="sd">    t_column = &#39;frame&#39;</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float : length of diangonal of rectangular box containing the trajectory</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; diagonal_size(single_trajectory)</span>
+
+<span class="sd">    &gt;&gt;&gt; many_trajectories.groupby(&#39;probe&#39;).agg(mr.diagonal_size)</span>
+
+<span class="sd">    &gt;&gt;&gt; many_trajectories.groupby(&#39;probe&#39;).filter(lambda x: mr.diagonal_size(x) &gt; 5)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">single_trajectory</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">t_column</span><span class="p">)[</span><span class="n">pos_columns</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="is_localized"><a class="viewcode-back" href="../../mr.html#mr.motion.is_localized">[docs]</a><span class="k">def</span> <span class="nf">is_localized</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.4</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">,</span> <span class="s">&quot;I will rewrite this.&quot;</span>
+</div>
+<div class="viewcode-block" id="is_diffusive"><a class="viewcode-back" href="../../mr.html#mr.motion.is_diffusive">[docs]</a><span class="k">def</span> <span class="nf">is_diffusive</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.9</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">,</span> <span class="s">&quot;I will rewrite this.&quot;</span>
+</div>
+<div class="viewcode-block" id="relate_frames"><a class="viewcode-back" href="../../mr.html#mr.motion.relate_frames">[docs]</a><span class="k">def</span> <span class="nf">relate_frames</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">frame2</span><span class="p">):</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">frame</span> <span class="o">==</span> <span class="n">frame1</span><span class="p">]</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">frame</span> <span class="o">==</span> <span class="n">frame2</span><span class="p">]</span>
+    <span class="n">j</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;probe&#39;</span><span class="p">)[[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+         <span class="n">b</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s">&#39;probe&#39;</span><span class="p">)[[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">]],</span> <span class="n">rsuffix</span><span class="o">=</span><span class="s">&#39;_b&#39;</span><span class="p">)</span>
+    <span class="n">j</span><span class="p">[</span><span class="s">&#39;dx&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span><span class="o">.</span><span class="n">x_b</span> <span class="o">-</span> <span class="n">j</span><span class="o">.</span><span class="n">x</span>
+    <span class="n">j</span><span class="p">[</span><span class="s">&#39;dy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span><span class="o">.</span><span class="n">y_b</span> <span class="o">-</span> <span class="n">j</span><span class="o">.</span><span class="n">y</span>
+    <span class="n">j</span><span class="p">[</span><span class="s">&#39;dr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">j</span><span class="p">[</span><span class="s">&#39;dx&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">j</span><span class="p">[</span><span class="s">&#39;dy&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">j</span><span class="p">[</span><span class="s">&#39;direction&#39;</span><span class="p">]</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">dy</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">dx</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">j</span>
+</div>
+<div class="viewcode-block" id="direction_corr"><a class="viewcode-back" href="../../mr.html#mr.motion.direction_corr">[docs]</a><span class="k">def</span> <span class="nf">direction_corr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">frame2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the cosine between every pair of probes&#39; displacements.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t : DataFrame containing columns probe, frame, x, and y</span>
+<span class="sd">    frame1 : frame number</span>
+<span class="sd">    frame2 : frame number</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    DataFrame, indexed by probe, including dx, dy, and direction</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">j</span> <span class="o">=</span> <span class="n">relate_frames</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">frame2</span><span class="p">)</span>
+    <span class="n">cosine</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">direction</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">direction</span><span class="p">))</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">y</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">upper_triangle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices_from</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">({</span><span class="s">&#39;r&#39;</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="n">upper_triangle</span><span class="p">],</span>
+                        <span class="s">&#39;cos&#39;</span><span class="p">:</span> <span class="n">cosine</span><span class="p">[</span><span class="n">upper_triangle</span><span class="p">]})</span>
+    <span class="k">return</span> <span class="n">result</span> 
+</div>
+<div class="viewcode-block" id="velocity_corr"><a class="viewcode-back" href="../../mr.html#mr.motion.velocity_corr">[docs]</a><span class="k">def</span> <span class="nf">velocity_corr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">frame2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the velocity correlation between </span>
+<span class="sd">    every pair of probes&#39; displacements.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t : DataFrame containing columns probe, frame, x, and y</span>
+<span class="sd">    frame1 : frame number</span>
+<span class="sd">    frame2 : frame number</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    DataFrame, indexed by probe, including dx, dy, and direction</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">j</span> <span class="o">=</span> <span class="n">relate_frames</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">frame2</span><span class="p">)</span>
+    <span class="n">cosine</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">direction</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">direction</span><span class="p">))</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">y</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">dot_product</span> <span class="o">=</span> <span class="n">cosine</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">j</span><span class="o">.</span><span class="n">dr</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">dr</span><span class="p">))</span>
+    <span class="n">upper_triangle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices_from</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">({</span><span class="s">&#39;r&#39;</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="n">upper_triangle</span><span class="p">],</span>
+                        <span class="s">&#39;dot_product&#39;</span><span class="p">:</span> <span class="n">dot_product</span><span class="p">[</span><span class="n">upper_triangle</span><span class="p">]})</span>
+    <span class="k">return</span> <span class="n">result</span> 
+</div>
+<div class="viewcode-block" id="theta_entropy"><a class="viewcode-back" href="../../mr.html#mr.motion.theta_entropy">[docs]</a><span class="k">def</span> <span class="nf">theta_entropy</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plot the distrbution of directions and return its Shannon entropy.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pos : DataFrame with columns x and y, indexed by frame</span>
+<span class="sd">    bins : number of equally-spaced bins in distribution. Default 24.</span>
+<span class="sd">    plot : plot direction historgram if True</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float : Shannon entropy</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; theta_entropy(t[t[&#39;probe&#39;] == 3].set_index(&#39;frame&#39;))</span>
+
+<span class="sd">    &gt;&gt;&gt; S = t.set_index(&#39;frame&#39;).groupby(&#39;probe&#39;).apply(mr.theta_entropy)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">disp</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">-</span> <span class="n">pos</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">direction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">disp</span><span class="p">[</span><span class="s">&#39;y&#39;</span><span class="p">],</span> <span class="n">disp</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">])</span>
+    <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">bins</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">plot</span><span class="p">:</span>
+        <span class="n">Series</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">bins</span><span class="o">=</span><span class="n">bins</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">shannon_entropy</span><span class="p">(</span><span class="n">direction</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="n">bins</span><span class="p">)</span> 
+</div>
+<div class="viewcode-block" id="shannon_entropy"><a class="viewcode-back" href="../../mr.html#mr.motion.shannon_entropy">[docs]</a><span class="k">def</span> <span class="nf">shannon_entropy</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bins</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the Shannon entropy of the distribution of x.&quot;&quot;&quot;</span>
+    <span class="n">hist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bins</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">hist</span> <span class="o">=</span> <span class="n">hist</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">&#39;float64&#39;</span><span class="p">)</span><span class="o">/</span><span class="n">hist</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>  <span class="c"># normalize probablity dist.</span>
+    <span class="n">entropy</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">hist</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">hist</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">entropy</span>
+</div>
+<div class="viewcode-block" id="min_rolling_theta_entropy"><a class="viewcode-back" href="../../mr.html#mr.motion.min_rolling_theta_entropy">[docs]</a><span class="k">def</span> <span class="nf">min_rolling_theta_entropy</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">24</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the minimum Shannon entropy in any window.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pos : DataFrame with columns x and y, indexed by frame</span>
+<span class="sd">    window : number of observations per window</span>
+<span class="sd">    bins : number of equally-spaced bins in distribution. Default 24.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float : Shannon entropy</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; theta_entropy(t[t[&#39;probe&#39;] == 3].set_index(&#39;frame&#39;))</span>
+
+<span class="sd">    &gt;&gt;&gt; S = t.set_index(&#39;frame&#39;).groupby(&#39;probe&#39;).apply(</span>
+<span class="sd">    ...     mr.min_rolling_theta_entropy)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">disp</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">-</span> <span class="n">pos</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">direction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">disp</span><span class="p">[</span><span class="s">&#39;y&#39;</span><span class="p">],</span> <span class="n">disp</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">])</span>
+    <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">bins</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">shannon_entropy</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bins</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">rolling_apply</span><span class="p">(</span><span class="n">direction</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="n">window</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+</pre></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>

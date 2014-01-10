@@ -1,0 +1,255 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr.wire.tracking &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mr.wire.tracking</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">Series</span><span class="p">,</span> <span class="n">DataFrame</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="kn">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span>  <span class="n">ndimage</span>
+
+<div class="viewcode-block" id="threshold"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.threshold">[docs]</a><span class="k">def</span> <span class="nf">threshold</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Threshold a grayscale image based on the mean and std brightness.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    im: ndarray</span>
+<span class="sd">    sigma: float, default 3.0</span>
+<span class="sd">        minimum brightness in terms of standard deviations above the mean</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">im</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">im</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">+</span> <span class="n">sigma</span><span class="o">*</span><span class="n">im</span><span class="o">.</span><span class="n">std</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">mask</span>
+</div>
+<div class="viewcode-block" id="bigfish"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.bigfish">[docs]</a><span class="k">def</span> <span class="nf">bigfish</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mf">0.03</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Identify the largest connected region and return the roi. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mask: binary (thresholded) image</span>
+<span class="sd">    padding: fractional padding of ROI (default 0.02)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    padded_roi: a tuple of slice objects, for indexing the image</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">label_im</span><span class="p">,</span> <span class="n">nb_labels</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+    <span class="n">sizes</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">label_im</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="n">nb_labels</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">big_label</span> <span class="o">=</span> <span class="n">sizes</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span> <span class="c"># the label of the largest connection region</span>
+    <span class="n">roi</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">find_objects</span><span class="p">(</span><span class="n">label_im</span><span class="o">==</span><span class="n">big_label</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">padded_roi</span> <span class="o">=</span> <span class="n">pad_roi</span><span class="p">(</span><span class="n">roi</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">padded_roi</span>
+</div>
+<div class="viewcode-block" id="pad_roi"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.pad_roi">[docs]</a><span class="k">def</span> <span class="nf">pad_roi</span><span class="p">(</span><span class="n">roi</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">img_shape</span><span class="p">):</span>
+    <span class="s">&quot;Pad x and y slices, within the bounds of img_shape.&quot;</span>
+    <span class="n">s0</span><span class="p">,</span> <span class="n">s1</span> <span class="o">=</span> <span class="n">roi</span> <span class="c"># slices in x and y</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">img_shape</span><span class="p">)</span><span class="o">*</span><span class="n">padding</span><span class="p">)</span>
+    <span class="n">new_s0</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s0</span><span class="o">.</span><span class="n">start</span> <span class="o">-</span> <span class="n">p</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">img_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                   <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s0</span><span class="o">.</span><span class="n">stop</span> <span class="o">+</span> <span class="n">p</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">img_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">new_s1</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">start</span> <span class="o">-</span> <span class="n">p</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">img_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                   <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">stop</span> <span class="o">+</span> <span class="n">p</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">img_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">new_s0</span><span class="p">,</span> <span class="n">new_s1</span>
+</div>
+<div class="viewcode-block" id="moment"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.moment">[docs]</a><span class="k">def</span> <span class="nf">moment</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Utility function called by inertial_axes. See that function, below,</span>
+<span class="sd">    for attribution and usage.&quot;&quot;&quot;</span>
+    <span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mgrid</span><span class="p">[:</span><span class="n">nrows</span><span class="p">,</span> <span class="p">:</span><span class="n">ncols</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">img</span> <span class="o">*</span> <span class="n">x</span><span class="o">**</span><span class="n">i</span> <span class="o">*</span> <span class="n">y</span><span class="o">**</span><span class="n">j</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="inertial_axes"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.inertial_axes">[docs]</a><span class="k">def</span> <span class="nf">inertial_axes</span><span class="p">(</span><span class="n">img</span><span class="p">):</span> 
+    <span class="sd">&quot;&quot;&quot;Calculate the x-mean, y-mean, and cov matrix of an image.</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    img: ndarray</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    xbar, ybar, cov (the covariance matrix)</span>
+
+<span class="sd">    Attribution</span>
+<span class="sd">    -----------</span>
+<span class="sd">    This function is based on a solution by Joe Kington, posted on Stack</span>
+<span class="sd">    Overflow at http://stackoverflow.com/questions/5869891/</span>
+<span class="sd">    how-to-calculate-the-axis-of-orientation/5873296#5873296</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">normalization</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">m10</span> <span class="o">=</span> <span class="n">moment</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">m01</span> <span class="o">=</span> <span class="n">moment</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">x_bar</span> <span class="o">=</span> <span class="n">m10</span> <span class="o">/</span> <span class="n">normalization</span> 
+    <span class="n">y_bar</span> <span class="o">=</span> <span class="n">m01</span> <span class="o">/</span> <span class="n">normalization</span>
+    <span class="n">u11</span> <span class="o">=</span> <span class="p">(</span><span class="n">moment</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">x_bar</span> <span class="o">*</span> <span class="n">m01</span><span class="p">)</span> <span class="o">/</span> <span class="n">normalization</span>
+    <span class="n">u20</span> <span class="o">=</span> <span class="p">(</span><span class="n">moment</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="n">x_bar</span> <span class="o">*</span> <span class="n">m10</span><span class="p">)</span> <span class="o">/</span> <span class="n">normalization</span>
+    <span class="n">u02</span> <span class="o">=</span> <span class="p">(</span><span class="n">moment</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">y_bar</span> <span class="o">*</span> <span class="n">m01</span><span class="p">)</span> <span class="o">/</span> <span class="n">normalization</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">u20</span><span class="p">,</span> <span class="n">u11</span><span class="p">],</span> <span class="p">[</span><span class="n">u11</span><span class="p">,</span> <span class="n">u02</span><span class="p">]])</span>
+    <span class="k">return</span> <span class="n">x_bar</span><span class="p">,</span> <span class="n">y_bar</span><span class="p">,</span> <span class="n">cov</span>
+</div>
+<div class="viewcode-block" id="orientation"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.orientation">[docs]</a><span class="k">def</span> <span class="nf">orientation</span><span class="p">(</span><span class="n">cov</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the orientation angle of the dominant eigenvector of</span>
+<span class="sd">    a covariance matrix.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cov: 2x2 array</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    angle in radians</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+    <span class="n">eigvec</span> <span class="o">=</span> <span class="n">eigvecs</span><span class="p">[</span><span class="n">eigvals</span><span class="o">.</span><span class="n">argmax</span><span class="p">()]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">eigvec</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">eigvec</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="analyze"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.analyze">[docs]</a><span class="k">def</span> <span class="nf">analyze</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">angle_only</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Find a nanowire in a frame and return its orientation angle</span>
+<span class="sd">    in degrees.</span>
+
+<span class="sd">    Note</span>
+<span class="sd">    ----</span>
+<span class="sd">    This convenience function wraps several other functions with detailed</span>
+<span class="sd">    docstrings. Refer to them for more information.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    frame: image array</span>
+<span class="sd">    angle_only: If True (default), return angle in degrees. If False,</span>
+<span class="sd">       return x_bar, y_bar, cov -- the C.O.M. and the covariance matrix.</span>
+<span class="sd">    plot: False by default. If True, plot principle axes over the ROI.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">roi</span> <span class="o">=</span> <span class="n">bigfish</span><span class="p">(</span><span class="n">threshold</span><span class="p">(</span><span class="n">frame</span><span class="p">))</span>
+    <span class="n">blurred</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">gaussian_filter</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="n">roi</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">&#39;float&#39;</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">masked</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">threshold</span><span class="p">(</span><span class="n">blurred</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">),</span>
+                     <span class="n">blurred</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">blurred</span><span class="p">))</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">inertial_axes</span><span class="p">(</span><span class="n">masked</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">plot</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">mr.plots</span>
+        <span class="n">mr</span><span class="o">.</span><span class="n">plots</span><span class="o">.</span><span class="n">plot_principal_axes</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="n">roi</span><span class="p">],</span> <span class="o">*</span><span class="n">results</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">angle_only</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="n">orientation</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">results</span>
+</div>
+<div class="viewcode-block" id="track"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.track">[docs]</a><span class="k">def</span> <span class="nf">track</span><span class="p">(</span><span class="n">frames</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Track the orientation of a wire through many frames.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    frames : an iterable, such as a list of images or a mr.Video</span>
+<span class="sd">        object</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Series of angles in degrees, indexed by frame</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">frames</span><span class="o">.</span><span class="n">count</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">Series</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">img</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">frames</span><span class="p">):</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">analyze</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span> <span class="c"># Discard unused rows.</span>
+    <span class="k">return</span> <span class="n">data</span>
+</div>
+<div class="viewcode-block" id="periodic_shift"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.periodic_shift">[docs]</a><span class="k">def</span> <span class="nf">periodic_shift</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">shift</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="mi">180</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">data</span> <span class="o">+</span> <span class="n">shift</span><span class="p">,</span> <span class="n">period</span><span class="p">)</span> <span class="o">-</span> <span class="n">shift</span>
+</div>
+<div class="viewcode-block" id="shift_ref_frame"><a class="viewcode-back" href="../../../mr.wire.html#mr.wire.tracking.shift_ref_frame">[docs]</a><span class="k">def</span> <span class="nf">shift_ref_frame</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Choose a branch cut that avoids splitting the range of observations.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data : array of angles in degrees, revised in place</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None   </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">trial_shifts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">360</span><span class="p">,</span> <span class="mi">360</span><span class="p">)</span>
+    <span class="n">spans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">periodic_shift</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">trial_shifts</span><span class="p">])</span>
+    <span class="n">good_shift</span> <span class="o">=</span> <span class="n">trial_shifts</span><span class="p">[</span><span class="n">spans</span><span class="o">.</span><span class="n">argmin</span><span class="p">()]</span>
+    <span class="k">print</span> <span class="n">good_shift</span>
+    <span class="k">return</span> <span class="n">periodic_clip</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">good_shift</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>

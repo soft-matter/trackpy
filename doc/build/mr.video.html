@@ -1,0 +1,347 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr.video package &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="index.html" />
+    <link rel="up" title="mr package" href="mr.html" />
+    <link rel="next" title="mr.wire package" href="mr.wire.html" />
+    <link rel="prev" title="mr package" href="mr.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="mr.wire.html" title="mr.wire package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="mr.html" title="mr package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="mr.html" accesskey="U">mr package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="mr-video-package">
+<h1>mr.video package<a class="headerlink" href="#mr-video-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-mr.video.annotate">
+<span id="mr-video-annotate-module"></span><h2>mr.video.annotate module<a class="headerlink" href="#module-mr.video.annotate" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.video.annotate.circle">
+<tt class="descclassname">mr.video.annotate.</tt><tt class="descname">circle</tt><big>(</big><em>features</em>, <em>frames</em>, <em>wait=1</em>, <em>high_contrast=True</em>, <em>write_file=None</em><big>)</big><a class="reference internal" href="_modules/mr/video/annotate.html#circle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.annotate.circle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Play video, circling features in each frame.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>features</strong> : DataFrame including columns &#8216;frame&#8217;, &#8216;x&#8217;, and &#8216;y&#8217;</p>
+<p><strong>frames</strong> : iterable container of image arrays, like a list of images or a</p>
+<blockquote>
+<div><p>Video object (See mr.opencv.video.Video.)</p>
+</div></blockquote>
+<p><strong>wait</strong> : delay between frames, default 1</p>
+<p><strong>high_contrast</strong> : Rescale brightness to use full gamut. Default True.</p>
+<p class="last"><strong>write_file</strong> : Save the annotated movie to a file.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.video.api">
+<span id="mr-video-api-module"></span><h2>mr.video.api module<a class="headerlink" href="#module-mr.video.api" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.video.api.TiffStack">
+<tt class="descclassname">mr.video.api.</tt><tt class="descname">TiffStack</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mr.video.api.TiffStack" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.video.api.require_cv2_Video">
+<tt class="descclassname">mr.video.api.</tt><tt class="descname">require_cv2_Video</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/video/api.html#require_cv2_Video"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.api.require_cv2_Video" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.video.api.require_cv2_tools">
+<tt class="descclassname">mr.video.api.</tt><tt class="descname">require_cv2_tools</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/video/api.html#require_cv2_tools"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.api.require_cv2_tools" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="mr.video.api.require_libtiff">
+<tt class="descclassname">mr.video.api.</tt><tt class="descname">require_libtiff</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mr/video/api.html#require_libtiff"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.api.require_libtiff" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-mr.video.base_frames">
+<span id="mr-video-base-frames-module"></span><h2>mr.video.base_frames module<a class="headerlink" href="#module-mr.video.base_frames" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="mr.video.base_frames.BaseFrames">
+<em class="property">class </em><tt class="descclassname">mr.video.base_frames.</tt><tt class="descname">BaseFrames</tt><big>(</big><em>filename</em>, <em>gray=True</em>, <em>invert=True</em><big>)</big><a class="reference internal" href="_modules/mr/video/base_frames.html#BaseFrames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.base_frames.BaseFrames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Base class for iterable objects that return images as numpy arrays.</p>
+<p class="rubric">Attributes</p>
+<p class="rubric">Methods</p>
+<dl class="attribute">
+<dt id="mr.video.base_frames.BaseFrames.endpoint">
+<tt class="descname">endpoint</tt><a class="reference internal" href="_modules/mr/video/base_frames.html#BaseFrames.endpoint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.base_frames.BaseFrames.endpoint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.video.base_frames.BaseFrames.next">
+<tt class="descname">next</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/video/base_frames.html#BaseFrames.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.base_frames.BaseFrames.next" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="mr.video.base_frames.BaseFrames.rewind">
+<tt class="descname">rewind</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/video/base_frames.html#BaseFrames.rewind"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.base_frames.BaseFrames.rewind" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reopen the video file to start at the beginning. (&#8216;Seeking&#8217;
+capabilities in the underlying OpenCV library are not reliable.)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mr.video.base_frames.BaseFrames.seek_forward">
+<tt class="descname">seek_forward</tt><big>(</big><em>val</em><big>)</big><a class="reference internal" href="_modules/mr/video/base_frames.html#BaseFrames.seek_forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.base_frames.BaseFrames.seek_forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.video.image_sequence">
+<span id="mr-video-image-sequence-module"></span><h2>mr.video.image_sequence module<a class="headerlink" href="#module-mr.video.image_sequence" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="mr.video.image_sequence.ImageSequence">
+<em class="property">class </em><tt class="descclassname">mr.video.image_sequence.</tt><tt class="descname">ImageSequence</tt><big>(</big><em>directory</em>, <em>gray=True</em>, <em>invert=True</em><big>)</big><a class="reference internal" href="_modules/mr/video/image_sequence.html#ImageSequence"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.image_sequence.ImageSequence" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#mr.video.base_frames.BaseFrames" title="mr.video.base_frames.BaseFrames"><tt class="xref py py-class docutils literal"><span class="pre">mr.video.base_frames.BaseFrames</span></tt></a></p>
+<p>Iterable object that returns frames of video as numpy arrays.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>directory</strong> : string</p>
+<p><strong>gray</strong> : Convert color image to grayscale. True by default.</p>
+<p class="last"><strong>invert</strong> : Invert black and white. True by default.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">video</span> <span class="o">=</span> <span class="n">ImageSequence</span><span class="p">(</span><span class="s">&#39;directory_name&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">imshow</span><span class="p">(</span><span class="n">video</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="c"># Show the first frame.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">imshow</span><span class="p">(</span><span class="n">video</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">:</span><span class="mi">10</span><span class="p">][</span><span class="mi">0</span><span class="p">:</span><span class="mi">10</span><span class="p">])</span> <span class="c"># Show one corner of the second frame.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">video</span><span class="p">[:]:</span>
+<span class="gp">... </span>   <span class="c"># Do something with every frame.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">video</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="mi">20</span><span class="p">]:</span>
+<span class="gp">... </span>   <span class="c"># Do something with frames 10-20.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">video</span><span class="p">[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">13</span><span class="p">]]:</span>
+<span class="gp">... </span>   <span class="c"># Do something with frames 5, 7, and 13.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">frame_count</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">count</span> <span class="c"># Number of frames in video</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frame_shape</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">shape</span> <span class="c"># Pixel dimensions of video</span>
+</pre></div>
+</div>
+<p class="rubric">Attributes</p>
+<p class="rubric">Methods</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mr.video.image_sequence.PseudoCapture">
+<em class="property">class </em><tt class="descclassname">mr.video.image_sequence.</tt><tt class="descname">PseudoCapture</tt><big>(</big><em>directory</em><big>)</big><a class="reference internal" href="_modules/mr/video/image_sequence.html#PseudoCapture"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.image_sequence.PseudoCapture" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p class="rubric">Methods</p>
+<dl class="method">
+<dt id="mr.video.image_sequence.PseudoCapture.read">
+<tt class="descname">read</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mr/video/image_sequence.html#PseudoCapture.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.image_sequence.PseudoCapture.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.video.image_sequence.open_image_sequence">
+<tt class="descclassname">mr.video.image_sequence.</tt><tt class="descname">open_image_sequence</tt><big>(</big><em>directory</em><big>)</big><a class="reference internal" href="_modules/mr/video/image_sequence.html#open_image_sequence"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.image_sequence.open_image_sequence" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-mr.video.opencv">
+<span id="mr-video-opencv-module"></span><h2>mr.video.opencv module<a class="headerlink" href="#module-mr.video.opencv" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="mr.video.opencv.Video">
+<em class="property">class </em><tt class="descclassname">mr.video.opencv.</tt><tt class="descname">Video</tt><big>(</big><em>filename</em>, <em>gray=True</em>, <em>invert=True</em><big>)</big><a class="reference internal" href="_modules/mr/video/opencv.html#Video"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.opencv.Video" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#mr.video.base_frames.BaseFrames" title="mr.video.base_frames.BaseFrames"><tt class="xref py py-class docutils literal"><span class="pre">mr.video.base_frames.BaseFrames</span></tt></a></p>
+<p>Iterable object that returns frames of video as numpy arrays.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>filename</strong> : string</p>
+<p><strong>gray</strong> : Convert color image to grayscale. True by default.</p>
+<p class="last"><strong>invert</strong> : Invert black and white. True by default.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">video</span> <span class="o">=</span> <span class="n">Video</span><span class="p">(</span><span class="s">&#39;filename&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">imshow</span><span class="p">(</span><span class="n">video</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="c"># Show the first frame.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">imshow</span><span class="p">(</span><span class="n">video</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">:</span><span class="mi">10</span><span class="p">][</span><span class="mi">0</span><span class="p">:</span><span class="mi">10</span><span class="p">])</span> <span class="c"># Show one corner of the second frame.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">video</span><span class="p">[:]:</span>
+<span class="gp">... </span>   <span class="c"># Do something with every frame.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">video</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="mi">20</span><span class="p">]:</span>
+<span class="gp">... </span>   <span class="c"># Do something with frames 10-20.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">video</span><span class="p">[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">13</span><span class="p">]]:</span>
+<span class="gp">... </span>   <span class="c"># Do something with frames 5, 7, and 13.</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">frame_count</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">count</span> <span class="c"># Number of frames in video</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frame_shape</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">shape</span> <span class="c"># Pixel dimensions of video</span>
+</pre></div>
+</div>
+<p class="rubric">Attributes</p>
+<p class="rubric">Methods</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mr.video.opencv.open_video">
+<tt class="descclassname">mr.video.opencv.</tt><tt class="descname">open_video</tt><big>(</big><em>filename</em><big>)</big><a class="reference internal" href="_modules/mr/video/opencv.html#open_video"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.opencv.open_video" title="Permalink to this definition">¶</a></dt>
+<dd><p>Thin convenience function for return an opencv2 Capture object.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mr.video.playback">
+<span id="mr-video-playback-module"></span><h2>mr.video.playback module<a class="headerlink" href="#module-mr.video.playback" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="mr.video.playback.play">
+<tt class="descclassname">mr.video.playback.</tt><tt class="descname">play</tt><big>(</big><em>frames</em>, <em>wait=10</em>, <em>label=True</em><big>)</big><a class="reference internal" href="_modules/mr/video/playback.html#play"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mr.video.playback.play" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="mr-video-tiff-stack-module">
+<h2>mr.video.tiff_stack module<a class="headerlink" href="#mr-video-tiff-stack-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-mr.video">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-mr.video" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">mr.video package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-mr.video.annotate">mr.video.annotate module</a></li>
+<li><a class="reference internal" href="#module-mr.video.api">mr.video.api module</a></li>
+<li><a class="reference internal" href="#module-mr.video.base_frames">mr.video.base_frames module</a></li>
+<li><a class="reference internal" href="#module-mr.video.image_sequence">mr.video.image_sequence module</a></li>
+<li><a class="reference internal" href="#module-mr.video.opencv">mr.video.opencv module</a></li>
+<li><a class="reference internal" href="#module-mr.video.playback">mr.video.playback module</a></li>
+<li><a class="reference internal" href="#mr-video-tiff-stack-module">mr.video.tiff_stack module</a></li>
+<li><a class="reference internal" href="#module-mr.video">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="mr.html"
+                        title="previous chapter">mr package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="mr.wire.html"
+                        title="next chapter">mr.wire package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/mr.video.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="mr.wire.html" title="mr.wire package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="mr.html" title="mr package"
+             >previous</a> |</li>
+        <li><a href="index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="mr.html" >mr package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>

@@ -126,9 +126,9 @@ def refine(raw_image, image, radius, coord, iterations=10,
         estimated position
     iterations : integer
         max number of loops to refine the center of mass, default 10
-    characterize : boolean
+    characterize : boolean, True by default
         Compute and return mass, size, eccentricity, signal.
-    walkthrough : boolean
+    walkthrough : boolean, False by default
         Print the offset on each loop and display final neighborhood image.
     """
 
@@ -202,20 +202,27 @@ def refine(raw_image, image, radius, coord, iterations=10,
 def locate(image, diameter, minmass=100., maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
            percentile=64, topn=None, preprocess=True):
-    """Read an image, do optional image preparation and cleanup, and locate
-    Gaussian-like blobs of a given size above a given total brightness.
+    """Locate Gaussian-like blobs of a given approximate size.
+
+    Preprocess the image by performing a band pass and a threshold.
+    Locate all peaks of brightness, characterize the neighborhoods of the peaks
+    and take only those with given total brightnesss ("mass"). Finally,
+    refine the positions of each peak.
 
     Parameters
     ----------
-    image: image array
+    image : image array (any dimensions)
     diameter : feature size in px
     minmass : minimum integrated brightness
-       Default is 100, but a good value is often much higher. This is a
-       crucial parameter for elminating spurrious features.
+        Default is 100, but a good value is often much higher. This is a
+        crucial parameter for elminating spurrious features.
     maxsize : maximum radius-of-gyration of brightness, default None
-    separation : feature separation in px
-    noise_size : scale of Gaussian blurring. Default 1.
-    smoothing_size : defauls to separation
+    separation : feature separation, in pixels
+        Default is the feature diameter + 1.
+    noise_size : width of Gaussian blurring kernel, in pixels
+        Default is 1.
+    smoothing_size : size of boxcar smoothing, in pixels
+        Default is the same is feature separation.
     threshold : Clip bandpass result below this value.
         Default 1; use 8 for 16-bit images.
     invert : Set to True if features are darker than background. False by
@@ -229,9 +236,23 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     Returns
     -------
     DataFrame([x, y, mass, size, ecc, signal])
+        where mass means total integrated brightness of the blob,
+        size means the radius of gyration of its Gaussian-like profile,
+        and ecc is its eccentricity (1 is circular).
 
-    where mass means total integrated brightness of the blob
-    and size means the radius of gyration of its Gaussian-like profile
+    See Also
+    --------
+    batch : performs location on many images in batch
+
+    Notes
+    -----
+    This is an implementation of the Crocker-Grier centroid-finding algorithm.
+    [1]_
+
+    References
+    ----------
+    .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
+
     """
 
     # Validate parameters and set defaults.
@@ -314,22 +335,27 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           percentile=64, topn=None, preprocess=True,
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False, meta=True):
-    """Process a list of images, doing optional image preparation and cleanup,
-    locating Gaussian-like blobs of a given size.
+    """Locate Gaussian-like blobs of a given approximate size.
+
+    Preprocess the image by performing a band pass and a threshold.
+    Locate all peaks of brightness, characterize the neighborhoods of the peaks
+    and take only those with given total brightnesss ("mass"). Finally,
+    refine the positions of each peak.
 
     Parameters
     ----------
-    frames : iterable frames
-        For example, frames = mr.video.frame_generator('video_file.avi')
-                  or frames = [array1, array2, array3]
+    frames : list (or iterable) of images
     diameter : feature size in px
     minmass : minimum integrated brightness
-       Default is 100, but a good value is often much higher. This is a
-       crucial parameter for elminating spurrious features.
+        Default is 100, but a good value is often much higher. This is a
+        crucial parameter for elminating spurrious features.
     maxsize : maximum radius-of-gyration of brightness, default None
-    separation : feature separation in px. Default = 1 + diamter.
-    noise_size : scale of Gaussian blurring. Default = 1.
-    smoothing_size : Default = separation.
+    separation : feature separation, in pixels
+        Default is the feature diameter + 1.
+    noise_size : width of Gaussian blurring kernel, in pixels
+        Default is 1.
+    smoothing_size : size of boxcar smoothing, in pixels
+        Default is the same is feature separation.
     threshold : Clip bandpass result below this value.
         Default 1; use 8 for 16-bit images.
     invert : Set to True if features are darker than background. False by
@@ -339,6 +365,16 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     topn : Return only the N brightest features above minmass. 
         If None (default), return all features above minmass.
     preprocess : Set to False to turn out automatic preprocessing.
+
+    Returns
+    -------
+    DataFrame([x, y, mass, size, ecc, signal])
+        where mass means total integrated brightness of the blob,
+        size means the radius of gyration of its Gaussian-like profile,
+        and ecc is its eccentricity (1 is circular).
+
+    Other Parameters
+    ----------------
     store : Optional HDFStore
     conn : Optional connection to a SQL database
     sql_flavor : If using a SQL connection, specify 'sqlite' or 'MySQL'.
@@ -349,12 +385,19 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     meta : By default, a YAML (plain text) log file is saved in the current
         directory. You can specify a different filepath set False.
 
-    Returns
-    -------
-    DataFrame([x, y, mass, size, ecc, signal])
+    See Also
+    --------
+    locate : performs location on a single image
 
-    where mass means total integrated brightness of the blob
-    and size means the radius of gyration of its Gaussian-like profile
+    Notes
+    -----
+    This is an implementation of the Crocker-Grier centroid-finding algorithm.
+    [1]_
+
+    References
+    ----------
+    .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
+    
     """
     # Gather meta information and save as YAML in current directory.
     timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S')
