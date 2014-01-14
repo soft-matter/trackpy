@@ -146,7 +146,8 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
 ptraj = plot_traj # convenience alias
 
 @make_axes
-def annotate(centroids, image, circle_size=170, invert=False, ax=None):
+def annotate(centroids, image, circle_size=170, color='g',
+             invert=False, ax=None):
     """Mark identified features with white circles.
     
     Parameters
@@ -155,6 +156,8 @@ def annotate(centroids, image, circle_size=170, invert=False, ax=None):
     image : image array (or string path to image file)
     circle_size : size of circle annotations in matplotlib's annoying
         arbitrary units, default 170
+    color : string
+        default 'g'
     invert : If you give a filepath as the image, specify whether to invert
         black and white. Default True.
     ax : matplotlib axes object, defaults to current axes
@@ -173,7 +176,7 @@ def annotate(centroids, image, circle_size=170, invert=False, ax=None):
     ax.set_xlim(0, image.shape[1])
     ax.set_ylim(0, image.shape[0])
     ax.scatter(centroids['x'], centroids['y'], 
-               s=circle_size, facecolors='none', edgecolors='g')
+               s=circle_size, facecolors='none', edgecolors=color)
     return ax
 
 @make_axes
