@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from scipy import interpolate
+from scipy.spatial import cKDTree
 
 logger = logging.getLogger(__name__)
 
@@ -429,3 +430,37 @@ def min_rolling_theta_entropy(pos, window=24, bins=24):
     f = lambda x: shannon_entropy(x, bins)
     return pd.rolling_apply(direction.dropna(), window, f).min()
 
+def proximity(features, pos_columns=['x', 'y']):
+    """Find the distance to each feature's nearest neighbor.
+
+    Parameters
+    ----------
+    features : DataFrame
+    pos_columns : list of column names
+        ['x', 'y'] by default
+
+    Returns
+    -------
+    proximity : DataFrame
+        distance to each probe's nearest neighbor, 
+        indexed by probe if 'probe' column is present in input
+
+    Example
+    -------
+    Find the proximity of each probe to its nearest neighbor in every frame.
+
+    >>> prox = t.groupby('frame').apply(proximity).reset_index()
+    >>> avg_prox = prox.groupby('probe')['proximity'].mean()
+
+    And filter the trajectories...
+
+    >>> probe_nos = avg_prox[avg_prox > 20].index
+    >>> t_filtered = t[t['probe'].isin(probe_nos)]
+    """
+    leaf_size = max(1, int(np.round(np.log10(len(features)))))
+    tree = cKDTree(features[['x', 'y']].copy(), leaf_size)
+    proximity = tree.query(tree.data, 2)[0][:, 1]
+    result = DataFrame({'proximity': proximity})
+    if 'probe' in features:
+        result.set_index(features['probe'], inplace=True)
+    return result

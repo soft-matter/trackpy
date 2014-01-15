@@ -160,6 +160,13 @@ installation is probably successful. If you can read video files using
 as expected.
 
 
+### Updating Your Instllation
+
+The code is under active development. To update to the current development
+version, run this in the command prompt:
+
+    pip install --upgrade http://github.com/soft-matter/mr/zipball/master
+
 Related Projects
 ----------------
 
