@@ -21,10 +21,13 @@ import six
 from six.moves import zip
 
 import numpy as np
+import pandas as pd
+import itertools
 from collections import deque, Iterable
+print_update = print_function  # now TODO use function from mr
 
 
-class Hash_table(object):
+class HashTable(object):
     '''
     :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
     :param box_size: how big each box should be in data units.  The same scale is used for all dimensions
@@ -121,6 +124,9 @@ class Hash_table(object):
         self.hash_table[indx].append(point)
 
 
+Hash_table = HashTable  # legacy
+
+
 class Track(object):
     '''
     :param point: The first feature in the track if not  `None`.
@@ -187,6 +193,25 @@ class Track(object):
     @classmethod
     def reset_counter(cls, c=0):
         cls.count = 0
+
+
+class DummyTrack(object):
+    "Does not store points, thereby conserving memory."
+
+    track_id = itertools.count(0)
+
+    def __init__(self, point):
+       self.id = next(DummyTrack.track_id)
+       self.indx = self.id  # redundant, but like trackpy
+       if point is not None:
+           self.add_point(point)
+
+    def add_point(self, point):
+        point.add_to_track(self)
+
+    @classmethod
+    def reset_counter(cls, c=0):
+        cls.track_id = itertools.count(c)
 
 
 class Point(object):
@@ -285,106 +310,245 @@ class PointND(Point):
         track = " in Track %d" % self.track.indx if self.track else ""
         return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">" 
 
+class IndexedPointND(PointND):
 
-def link_full(levels, dims, search_range, hash_cls, memory=0, track_cls=Track):
-    '''
-    :param levels: Nested iterables of :py:class:`~trackpy.tracking.Point` objects
-    :type levels: Iterable of iterables
-    :param dims: The dimensions of the data
-    :param hash_cls: A class that provides :py:func:`add_particle` and
-                :py:func:`get_region` and has a two argument constructor
-    :param search_range: the maximum distance features can move between frames
-    :param memory: the maximum number of frames that a feature can skip along a track
-    :param track_cls: The class to use for the returned track objects
-    :type track_cls: :py:class:`~trackpy.tracking.Track`
+    def __init__(self, t, pos, id):
+        PointND.__init__(self, t, pos)  # initialize base class
+        self.id = id  # unique ID derived from sequential index
 
-    Generic version of linking algorithm, should work for any
-    dimension.  All information about dimensionality and the metric
-    are encapsulated in the hash_table and
-    :py:class:`~trackpy.tracking.Point` objects.
 
-    .. deprecated:: 0.2
-    '''
-    hash_generator = lambda: hash_cls(dims, search_range)
-    return link(levels, search_range, hash_generator, memory, track_cls)
+def link(levels, search_range, hash_generator, memory=0, track_cls=None):
+    """Link features into trajectories, assigning a label to each trajectory.
 
-def link(levels, search_range, hash_generator, memory=0, track_cls=Track):
-    '''
-    :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
-    :type levels: Iterable of iterables
-    :param search_range: the maximum distance features can move between frames
-    :param hash_generator: a callable that will return a new empty object that supports :py:func:`add_particle` and
-                :py:func:`get_region`
-    :param memory: the maximum number of frames that a feature can skip along a track
-    :param track_cls: The class to use for the returned track objects
-    :type track_cls: :py:class:`~trackpy.tracking.Track`
+    This function is deprecated and lacks some recently-added options,
+    thought it is still accurate. Use link_df or link_iter.
 
-    Generic version of linking algorithm, should work for any
-    dimension.  All information about dimensionality and the metric
-    are encapsulated in the hash_table and
-    :py:class:`~trackpy.tracking.Point` objects.
+    Parameters
+    ----------
+    levels : iterable of iterables containing Points objects
+        e.g., a list containing lists with the Points in each frame
+    search_range : integer
+        the maximum distance features can move between frames
+    hash_generator : a function that returns a HashTable
+    memory : integer
+        the maximum number of frames during which a feature can vanish,
+        then reppear nearby, and be considered the same particle. 0 by default.
 
-    '''
-    levels = iter(levels)
-    gen = link_generator(
-        levels, search_range, hash_generator, memory, track_cls,
-        yield_levels=False)
-    track_lst = []
-    while True:
-        try:
-            track_lst = next(gen)
-        except StopIteration:
-            return track_lst
-        
+    Returns  
+    -------
+    tracks : list of Track (or track_cls) objects
 
-def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Track,
-                   yield_levels=True):
-    '''
-    :param levels: Nested iterables of :py:class:`~trapy.tracking.Point` objects
-    :type levels: Iterable of iterables
-    :param search_range: the maximum distance features can move between frames
-    :param hash_generator: a callable that will return a new empty object that supports :py:func:`add_particle` and
-                :py:func:`get_region`
-    :param memory: the maximum number of frames that a feature can skip along a track
-    :param track_cls: The class to use for the returned track objects
-    :type track_cls: :py:class:`~trackpy.tracking.Track`
+    See Also
+    --------
+    link_df, link_iter
+    """
+    # An informative error to help newbies who go astray
+    if isinstance(levels, pd.DataFrame):
+        raise TypeError("You may want to use link_df, which accepts "
+                        "to accept DataFrames, instead of link.")
 
-    Generic version of linking algorithm, should work for any
-    dimension.  All information about dimensionality and the metric
-    are encapsulated in the hash_table and
-    :py:class:`~trackpy.tracking.Point` objects.
+    if track_cls is None:
+        track_cls = Track  # stores Points
+    label_generator = link_iter(iter(levels), search_range, memory=memory,
+                                track_cls=track_cls, 
+                                hash_generator=hash_generator)
+    print(label_generator)
+    labels = list(label_generator)
+    print(labels)
+    points = sum(map(list, levels), [])  # flatten levels: a list of poits
+    points = pd.Series(points)
+    labels = sum(map(list, labels), [])  # flatten labels
+    labels = map(lambda x: x.track.indx, labels)  # a list of Track indexes
+    grouped = points.groupby(labels)
+    representative_points = grouped.first()  # one point from each Track
+    tracks = representative_points.apply(lambda x: x.track)
+    return tracks
 
-    '''
-    # Number tracks starting from zero.
+def link_df(features, search_range, memory=0,
+            neighbor_strategy='BTree', link_strategy='recursive',
+            hash_size=None, box_size=None,
+            pos_columns=None, t_column=None, verify_integrity=True,
+            retain_index=False):
+    """Link features into trajectories, assigning a label to each trajectory.
+
+    Parameters
+    ----------
+    features : DataFrame
+        Must include any number of column(s) for position and a column of
+        frame numbers. By default, 'x' and 'y' are expected for position,
+        and 'frame' is expected for frame number. See below for options to use
+        custom column names.
+    search_range : integer
+        the maximum distance features can move between frames
+    memory : integer
+        the maximum number of frames during which a feature can vanish,
+        then reppear nearby, and be considered the same particle. 0 by default.
+    neighbor_strategy : 'BTree' or 'KDTree'
+    link_strategy : 'recursive' or 'nonrecursive'
+
+    Returns  
+    -------
+    trajectories : DataFrame
+        This is the input features DataFrame, now with a new column labeling
+        each particle with an ID number. This is not a copy.
+
+    Other Parameters
+    ----------------
+    pos_columns : DataFrame column names (unlimited dimensions)
+        Default is ['x', 'y']
+    t_column : DataFrame column name
+        Default is 'frame'
+    hash_size : sequence
+        For 'BTree' mode only. Define the shape of the search region.
+        If None (default), infer shape from range of data.
+    box_size : sequence
+        For 'BTree' mode only. Define the parition size to optimize 
+        performance. If None (default), the search_range is used, which is
+        a reasonable guess for best performance.
+    verify_integrity : boolean
+        False by default, for fastest performance.
+        Use True if you suspect a bug in linking.
+    retain_index : boolean
+        By default, the index is reset to be sequential. To keep the original
+        index, set to True. Default is fine unless you devise a special use.
+    """
+    # Assign defaults. (Do it here to avoid "mutable defaults" issue.)
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
+    if t_column is None:
+        t_column = 'frame'
+    if hash_size is None:
+        MARGIN = 1 # avoid OutOfHashException
+        hash_size = features[pos_columns].max() + MARGIN
+
+    # Group the DataFrame by time steps and make a 'level' out of each
+    # one, using the index to keep track of Points.
+    if retain_index:
+        orig_index = features.index.copy()  # Save it; restore it at the end.
+    features.reset_index(inplace=True, drop=True)
+    levels = _build_level_gen(features.groupby(t_column), pos_columns)
+    labeled_levels = link_iter(
+        levels, search_range, memory=memory,
+        neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
+        hash_size=hash_size, box_size=box_size)
+
+    # Do the tracking, and update the DataFrame after each iteration.
+    features['probe'] = np.nan  # placeholder
+    for level in labeled_levels:
+        index = map(lambda x: x.id, level)
+        labels = pd.Series(map(lambda x: x.track.id, level), index)
+        frame_no = next(iter(level)).t  # uses an arbitary element from the set
+        if verify_integrity:
+            _verify_integrity(frame_no, labels) # may issue warnings
+        features['probe'].update(labels)
+
+        msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
+        # print_update(msg)  # TODO Spot bug and restore.
+
+    if retain_index:
+        features.index = orig_index
+        # And don't bother to sort -- user must be doing something special.
+    else:
+        features.sort(['probe', t_column], inplace=True)
+        features.reset_index(drop=True, inplace=True)
+    return features
+
+
+def _build_level_gen(grouped, pos_columns):
+    "Return IndexPointND objects for each group in a DataFrameGroupBy."
+    for frame_no, frame in grouped:
+        build_pt = lambda x: IndexedPointND(frame_no, x[1].values, x[0])
+        level = map(build_pt, frame[pos_columns].iterrows())
+        # iterrows() returns: (index which we use as feature id, data)
+        yield level
+
+
+class UnknownLinkingError(Exception):
+    pass
+
+
+def _verify_integrity(frame_no, labels):
+    if labels.duplicated().sum() > 0:
+        raise UnknownLinkingError(
+            "There are two probes with the same label in Frame %d.")
+    if np.any(labels < 0):
+        raise UnknownLinkingError("Some probes were not labeled in Frame %d.")
+
+
+def link_iter(levels, search_range, memory=0,
+              neighbor_strategy='BTree', link_strategy='recursive',
+              hash_size=None, box_size=None,
+              track_cls=None, hash_generator=None):
+    """Link features into trajectories, assigning a label to each trajectory.
+
+    Parameters
+    ----------
+    levels : iterable of iterables containing Points objects
+        e.g., a list containing lists with the Points in each frame
+    search_range : integer
+        the maximum distance features can move between frames
+    memory : integer
+        the maximum number of frames during which a feature can vanish,
+        then reppear nearby, and be considered the same particle. 0 by default.
+    neighbor_strategy : 'BTree' or 'KDTree'
+        default 'BTree'
+    link_strategy : 'recursive' or 'nonrecursive'
+        default 'recursive'
+
+    Yields
+    ------
+    labels : list of integers
+       labeling the features in the given level
+
+    Other Parameters
+    ----------------
+    hash_size : sequence
+        For 'BTree' mode only. Define the shape of the search region.
+        (Higher-level wrappers of link infer this from the data.)
+    box_size : sequence
+        For 'BTree' mode only. Define the parition size to optimize 
+        performance. If None (default), the search_range is used, which is
+        a reasonable guess for best performance.
+    track_cls : class (optional)
+        for special uses, you can specify a custom class that holds
+        each Track
+    hash_generator : function (optional)
+        a function that returns a HashTable, included for legacy support.
+        Specifying hash_size and box_size (above) fully defined a HashTable.
+    """
+    if hash_generator is None:
+        if neighbor_strategy == 'BTree':
+            if hash_size is None:
+                raise ValueError("In 'BTree' mode, you must specify hash_size")
+            if box_size is None:
+                box_size = search_range
+        hash_generator = lambda: Hash_table(hash_size, box_size)
+    if track_cls is None:
+        track_cls = DummyTrack  # does not store Points
+
     try:
-        track_cls.reset_counter()
+        track_cls.reset_counter()  # Start ID numbers from zero.
     except AttributeError:
+        # must be using a custom Track class without this method
         pass
-    #    print "starting linking"
-    # initial source set
-    prev_set = set(next(levels))
+
+    prev_set = set(next(levels))  # initial frame
     prev_hash = hash_generator()
-    # set up the particles in the previous level for
-    # linking
     for p in prev_set:
         prev_hash.add_point(p)
         p.forward_cands = []
 
-    # assume everything in first level starts a track
-    # initialize the master track list with the points in the first level
-    track_lst = [track_cls(p) for p in prev_set]
+    # Assume everything in first level starts a Track.
+    track_lst = map(track_cls, prev_set)
     mem_set = set()
-    # fill in first 'prev' hash
 
-    # fill in memory list of sets
+    # Initialize memory with empty sets.
     mem_history = []
     for j in range(memory):
         mem_history.append(set())
 
-    if yield_levels:
-        yield prev_set
-    else:
-        yield track_lst
+    print(list(prev_set))
+    yield list(prev_set)  # Short-circuit the loop on first call.
 
     for cur_level in levels:
         # make a new hash object
@@ -397,7 +561,7 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
         tmp_set = set(cur_level)
 
         # fill in first 'cur' hash and set up attributes for keeping
-        # track of possible connections
+        # track of possible connectionsge the repo
         for p in cur_set:
             cur_hash.add_point(p)
             p.back_cands = []
@@ -421,7 +585,7 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
             p.forward_cands.sort(key=lambda x: x[1])
 
         new_mem_set = set()
-        # while there are particles left to link, link
+        # while there are particles left to link, linkge the repo
         while len(cur_set) > 0:
             p = cur_set.pop()
             bc_c = len(p.back_cands)
@@ -436,7 +600,7 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
             if bc_c == 1:
                 # one backwards candidate
                 b_c_p = p.back_cands[0]
-                # and only one forward candidate
+                # and only one forward candidatege the repo
                 b_c_p_0 = b_c_p[0]
                 if len(b_c_p_0.forward_cands) == 1:
                     # add to the track of the candidate
@@ -525,10 +689,8 @@ def link_generator(levels, search_range, hash_generator, memory=0, track_cls=Tra
         # add in the memory points
         # store the current level for use in next loop
 
-        if yield_levels:
-            yield cur_level
-        else:
-            yield track_lst
+        print(cur_level)
+        yield cur_level
 
 
 class SubnetOversizeException(Exception):
