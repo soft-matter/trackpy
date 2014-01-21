@@ -1,6 +1,6 @@
 from __future__ import division
 import os
-import mr
+import trackpy as tp
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
@@ -267,7 +267,7 @@ class CommonTrackingTests(object):
     def test_real_data_that_causes_duplicate_bug(self):
         filename = 'reproduce_duplicate_track_assignment.df'
         f = pd.read_pickle(os.path.join(path, filename))
-        mr.link(f, 8, 2) # not all parameters reproduce it, but these do
+        self.link(f, 8, 2) # not all parameters reproduce it, but these do
         # If there are duplicates, _verify_integrity will raise and this will error.
 
     # THIS DOES NOT WORK BECAUSE ORDER IS ARBIRARY!
@@ -285,11 +285,11 @@ class CommonTrackingTests(object):
 
 #class TestKDTreeTracking(CommonTrackingTests, unittest.TestCase):
 #    def setUp(self):
-#        self.link = mr.linking_experimental.link
+#        self.link = tp.linking_experimental.link
 
 class TestTrackpyTracking(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-        self.link = mr.link
+        self.link = tp.link_df
 
 # Removed after trackpy refactor -- restore with new API.
 # class TestLinkOnDisk(unittest.TestCase):
@@ -307,20 +307,20 @@ class TestTrackpyTracking(CommonTrackingTests, unittest.TestCase):
 #    def test_nontabular_raises(self):
 #        # Attempting to Link a non-tabular node should raise.
 #        _skip_if_no_pytables()
-#        f = lambda: mr.LinkOnDisk('temp1.h5', self.key)
+#        f = lambda: tp.LinkOnDisk('temp1.h5', self.key)
 #        self.assertRaises(ValueError, f)
 #
 #    def test_nontabular_with_use_tabular_copy(self):
 #        # simple smoke test
 #        _skip_if_no_pytables()
-#        linker = mr.LinkOnDisk('temp1.h5', self.key, use_tabular_copy=True)
+#        linker = tp.LinkOnDisk('temp1.h5', self.key, use_tabular_copy=True)
 #        linker.link(8, 2)
 #        linker.save('temp3.h5', 'traj')
 #
 #    def test_tabular(self):
 #        # simple smoke test
 #        _skip_if_no_pytables()
-#        linker = mr.LinkOnDisk('temp2.h5', self.key)
+#        linker = tp.LinkOnDisk('temp2.h5', self.key)
 #        linker.link(8, 2)
 #        linker.save('temp4.h5', 'traj')
 #

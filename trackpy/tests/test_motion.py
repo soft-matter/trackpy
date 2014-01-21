@@ -1,5 +1,5 @@
 from __future__ import division
-import mr
+import trackpy as tp 
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
@@ -10,7 +10,7 @@ from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
-from mr.utils import suppress_plotting
+from trackpy.utils import suppress_plotting
 
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
@@ -53,11 +53,11 @@ class TestDrift(unittest.TestCase):
         expected.columns = ['x', 'y']
         # ^ no drift measured for Frame 0
 
-        actual = mr.compute_drift(self.dead_still)
+        actual = tp.compute_drift(self.dead_still)
         assert_frame_equal(actual, expected)
 
         # Small random drift
-        actual = mr.compute_drift(self.many_walks)
+        actual = tp.compute_drift(self.many_walks)
         assert_frame_equal(actual, expected)
 
     def test_constant_drift(self):
@@ -67,7 +67,7 @@ class TestDrift(unittest.TestCase):
         expected.index.name = 'frame'
         expected.columns = ['x', 'y']
 
-        actual = mr.compute_drift(self.steppers)
+        actual = tp.compute_drift(self.steppers)
         assert_frame_equal(actual, expected)
 
     def test_subtract_zero_drift(self):
@@ -76,11 +76,11 @@ class TestDrift(unittest.TestCase):
                           index=np.arange(1, N)).astype('float64')
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
-        actual = mr.subtract_drift(self.dead_still, drift)
+        actual = tp.subtract_drift(self.dead_still, drift)
         assert_frame_equal(actual, self.dead_still)
-        actual = mr.subtract_drift(self.many_walks, drift)
+        actual = tp.subtract_drift(self.many_walks, drift)
         assert_frame_equal(actual, self.many_walks)
-        actual = mr.subtract_drift(self.steppers, drift)
+        actual = tp.subtract_drift(self.steppers, drift)
         assert_frame_equal(actual, self.steppers)
 
     def test_subtract_constant_drift(self):
@@ -91,13 +91,13 @@ class TestDrift(unittest.TestCase):
                           index=np.arange(1, N))
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
-        actual = mr.subtract_drift(
+        actual = tp.subtract_drift(
             self.dead_still.add(drift, fill_value=0), drift)
         assert_frame_equal(actual, self.dead_still)
-        actual = mr.subtract_drift(
+        actual = tp.subtract_drift(
             self.many_walks.add(drift, fill_value=0), drift)
         assert_frame_equal(actual, self.many_walks)
-        actual = mr.subtract_drift(
+        actual = tp.subtract_drift(
             self.steppers.add(drift, fill_value=0), drift)
         assert_frame_equal(actual, self.steppers)
 
@@ -128,14 +128,14 @@ class TestMSD(unittest.TestCase):
 
     def test_zero_emsd(self):
         N = 10
-        actual = mr.emsd(self.dead_still, 1, 1)
+        actual = tp.emsd(self.dead_still, 1, 1)
         expected = Series(np.zeros(N)).iloc[1:].astype('float64')
         assert_series_equal(actual, expected)
 
     def test_linear_emsd(self):
         A = 1
         EARLY = 7 # only early lag times have good stats
-        actual = mr.emsd(self.many_walks, 1, 1, max_lagtime=EARLY)
+        actual = tp.emsd(self.many_walks, 1, 1, max_lagtime=EARLY)
         a = np.arange(EARLY, dtype='float64')
         expected = Series(2*A*a, index=a).iloc[1:]
         expected.name = 'msd'
@@ -159,5 +159,5 @@ class TestSpecial(unittest.TestCase):
 
     def test_theta_entropy(self):
         # just a smoke test
-        theta_entropy = lambda x: mr.motion.theta_entropy(x, plot=False)
+        theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
         self.steppers.groupby('probe').apply(theta_entropy)

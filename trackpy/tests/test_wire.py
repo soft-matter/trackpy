@@ -3,7 +3,7 @@ import unittest
 import os
 import numpy as np
 from scipy import ndimage
-import mr.wire
+import trackpy.wire
 from numpy.testing import assert_almost_equal
 
 def curpath():
@@ -22,10 +22,10 @@ class TestWire(unittest.TestCase):
        self.horizontal = np.load(os.path.join(curpath(), 'wire', 'horizontal_frame.npy'))
        
    def test_oblique_wire(self):
-       assert_almost_equal(mr.wire.tracking.analyze(self.oblique), 53.392, decimal=0)
+       assert_almost_equal(trackpy.wire.tracking.analyze(self.oblique), 53.392, decimal=0)
 
    def test_vertical_wire(self):
-       assert_almost_equal(mr.wire.tracking.analyze(self.vertical), 91.484, decimal=0)
+       assert_almost_equal(trackpy.wire.tracking.analyze(self.vertical), 91.484, decimal=0)
 
    def test_horizontal_wire(self):
-       assert_almost_equal(mr.wire.tracking.analyze(self.horizontal), -177.515, decimal=0)
+       assert_almost_equal(trackpy.wire.tracking.analyze(self.horizontal), -177.515, decimal=0)

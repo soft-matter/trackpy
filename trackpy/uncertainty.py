@@ -1,7 +1,7 @@
 from __future__ import division
 import numpy as np
 from scipy.ndimage import morphology
-from mr.preprocessing import bandpass
+from trackpy.preprocessing import bandpass
 
 def roi(image, diameter, threshold=1):
     """Return a mask selecting the neighborhoods of bright regions.

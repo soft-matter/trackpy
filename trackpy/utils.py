@@ -19,6 +19,8 @@
 import collections
 import functools
 import re
+import sys
+import time
 import warnings
 from datetime import datetime, timedelta
 import pandas as pd
@@ -169,3 +171,15 @@ def record_meta(meta_data, filename):
     with open(filename, 'w') as output:
         output.write(yaml.dump(meta_data, default_flow_style=False))
 
+try:
+    from IPython.core.display import clear_output
+except ImportError:
+    pass
+
+def print_update(message):
+    try:
+        clear_output()
+    except Exception:
+        pass
+    print message
+    sys.stdout.flush()

@@ -17,20 +17,20 @@
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
 from __future__ import division
-from scipy import ndimage
-from scipy import stats
 import logging
 import warnings
 import numpy as np
 import pandas as pd
+from scipy import ndimage
+from scipy import stats
 from pandas import DataFrame, Series
-from mr import uncertainty
-from mr.preprocessing import bandpass, scale_to_gamut
-from C_fallback_python import nullify_secondary_maxima
-from mr.utils import memo, record_meta
-import mr  # to get mr.__version__
-from .print_update import print_update
 import matplotlib.pyplot as plt
+
+from trackpy import uncertainty
+from trackpy.preprocessing import bandpass, scale_to_gamut
+from .C_fallback_python import nullify_secondary_maxima
+from .utils import memo, record_meta, print_update
+import trackpy  # to get trackpy.__version__
 
 
 def local_maxima(image, radius, separation, percentile=64):
@@ -406,7 +406,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     except:
         source = None
     meta_info = dict(timestamp=timestamp,
-                     mr_version=mr.__version__,
+                     trackpy_version=trackpy.__version__,
                      source=source, diameter=diameter, minmass=minmass, 
                      maxsize=maxsize, separation=separation, 
                      noise_size=noise_size, smoothing_size=smoothing_size, 

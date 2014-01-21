@@ -20,7 +20,7 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
                          "the image square.")
     x, y = np.meshgrid(*np.array(map(np.arange, image.shape)) - pos)
     if max_value is None:
-        max_value = np.iinfo(image.dtype).max - 1
+        max_value = np.iinfo(image.dtype).max - 3
     spot = max_value*np.exp(-((x/(1 - ecc))**2 + (y*(1 - ecc))**2)/(2*r**2)).T
     image += spot
 
@@ -31,6 +31,7 @@ def gen_random_locations(shape, count):
 
 
 def draw_spots(shape, locations, r, noise_level):
+    np.random.seed(0)
     image = np.random.randint(0, 1 + noise_level, shape).astype('uint8')
     for x in locations:
         draw_gaussian_spot(image, x, r)
@@ -49,10 +50,7 @@ def compare(shape, count, radius, noise_level):
 class TestFeatureIdentification(unittest.TestCase):
 
     def setUp(self):
-        self.features = pd.read_pickle(
-            os.path.join(path, 'data', 'features_size9_masscut2000.df'))
-        self.v = tp.ImageSequence(
-            os.path.join(path, 'video', 'image_sequence'))
+        pass
 
     def test_one_centered_gaussian(self):
         L = 21

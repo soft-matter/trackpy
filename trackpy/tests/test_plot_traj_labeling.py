@@ -2,8 +2,8 @@ import unittest
 from numpy.testing.decorators import slow
 import os
 import pandas as pd
-from mr import ptraj
-from mr.utils import suppress_plotting
+from trackpy import ptraj
+from trackpy.utils import suppress_plotting
 
 path, _ = os.path.split(os.path.abspath(__file__))
 

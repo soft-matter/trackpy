@@ -168,7 +168,7 @@ def annotate(centroids, image, circle_size=170, color='g',
     """ 
     # The parameter image can be an image object or a filename.
     if isinstance(image, basestring):
-        image = plt.imread(image)
+        image = plt.itpead(image)
     if invert:
         ax.imshow(1-image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
     else:

@@ -33,5 +33,6 @@ pip-log.txt
 *~
 *.swp
 
-mr.egg-info/*
-mr/version.py
+trackpy/version.py
+examples/.ipynb_checkpoints
+examples/feature_log*

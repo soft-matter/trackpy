@@ -226,7 +226,7 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
 
     Example
     -------
-    m = mr.imsd(traj, MPP, FPS)
+    m = tp.imsd(traj, MPP, FPS)
     # Index by probe ID, slice using boolean output from is_typical(), and then
     # restore the original index, frame number.
     typical_traj = traj.set_index('probe').ix[is_typical(m)].reset_index()\
@@ -298,9 +298,9 @@ def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
     -------
     >>> diagonal_size(single_trajectory)
 
-    >>> many_trajectories.groupby('probe').agg(mr.diagonal_size)
+    >>> many_trajectories.groupby('probe').agg(tp.diagonal_size)
 
-    >>> many_trajectories.groupby('probe').filter(lambda x: mr.diagonal_size(x) > 5)
+    >>> many_trajectories.groupby('probe').filter(lambda x: tp.diagonal_size(x) > 5)
     """
     
     pos = single_trajectory.set_index(t_column)[pos_columns]
@@ -386,7 +386,7 @@ def theta_entropy(pos, bins=24, plot=True):
     --------
     >>> theta_entropy(t[t['probe'] == 3].set_index('frame'))
 
-    >>> S = t.set_index('frame').groupby('probe').apply(mr.theta_entropy)
+    >>> S = t.set_index('frame').groupby('probe').apply(tp.theta_entropy)
     """
 
     disp = pos - pos.shift(1)
@@ -421,7 +421,7 @@ def min_rolling_theta_entropy(pos, window=24, bins=24):
     >>> theta_entropy(t[t['probe'] == 3].set_index('frame'))
 
     >>> S = t.set_index('frame').groupby('probe').apply(
-    ...     mr.min_rolling_theta_entropy)
+    ...     tp.min_rolling_theta_entropy)
     """
 
     disp = pos - pos.shift(1)

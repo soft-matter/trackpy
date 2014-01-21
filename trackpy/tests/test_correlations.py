@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-import mr
+import trackpy as tp
 
 class TestCorrelations(unittest.TestCase):
 
@@ -22,7 +22,7 @@ class TestCorrelations(unittest.TestCase):
         self.random_walk = pd.concat([a, b])
 
     def test_no_correlations(self):
-        v = mr.velocity_corr(self.random_walk, 0, 1)
+        v = tp.velocity_corr(self.random_walk, 0, 1)
         binned = v.groupby(np.digitize(v.r, np.linspace(0, 1, 10))).mean()
         actual = binned['dot_product']
         expected = np.zeros_like(actual)

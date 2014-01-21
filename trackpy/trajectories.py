@@ -1,5 +1,5 @@
 import collections
-import mr
+import trackpy as tp
 import pandas as pd
 import numpy as np
 
@@ -29,10 +29,10 @@ class Trajectories(object):
 
     def compute_drift(self, smoothing=0, query=None):
         if query is None:
-            compute_drift = lambda chunk: mr.compute_drift(chunk, smoothing)
+            compute_drift = lambda chunk: tp.compute_drift(chunk, smoothing)
         else:
             compute_drift = lambda chunk: (
-                mr.compute_drift(chunk.query(query), smoothing))
+                tp.compute_drift(chunk.query(query), smoothing))
 
         chunks = self.get_data()
         drift = []
