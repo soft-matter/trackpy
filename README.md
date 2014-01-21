@@ -91,9 +91,9 @@ Python.)
 
 Essential Dependencies:
 
-  * ``numpy``
-  * ``scipy``
-  * ``matplotlib``
+  * [``numpy``](http://www.scipy.org/)
+  * [``scipy``](http://www.scipy.org/)
+  * [``matplotlib``](http://matplotlib.org/)
   * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html)
 
 
