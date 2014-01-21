@@ -50,8 +50,8 @@ Features
   the code will automatically fall back on slower pure Python implementations
   as needed.
 
-Installation & Dependencies
----------------------------
+Installation
+------------
 
 ### For Python Novices
 
@@ -116,7 +116,6 @@ Optional Dependencies:
 
   * [``cv2``](http://opencv.org/downloads.html) for reading video files
       and viewing video with annotations
-  * ``libtiff`` for reading multi-frame tiff images
   * ``PyTables`` for saving results in an HDF5 file
   * ``sqlite`` or ``MySQLdb`` for saving results in a SQL database
   * [``pyFFTW``](https://github.com/hgomersall/pyFFTW) to speed up the band 
