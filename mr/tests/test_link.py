@@ -64,17 +64,20 @@ class CommonTrackingTests(object):
     def test_two_isolated_steppers_one_gapped(self):
         N = 5
         Y = 25
-        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
-        # established and not arbitrary.
-        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        # Begin second feature one frame later than the first, 
+        # so the probe labeling (0, 1) is established and not arbitrary.
+        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
+                      'frame': np.arange(N)})
         a = a.drop(3).reset_index(drop=True)
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 
+                      'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.link(f, 5)
         expected = f.copy()
+        actual = self.link(f, 5)
         expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
+        print expected
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
@@ -96,10 +99,10 @@ class CommonTrackingTests(object):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
+        actual = self.link(f, 5)
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
@@ -122,11 +125,11 @@ class CommonTrackingTests(object):
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
         f = pd.concat([a, b])
-        actual = self.link(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         expected.sort(['probe', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
+        actual = self.link(f, 5)
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
@@ -288,42 +291,43 @@ class TestTrackpyTracking(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
         self.link = mr.link
 
-class TestLinkOnDisk(unittest.TestCase):
-
-    def setUp(self):
-        _skip_if_no_pytables()
-        filename = os.path.join(path, 'features_size9_masscut2000.df')
-        f = pd.read_pickle(filename)
-        self.key = 'features'
-        with pd.get_store('temp1.h5') as store:
-            store.put(self.key, f)
-        with pd.get_store('temp2.h5') as store:
-            store.append(self.key, f, data_columns=['frame'])
-
-    def test_nontabular_raises(self):
-        # Attempting to Link a non-tabular node should raise.
-        _skip_if_no_pytables()
-        f = lambda: mr.LinkOnDisk('temp1.h5', self.key)
-        self.assertRaises(ValueError, f)
-
-    def test_nontabular_with_use_tabular_copy(self):
-        # simple smoke test
-        _skip_if_no_pytables()
-        linker = mr.LinkOnDisk('temp1.h5', self.key, use_tabular_copy=True)
-        linker.link(8, 2)
-        linker.save('temp3.h5', 'traj')
-
-    def test_tabular(self):
-        # simple smoke test
-        _skip_if_no_pytables()
-        linker = mr.LinkOnDisk('temp2.h5', self.key)
-        linker.link(8, 2)
-        linker.save('temp4.h5', 'traj')
-
-    def tearDown(self):
-        temp_files = ['temp1.h5', 'temp2.h5', 'temp3.h5', 'temp4.h5']
-        for filename in temp_files:
-            try:
-                os.remove(filename)
-            except OSError:
-                pass
+# Removed after trackpy refactor -- restore with new API.
+# class TestLinkOnDisk(unittest.TestCase):
+# 
+#    def setUp(self):
+#        _skip_if_no_pytables()
+#        filename = os.path.join(path, 'features_size9_masscut2000.df')
+#        f = pd.read_pickle(filename)
+#        self.key = 'features'
+#        with pd.get_store('temp1.h5') as store:
+#            store.put(self.key, f)
+#        with pd.get_store('temp2.h5') as store:
+#            store.append(self.key, f, data_columns=['frame'])
+#
+#    def test_nontabular_raises(self):
+#        # Attempting to Link a non-tabular node should raise.
+#        _skip_if_no_pytables()
+#        f = lambda: mr.LinkOnDisk('temp1.h5', self.key)
+#        self.assertRaises(ValueError, f)
+#
+#    def test_nontabular_with_use_tabular_copy(self):
+#        # simple smoke test
+#        _skip_if_no_pytables()
+#        linker = mr.LinkOnDisk('temp1.h5', self.key, use_tabular_copy=True)
+#        linker.link(8, 2)
+#        linker.save('temp3.h5', 'traj')
+#
+#    def test_tabular(self):
+#        # simple smoke test
+#        _skip_if_no_pytables()
+#        linker = mr.LinkOnDisk('temp2.h5', self.key)
+#        linker.link(8, 2)
+#        linker.save('temp4.h5', 'traj')
+#
+#    def tearDown(self):
+#        temp_files = ['temp1.h5', 'temp2.h5', 'temp3.h5', 'temp4.h5']
+#        for filename in temp_files:
+#            try:
+#                os.remove(filename)
+#            except OSError:
+#                pass
