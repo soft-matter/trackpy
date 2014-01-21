@@ -58,7 +58,7 @@ def find_local_max(img, d_rad, threshold=1e-15):
     # TODO clean this up
     local_max = np.where(np.exp(img - dilated_img) > (1 - 1e-15))
     # the extra [::-1] is because matplotlib and ndimage disagree an xy vs yx
-    return np.vstack(local_max[::-1])
+    return np.vstack(local_max)[::-1]
 
 
 def subpixel_centroid(img, local_maxes, mask_rad):
