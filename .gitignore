@@ -25,3 +25,13 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+*.pro
+*.log
+*.pyc
+*.so
+*~
+*.swp
+
+mr.egg-info/*
+mr/version.py

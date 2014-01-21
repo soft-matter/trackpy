@@ -1,0 +1,357 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr.linking &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mr.linking</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="kn">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">customized_trackpy.tracking</span> <span class="kn">as</span> <span class="nn">trackpy</span>
+<span class="kn">from</span> <span class="nn">print_update</span> <span class="kn">import</span> <span class="n">print_update</span>
+
+<div class="viewcode-block" id="PointNDWithID"><a class="viewcode-back" href="../../mr.html#mr.linking.PointNDWithID">[docs]</a><span class="k">class</span> <span class="nc">PointNDWithID</span><span class="p">(</span><span class="n">trackpy</span><span class="o">.</span><span class="n">PointND</span><span class="p">):</span>
+    <span class="s">&quot;Extends pt.PointND to carry meta information from feature identification.&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="n">trackpy</span><span class="o">.</span><span class="n">PointND</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>  <span class="c"># initialize base class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">id</span>  <span class="c"># unique ID derived from sequential index</span>
+</div>
+<div class="viewcode-block" id="DummyTrack"><a class="viewcode-back" href="../../mr.html#mr.linking.DummyTrack">[docs]</a><span class="k">class</span> <span class="nc">DummyTrack</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="s">&quot;Does not store points, thereby conserving memory. Use with link_iterator.&quot;</span>
+
+    <span class="n">track_id</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">DummyTrack</span><span class="o">.</span><span class="n">track_id</span><span class="p">)</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">indx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>  <span class="c"># redundant, but like trackpy</span>
+       <span class="k">if</span> <span class="n">point</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+           <span class="bp">self</span><span class="o">.</span><span class="n">add_point</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DummyTrack.add_point"><a class="viewcode-back" href="../../mr.html#mr.linking.DummyTrack.add_point">[docs]</a>    <span class="k">def</span> <span class="nf">add_point</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+        <span class="n">point</span><span class="o">.</span><span class="n">add_to_track</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="DummyTrack.reset_counter"><a class="viewcode-back" href="../../mr.html#mr.linking.DummyTrack.reset_counter">[docs]</a>    <span class="k">def</span> <span class="nf">reset_counter</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">track_id</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="link"><a class="viewcode-back" href="../../mr.html#mr.linking.link">[docs]</a><span class="k">def</span> <span class="nf">link</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">search_range</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">hash_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">box_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+         <span class="n">pos_columns</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">],</span> <span class="n">t_column</span><span class="o">=</span><span class="s">&#39;frame&#39;</span><span class="p">,</span> <span class="n">verify_integrity</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Link features into trajectories, assinging a label to each trajectory.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function wraps trackpy, Thomas Caswell&#39;s implementation</span>
+<span class="sd">    of the Crocker-Grier algorithm.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    frames : a DataFrame of positions to be linked through time</span>
+<span class="sd">    search_range : maximum displacement between frames</span>
+<span class="sd">    memory : largest gap before a trajectory is considered ended</span>
+<span class="sd">    hash_size: region filled by data, detected automatically if not specified</span>
+<span class="sd">    box_size : parameter to optimize algorithm, set to same as search_range</span>
+<span class="sd">        if not specified, which gives reasonably optimal performance </span>
+<span class="sd">    pos_columns : DataFrame column names (unlimited dimensions)</span>
+<span class="sd">        Default is [&#39;x&#39;, &#39;y&#39;]</span>
+<span class="sd">    t_column : DataFrame column name. Default is &#39;frame&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    features DataFrame, now with additional column of trajectory labels</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">box_size</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">box_size</span> <span class="o">=</span> <span class="n">search_range</span>
+    <span class="k">if</span> <span class="n">hash_size</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">MARGIN</span> <span class="o">=</span> <span class="mi">1</span> <span class="c"># avoid OutOfHashException</span>
+        <span class="n">hash_size</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="n">pos_columns</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="n">MARGIN</span>
+    <span class="n">features</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">numbered_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">frame</span> <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">features</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">t_column</span><span class="p">))</span>
+    <span class="n">label_generator</span> <span class="o">=</span> \
+        <span class="n">link_iterator</span><span class="p">(</span><span class="n">numbered_frames</span><span class="p">,</span> <span class="n">search_range</span><span class="p">,</span> <span class="n">hash_size</span><span class="p">,</span> <span class="n">memory</span><span class="p">,</span>
+                      <span class="n">box_size</span><span class="p">,</span> <span class="n">pos_columns</span><span class="p">,</span> <span class="n">t_column</span><span class="p">,</span> <span class="n">verify_integrity</span><span class="p">)</span>
+    <span class="n">features</span><span class="p">[</span><span class="s">&#39;probe&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="c"># placeholder</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">frame_no</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">label_generator</span><span class="p">)</span>
+            <span class="n">features</span><span class="p">[</span><span class="s">&#39;probe&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">features</span><span class="o">.</span><span class="n">sort</span><span class="p">([</span><span class="s">&#39;probe&#39;</span><span class="p">,</span> <span class="n">t_column</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="link_iterator"><a class="viewcode-back" href="../../mr.html#mr.linking.link_iterator">[docs]</a><span class="k">def</span> <span class="nf">link_iterator</span><span class="p">(</span><span class="n">numbered_frames</span><span class="p">,</span> <span class="n">search_range</span><span class="p">,</span> <span class="n">hash_size</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                  <span class="n">box_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">pos_columns</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">],</span> <span class="n">t_column</span><span class="o">=</span><span class="s">&#39;frame&#39;</span><span class="p">,</span>
+                  <span class="n">verify_integrity</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Link features into trajectories, assinging a label to each trajectory.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function wraps trackpy, Thomas Caswell&#39;s implementation</span>
+<span class="sd">    of the Crocker-Grier algorithm.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    frames : iterable that returns </span>
+<span class="sd">        a number (frame no.) and an array of positions</span>
+<span class="sd">    search_range : maximum displacement between frames</span>
+<span class="sd">    memory : Number of frames through which a probe is allowed to &quot;disappear&quot;</span>
+<span class="sd">        and reappear and be considered the same probe. Default 0.</span>
+<span class="sd">    hash_size : Dimensions of the search space, inferred from data by default.</span>
+<span class="sd">    box_size : A parameter of the underlying algorith, defaults to same</span>
+<span class="sd">        as search_range, which gives reasonably optimal performance.</span>
+<span class="sd">    pos_columns: DataFrame column names (unlimited dimensions)</span>
+<span class="sd">    t_column : DataFrame column name. Default is &#39;frame&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    features DataFrame, now with additional column of trajectory labels</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">box_size</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">box_size</span> <span class="o">=</span> <span class="n">search_range</span>
+
+    <span class="n">hash_generator</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">trackpy</span><span class="o">.</span><span class="n">Hash_table</span><span class="p">(</span><span class="n">hash_size</span><span class="p">,</span> <span class="n">box_size</span><span class="p">)</span>
+    <span class="n">levels</span> <span class="o">=</span> <span class="n">_level_generator</span><span class="p">(</span><span class="n">numbered_frames</span><span class="p">,</span> <span class="n">pos_columns</span><span class="p">)</span>
+    <span class="n">labeled_levels</span> <span class="o">=</span> \
+        <span class="n">trackpy</span><span class="o">.</span><span class="n">link_generator</span><span class="p">(</span><span class="n">levels</span><span class="p">,</span> <span class="n">search_range</span><span class="p">,</span> <span class="n">hash_generator</span><span class="p">,</span> <span class="n">memory</span><span class="p">,</span>
+                               <span class="n">track_cls</span><span class="o">=</span><span class="n">DummyTrack</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">labeled_levels</span><span class="p">:</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">track</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">level</span><span class="p">),</span> <span class="n">index</span><span class="p">)</span>
+        <span class="n">frame_no</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">level</span><span class="p">))</span><span class="o">.</span><span class="n">t</span>  <span class="c"># uses an arbitary element from the set</span>
+        <span class="k">if</span> <span class="n">verify_integrity</span><span class="p">:</span>
+            <span class="n">_verify_integrity</span><span class="p">(</span><span class="n">frame_no</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span> <span class="c"># may issue warnings</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Frame </span><span class="si">%d</span><span class="s">: </span><span class="si">%d</span><span class="s"> trajectories present&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">frame_no</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">))</span>
+        <span class="n">print_update</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">frame_no</span><span class="p">,</span> <span class="n">labels</span>
+</div>
+<span class="k">def</span> <span class="nf">_level_generator</span><span class="p">(</span><span class="n">numbered_frames</span><span class="p">,</span> <span class="n">pos_columns</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">frame_no</span><span class="p">,</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">numbered_frames</span><span class="p">:</span>
+        <span class="n">build_pt</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">PointNDWithID</span><span class="p">(</span><span class="n">frame_no</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">build_pt</span><span class="p">,</span> <span class="n">frame</span><span class="p">[</span><span class="n">pos_columns</span><span class="p">]</span><span class="o">.</span><span class="n">iterrows</span><span class="p">())</span>
+        <span class="k">yield</span> <span class="n">level</span>
+
+<div class="viewcode-block" id="UnknownLinkingError"><a class="viewcode-back" href="../../mr.html#mr.linking.UnknownLinkingError">[docs]</a><span class="k">class</span> <span class="nc">UnknownLinkingError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+</div>
+<span class="k">def</span> <span class="nf">_verify_integrity</span><span class="p">(</span><span class="n">frame_no</span><span class="p">,</span> <span class="n">labels</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">labels</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">UnknownLinkingError</span><span class="p">(</span>
+            <span class="s">&quot;There are two probes with the same label in Frame </span><span class="si">%d</span><span class="s">.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">labels</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">UnknownLinkingError</span><span class="p">(</span><span class="s">&quot;Some probes were not labeled in Frame </span><span class="si">%d</span><span class="s">.&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LinkOnDisk"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk">[docs]</a><span class="k">class</span> <span class="nc">LinkOnDisk</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This helper class manages the process of linking trajectories</span>
+<span class="sd">    by loading frames one at a time and saving the results one frame</span>
+<span class="sd">    at a time. This allows infinitely long videos to be analyzed</span>
+<span class="sd">    using only a modest amount of memory.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">pos_columns</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">],</span> 
+                 <span class="n">t_column</span><span class="o">=</span><span class="s">&#39;frame&#39;</span><span class="p">,</span> <span class="n">max_frame</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">use_tabular_copy</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pos_columns</span> <span class="o">=</span> <span class="n">pos_columns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_column</span> <span class="o">=</span> <span class="n">t_column</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_frame</span> <span class="o">=</span> <span class="n">max_frame</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">use_tabular_copy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">make_tabular_copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_node_is_tabular</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frame</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">detect_last_frame</span><span class="p">()</span>
+            <span class="k">print</span> <span class="s">&quot;Detected last frame is Frame </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span> 
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frame</span>
+        <span class="c"># We are assuming that the first frame is Frame 0. If we&#39;re wrong,</span>
+        <span class="c"># we only waste a little time in the loop.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first_frame</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">detect_size</span><span class="p">()</span> <span class="c"># for hash</span>
+
+<div class="viewcode-block" id="LinkOnDisk.check_file_exists"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk.check_file_exists">[docs]</a>    <span class="k">def</span> <span class="nf">check_file_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s">&quot;</span><span class="si">%s</span><span class="s"> is not a path to an HDFStore file.&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="LinkOnDisk.check_node_is_tabular"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk.check_node_is_tabular">[docs]</a>    <span class="k">def</span> <span class="nf">check_node_is_tabular</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_tabular</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;&quot;&quot;This node is not tabular. Call with use_tabular_copy=True to proceed.&quot;&quot;&quot;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="LinkOnDisk.link"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk.link">[docs]</a>    <span class="k">def</span> <span class="nf">link</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">search_range</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">hash_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">box_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">verify_integrity</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">hash_size</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">MARGIN</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c"># to avoid OutOfHashException</span>
+            <span class="n">hash_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">numbered_frames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numbered_frames</span><span class="p">()</span>
+        <span class="n">label_generator</span> <span class="o">=</span> \
+            <span class="n">link_iterator</span><span class="p">(</span><span class="n">numbered_frames</span><span class="p">,</span> <span class="n">search_range</span><span class="p">,</span> <span class="n">hash_size</span><span class="p">,</span>
+                          <span class="n">memory</span><span class="p">,</span> <span class="n">box_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_columns</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_column</span><span class="p">,</span>
+                          <span class="n">verify_integrity</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label_generator</span> <span class="o">=</span> <span class="n">label_generator</span>
+</div>
+<div class="viewcode-block" id="LinkOnDisk.numbered_frames"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk.numbered_frames">[docs]</a>    <span class="k">def</span> <span class="nf">numbered_frames</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_store</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">store</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">frame_no</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_frame</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span><span class="p">):</span>
+                <span class="n">frame</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="s">&#39;frame == </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">frame_no</span><span class="p">,</span> 
+                                     <span class="n">columns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_columns</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">frame_no</span><span class="p">,</span> <span class="n">frame</span>
+</div>
+<div class="viewcode-block" id="LinkOnDisk.save"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out_filename</span><span class="p">,</span> <span class="n">out_key</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_store</span><span class="p">(</span><span class="n">out_filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">out_store</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_store</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">store</span><span class="p">:</span>
+                <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">frame_no</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_generator</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+                        <span class="k">break</span>
+                    <span class="c"># Fetch data (redundantly) this time taking all columns.</span>
+                    <span class="n">frame</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="s">&#39;frame == </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">frame_no</span><span class="p">)</span>
+                    <span class="n">frame</span><span class="p">[</span><span class="s">&#39;probe&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c"># an integer placeholder</span>
+                    <span class="n">frame</span><span class="p">[</span><span class="s">&#39;probe&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+                    <span class="n">out_store</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out_key</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> 
+                                     <span class="n">data_columns</span><span class="o">=</span><span class="n">frame</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+                    <span class="k">print</span> <span class="s">&quot;Frame </span><span class="si">%d</span><span class="s"> written with </span><span class="si">%d</span><span class="s"> probes tracked.&quot;</span> \
+                        <span class="o">%</span> <span class="p">(</span><span class="n">frame_no</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="LinkOnDisk.detect_last_frame"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk.detect_last_frame">[docs]</a>    <span class="k">def</span> <span class="nf">detect_last_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&quot;Detecting last frame...&quot;</span>
+        <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_store</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">store</span><span class="p">:</span>
+            <span class="n">last_frame</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">select_column</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_column</span><span class="p">,</span> 
+                                             <span class="n">iterator</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+                <span class="n">chunk_max</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">chunk_max</span> <span class="o">&gt;</span> <span class="n">last_frame</span><span class="p">:</span>
+                    <span class="n">last_frame</span> <span class="o">=</span> <span class="n">chunk_max</span>
+        <span class="k">return</span> <span class="n">last_frame</span>
+</div>
+<div class="viewcode-block" id="LinkOnDisk.detect_size"><a class="viewcode-back" href="../../mr.html#mr.linking.LinkOnDisk.detect_size">[docs]</a>    <span class="k">def</span> <span class="nf">detect_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&quot;Detecting range of position data...&quot;</span>
+        <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_store</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">store</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_columns</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">iterator</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                      <span class="n">columns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_columns</span><span class="p">):</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">chunk</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">size</span><span class="o">.</span><span class="n">values</span> 
+</div></div>
+<div class="viewcode-block" id="is_tabular"><a class="viewcode-back" href="../../mr.html#mr.linking.is_tabular">[docs]</a><span class="k">def</span> <span class="nf">is_tabular</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_store</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">store</span><span class="p">:</span>
+        <span class="n">pandas_type</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">_handle</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+                                  <span class="s">&#39;_v_attrs&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span> <span class="s">&#39;pandas_type&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pandas_type</span> <span class="o">==</span> <span class="s">&#39;frame_table&#39;</span>
+</div>
+<div class="viewcode-block" id="make_tabular_copy"><a class="viewcode-back" href="../../mr.html#mr.linking.make_tabular_copy">[docs]</a><span class="k">def</span> <span class="nf">make_tabular_copy</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="n">tabular_key</span> <span class="o">=</span> <span class="n">key</span> <span class="o">+</span> <span class="s">&#39;/tabular&#39;</span>
+    <span class="k">print</span> <span class="s">&quot;Making a tabular copy of </span><span class="si">%s</span><span class="s"> at </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">tabular_key</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_store</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">store</span><span class="p">:</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tabular_key</span><span class="p">,</span> <span class="n">store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="n">data_columns</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;frame&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">tabular_key</span>
+</div>
+<div class="viewcode-block" id="numbered_frames_from_sql"><a class="viewcode-back" href="../../mr.html#mr.linking.numbered_frames_from_sql">[docs]</a><span class="k">def</span> <span class="nf">numbered_frames_from_sql</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">sql_flavor</span><span class="p">,</span>
+                             <span class="n">pos_columns</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">]):</span>
+    <span class="n">pos_columns</span> <span class="o">=</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pos_columns</span><span class="p">)</span>
+    <span class="n">frame_nos</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="s">&quot;SELECT DISTINCT FRAME FROM </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">table</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span> 
+    <span class="n">frame_nos</span> <span class="o">=</span> <span class="n">frame_nos</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">&#39;int&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">frame_no</span> <span class="ow">in</span> <span class="n">frame_nos</span><span class="p">:</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="s">&quot;SELECT </span><span class="si">%s</span><span class="s"> FROM </span><span class="si">%s</span><span class="s"> WHERE FRAME = </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span>
+                              <span class="p">(</span><span class="n">pos_columns</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">frame_no</span><span class="p">),</span> <span class="n">conn</span><span class="p">)</span> 
+        <span class="k">yield</span> <span class="n">frame_no</span><span class="p">,</span> <span class="n">frame</span>
+
+</div>
+<div class="viewcode-block" id="labeled_frame_to_sql"><a class="viewcode-back" href="../../mr.html#mr.linking.labeled_frame_to_sql">[docs]</a><span class="k">def</span> <span class="nf">labeled_frame_to_sql</span><span class="p">(</span><span class="n">frame_no_and_labels</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">sql_flavor</span><span class="p">,</span> <span class="n">t_column</span><span class="p">):</span>
+    <span class="n">frame_no</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">frame_no_and_labels</span>
+    <span class="n">frame</span><span class="p">[</span><span class="n">t_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">frame_no</span>
+    <span class="n">frame</span><span class="o">.</span><span class="n">to_sql</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">sql_flavor</span><span class="p">,</span> <span class="n">if_exists</span><span class="o">=</span><span class="s">&#39;append&#39;</span><span class="p">)</span>
+</div>
+<span class="n">track</span> <span class="o">=</span> <span class="n">link</span> <span class="c"># legacy</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>

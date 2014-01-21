@@ -3,16 +3,15 @@ language: python
 python:
   - 2.7
 
-
 virtualenv:
   system_site_packages: true
 
 before_install:
- - sudo apt-get install -qq python-scipy python3-scipy
- - sudo add-apt-repository -y ppa:pythonxy/pythonxy-devel && sudo apt-get -y update && sudo apt-get install -qq python-pandas
- - pip install -q --use-mirrors nose numpy
+  - ci/before_install.sh
 
 install:
-  - python setup.py install
+  - pip install -e git+https://github.com/soft-matter/yaml-serialize.git#egg=yaml_serialize
+  - pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/
+  - python setup.py build_ext install
 
-script: nosetests
+script: nosetests -a '!slow'

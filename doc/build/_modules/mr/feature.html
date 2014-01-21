@@ -1,0 +1,513 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mr.feature &mdash; mr  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="mr  documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mr.feature</h1><div class="highlight"><pre>
+<span class="c"># Copyright 2012 Daniel B. Allan</span>
+<span class="c"># dallan@pha.jhu.edu, daniel.b.allan@gmail.com</span>
+<span class="c"># http://pha.jhu.edu/~dallan</span>
+<span class="c"># http://www.danallan.com</span>
+<span class="c">#</span>
+<span class="c"># This program is free software; you can redistribute it and/or modify</span>
+<span class="c"># it under the terms of the GNU General Public License as published by</span>
+<span class="c"># the Free Software Foundation; either version 3 of the License, or (at</span>
+<span class="c"># your option) any later version.</span>
+<span class="c">#</span>
+<span class="c"># This program is distributed in the hope that it will be useful, but</span>
+<span class="c"># WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU</span>
+<span class="c"># General Public License for more details.</span>
+<span class="c">#</span>
+<span class="c"># You should have received a copy of the GNU General Public License</span>
+<span class="c"># along with this program; if not, see &lt;http://www.gnu.org/licenses&gt;.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">ndimage</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="kn">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">Series</span>
+<span class="kn">from</span> <span class="nn">mr</span> <span class="kn">import</span> <span class="n">uncertainty</span>
+<span class="kn">from</span> <span class="nn">mr.preprocessing</span> <span class="kn">import</span> <span class="n">bandpass</span><span class="p">,</span> <span class="n">scale_to_gamut</span>
+<span class="kn">from</span> <span class="nn">C_fallback_python</span> <span class="kn">import</span> <span class="n">nullify_secondary_maxima</span>
+<span class="kn">from</span> <span class="nn">mr.utils</span> <span class="kn">import</span> <span class="n">memo</span>
+<span class="kn">from</span> <span class="nn">.print_update</span> <span class="kn">import</span> <span class="n">print_update</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="local_maxima"><a class="viewcode-back" href="../../mr.html#mr.feature.local_maxima">[docs]</a><span class="k">def</span> <span class="nf">local_maxima</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">separation</span><span class="p">,</span> <span class="n">percentile</span><span class="o">=</span><span class="mi">64</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Find local maxima whose brightness is above a given percentile.&quot;&quot;&quot;</span>
+
+    <span class="c"># Compute a threshold based on percentile.</span>
+    <span class="n">not_black</span> <span class="o">=</span> <span class="n">image</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">image</span><span class="p">)]</span>
+    <span class="n">threshold</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">scoreatpercentile</span><span class="p">(</span><span class="n">not_black</span><span class="p">,</span> <span class="n">percentile</span><span class="p">)</span>
+    <span class="n">ndim</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span>
+
+    <span class="c"># The intersection of the image with its dilation gives local maxima.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Perform dilation on exact (i.e., integer) data.&quot;</span><span class="p">)</span>
+    <span class="n">footprint</span> <span class="o">=</span> <span class="n">binary_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">separation</span><span class="p">)</span>
+    <span class="n">dilation</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">grey_dilation</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">footprint</span><span class="o">=</span><span class="n">footprint</span><span class="p">,</span>
+                                     <span class="n">mode</span><span class="o">=</span><span class="s">&#39;constant&#39;</span><span class="p">)</span>
+    <span class="n">maxima</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">image</span> <span class="o">==</span> <span class="n">dilation</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">image</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">maxima</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">_warn_no_maxima</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">ndim</span><span class="p">))</span>
+
+    <span class="c"># Flat peaks, for example, return multiple maxima. Eliminate them.</span>
+    <span class="n">maxima_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">maxima_map</span><span class="p">[</span><span class="n">maxima</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span><span class="p">[</span><span class="n">maxima</span><span class="p">]</span>
+    <span class="n">footprint</span> <span class="o">=</span> <span class="n">binary_mask</span><span class="p">(</span><span class="n">separation</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">separation</span><span class="p">)</span>
+    <span class="n">maxima_map</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">generic_filter</span><span class="p">(</span>
+        <span class="n">maxima_map</span><span class="p">,</span> <span class="n">nullify_secondary_maxima</span><span class="p">(),</span> <span class="n">footprint</span><span class="o">=</span><span class="n">footprint</span><span class="p">,</span>
+        <span class="n">mode</span><span class="o">=</span><span class="s">&#39;constant&#39;</span><span class="p">)</span>
+    <span class="n">maxima</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">maxima_map</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="c"># Do not accept peaks near the edges.</span>
+    <span class="n">margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">separation</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span>
+    <span class="n">maxima_map</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">-</span><span class="n">margin</span><span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">maxima_map</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">margin</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">maxima_map</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">-</span><span class="n">margin</span><span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">maxima_map</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">margin</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">maxima_map</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">-</span><span class="n">margin</span><span class="p">:,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">maxima_map</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">margin</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;I tap out beyond three dimensions.&quot;</span><span class="p">)</span>
+        <span class="c"># TODO Change if into loop using slice(None) as :</span>
+    <span class="n">maxima</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">maxima_map</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">maxima</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;Bad image! All maxima were in the margins.&quot;</span><span class="p">,</span>
+                      <span class="ne">UserWarning</span><span class="p">)</span>
+
+    <span class="c"># Return coords in as a numpy array shaped so it can be passed directly</span>
+    <span class="c"># to the DataFrame constructor.</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">maxima</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+</div>
+<div class="viewcode-block" id="estimate_mass"><a class="viewcode-back" href="../../mr.html#mr.feature.estimate_mass">[docs]</a><span class="k">def</span> <span class="nf">estimate_mass</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">coord</span><span class="p">):</span>
+    <span class="s">&quot;Compute the total brightness in the neighborhood of a local maximum.&quot;</span>
+    <span class="n">square</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="n">c</span> <span class="o">-</span> <span class="n">radius</span><span class="p">,</span> <span class="n">c</span> <span class="o">+</span> <span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">]</span>
+    <span class="n">neighborhood</span> <span class="o">=</span> <span class="n">binary_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span><span class="o">*</span><span class="n">image</span><span class="p">[</span><span class="n">square</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">neighborhood</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="estimate_size"><a class="viewcode-back" href="../../mr.html#mr.feature.estimate_size">[docs]</a><span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">estimated_mass</span><span class="p">):</span>
+    <span class="s">&quot;Compute the total brightness in the neighborhood of a local maximum.&quot;</span>
+    <span class="n">square</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="n">c</span> <span class="o">-</span> <span class="n">radius</span><span class="p">,</span> <span class="n">c</span> <span class="o">+</span> <span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">]</span>
+    <span class="n">neighborhood</span> <span class="o">=</span> <span class="n">binary_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span><span class="o">*</span><span class="n">image</span><span class="p">[</span><span class="n">square</span><span class="p">]</span>
+    <span class="n">Rg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">r_squared_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span><span class="o">*</span><span class="n">neighborhood</span><span class="p">)</span><span class="o">/</span>
+                 <span class="n">estimated_mass</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Rg</span>
+
+<span class="c"># center_of_mass can have divide-by-zero errors, avoided thus:</span></div>
+<span class="n">_safe_center_of_mass</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ndimage</span><span class="o">.</span><span class="n">center_of_mass</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="refine"><a class="viewcode-back" href="../../mr.html#mr.feature.refine">[docs]</a><span class="k">def</span> <span class="nf">refine</span><span class="p">(</span><span class="n">raw_image</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">iterations</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Characterize the neighborhood of a local maximum, and iteratively</span>
+<span class="sd">    hone in on its center-of-brightness. Return its coordinates, integrated</span>
+<span class="sd">    brightness, size (Rg), and eccentricity (0=circular).&quot;&quot;&quot;</span>
+
+    <span class="n">ndim</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">binary_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">ndim</span><span class="p">)</span>
+
+    <span class="c"># Define the circular neighborhood of (x, y).</span>
+    <span class="n">square</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="n">c</span> <span class="o">-</span> <span class="n">radius</span><span class="p">,</span> <span class="n">c</span> <span class="o">+</span> <span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">]</span>
+    <span class="n">neighborhood</span> <span class="o">=</span> <span class="n">mask</span><span class="o">*</span><span class="n">image</span><span class="p">[</span><span class="n">square</span><span class="p">]</span>
+    <span class="n">cm_n</span> <span class="o">=</span> <span class="n">_safe_center_of_mass</span><span class="p">(</span><span class="n">neighborhood</span><span class="p">)</span>  <span class="c"># neighborhood coords</span>
+    <span class="n">cm_i</span> <span class="o">=</span> <span class="n">cm_n</span> <span class="o">-</span> <span class="n">radius</span> <span class="o">+</span> <span class="n">coord</span>  <span class="c"># image coords</span>
+    <span class="n">allow_moves</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="k">for</span> <span class="n">iteration</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iterations</span><span class="p">):</span>
+        <span class="n">off_center</span> <span class="o">=</span> <span class="n">cm_n</span> <span class="o">-</span> <span class="n">radius</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">off_center</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.005</span><span class="p">):</span>
+            <span class="k">break</span>  <span class="c"># Accurate enough.</span>
+
+        <span class="c"># If we&#39;re off by more than half a pixel in any direction, move.</span>
+        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">off_center</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.6</span><span class="p">)</span> <span class="ow">and</span> <span class="n">allow_moves</span><span class="p">:</span>
+            <span class="n">new_coord</span> <span class="o">=</span> <span class="n">coord</span>
+            <span class="n">new_coord</span><span class="p">[</span><span class="n">off_center</span> <span class="o">&gt;</span> <span class="mf">0.6</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="n">new_coord</span><span class="p">[</span><span class="n">off_center</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mf">0.6</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c"># Don&#39;t move outside the image!</span>
+            <span class="n">upper_bound</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">radius</span>
+            <span class="n">new_coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">new_coord</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">upper_bound</span><span class="p">)</span>
+            <span class="n">square</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="n">c</span> <span class="o">-</span> <span class="n">radius</span><span class="p">,</span> <span class="n">c</span> <span class="o">+</span> <span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">new_coord</span><span class="p">]</span>
+            <span class="n">neighborhood</span> <span class="o">=</span> <span class="n">mask</span><span class="o">*</span><span class="n">image</span><span class="p">[</span><span class="n">square</span><span class="p">]</span>
+
+        <span class="c"># If we&#39;re off by less than half a pixel, interpolate.</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># second-order spline.</span>
+            <span class="n">neighborhood</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">neighborhood</span><span class="p">,</span> <span class="o">-</span><span class="n">off_center</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                                         <span class="n">mode</span><span class="o">=</span><span class="s">&#39;constant&#39;</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">new_coord</span> <span class="o">=</span> <span class="n">coord</span> <span class="o">+</span> <span class="n">off_center</span>
+            <span class="c"># Disallow any whole-pixels moves on future iterations.</span>
+            <span class="n">allow_moves</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="n">cm_n</span> <span class="o">=</span> <span class="n">_safe_center_of_mass</span><span class="p">(</span><span class="n">neighborhood</span><span class="p">)</span>  <span class="c"># neighborhood coords</span>
+        <span class="n">cm_i</span> <span class="o">=</span> <span class="n">cm_n</span> <span class="o">-</span> <span class="n">radius</span> <span class="o">+</span> <span class="n">new_coord</span>  <span class="c"># image coords</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">new_coord</span>
+
+    <span class="c"># Characterize the neighborhood of our final centroid.</span>
+    <span class="n">mass</span> <span class="o">=</span> <span class="n">neighborhood</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">Rg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">r_squared_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">ndim</span><span class="p">)</span><span class="o">*</span><span class="n">neighborhood</span><span class="p">)</span><span class="o">/</span><span class="n">mass</span><span class="p">)</span>
+    <span class="c"># I only know how to measure eccentricity in 2D.</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">ecc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">neighborhood</span><span class="o">*</span><span class="n">cosmask</span><span class="p">(</span><span class="n">radius</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span>
+                      <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">neighborhood</span><span class="o">*</span><span class="n">sinmask</span><span class="p">(</span><span class="n">radius</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">ecc</span> <span class="o">/=</span> <span class="p">(</span><span class="n">mass</span> <span class="o">-</span> <span class="n">neighborhood</span><span class="p">[</span><span class="n">radius</span><span class="p">,</span> <span class="n">radius</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ecc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="n">raw_neighborhood</span> <span class="o">=</span> <span class="n">mask</span><span class="o">*</span><span class="n">raw_image</span><span class="p">[</span><span class="n">square</span><span class="p">]</span>
+    <span class="n">signal</span> <span class="o">=</span> <span class="n">raw_neighborhood</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>  <span class="c"># black_level subtracted later</span>
+
+    <span class="c"># matplotlib and ndimage have opposite conventions for xy &lt;-&gt; yx.</span>
+    <span class="n">final_coords</span> <span class="o">=</span> <span class="n">cm_i</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">final_coords</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="n">mass</span><span class="p">,</span> <span class="n">Rg</span><span class="p">,</span> <span class="n">ecc</span><span class="p">,</span> <span class="n">signal</span><span class="p">])</span>
+
+</div>
+<div class="viewcode-block" id="locate"><a class="viewcode-back" href="../../mr.html#mr.feature.locate">[docs]</a><span class="k">def</span> <span class="nf">locate</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">minmass</span><span class="o">=</span><span class="mf">100.</span><span class="p">,</span> <span class="n">maxsize</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">separation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+           <span class="n">noise_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">smoothing_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+           <span class="n">percentile</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">topn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preprocess</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read an image, do optional image preparation and cleanup, and locate</span>
+<span class="sd">    Gaussian-like blobs of a given size above a given total brightness.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    image: image array</span>
+<span class="sd">    diameter : feature size in px</span>
+<span class="sd">    minmass : minimum integrated brightness</span>
+<span class="sd">       Default is 100, but a good value is often much higher. This is a</span>
+<span class="sd">       crucial parameter for elminating spurrious features.</span>
+<span class="sd">    maxsize : maximum radius-of-gyration of brightness, default None</span>
+<span class="sd">    separation : feature separation in px</span>
+<span class="sd">    noise_size : scale of Gaussian blurring. Default 1.</span>
+<span class="sd">    smoothing_size : defauls to separation</span>
+<span class="sd">    threshold : Clip bandpass result below this value.</span>
+<span class="sd">        Default 1; use 8 for 16-bit images.</span>
+<span class="sd">    invert : Set to True if features are darker than background. False by</span>
+<span class="sd">        default.</span>
+<span class="sd">    percentile : Features must have a peak brighter than pixels in this</span>
+<span class="sd">        percentile. This helps eliminate spurrious peaks.</span>
+<span class="sd">    topn : Return only the N brightest features above minmass. </span>
+<span class="sd">        If None (default), return all features above minmass.</span>
+<span class="sd">    preprocess : Set to False to turn out automatic preprocessing.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    DataFrame([x, y, mass, size, ecc, signal])</span>
+
+<span class="sd">    where mass means total integrated brightness of the blob</span>
+<span class="sd">    and size means the radius of gyration of its Gaussian-like profile</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># Validate parameters and set defaults.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">diameter</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Feature diameter must be an odd number. Round up.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">separation</span><span class="p">:</span>
+        <span class="n">separation</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">diameter</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">diameter</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span>
+    <span class="k">if</span> <span class="n">smoothing_size</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">smoothing_size</span> <span class="o">=</span> <span class="n">diameter</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">preprocess</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">invert</span><span class="p">:</span>
+            <span class="c"># It is tempting to do this in place, but if it is called multiple</span>
+            <span class="c"># times on the same image, chaos reigns.</span>
+            <span class="n">max_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">iinfo</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">max</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span> <span class="o">^</span> <span class="n">max_value</span>
+        <span class="n">bp_image</span> <span class="o">=</span> <span class="n">bandpass</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">noise_size</span><span class="p">,</span> <span class="n">smoothing_size</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">bp_image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">bp_image</span> <span class="o">=</span> <span class="n">scale_to_gamut</span><span class="p">(</span><span class="n">bp_image</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="c"># Find local maxima.</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="n">local_maxima</span><span class="p">(</span><span class="n">bp_image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">separation</span><span class="p">,</span> <span class="n">percentile</span><span class="p">)</span>
+    <span class="n">count_maxima</span> <span class="o">=</span> <span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">approx_mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">count_maxima</span><span class="p">)</span>  <span class="c"># initialize to avoid appending</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count_maxima</span><span class="p">):</span>
+        <span class="n">approx_mass</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">estimate_mass</span><span class="p">(</span><span class="n">bp_image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">maxsize</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">approx_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">count_maxima</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count_maxima</span><span class="p">):</span>
+            <span class="n">approx_size</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">estimate_size</span><span class="p">(</span><span class="n">bp_image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> 
+                                           <span class="n">approx_mass</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[(</span><span class="n">approx_mass</span> <span class="o">&gt;</span> <span class="n">minmass</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">approx_size</span> <span class="o">&lt;</span> <span class="n">maxsize</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">approx_mass</span> <span class="o">&gt;</span> <span class="n">minmass</span><span class="p">]</span>
+    <span class="n">count_qualified</span> <span class="o">=</span> <span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c"># Refine their locations and characterize mass, size, etc.</span>
+    <span class="n">ndim</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span>
+    <span class="n">refined_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">count_qualified</span><span class="p">,</span> <span class="n">ndim</span> <span class="o">+</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count_qualified</span><span class="p">):</span>
+        <span class="n">refined_coords</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">refine</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">bp_image</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+    <span class="c"># Filter by minmass again, using final (&quot;exact&quot;) mass.</span>
+    <span class="n">exact_mass</span> <span class="o">=</span> <span class="n">refined_coords</span><span class="p">[:,</span> <span class="n">ndim</span><span class="p">]</span>
+    <span class="n">refined_coords</span> <span class="o">=</span> <span class="n">refined_coords</span><span class="p">[</span><span class="n">exact_mass</span> <span class="o">&gt;</span> <span class="n">minmass</span><span class="p">]</span>
+    <span class="n">count_qualified</span> <span class="o">=</span> <span class="n">refined_coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">topn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">count_qualified</span> <span class="o">&gt;</span> <span class="n">topn</span><span class="p">:</span>
+        <span class="n">exact_mass</span> <span class="o">=</span> <span class="n">exact_mass</span><span class="p">[</span><span class="n">exact_mass</span> <span class="o">&gt;</span> <span class="n">minmass</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">topn</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c"># special case for high performance and correct shape</span>
+            <span class="n">refined_coords</span> <span class="o">=</span> <span class="n">refined_coords</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">exact_mass</span><span class="p">)]</span>
+            <span class="n">refined_coords</span> <span class="o">=</span> <span class="n">refined_coords</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">refined_coords</span> <span class="o">=</span> <span class="n">refined_coords</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">exact_mass</span><span class="p">)][</span><span class="o">-</span><span class="n">topn</span><span class="p">:]</span>
+
+    <span class="c"># Present the results in a DataFrame.</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> local maxima, </span><span class="si">%s</span><span class="s"> of qualifying mass&quot;</span><span class="p">,</span>
+                <span class="n">count_maxima</span><span class="p">,</span> <span class="n">count_qualified</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">coord_columns</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">,</span> <span class="s">&#39;z&#39;</span><span class="p">][:</span><span class="n">image</span><span class="o">.</span><span class="n">ndim</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">coord_columns</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="s">&#39;x&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">))</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="n">coord_columns</span> <span class="o">+</span> <span class="p">[</span><span class="s">&#39;mass&#39;</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">,</span> <span class="s">&#39;ecc&#39;</span><span class="p">,</span> <span class="s">&#39;signal&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">refined_coords</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span>  <span class="c"># TODO fill with np.empty</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">(</span><span class="n">refined_coords</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span>
+    <span class="n">black_level</span><span class="p">,</span> <span class="n">noise</span> <span class="o">=</span> <span class="n">uncertainty</span><span class="o">.</span><span class="n">measure_noise</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span>
+    <span class="n">f</span><span class="p">[</span><span class="s">&#39;signal&#39;</span><span class="p">]</span> <span class="o">-=</span> <span class="n">black_level</span>
+    <span class="n">ep</span> <span class="o">=</span> <span class="n">uncertainty</span><span class="o">.</span><span class="n">static_error</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">noise_size</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ep</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span>
+
+</div>
+<div class="viewcode-block" id="batch"><a class="viewcode-back" href="../../mr.html#mr.feature.batch">[docs]</a><span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">minmass</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">maxsize</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">separation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+          <span class="n">noise_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">smoothing_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+          <span class="n">percentile</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">topn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preprocess</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+          <span class="n">store</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">conn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">sql_flavor</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+          <span class="n">do_not_return</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Process a list of images, doing optional image preparation and cleanup,</span>
+<span class="sd">    locating Gaussian-like blobs of a given size.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    frames : iterable frames</span>
+<span class="sd">        For example, frames = mr.video.frame_generator(&#39;video_file.avi&#39;)</span>
+<span class="sd">                  or frames = [array1, array2, array3]</span>
+<span class="sd">    diameter : feature size in px</span>
+<span class="sd">    minmass : minimum integrated brightness</span>
+<span class="sd">       Default is 100, but a good value is often much higher. This is a</span>
+<span class="sd">       crucial parameter for elminating spurrious features.</span>
+<span class="sd">    maxsize : maximum radius-of-gyration of brightness, default None</span>
+<span class="sd">    separation : feature separation in px. Default = 1 + diamter.</span>
+<span class="sd">    noise_size : scale of Gaussian blurring. Default = 1.</span>
+<span class="sd">    smoothing_size : Default = separation.</span>
+<span class="sd">    threshold : Clip bandpass result below this value.</span>
+<span class="sd">        Default 1; use 8 for 16-bit images.</span>
+<span class="sd">    invert : Set to True if features are darker than background. False by</span>
+<span class="sd">        default.</span>
+<span class="sd">    percentile : Features must have a peak brighter than pixels in this</span>
+<span class="sd">        percentile. This helps eliminate spurrious peaks.</span>
+<span class="sd">    topn : Return only the N brightest features above minmass. </span>
+<span class="sd">        If None (default), return all features above minmass.</span>
+<span class="sd">    preprocess : Set to False to turn out automatic preprocessing.</span>
+<span class="sd">    store : Optional HDFStore</span>
+<span class="sd">    conn : Optional connection to a SQL database</span>
+<span class="sd">    sql_flavor : If using a SQL connection, specify &#39;sqlite&#39; or &#39;MySQL&#39;.</span>
+<span class="sd">    table : If using HDFStore or SQL, specify table name.</span>
+<span class="sd">        Default: &#39;features_timestamp&#39;.</span>
+<span class="sd">    do_not_return : Save the result frame by frame, but do not return it when</span>
+<span class="sd">        finished. Conserved memory for parallel jobs.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    DataFrame([x, y, mass, size, ecc, signal])</span>
+
+<span class="sd">    where mass means total integrated brightness of the blob</span>
+<span class="sd">    and size means the radius of gyration of its Gaussian-like profile</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s">-%H%M%S&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">table</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="s">&#39;features-&#39;</span> <span class="o">+</span> <span class="n">timestamp</span>
+    <span class="c"># Gather meta information and pack it into a Series.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="n">frames</span><span class="o">.</span><span class="n">filename</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="n">Series</span><span class="p">([</span><span class="n">source</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">minmass</span><span class="p">,</span> <span class="n">separation</span><span class="p">,</span> <span class="n">noise_size</span><span class="p">,</span>
+                   <span class="n">smoothing_size</span><span class="p">,</span> <span class="n">invert</span><span class="p">,</span> <span class="n">percentile</span><span class="p">,</span> <span class="n">topn</span><span class="p">,</span>
+                   <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)],</span>
+                  <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">,</span>
+                         <span class="s">&#39;diameter&#39;</span><span class="p">,</span> <span class="s">&#39;minmass&#39;</span><span class="p">,</span> <span class="s">&#39;separation&#39;</span><span class="p">,</span> <span class="s">&#39;noise_size&#39;</span><span class="p">,</span>
+                         <span class="s">&#39;smoothing_size&#39;</span><span class="p">,</span> <span class="s">&#39;invert&#39;</span><span class="p">,</span> <span class="s">&#39;percentile&#39;</span><span class="p">,</span> <span class="s">&#39;topn&#39;</span><span class="p">,</span>
+                         <span class="s">&#39;timestamp&#39;</span><span class="p">])</span>
+    <span class="n">all_centroids</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">frames</span><span class="p">):</span>
+        <span class="c"># If frames has a cursor property, use it. Otherwise, just count</span>
+        <span class="c"># the frames from 0.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">frame_no</span> <span class="o">=</span> <span class="n">frames</span><span class="o">.</span><span class="n">cursor</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">frame_no</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="n">centroids</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">minmass</span><span class="p">,</span> <span class="n">maxsize</span><span class="p">,</span> <span class="n">separation</span><span class="p">,</span>
+                           <span class="n">noise_size</span><span class="p">,</span> <span class="n">smoothing_size</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">invert</span><span class="p">,</span>
+                           <span class="n">percentile</span><span class="p">,</span> <span class="n">topn</span><span class="p">,</span> <span class="n">preprocess</span><span class="p">)</span>
+        <span class="n">centroids</span><span class="p">[</span><span class="s">&#39;frame&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frame_no</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s">&quot;Frame </span><span class="si">%d</span><span class="s">: </span><span class="si">%d</span><span class="s"> features&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">frame_no</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">centroids</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="n">print_update</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">centroids</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">indexed</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;frame&#39;</span><span class="p">]</span>  <span class="c"># columns on which you can perform queries</span>
+        <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">centroids</span><span class="p">,</span> <span class="n">data_columns</span><span class="o">=</span><span class="n">indexed</span><span class="p">)</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>  <span class="c"># Force save. Not essential.</span>
+        <span class="k">elif</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sql_flavor</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Specifiy sql_flavor: MySQL or sqlite.&quot;</span><span class="p">)</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">write_frame</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span>
+                                  <span class="n">flavor</span><span class="o">=</span><span class="n">sql_flavor</span><span class="p">,</span> <span class="n">if_exists</span><span class="o">=</span><span class="s">&#39;append&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">all_centroids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">centroids</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">do_not_return</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">get_storer</span><span class="p">(</span><span class="n">table</span><span class="p">)</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">meta</span>
+        <span class="k">return</span> <span class="n">store</span><span class="p">[</span><span class="n">table</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">read_frame</span><span class="p">(</span><span class="s">&quot;SELECT * FROM </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">table</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">all_centroids</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+</div>
+<span class="nd">@memo</span>
+<span class="k">def</span> <span class="nf">binary_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">separation</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="s">&quot;circular mask in a square array&quot;</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">radius</span><span class="p">,</span> <span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="p">([</span><span class="n">points</span><span class="p">]</span><span class="o">*</span><span class="n">ndim</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">points</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">coords</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">r</span> <span class="o">&lt;=</span> <span class="n">radius</span>
+
+
+<span class="nd">@memo</span>
+<span class="k">def</span> <span class="nf">r_squared_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">ndim</span><span class="p">):</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">radius</span><span class="p">,</span> <span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="p">([</span><span class="n">points</span><span class="p">]</span><span class="o">*</span><span class="n">ndim</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">points</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">r2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">coords</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">r2</span><span class="p">[</span><span class="n">r2</span> <span class="o">&gt;</span> <span class="n">radius</span><span class="o">**</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">r2</span>
+
+
+<span class="nd">@memo</span>
+<span class="k">def</span> <span class="nf">theta_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">):</span>
+    <span class="c"># 2D only</span>
+    <span class="n">tan_of_coord</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">radius</span> <span class="o">-</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">-</span> <span class="n">radius</span><span class="p">)</span>
+    <span class="n">diameter</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">radius</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfunction</span><span class="p">(</span><span class="n">tan_of_coord</span><span class="p">,</span> <span class="p">(</span><span class="n">diameter</span><span class="p">,</span> <span class="n">diameter</span><span class="p">))</span>
+
+
+<span class="nd">@memo</span>
+<span class="k">def</span> <span class="nf">sinmask</span><span class="p">(</span><span class="n">radius</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">))</span>
+
+
+<span class="nd">@memo</span>
+<span class="k">def</span> <span class="nf">cosmask</span><span class="p">(</span><span class="n">radius</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta_mask</span><span class="p">(</span><span class="n">radius</span><span class="p">))</span>
+
+
+<span class="nd">@memo</span>
+<span class="k">def</span> <span class="nf">_warn_no_maxima</span><span class="p">():</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;No local maxima were found.&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">mr  documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Author.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>
