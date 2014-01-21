@@ -167,10 +167,17 @@ version, run this in the command prompt:
 Verions & Project Roadmap
 -------------------------
 
-A version 0.1 has been tagged.
+A version 0.1 has been tagged and the v0.1.x branch will get bug
+fixes.  This version does not depend on `pandas`.
 
-The v0.1.x branch will get bug fixes, new features will be built on
-the master branch.
+Any new features will be built on the master branch.  The new
+features include:
+
+ - merging most of Dan Allan's `mr` module
+ - replacing `identification.py` with superior `feature.py`
+ - making `link` iterative
+ - merging Nathen Kiem's `numba` accelerated branch
+
 
 Contributors
 ------------
