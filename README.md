@@ -19,22 +19,22 @@ Features
 
   * The [widely-used particle locating algorithm](http://www.physics.emory.edu/~weeks/idl/tracking.html) originally implemented
     by John Crocker and Eric Weeks in IDL is reimplemented in
-    Python. Wherever possible, existing tools from widely-used Python modules 
+    Python. Wherever possible, existing tools from widely-used Python modules
     are employed.
   * This reimplemention is full-featured, including subpixel precision down to
     0.1 pixels, verified with test cases.
   * The module is actively used and tested on **Windows, Mac OSX, and Linux**,
     and it uses only free, open-source software.
   * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
-    **multi-frame TIFF, or a directory of sequential images (TIFF, 
+    **multi-frame TIFF, or a directory of sequential images (TIFF,
     PNG, JPG, etc.)**.
-  * Results are given as DataFrames, high-performance spreadsheet-like objects 
-    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html) which can easily be saved to a **CSV file, Excel spreadsheet, 
+  * Results are given as DataFrames, high-performance spreadsheet-like objects
+    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html) which can easily be saved to a **CSV file, Excel spreadsheet,
     SQL database, HDF5 file**, and more.
-  * Particle trajectories can be 
+  * Particle trajectories can be
     characterized, grouped, and plotted using a suite of convenient functions.
   * To verify correctness and stability, a **suite of over 50 tests reproduces
-    basic results**. 
+    basic results**.
 
 ### Special Capabilities
 
@@ -61,10 +61,10 @@ To get started with Python on any platform, download and install
 [Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with the
 common scientific Python packages built in.
 
-If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit. 
+If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
 (One of the optional dependencies is not yet compatible with 64-bit Python.)
 
-Open a command prompt. That's "Terminal" on a Mac, and 
+Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
 
@@ -81,11 +81,11 @@ Follow the tutorials to get started.
 
 ### For Experienced Python Users
 
-You can install any of the dependencies using pip or 
+You can install any of the dependencies using pip or
 [Anaconda]((https://store.continuum.io/cshop/anaconda/)), which comes
 with some of the essential dependencies included.
 
-If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit. 
+If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
 (One of the optional dependencies, ``opencv``, is not readily compatible with 64-bit
 Python.)
 
@@ -118,7 +118,7 @@ Optional Dependencies:
       and viewing video with annotations
   * ``PyTables`` for saving results in an HDF5 file
   * ``sqlite`` or ``MySQLdb`` for saving results in a SQL database
-  * [``pyFFTW``](https://github.com/hgomersall/pyFFTW) to speed up the band 
+  * [``pyFFTW``](https://github.com/hgomersall/pyFFTW) to speed up the band
       pass, which is one of the slower steps in feature-finding
 
 To load video files directly, you need OpenCV. You can work around this
@@ -137,17 +137,17 @@ to experiment with a folder full of images first.
 1. Install the video software FFmepg using this [Windows installer](http://www.arachneweb.co.uk/software/windows/avchdview/FFmpegSetup.exe)
 Make note of the directory where it is installed. It can be anywhere but, whatever it is,
 you will need to know that location in the next step.
-2. Right click on Computer (or perhaps "My Computer"), and click Properties. 
+2. Right click on Computer (or perhaps "My Computer"), and click Properties.
 Click "Advanced System Settings", then "Properties". With "Path" highlighted,
-click "Edit." This is a list of file paths separated by semicolons, you must 
+click "Edit." This is a list of file paths separated by semicolons, you must
 type in an additional entry. ";C:\Program Files (x86)\ffmpeg" or wherever
 FFmpeg was installed in Step 1.
 3. Install the Windows 32 (Python 2.7) version of OpenCV available on [this page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv).
 4. Download [OpenCV for Windows](http://opencv.org/).
-5. You will now have a folder called ``opencv``. We just need one file 
+5. You will now have a folder called ``opencv``. We just need one file
 from this to make everything work.
 6. Copy the file ``opencv\3rdparty\ffmpeg\opencv_ffmpeg.dll``.
-7. Navigate to the directory where ffmpeg was installed, which you noted 
+7. Navigate to the directory where ffmpeg was installed, which you noted
 in Step 1. From this directory, navigate into ``win32-static\bin``.
 Paste ``opencv_ffmpeg.dll`` here.
 
@@ -178,7 +178,7 @@ Contributors
 * **Daniel Allan** feature-finding, uncertainty estimation,
 motion characterization and discrimination, plotting tools, tests
 * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
-* **Nathan Keim** alternative trajectory-linking implementations and major 
+* **Nathan Keim** alternative trajectory-linking implementations and major
 speed-ups
 
 Related Projects
@@ -195,12 +195,16 @@ Related Projects
 | Peter J Lu | https://github.com/peterlu/PLuTARC_centerfind2D | C++ (identification only) |
 | Thomas A Casswell | https://github.com/tacaswell/tracking | C++ |
 
-Supporting Grant
-----------------
+Support
+-------
 
 This package was developed in part by Daniel Allan, as part of his
 PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
-University in Baltimore, MD. The work was supported by the National Science Foundation 
-under grant number CBET-1033985.
+University in Baltimore, MD. The work was supported by the National Science Foundation
+under grant number CBET-1033985.  Dan can be reached at dallan@pha.jhu.edu.
 
-Dan can be reached at dallan@pha.jhu.edu.
+This package was developed in part by Thomas A Caswell as part of his
+PhD thesis work in Sidney R Nagel's and Margaret L Gardel's groups at
+the University of Chicago, Chicago IL.  This work was supported in
+part by NSF Grant DMR-1105145 and NSF-MRSEC DMR-0820054.  Tom can be
+reached at tcaswell@gmail.com.
