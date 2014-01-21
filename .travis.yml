@@ -9,6 +9,7 @@ virtualenv:
 
 before_install:
  - sudo apt-get install -qq python-scipy python3-scipy
+ - sudo add-apt-repository -y ppa:pythonxy/pythonxy-devel && sudo apt-get -y update && sudo apt-get install -qq python-pandas
  - pip install -q --use-mirrors nose numpy
 
 install:
