@@ -524,6 +524,13 @@ def link_iter(levels, search_range, memory=0,
     if track_cls is None:
         track_cls = DummyTrack  # does not store Points
 
+    linkers = {'recursive': recursive_linker_obj,
+               'nonrecursive': nonrecursive_link}
+    try:
+        subnet_linker = linkers[link_strategy]
+    except KeyError:
+        raise ValueError("link_strategy must be 'recursive' or 'nonrecursive'")
+
     try:
         track_cls.reset_counter()  # Start ID numbers from zero.
     except AttributeError:
@@ -632,7 +639,7 @@ def link_iter(levels, search_range, memory=0,
             for _s in s_sn:
                 _s.forward_cands.append((None, search_range))
 
-            spl, dpl = _private_linker(s_sn, len(d_sn), search_range)
+            spl, dpl = subnet_linker(s_sn, len(d_sn), search_range)
 
             # Identify the particles in the destination set that were not linked to
             d_remain = set(d for d in d_sn if d is not None)
@@ -860,5 +867,3 @@ def _maybe_remove(s, p):
         s.remove(p)
     except KeyError:
         pass
-
-_private_linker = nonrecursive_link
