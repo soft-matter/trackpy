@@ -21,10 +21,37 @@ import six
 from six.moves import zip
 
 import numpy as np
+from scipy.spatial import cKDTree
 import pandas as pd
 import itertools
 from collections import deque, Iterable
 from .utils import print_update
+
+
+class TreeFinder(object):
+
+    def __init__(self, points):
+        """Takes a list of particles.
+        """
+        self.points = points
+        self.rebuild()
+
+    def add_point(self, pt):
+        self.points.append(pt)
+
+    def rebuild(self):
+        """Rebuilds tree from ``points`` attribute.
+
+        Needs to be called after ``add_point()`` and before tree is used for 
+        spatial queries again (i.e. when memory is turned on).
+        """
+
+        coords = np.array([pt.pos for pt in self.points])
+        n = len(self.points)
+        if n == 0:
+            raise ValueError('Frame (aka level) contains zero points')
+        self.kdtree = cKDTree(coords, max(3, int(round(np.log10(n)))))
+        # This could be tuned
 
 
 class HashTable(object):
