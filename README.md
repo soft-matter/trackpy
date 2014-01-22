@@ -6,11 +6,11 @@ trackpy
 What is it?
 -----------
 
-**trackpy** is a Python package providing tools for particle tracking. **[Read the walkthrough](http://nbviewer.ipython.org/github/danielballan/trackpy/blob/merge-mr/examples/walkthrough.ipynb)** to skim or study an example project from start to finish.
+**trackpy** is a Python package providing tools for particle tracking. **[Read the walkthrough](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/walkthrough.ipynb)** to skim or study an example project from start to finish.
 
 More Examples and Tutorials:
-  * [Load frames from a video file, a multi-frame TIFF, or a folder of images.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/loading%20video%20frames.ipynb)
-  * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/tools%20for%20large%20or%20concurrent%20jobs.ipynb)
+  * [Load frames from a video file, a multi-frame TIFF, or a folder of images.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/loading-video-frames.ipynb)
+  * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/tools-for-large-or-concurrent-jobs.ipynb)
 
 Features
 --------
