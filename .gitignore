@@ -25,3 +25,14 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+*.pro
+*.log
+*.pyc
+*.so
+*~
+*.swp
+
+trackpy/version.py
+examples/.ipynb_checkpoints
+examples/feature_log*

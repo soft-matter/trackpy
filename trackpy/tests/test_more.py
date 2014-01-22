@@ -79,3 +79,54 @@ def test_box_size():
         assert len(t2) == 1
         assert len(t1[0].points) == len(unit_steps())
         assert len(t2[0].points) == len(random_walk())
+
+def test_easy_tracking():
+    level_count = 5
+    p_count = 16
+    levels = []
+
+    for j in range(level_count):
+        level = []
+        for k in np.arange(p_count) * 2:
+            level.append(PointND(j, (j, k)))
+        levels.append(level)
+
+    hash_generator = lambda: Hash_table((level_count + 1,
+                                            p_count * 2 + 1), .5)
+    tracks = link(levels, 1.5, hash_generator)
+
+    assert len(tracks) == p_count
+
+    for t in tracks:
+        x, y = zip(*[p.pos for p in t])
+        dx = np.diff(x)
+        dy = np.diff(y)
+
+        assert np.sum(dx) == level_count - 1
+        assert np.sum(dy) == 0
+
+
+def test_pathological_tracking():
+    level_count = 5
+    p_count = 16
+    levels = []
+    shift = 1
+
+    for j in range(level_count):
+        level = []
+        for k in np.arange(p_count) * 2:
+            level.append(PointND(k // 2, (j, k + j * shift)))
+        levels.append(level)
+
+    hash_generator = lambda: Hash_table((level_count + 1,
+                                            p_count*2 + level_count*shift + 1),
+                                            .5)
+    tracks = link(levels, 8, hash_generator)
+
+    assert len(tracks) == p_count, len(tracks)
+
+    for t in tracks:
+        x, y = zip(*[p.pos for p in t])
+        dx = np.diff(x)
+        dy = np.diff(y)
+
