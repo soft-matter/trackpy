@@ -558,17 +558,28 @@ def link_iter(levels, search_range, memory=0,
     except KeyError:
         raise ValueError("link_strategy must be 'recursive' or 'nonrecursive'")
 
+    level_iter = iter(levels)
+    prev_level = next(level_iter)
+    prev_set = set(prev_level)
+
+    # Make a Hash / Tree for the first level.
+    if neighbor_strategy == 'BTree':
+        prev_hash = hash_generator()
+        for p in prev_set:
+            prev_hash.add_point(p)
+    elif neighbor_strategy == 'KDTree':
+        prev_hash = TreeFinder(prev_level)
+
+    for p in prev_set:
+        p.forward_cands = []
+
     try:
-        track_cls.reset_counter()  # Start ID numbers from zero.
+        # Start ID numbers from zero, incompatible with multithreading.
+        track_cls.reset_counter()  
     except AttributeError:
         # must be using a custom Track class without this method
         pass
 
-    prev_set = set(next(levels))  # initial frame
-    prev_hash = hash_generator()
-    for p in prev_set:
-        prev_hash.add_point(p)
-        p.forward_cands = []
 
     # Assume everything in first level starts a Track.
     track_lst = map(track_cls, prev_set)
@@ -582,32 +593,26 @@ def link_iter(levels, search_range, memory=0,
     yield list(prev_set)  # Short-circuit the loop on first call.
 
     for cur_level in levels:
-        # make a new hash object
-        cur_hash = hash_generator()
-
-        # create the set for the destination level
+        # Create the set for the destination level.
         cur_set = set(cur_level)
-        # create a second copy that will be used as the source in
-        # the next loop
-        tmp_set = set(cur_level)
+        tmp_set = set(cur_level)  # copy used in next loop iteration
 
-        # fill in first 'cur' hash and set up attributes for keeping
-        # track of possible connectionsge the repo
+        # Make a Hash / Tree for the destination level.
+        if neighbor_strategy == 'BTree':
+            cur_hash = hash_generator()
+            for p in cur_set:
+                cur_hash.add_point(p)
+        elif neighbor_strategy == 'KDTree':
+            prev_hash = TreeFinder(prev_level)
+
+        # Set up attributes for keeping track of possible connections.
         for p in cur_set:
-            cur_hash.add_point(p)
             p.back_cands = []
             p.forward_cands = []
-        # sort out what can go to what
-        for p in cur_level:
-            # get
-            work_box = prev_hash.get_region(p, search_range)
-            for wp in work_box:
-                # this should get changed to deal with squared values
-                # to save an eventually square root
-                d = p.distance(wp)
-                if d < search_range:
-                    p.back_cands.append((wp, d))
-                    wp.forward_cands.append((p, d))
+
+        # Sort out what can go to what.
+        assign_candidates(cur_level, prev_hash, search_range, 
+                          neighbor_strategy)
 
         # sort the candidate lists by distance
         for p in cur_set:
@@ -668,8 +673,9 @@ def link_iter(levels, search_range, memory=0,
 
             spl, dpl = subnet_linker(s_sn, len(d_sn), search_range)
 
-            # Identify the particles in the destination set that were not linked to
-            d_remain = set(d for d in d_sn if d is not None)
+            # Identify the particles in the destination set that 
+            # were not linked to.
+            d_remain = set(d for d in d_sn if d is not None)  # TODO DAN
             d_remain -= set(d for d in dpl if d is not None)
             for dp in d_remain:
                 # if unclaimed destination particle, a track in born!
@@ -682,7 +688,7 @@ def link_iter(levels, search_range, memory=0,
                 if sp is not None and dp is not None:
                     sp.track.add_point(dp)
                     _maybe_remove(mem_set, sp)
-                if dp is not None:
+                if dp is not None:  # TODO DAN 'Should never happen' - Natahn
                     del dp.back_cands
                 if sp is not None:
                     del sp.forward_cands
@@ -721,6 +727,39 @@ def link_iter(levels, search_range, memory=0,
         # store the current level for use in next loop
 
         yield cur_level
+
+
+def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
+    if neighbor_strategy == 'BTree':
+        # (Tom's code)
+        for p in cur_level:
+            # get
+            work_box = prev_hash.get_region(p, search_range)
+            for wp in work_box:
+                # this should get changed to deal with squared values
+                # to save an eventually square root
+                d = p.distance(wp)
+                if d < search_range:
+                    p.back_cands.append((wp, d))
+                    wp.forward_cands.append((p, d))
+    elif neighbor_strategy == 'KDTree':
+        query = prev_hash.kdtree.query
+        hashpts = prev_hash.points
+        hashpts_len = len(hashpts)
+        # TODO: In scipy >= 0.12, 
+        # all neighbors for all particles can be found in one call!
+        for p in cur_level:
+            # get
+            dists, inds = query(p.pos, 10, distance_upper_bound=search_range)
+            for d, i in zip(dists, inds):
+                if i < hashpts_len:
+                    wp = hashpts[i]
+                    p.back_cands.append((wp, d))
+                    wp.forward_cands.append((p, d))
+                else:
+                    # cKDTree signals no more neighbors by returning an
+                    # out-of-bounds index
+                    break
 
 
 class SubnetOversizeException(Exception):
