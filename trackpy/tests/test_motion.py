@@ -161,3 +161,7 @@ class TestSpecial(unittest.TestCase):
         # just a smoke test
         theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
         self.steppers.groupby('probe').apply(theta_entropy)
+if __name__ == '__main__':
+    import nose
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)

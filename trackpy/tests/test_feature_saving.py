@@ -47,3 +47,7 @@ class TestFeatureSaving(unittest.TestCase):
             assert_frame_equal(f.reset_index(drop=True), 
                            self.expected.reset_index(drop=True))
             os.remove(STORE_NAME)
+if __name__ == '__main__':
+    import nose
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)

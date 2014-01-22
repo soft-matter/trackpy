@@ -16,3 +16,7 @@ class TestLabeling(unittest.TestCase):
     def test_labeling_sparse_trajectories(self):
         suppress_plotting()
         ptraj(self.sparse, label=True) # No errors?
+if __name__ == '__main__':
+    import nose
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)

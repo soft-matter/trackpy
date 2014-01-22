@@ -603,7 +603,7 @@ def link_iter(levels, search_range, memory=0,
             for p in cur_set:
                 cur_hash.add_point(p)
         elif neighbor_strategy == 'KDTree':
-            prev_hash = TreeFinder(prev_level)
+            cur_hash = TreeFinder(cur_level)
 
         # Set up attributes for keeping track of possible connections.
         for p in cur_set:

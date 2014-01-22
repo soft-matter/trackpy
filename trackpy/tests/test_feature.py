@@ -308,3 +308,7 @@ class TestFeatureIdentification(unittest.TestCase):
         guess = np.array([6, 12])
         actual = tp.feature.refine(image, image, 6, guess, characterize=False)
         assert_allclose(actual, expected, atol=0.1)
+if __name__ == '__main__':
+    import nose
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)

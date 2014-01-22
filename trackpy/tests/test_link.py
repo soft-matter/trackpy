@@ -404,38 +404,40 @@ class CommonTrackingTests(object):
         tracks = link(levels, 8, hash_generator)
     
         assert len(tracks) == p_count, len(tracks)
-    
-        for t in tracks:
-            x, y = zip(*[p.pos for p in t])
-            dx = np.diff(x)
-            dy = np.diff(y)
-    
-    # THIS DOES NOT WORK BECAUSE ORDER IS ARBIRARY!
-    # Think of way to make this into a working test someday....
-    # def test_real_data(self):
-    #     load = lambda filename: pd.read_pickle(os.path.join(path, filename))
-    #     features = load('features_size9_masscut2000.df')
-    #     traj_no_memory = load('traj_search5_memory0.df')
-    #     traj_memory = load('traj_search5_memory2.df')
 
-    #     actual = self.link(features, 5, memory=0)
-    #     assert_allclose(actual, traj_no_memory, atol=0.1)
-    #     actual = self.link(features, 5, memory=2)
-    #     assert_allclose(actual, traj_memory, atol=0.1)
 
-#class TestKDTreeTracking(CommonTrackingTests, unittest.TestCase):
-#    def setUp(self):
-#        self.link = tp.linking_experimental.link
-
-class TestHashTableWithRecursiveLink(CommonTrackingTests, unittest.TestCase):
-    # This is the default.
+class TestBTreeWithRecursiveLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-        self.link = tp.link_df
+        def curried_link(*args, **kwargs):
+            kwargs['link_strategy'] = 'recursive'
+            kwargs['neighbor_strategy'] = 'BTree'
+            return tp.link_df(*args, **kwargs)
+        self.link = curried_link
 
-class TestHasTableWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
+
+class TestBTreeWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
         def curried_link(*args, **kwargs):
             kwargs['link_strategy'] = 'nonrecursive'
+            kwargs['neighbor_strategy'] = 'BTree'
+            return tp.link_df(*args, **kwargs)
+        self.link = curried_link
+
+
+class TestKDTreeWithRecursiveLink(CommonTrackingTests, unittest.TestCase):
+    def setUp(self):
+        def curried_link(*args, **kwargs):
+            kwargs['link_strategy'] = 'recursive'
+            kwargs['neighbor_strategy'] = 'KDTree'
+            return tp.link_df(*args, **kwargs)
+        self.link = curried_link
+
+
+class TestKDTreeWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
+    def setUp(self):
+        def curried_link(*args, **kwargs):
+            kwargs['link_strategy'] = 'nonrecursive'
+            kwargs['neighbor_strategy'] = 'KDTree'
             return tp.link_df(*args, **kwargs)
         self.link = curried_link
 
@@ -480,3 +482,7 @@ class TestHasTableWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
 #                os.remove(filename)
 #            except OSError:
 #                pass
+if __name__ == '__main__':
+    import nose
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)
