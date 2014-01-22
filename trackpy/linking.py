@@ -151,9 +151,6 @@ class HashTable(object):
         self.hash_table[indx].append(point)
 
 
-Hash_table = HashTable  # legacy
-
-
 class Track(object):
     '''
     :param point: The first feature in the track if not  `None`.
@@ -721,6 +718,8 @@ def link_iter(levels, search_range, memory=0,
                 prev_hash.add_point(m)
                 # re-create the forward_cands list
                 m.forward_cands = []
+            if isinstance(prev_hash, TreeFinder):
+                prev_hash.rebuild()
         prev_set = tmp_set
 
         # add in the memory points
@@ -754,6 +753,9 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
             for d, i in zip(dists, inds):
                 if i < hashpts_len:
                     wp = hashpts[i]
+                    if not np.isfinite(d):
+                        i = None
+                        d = search_range   
                     p.back_cands.append((wp, d))
                     wp.forward_cands.append((p, d))
                 else:
@@ -774,7 +776,7 @@ def recursive_linker_obj(s_sn, dest_size, search_range):
     return zip(*snl.best_pairs)
 
 
-class sub_net_linker(object):
+class SubnetLinker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
@@ -795,7 +797,8 @@ class sub_net_linker(object):
         self.cur_sum = 0
 
         if self.MAX > sub_net_linker.MAX_SUB_NET_SIZE:
-            raise SubnetOversizeException('sub net contains %d points' % self.MAX)
+            raise SubnetOversizeException("Subnetwork contains %d points"
+                                          % self.MAX)
         # do the computation
         self.do_recur(0)
 
@@ -933,3 +936,6 @@ def _maybe_remove(s, p):
         s.remove(p)
     except KeyError:
         pass
+
+sub_net_linker = SubnetLinker  # legacy
+Hash_table = HashTable  # legacy
