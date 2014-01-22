@@ -287,9 +287,18 @@ class CommonTrackingTests(object):
 #    def setUp(self):
 #        self.link = tp.linking_experimental.link
 
-class TestTrackpyTracking(CommonTrackingTests, unittest.TestCase):
+class TestHashTableWithRecursiveLink(CommonTrackingTests, unittest.TestCase):
+    # This is the default.
     def setUp(self):
         self.link = tp.link_df
+
+class TestHasTableWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
+    def setUp(self):
+        def curried_link(*args, **kwargs):
+            kwargs['link_strategy'] = 'nonrecursive'
+            return tp.link_df(*args, **kwargs)
+        self.link = curried_link
+
 
 # Removed after trackpy refactor -- restore with new API.
 # class TestLinkOnDisk(unittest.TestCase):
