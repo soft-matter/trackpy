@@ -38,11 +38,12 @@ class TreeFinder(object):
 
     def add_point(self, pt):
         self.points.append(pt)
+        self._clean = False
 
     def rebuild(self):
         """Rebuilds tree from ``points`` attribute.
 
-        Needs to be called after ``add_point()`` and before tree is used for 
+        Needs to be called after ``add_point()`` and before tree is used for
         spatial queries again (i.e. when memory is turned on).
         """
 
@@ -50,16 +51,27 @@ class TreeFinder(object):
         n = len(self.points)
         if n == 0:
             raise ValueError('Frame (aka level) contains zero points')
-        self.kdtree = cKDTree(coords, max(3, int(round(np.log10(n)))))
+        self._kdtree = cKDTree(coords, max(3, int(round(np.log10(n)))))
         # This could be tuned
+        self._clean = True
+
+    @property
+    def kdtree(self):
+        if not self._clean:
+            self.rebuild()
+        return self._kdtree
 
 
 class HashTable(object):
     '''
-    :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
-    :param box_size: how big each box should be in data units.  The same scale is used for all dimensions
+    :param dims: the range of the data to be put
+        in the hash table.  0<data[k]<dims[k]
 
-    Basic hash table to fast look up of particles in the region of a given particle
+    :param box_size: how big each box should be in data
+         units.  The same scale is used for all dimensions
+
+    Basic hash table to fast look up of particles
+    in the region of a given particle
     '''
     class Out_of_hash_excpt(Exception):
         """
@@ -73,14 +85,16 @@ class HashTable(object):
 
         '''
         self.dims = dims                  # the dimensions of the data
-        self.box_size = box_size          # the size of boxes to use in the units of the data
+        self.box_size = box_size          # the size of boxes to use
+                                          # in the units of the data
         self.hash_dims = np.ceil(np.array(dims) / box_size)
 
         self.hash_table = [[] for j in range(int(np.prod(self.hash_dims)))]
         self.spat_dims = len(dims)        # how many spatial dimensions
         self.cached_shifts = None
         self.cached_rrange = None
-        self.strides = np.cumprod(np.concatenate(([1], self.hash_dims[1:])))[::-1]
+        self.strides = np.cumprod(np.concatenate(([1],
+                                                  self.hash_dims[1:])))[::-1]
 
     def get_region(self, point, rrange):
         '''
@@ -116,7 +130,7 @@ class HashTable(object):
                           for k in range(-rrange, rrange + 1)
                           for m in range(-rrange, rrange + 1)]
             else:
-                raise NotImplementedError('only 2 and 3 dimensions implemented')
+                raise NotImplementedError('only d = (2 or 3) implemented')
             self.cached_rrange = rrange   # and save them
             self.cached_shifts = shifts
         region = []
@@ -134,10 +148,9 @@ class HashTable(object):
         """
         :param point: object representing the feature to add to the hash table
 
-        Adds the `point` to the hash table.  Assumes that :py:attr:`point.pos` exists and
+        Adds the `point` to the hash table.
+        Assumes that :py:attr:`point.pos` exists and
         is the array-like.
-
-
 
 
         can raise :py:exc:`~Hash_table.Out_of_hash_excpt`
@@ -225,10 +238,10 @@ class DummyTrack(object):
     track_id = itertools.count(0)
 
     def __init__(self, point):
-       self.id = next(DummyTrack.track_id)
-       self.indx = self.id  # redundant, but like trackpy
-       if point is not None:
-           self.add_point(point)
+        self.id = next(DummyTrack.track_id)
+        self.indx = self.id  # redundant, but like trackpy
+        if point is not None:
+            self.add_point(point)
 
     def add_point(self, point):
         point.add_to_track(self)
@@ -246,8 +259,12 @@ class Point(object):
 
 
 
-    .. note:: To be used for tracking this class must be sub-classed to provide a :py:func:`distance` function.  Child classes **MUST** call :py:func:`Point.__init__`.  (See :py:class:`~trackpy.tracking.PointND` for example. )
+    .. note:: To be used for tracking this class must be sub-classed to
+        provide a :py:func:`distance` function.  Child classes
+        **MUST** call :py:func:`Point.__init__`.
+        (See :py:class:`~trackpy.tracking.PointND` for example. )
     '''
+
     count = 0
 
     def __init__(self):
@@ -330,9 +347,12 @@ class PointND(Point):
         return "({t}, {p})".format(t=self.t, p=self.pos)
 
     def __repr__(self):
-        coords = '(' + (', '.join(["{:.3f}"]*len(self.pos))).format(*self.pos) + ')'
+        coords = '(' + (', '.join(["{:.3f}"]*len(self.pos))
+                        ).format(*self.pos) + ')'
         track = " in Track %d" % self.track.indx if self.track else ""
-        return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">" 
+        return "<%s at %d, " % (self.__class__.__name__,
+                                self.t) + coords + track + ">"
+
 
 class IndexedPointND(PointND):
 
@@ -362,7 +382,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     neighbor_strategy : 'BTree' or 'KDTree'
     link_strategy : 'recursive' or 'nonrecursive'
 
-    Returns  
+    Returns
     -------
     tracks : list of Track (or track_cls) objects
 
@@ -380,7 +400,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     label_generator = link_iter(iter(levels), search_range, memory=memory,
                                 neighbor_strategy=neighbor_strategy,
                                 link_strategy=link_strategy,
-                                track_cls=track_cls, 
+                                track_cls=track_cls,
                                 hash_generator=hash_generator)
     labels = list(label_generator)
     points = sum(map(list, levels), [])  # flatten levels: a list of poits
@@ -391,6 +411,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     representative_points = grouped.first()  # one point from each Track
     tracks = representative_points.apply(lambda x: x.track)
     return tracks
+
 
 def link_df(features, search_range, memory=0,
             neighbor_strategy='BTree', link_strategy='recursive',
@@ -414,7 +435,7 @@ def link_df(features, search_range, memory=0,
     neighbor_strategy : 'BTree' or 'KDTree'
     link_strategy : 'recursive' or 'nonrecursive'
 
-    Returns  
+    Returns
     -------
     trajectories : DataFrame
         This is the input features DataFrame, now with a new column labeling
@@ -430,7 +451,7 @@ def link_df(features, search_range, memory=0,
         For 'BTree' mode only. Define the shape of the search region.
         If None (default), infer shape from range of data.
     box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize 
+        For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     verify_integrity : boolean
@@ -446,7 +467,7 @@ def link_df(features, search_range, memory=0,
     if t_column is None:
         t_column = 'frame'
     if hash_size is None:
-        MARGIN = 1 # avoid OutOfHashException
+        MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
 
     # Group the DataFrame by time steps and make a 'level' out of each
@@ -467,7 +488,7 @@ def link_df(features, search_range, memory=0,
         labels = pd.Series(map(lambda x: x.track.id, level), index)
         frame_no = next(iter(level)).t  # uses an arbitary element from the set
         if verify_integrity:
-            _verify_integrity(frame_no, labels) # may issue warnings
+            _verify_integrity(frame_no, labels)  # may issue warnings
         features['probe'].update(labels)
 
         msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
@@ -534,7 +555,7 @@ def link_iter(levels, search_range, memory=0,
         For 'BTree' mode only. Define the shape of the search region.
         (Higher-level wrappers of link infer this from the data.)
     box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize 
+        For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     track_cls : class (optional)
@@ -578,11 +599,10 @@ def link_iter(levels, search_range, memory=0,
 
     try:
         # Start ID numbers from zero, incompatible with multithreading.
-        track_cls.reset_counter()  
+        track_cls.reset_counter()
     except AttributeError:
         # must be using a custom Track class without this method
         pass
-
 
     # Assume everything in first level starts a Track.
     track_lst = map(track_cls, prev_set)
@@ -614,7 +634,7 @@ def link_iter(levels, search_range, memory=0,
             p.forward_cands = []
 
         # Sort out what can go to what.
-        assign_candidates(cur_level, prev_hash, search_range, 
+        assign_candidates(cur_level, prev_hash, search_range,
                           neighbor_strategy)
 
         # sort the candidate lists by distance
@@ -676,7 +696,7 @@ def link_iter(levels, search_range, memory=0,
 
             spl, dpl = subnet_linker(s_sn, len(d_sn), search_range)
 
-            # Identify the particles in the destination set that 
+            # Identify the particles in the destination set that
             # were not linked to.
             d_remain = set(d for d in d_sn if d is not None)  # TODO DAN
             d_remain -= set(d for d in dpl if d is not None)
@@ -724,8 +744,6 @@ def link_iter(levels, search_range, memory=0,
                 prev_hash.add_point(m)
                 # re-create the forward_cands list
                 m.forward_cands = []
-            if isinstance(prev_hash, TreeFinder):
-                prev_hash.rebuild()
         prev_set = tmp_set
 
         # add in the memory points
@@ -751,7 +769,7 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
         query = prev_hash.kdtree.query
         hashpts = prev_hash.points
         hashpts_len = len(hashpts)
-        # TODO: In scipy >= 0.12, 
+        # TODO: In scipy >= 0.12,
         # all neighbors for all particles can be found in one call!
         for p in cur_level:
             # get
@@ -761,7 +779,7 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
                     wp = hashpts[i]
                     if not np.isfinite(d):
                         i = None
-                        d = search_range   
+                        d = search_range
                     p.back_cands.append((wp, d))
                     wp.forward_cands.append((p, d))
                 else:
@@ -772,8 +790,9 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
 
 class SubnetOversizeException(Exception):
     '''An :py:exc:`Exception` to be raised when the sub-nets are too
-    big to be efficiently linked.  If you get this then either reduce your search range
-    or increase :py:attr:`sub_net_linker.MAX_SUB_NET_SIZE`'''
+    big to be efficiently linked.  If you get this then either reduce
+    your search range or increase
+    :py:attr:`sub_net_linker.MAX_SUB_NET_SIZE`'''
     pass
 
 
@@ -784,7 +803,8 @@ def recursive_linker_obj(s_sn, dest_size, search_range):
 
 class SubnetLinker(object):
     '''A helper class for implementing the Crocker-Grier tracking
-    algorithm.  This class handles the recursion code for the sub-net linking'''
+    algorithm.  This class handles the recursion code for
+    the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
 
     def __init__(self, s_sn, dest_size, search_range):
@@ -834,7 +854,9 @@ class SubnetLinker(object):
             # if we have hit the end of s_lst and made it this far, it
             # must be a better linking so save it.
             if j + 1 == self.MAX:
-                tmp_sum = self.cur_sum + self.search_range * (self.max_links - len(self.d_taken))
+                tmp_sum = (self.cur_sum +
+                           self.search_range *
+                               (self.max_links - len(self.d_taken)))
                 if tmp_sum < self.best_sum:
                     self.best_sum = tmp_sum
                     self.best_pairs = list(self.cur_pairs)
@@ -872,10 +894,14 @@ def nonrecursive_link(source_list, dest_size, search_range):
         # grab everything from the end of the stack
         cur_sum = cur_sum_stack[-1]
         if j >= MAX:
-            # base case, no more source candidates,
-            # save the current configuration if it's better than the current max
-            # add penalty for not linking to particles in the destination set
-            tmp_sum = cur_sum + search_range * (max_links - len([d for d in cur_back if d is not None]))
+            # base case, no more source candidates, save the current
+            # configuration if it's better than the current max add
+            # penalty for not linking to particles in the destination
+            # set
+            tmp_sum = (cur_sum +
+                       search_range * (max_links -
+                                       len([d for d in cur_back
+                                            if d is not None])))
             if tmp_sum < best_sum:
                 best_sum = cur_sum
                 best_back = list(cur_back)
@@ -922,7 +948,9 @@ def nonrecursive_link(source_list, dest_size, search_range):
         k_stack[-1] += 1
         # check if it's already linked
         if cur_d is not None and cur_d in cur_back:
-            # this will run the loop with almost identical stack, but with advanced k
+            # this will run the loop with almost identical stack, but
+            # with advanced k
+
             # print 'already linked cur_d'
             # print '-------------------------'
             continue
@@ -935,6 +963,7 @@ def nonrecursive_link(source_list, dest_size, search_range):
         # print '-------------------------'
     #    print 'done'
     return source_list, best_back
+
 
 def _maybe_remove(s, p):
     # Begging forgiveness is faster than asking permission
