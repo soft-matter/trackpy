@@ -461,14 +461,14 @@ def link_df(features, search_range, memory=0,
         hash_size=hash_size, box_size=box_size)
 
     # Do the tracking, and update the DataFrame after each iteration.
-    features['probe'] = np.nan  # placeholder
+    features['particle'] = np.nan  # placeholder
     for level in labeled_levels:
         index = map(lambda x: x.id, level)
         labels = pd.Series(map(lambda x: x.track.id, level), index)
         frame_no = next(iter(level)).t  # uses an arbitary element from the set
         if verify_integrity:
             _verify_integrity(frame_no, labels) # may issue warnings
-        features['probe'].update(labels)
+        features['particle'].update(labels)
 
         msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
         print_update(msg)
@@ -477,7 +477,7 @@ def link_df(features, search_range, memory=0,
         features.index = orig_index
         # And don't bother to sort -- user must be doing something special.
     else:
-        features.sort(['probe', t_column], inplace=True)
+        features.sort(['particle', t_column], inplace=True)
         features.reset_index(drop=True, inplace=True)
     return features
 
@@ -498,9 +498,9 @@ class UnknownLinkingError(Exception):
 def _verify_integrity(frame_no, labels):
     if labels.duplicated().sum() > 0:
         raise UnknownLinkingError(
-            "There are two probes with the same label in Frame %d.")
+            "There are two particles with the same label in Frame %d.")
     if np.any(labels < 0):
-        raise UnknownLinkingError("Some probes were not labeled in Frame %d.")
+        raise UnknownLinkingError("Some particles were not labeled in Frame %d.")
 
 
 def link_iter(levels, search_range, memory=0,

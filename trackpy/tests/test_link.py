@@ -51,21 +51,21 @@ class CommonTrackingTests(object):
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         actual = self.link_df(f, 5)
         expected = f.copy()
-        expected['probe'] = np.zeros(N)
+        expected['particle'] = np.zeros(N)
         assert_frame_equal(actual, expected)
 
     def test_two_isolated_steppers(self):
         N = 5
         Y = 25
-        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
+        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
         # established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
         actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
+        expected.sort(['particle', 'frame'], inplace=True)
         assert_frame_equal(actual, expected)
 
         # Sort rows by frame (normal use)
@@ -83,7 +83,7 @@ class CommonTrackingTests(object):
         N = 5
         Y = 25
         # Begin second feature one frame later than the first, 
-        # so the probe labeling (0, 1) is established and not arbitrary.
+        # so the particle labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
                       'frame': np.arange(N)})
         a = a.drop(3).reset_index(drop=True)
@@ -92,8 +92,8 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         expected = f.copy()
         actual = self.link_df(f, 5)
-        expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
+        expected.sort(['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         print expected
         assert_frame_equal(actual, expected)
@@ -112,14 +112,14 @@ class CommonTrackingTests(object):
     def test_two_nearby_steppers(self):
         N = 5
         Y = 2
-        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
+        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
         # established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
+        expected.sort(['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
 
@@ -137,15 +137,15 @@ class CommonTrackingTests(object):
     def test_two_nearby_steppers_one_gapped(self):
         N = 5
         Y = 2
-        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
+        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
         # established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
+        expected.sort(['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
@@ -164,7 +164,7 @@ class CommonTrackingTests(object):
     def test_memory_on_one_gap(self):
         N = 5
         Y = 2
-        # Begin second feature one frame later than the first, so the probe labeling (0, 1) is
+        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
         # established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
@@ -172,8 +172,8 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         actual = self.link_df(f, 5, memory=1)
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
+        expected.sort(['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         assert_frame_equal(actual, expected)
 
@@ -199,8 +199,8 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
+        expected.sort(['particle', 'frame'], inplace=True)
         assert_frame_equal(actual, expected)
 
         # Many 2D random walks
@@ -216,8 +216,8 @@ class CommonTrackingTests(object):
         f = pd.concat([walk(*pos) for pos in initial_positions])
         actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
+        expected.sort(['particle', 'frame'], inplace=True)
         assert_frame_equal(actual, expected)
 
     def test_nearby_continuous_random_walks(self):
@@ -235,8 +235,8 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
+        expected.sort(['particle', 'frame'], inplace=True)
         assert_frame_equal(actual, expected)
 
         # Several 2D random walks
@@ -253,8 +253,8 @@ class CommonTrackingTests(object):
         f = pd.concat([walk(*pos) for pos in initial_positions])
         actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
-        expected['probe'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        expected.sort(['probe', 'frame'], inplace=True)
+        expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
+        expected.sort(['particle', 'frame'], inplace=True)
         assert_frame_equal(actual, expected)
 
         # Shuffle rows (crazy!)
@@ -272,7 +272,7 @@ class CommonTrackingTests(object):
                       'frame': FIRST_FRAME + np.arange(N)})
         actual = self.link_df(f, 5)
         expected = f.copy()
-        expected['probe'] = np.zeros(N)
+        expected['particle'] = np.zeros(N)
         assert_frame_equal(actual, expected)
 
     def test_blank_frame_no_memory(self):
@@ -282,10 +282,10 @@ class CommonTrackingTests(object):
                       'frame': [0, 1, 2, 4, 5]})
         actual = self.link_df(f, 5)
         expected = f.copy()
-        expected['probe'] = np.zeros(N)
+        expected['particle'] = np.zeros(N)
         assert_frame_equal(actual, expected)
         # This doesn't error, but we might wish it would
-        # give the probe a new ID after the gap. It just
+        # give the particle a new ID after the gap. It just
         # ignores the missing frame.
 
     def test_real_data_that_causes_duplicate_bug(self):
