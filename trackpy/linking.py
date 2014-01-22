@@ -38,11 +38,12 @@ class TreeFinder(object):
 
     def add_point(self, pt):
         self.points.append(pt)
+        self._clean = False
 
     def rebuild(self):
         """Rebuilds tree from ``points`` attribute.
 
-        Needs to be called after ``add_point()`` and before tree is used for 
+        Needs to be called after ``add_point()`` and before tree is used for
         spatial queries again (i.e. when memory is turned on).
         """
 
@@ -50,9 +51,15 @@ class TreeFinder(object):
         n = len(self.points)
         if n == 0:
             raise ValueError('Frame (aka level) contains zero points')
-        self.kdtree = cKDTree(coords, max(3, int(round(np.log10(n)))))
+        self._kdtree = cKDTree(coords, max(3, int(round(np.log10(n)))))
         # This could be tuned
+        self._clean = True
 
+    @property
+    def kdtree(self):
+        if not self._clean:
+            self.rebuild()
+        return self._kdtree
 
 class HashTable(object):
     '''
@@ -332,7 +339,7 @@ class PointND(Point):
     def __repr__(self):
         coords = '(' + (', '.join(["{:.3f}"]*len(self.pos))).format(*self.pos) + ')'
         track = " in Track %d" % self.track.indx if self.track else ""
-        return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">" 
+        return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">"
 
 class IndexedPointND(PointND):
 
@@ -362,7 +369,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     neighbor_strategy : 'BTree' or 'KDTree'
     link_strategy : 'recursive' or 'nonrecursive'
 
-    Returns  
+    Returns
     -------
     tracks : list of Track (or track_cls) objects
 
@@ -380,7 +387,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     label_generator = link_iter(iter(levels), search_range, memory=memory,
                                 neighbor_strategy=neighbor_strategy,
                                 link_strategy=link_strategy,
-                                track_cls=track_cls, 
+                                track_cls=track_cls,
                                 hash_generator=hash_generator)
     labels = list(label_generator)
     points = sum(map(list, levels), [])  # flatten levels: a list of poits
@@ -414,7 +421,7 @@ def link_df(features, search_range, memory=0,
     neighbor_strategy : 'BTree' or 'KDTree'
     link_strategy : 'recursive' or 'nonrecursive'
 
-    Returns  
+    Returns
     -------
     trajectories : DataFrame
         This is the input features DataFrame, now with a new column labeling
@@ -430,7 +437,7 @@ def link_df(features, search_range, memory=0,
         For 'BTree' mode only. Define the shape of the search region.
         If None (default), infer shape from range of data.
     box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize 
+        For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     verify_integrity : boolean
@@ -534,7 +541,7 @@ def link_iter(levels, search_range, memory=0,
         For 'BTree' mode only. Define the shape of the search region.
         (Higher-level wrappers of link infer this from the data.)
     box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize 
+        For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     track_cls : class (optional)
@@ -578,7 +585,7 @@ def link_iter(levels, search_range, memory=0,
 
     try:
         # Start ID numbers from zero, incompatible with multithreading.
-        track_cls.reset_counter()  
+        track_cls.reset_counter()
     except AttributeError:
         # must be using a custom Track class without this method
         pass
@@ -614,7 +621,7 @@ def link_iter(levels, search_range, memory=0,
             p.forward_cands = []
 
         # Sort out what can go to what.
-        assign_candidates(cur_level, prev_hash, search_range, 
+        assign_candidates(cur_level, prev_hash, search_range,
                           neighbor_strategy)
 
         # sort the candidate lists by distance
@@ -676,7 +683,7 @@ def link_iter(levels, search_range, memory=0,
 
             spl, dpl = subnet_linker(s_sn, len(d_sn), search_range)
 
-            # Identify the particles in the destination set that 
+            # Identify the particles in the destination set that
             # were not linked to.
             d_remain = set(d for d in d_sn if d is not None)  # TODO DAN
             d_remain -= set(d for d in dpl if d is not None)
@@ -724,8 +731,6 @@ def link_iter(levels, search_range, memory=0,
                 prev_hash.add_point(m)
                 # re-create the forward_cands list
                 m.forward_cands = []
-            if isinstance(prev_hash, TreeFinder):
-                prev_hash.rebuild()
         prev_set = tmp_set
 
         # add in the memory points
@@ -751,7 +756,7 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
         query = prev_hash.kdtree.query
         hashpts = prev_hash.points
         hashpts_len = len(hashpts)
-        # TODO: In scipy >= 0.12, 
+        # TODO: In scipy >= 0.12,
         # all neighbors for all particles can be found in one call!
         for p in cur_level:
             # get
@@ -761,7 +766,7 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
                     wp = hashpts[i]
                     if not np.isfinite(d):
                         i = None
-                        d = search_range   
+                        d = search_range
                     p.back_cands.append((wp, d))
                     wp.forward_cands.append((p, d))
                 else:
