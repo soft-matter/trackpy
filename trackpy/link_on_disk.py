@@ -77,11 +77,11 @@ class LinkOnDisk(object):
                         break
                     # Fetch data (redundantly) this time taking all columns.
                     frame = store.select(self.key, 'frame == %d' % frame_no)
-                    frame['probe'] = -1  # an integer placeholder
-                    frame['probe'].update(labels)
+                    frame['particle'] = -1  # an integer placeholder
+                    frame['particle'].update(labels)
                     out_store.append(out_key, frame, 
                                      data_columns=frame.columns)
-                    print "Frame %d written with %d probes tracked." \
+                    print "Frame %d written with %d particles tracked." \
                         % (frame_no, len(frame))
 
     def detect_last_frame(self):

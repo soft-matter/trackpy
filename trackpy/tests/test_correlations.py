@@ -15,8 +15,8 @@ class TestCorrelations(unittest.TestCase):
         N = 500
         a = DataFrame(randn(N, 2), columns=['x', 'y'])
         b = DataFrame(a[['x', 'y']] + 0.1*randn(N, 2), columns=['x', 'y'])
-        a['probe'] = np.arange(N)
-        b['probe'] = np.arange(N)
+        a['particle'] = np.arange(N)
+        b['particle'] = np.arange(N)
         a['frame'] = 0
         b['frame'] = 1
         self.random_walk = pd.concat([a, b])

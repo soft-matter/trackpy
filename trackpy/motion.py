@@ -74,12 +74,12 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     return results[:-1]
 
 def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
-    """Compute the mean squared displacements of probes individually.
+    """Compute the mean squared displacements of particles individually.
     
     Parameters
     ----------
-    traj : DataFrame of trajectories of multiple probes, including 
-        columns probe, frame, x, and y
+    traj : DataFrame of trajectories of multiple particles, including 
+        columns particle, frame, x, and y
     mpp : microns per pixel
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
@@ -100,11 +100,11 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     msds = []
     # Note: Index is set by msd, so we don't need to worry
     # about conformity here.
-    for pid, ptraj in traj.groupby('probe'):
+    for pid, ptraj in traj.groupby('particle'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, False))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
-    # Swap MultiIndex levels so that unstack() makes probes into columns.
+    # Swap MultiIndex levels so that unstack() makes particles into columns.
     results = results.swaplevel(0, 1)[statistic].unstack()
     lagt = results.index.values.astype('float64')/float(fps)
     results.set_index(lagt, inplace=True)
@@ -112,12 +112,12 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     return results
 
 def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
-    """Compute the mean squared displacements of an ensemble of probes. 
+    """Compute the mean squared displacements of an ensemble of particles. 
     
     Parameters
     ----------
-    traj : DataFrame of trajectories of multiple probes, including 
-        columns probe, frame, x, and y
+    traj : DataFrame of trajectories of multiple particles, including 
+        columns particle, frame, x, and y
     mpp : microns per pixel
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
@@ -136,10 +136,10 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     """
     ids = []
     msds = []
-    for pid, ptraj in traj.reset_index(drop=True).groupby('probe'):
+    for pid, ptraj in traj.reset_index(drop=True).groupby('particle'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, True))
         ids.append(pid)
-    msds = pd.concat(msds, keys=ids, names=['probe', 'frame'])
+    msds = pd.concat(msds, keys=ids, names=['particle', 'frame'])
     results = msds.mul(msds['N'], axis=0).mean(level=1) # weighted average
     results = results.div(msds['N'].mean(level=1), axis=0) # weights normalized
     # Above, lagt is lumped in with the rest for simplicity and speed.
@@ -153,7 +153,7 @@ def compute_drift(traj, smoothing=0):
 
     Parameters
     ----------
-    traj : DataFrame of trajectories, including columns x, y, frame, and probe
+    traj : DataFrame of trajectories, including columns x, y, frame, and particle
     smoothing : integer
         Smooth the drift using a forward-looking rolling mean over 
         this many frames.
@@ -171,9 +171,9 @@ def compute_drift(traj, smoothing=0):
     drift = compute_drift(traj, 15) # Save good drift curves.
     corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
-    # Probe by probe, take the difference between frames.
+    # Probe by particle, take the difference between frames.
     delta = pd.concat([t.set_index('frame', drop=False).diff()
-                       for p, t in traj.groupby('probe')])
+                       for p, t in traj.groupby('particle')])
     # Keep only deltas between frames that are consecutive. 
     delta = delta[delta['frame'] == 1]
     # Restore the original frame column (replacing delta frame).
@@ -186,7 +186,7 @@ def compute_drift(traj, smoothing=0):
     return x
 
 def subtract_drift(traj, drift=None):
-    """Return a copy of probe trajectores with the overall drift subtracted out.
+    """Return a copy of particle trajectores with the overall drift subtracted out.
     
     Parameters
     ----------
@@ -204,13 +204,13 @@ def subtract_drift(traj, drift=None):
     return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
 
 def is_typical(msds, frame=23, lower=0.1, upper=0.9):
-    """Examine individual probe MSDs, distinguishing outliers from those
+    """Examine individual particle MSDs, distinguishing outliers from those
     in the central quantile.
 
     Parameters
     ----------
     msds : DataFrame like the output of imsd()
-        Columns correspond to probes, indexed by lagtime measured in frames.
+        Columns correspond to particles, indexed by lagtime measured in frames.
     frame : integer frame number
         Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).
     lower : float between 0 and 1, default 0.1
@@ -221,15 +221,15 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
     
     Returns
     -------
-    Series of boolean values, indexed by probe number
-    True = typical probe, False = outlier probe
+    Series of boolean values, indexed by particle number
+    True = typical particle, False = outlier particle
 
     Example
     -------
     m = tp.imsd(traj, MPP, FPS)
-    # Index by probe ID, slice using boolean output from is_typical(), and then
+    # Index by particle ID, slice using boolean output from is_typical(), and then
     # restore the original index, frame number.
-    typical_traj = traj.set_index('probe').ix[is_typical(m)].reset_index()\
+    typical_traj = traj.set_index('particle').ix[is_typical(m)].reset_index()\
         .set_index('frame', drop=False)
     """
     a, b = msds.iloc[frame].quantile(lower), msds.iloc[frame].quantile(upper)
@@ -240,7 +240,7 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
 
     Parameters
     ----------
-    pos : DataFrame of x or (or!) y positions, one column per probe, indexed
+    pos : DataFrame of x or (or!) y positions, one column per particle, indexed
         by frame
     lagtime : integer interval of frames 
         Compare the correlation function at this lagtime. Default is 23 
@@ -254,13 +254,13 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
 
     Returns
     -------
-    vh : If ensemble=True, a DataFrame with each probe's van Hove correlation 
+    vh : If ensemble=True, a DataFrame with each particle's van Hove correlation 
         function, indexed by displacement. If ensemble=False, a Series with 
         the van Hove correlation function of the whole ensemble.
 
     Example
     -------
-    pos = traj.set_index(['frame', 'probe'])['x'].unstack() # probes as columns
+    pos = traj.set_index(['frame', 'particle'])['x'].unstack() # particles as columns
     vh = vanhove(pos)
     """
     # Reindex with consecutive frames, placing NaNs in the gaps. 
@@ -298,9 +298,9 @@ def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
     -------
     >>> diagonal_size(single_trajectory)
 
-    >>> many_trajectories.groupby('probe').agg(tp.diagonal_size)
+    >>> many_trajectories.groupby('particle').agg(tp.diagonal_size)
 
-    >>> many_trajectories.groupby('probe').filter(lambda x: tp.diagonal_size(x) > 5)
+    >>> many_trajectories.groupby('particle').filter(lambda x: tp.diagonal_size(x) > 5)
     """
     
     pos = single_trajectory.set_index(t_column)[pos_columns]
@@ -315,8 +315,8 @@ def is_diffusive(traj, threshold=0.9):
 def relate_frames(t, frame1, frame2):
     a = t[t.frame == frame1]
     b = t[t.frame == frame2]
-    j = a.set_index('probe')[['x', 'y']].join(
-         b.set_index('probe')[['x', 'y']], rsuffix='_b')
+    j = a.set_index('particle')[['x', 'y']].join(
+         b.set_index('particle')[['x', 'y']], rsuffix='_b')
     j['dx'] = j.x_b - j.x
     j['dy'] = j.y_b - j.y
     j['dr'] = np.sqrt(j['dx']**2 + j['dy']**2)
@@ -324,17 +324,17 @@ def relate_frames(t, frame1, frame2):
     return j
 
 def direction_corr(t, frame1, frame2):
-    """Compute the cosine between every pair of probes' displacements.
+    """Compute the cosine between every pair of particles' displacements.
 
     Parameters
     ----------
-    t : DataFrame containing columns probe, frame, x, and y
+    t : DataFrame containing columns particle, frame, x, and y
     frame1 : frame number
     frame2 : frame number
 
     Returns
     -------
-    DataFrame, indexed by probe, including dx, dy, and direction
+    DataFrame, indexed by particle, including dx, dy, and direction
     """
     j = relate_frames(t, frame1, frame2)
     cosine = np.cos(np.subtract.outer(j.direction, j.direction))
@@ -347,17 +347,17 @@ def direction_corr(t, frame1, frame2):
 
 def velocity_corr(t, frame1, frame2):
     """Compute the velocity correlation between 
-    every pair of probes' displacements.
+    every pair of particles' displacements.
 
     Parameters
     ----------
-    t : DataFrame containing columns probe, frame, x, and y
+    t : DataFrame containing columns particle, frame, x, and y
     frame1 : frame number
     frame2 : frame number
 
     Returns
     -------
-    DataFrame, indexed by probe, including dx, dy, and direction
+    DataFrame, indexed by particle, including dx, dy, and direction
     """
     j = relate_frames(t, frame1, frame2)
     cosine = np.cos(np.subtract.outer(j.direction, j.direction))
@@ -384,9 +384,9 @@ def theta_entropy(pos, bins=24, plot=True):
 
     Examples
     --------
-    >>> theta_entropy(t[t['probe'] == 3].set_index('frame'))
+    >>> theta_entropy(t[t['particle'] == 3].set_index('frame'))
 
-    >>> S = t.set_index('frame').groupby('probe').apply(tp.theta_entropy)
+    >>> S = t.set_index('frame').groupby('particle').apply(tp.theta_entropy)
     """
 
     disp = pos - pos.shift(1)
@@ -418,9 +418,9 @@ def min_rolling_theta_entropy(pos, window=24, bins=24):
 
     Examples
     --------
-    >>> theta_entropy(t[t['probe'] == 3].set_index('frame'))
+    >>> theta_entropy(t[t['particle'] == 3].set_index('frame'))
 
-    >>> S = t.set_index('frame').groupby('probe').apply(
+    >>> S = t.set_index('frame').groupby('particle').apply(
     ...     tp.min_rolling_theta_entropy)
     """
 
@@ -442,25 +442,25 @@ def proximity(features, pos_columns=['x', 'y']):
     Returns
     -------
     proximity : DataFrame
-        distance to each probe's nearest neighbor, 
-        indexed by probe if 'probe' column is present in input
+        distance to each particle's nearest neighbor, 
+        indexed by particle if 'particle' column is present in input
 
     Example
     -------
-    Find the proximity of each probe to its nearest neighbor in every frame.
+    Find the proximity of each particle to its nearest neighbor in every frame.
 
     >>> prox = t.groupby('frame').apply(proximity).reset_index()
-    >>> avg_prox = prox.groupby('probe')['proximity'].mean()
+    >>> avg_prox = prox.groupby('particle')['proximity'].mean()
 
     And filter the trajectories...
 
-    >>> probe_nos = avg_prox[avg_prox > 20].index
-    >>> t_filtered = t[t['probe'].isin(probe_nos)]
+    >>> particle_nos = avg_prox[avg_prox > 20].index
+    >>> t_filtered = t[t['particle'].isin(particle_nos)]
     """
     leaf_size = max(1, int(np.round(np.log10(len(features)))))
     tree = cKDTree(features[['x', 'y']].copy(), leaf_size)
     proximity = tree.query(tree.data, 2)[0][:, 1]
     result = DataFrame({'proximity': proximity})
-    if 'probe' in features:
-        result.set_index(features['probe'], inplace=True)
+    if 'particle' in features:
+        result.set_index(features['particle'], inplace=True)
     return result

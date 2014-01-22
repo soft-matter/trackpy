@@ -17,7 +17,7 @@ def random_walk(N):
 
 def conformity(df):
     "Organize toy data to look like real data."
-    return df.set_index('frame', drop=False).sort(['frame', 'probe']). \
+    return df.set_index('frame', drop=False).sort(['frame', 'particle']). \
         astype('float64')
 
 class TestDrift(unittest.TestCase):
@@ -26,23 +26,23 @@ class TestDrift(unittest.TestCase):
         N = 10
         Y = 1
         a = DataFrame({'x': np.zeros(N), 'y': np.zeros(N), 
-                      'frame': np.arange(N), 'probe': np.zeros(N)})
+                      'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1), 
-                       'frame': np.arange(1, N), 'probe': np.ones(N - 1)})
+                       'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
 
-        P = 1000 # probes
+        P = 1000 # particles
         A = 0.00001 # step amplitude
         np.random.seed(0)
-        probes = [DataFrame({'x': A*random_walk(N), 
+        particles = [DataFrame({'x': A*random_walk(N), 
             'y': A*random_walk(N), 
-            'frame': np.arange(N), 'probe': i}) for i in range(P)]
-        self.many_walks = conformity(pd.concat(probes))
+            'frame': np.arange(N), 'particle': i}) for i in range(P)]
+        self.many_walks = conformity(pd.concat(particles))
 
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N), 
-                      'frame': np.arange(N), 'probe': np.zeros(N)})
+                      'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1), 
-                       'frame': np.arange(1, N), 'probe': np.ones(N - 1)})
+                       'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pd.concat([a, b]))
 
     def test_no_drift(self):
@@ -107,23 +107,23 @@ class TestMSD(unittest.TestCase):
         N = 10
         Y = 1
         a = DataFrame({'x': np.zeros(N), 'y': np.zeros(N),
-                      'frame': np.arange(N), 'probe': np.zeros(N)})
+                      'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
-                       'frame': np.arange(1, N), 'probe': np.ones(N - 1)})
+                       'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
 
-        P = 50 # probes
+        P = 50 # particles
         A = 1 # step amplitude
         np.random.seed(0)
-        probes = [DataFrame({'x': A*random_walk(N),
+        particles = [DataFrame({'x': A*random_walk(N),
             'y': A*random_walk(N),
-            'frame': np.arange(N), 'probe': i}) for i in range(P)]
-        self.many_walks = conformity(pd.concat(probes))
+            'frame': np.arange(N), 'particle': i}) for i in range(P)]
+        self.many_walks = conformity(pd.concat(particles))
 
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
-                      'frame': np.arange(N), 'probe': np.zeros(N)})
+                      'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
-                       'frame': np.arange(1, N), 'probe': np.ones(N - 1)})
+                       'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pd.concat([a, b]))
 
     def test_zero_emsd(self):
@@ -152,15 +152,15 @@ class TestSpecial(unittest.TestCase):
         N = 10
         Y = 1
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
-                      'frame': np.arange(N), 'probe': np.zeros(N)})
+                      'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
-                       'frame': np.arange(1, N), 'probe': np.ones(N - 1)})
+                       'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pd.concat([a, b]))
 
     def test_theta_entropy(self):
         # just a smoke test
         theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
-        self.steppers.groupby('probe').apply(theta_entropy)
+        self.steppers.groupby('particle').apply(theta_entropy)
 if __name__ == '__main__':
     import nose
     nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],

@@ -74,17 +74,17 @@ def make_fig(func):
     return wrapper
 
 @make_axes
-def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None, 
+def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None, 
        cmap=mpl.cm.winter, ax=None):
-    """Plot traces of trajectories for each probe.
+    """Plot traces of trajectories for each particle.
     Optionally superimpose it on a frame from the video.
 
     Parameters
     ----------
     traj : DataFrame including columns x and y
-    colorby: {'probe', 'frame'}
+    colorby: {'particle', 'frame'}
     mpp : microns per pixel
-    label : Set to True to write probe ID numbers next to trajectories.
+    label : Set to True to write particle ID numbers next to trajectories.
     superimpose : background image, default None
     cmap : This is only used in colorby='frame' mode.
         Default = mpl.cm.winter
@@ -111,21 +111,21 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
         ax.set_xlim(0, superimpose.shape[1])
         ax.set_ylim(0, superimpose.shape[0])
     # Trajectories
-    if colorby == 'probe':
-        # Unstack probes into columns.
-        unstacked = traj.set_index(['frame', 'probe']).unstack()
+    if colorby == 'particle':
+        # Unstack particles into columns.
+        unstacked = traj.set_index(['frame', 'particle']).unstack()
         ax.plot(mpp*unstacked['x'], mpp*unstacked['y'], linewidth=1)
     if colorby == 'frame':
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine 
         from matplotlib.collections import LineCollection
-        x = traj.set_index(['frame', 'probe'])['x'].unstack()
-        y = traj.set_index(['frame', 'probe'])['y'].unstack()
+        x = traj.set_index(['frame', 'particle'])['x'].unstack()
+        y = traj.set_index(['frame', 'particle'])['y'].unstack()
         color_numbers = traj['frame'].values/float(traj['frame'].max())
         logger.info("Drawing multicolor lines takes awhile. "
                     "Come back in a minute.")
-        for probe in x:
+        for particle in x:
             points = np.array(
-                [x[probe].values, y[probe].values]).T.reshape(-1, 1, 2)
+                [x[particle].values, y[particle].values]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             lc = LineCollection(segments, cmap=cmap)
             lc.set_array(color_numbers)
@@ -133,11 +133,11 @@ def plot_traj(traj, colorby='probe', mpp=1, label=False, superimpose=None,
             ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
             ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
     if label:
-        unstacked = traj.set_index(['frame', 'probe'])[['x', 'y']].unstack()
+        unstacked = traj.set_index(['frame', 'particle'])[['x', 'y']].unstack()
         first_frame = int(traj['frame'].min())
         coords = unstacked.fillna(method='backfill').stack().loc[first_frame]
-        for probe_id, coord in coords.iterrows():
-            plt.text(coord['x'], coord['y'], "%d" % probe_id,
+        for particle_id, coord in coords.iterrows():
+            plt.text(coord['x'], coord['y'], "%d" % particle_id,
                      horizontalalignment='center',
                      verticalalignment='center')
     ax.invert_yaxis()
@@ -181,7 +181,7 @@ def annotate(centroids, image, circle_size=170, color='g',
 
 @make_axes
 def mass_ecc(f, ax=None):
-    """Plot each probe's mass versus eccentricity."""
+    """Plot each particle's mass versus eccentricity."""
     ax.plot(f['mass'], f['ecc'], 'ko', alpha=0.3)
     ax.set_xlabel('mass')
     ax.set_ylabel('eccentricity (0=circular)')
@@ -189,7 +189,7 @@ def mass_ecc(f, ax=None):
 
 @make_axes
 def mass_size(f, ax=None):
-    """Plot each probe's mass versus size."""
+    """Plot each particle's mass versus size."""
     ax.plot(f['mass'], f['size'], 'ko', alpha=0.1)
     ax.set_xlabel('mass')
     ax.set_ylabel('size')
@@ -270,8 +270,8 @@ def examine_jumps(data, jumps):
 def plot_displacements(t, frame1, frame2, ax=None, **kwargs):
     a = t[t.frame == frame1]
     b = t[t.frame == frame2]
-    j= a.set_index('probe')[['x', 'y']].join(
-        b.set_index('probe')[['x', 'y']], rsuffix='_b')
+    j= a.set_index('particle')[['x', 'y']].join(
+        b.set_index('particle')[['x', 'y']], rsuffix='_b')
     j['dx'] = j.x_b - j.x
     j['dy'] = j.y_b - j.y
     arrow_specs = j[['x', 'y', 'dx', 'dy']].dropna()

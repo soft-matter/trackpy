@@ -69,14 +69,14 @@ class Trajectories(object):
         chunks = self.get_data()
         N = []
         for chunk in chunks:
-            N.append(chunk.groupby('frame')['probe'].count())
+            N.append(chunk.groupby('frame')['particle'].count())
         return pd.concat(N)
 
     def lengths(self, plot=True):
         chunks = self.get_data()
         cum_L = pd.DataFrame({'frame': []})
         for chunk in chunks:
-            L = pd.DataFrame({'frame': chunk.groupby('probe')['frame'].count()})
+            L = pd.DataFrame({'frame': chunk.groupby('particle')['frame'].count()})
             cum_L = cum_L.add(L, fill_value=0)
         if plot:
             cum_L.hist()
