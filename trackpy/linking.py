@@ -21,10 +21,37 @@ import six
 from six.moves import zip
 
 import numpy as np
+from scipy.spatial import cKDTree
 import pandas as pd
 import itertools
 from collections import deque, Iterable
 from .utils import print_update
+
+
+class TreeFinder(object):
+
+    def __init__(self, points):
+        """Takes a list of particles.
+        """
+        self.points = points
+        self.rebuild()
+
+    def add_point(self, pt):
+        self.points.append(pt)
+
+    def rebuild(self):
+        """Rebuilds tree from ``points`` attribute.
+
+        Needs to be called after ``add_point()`` and before tree is used for 
+        spatial queries again (i.e. when memory is turned on).
+        """
+
+        coords = np.array([pt.pos for pt in self.points])
+        n = len(self.points)
+        if n == 0:
+            raise ValueError('Frame (aka level) contains zero points')
+        self.kdtree = cKDTree(coords, max(3, int(round(np.log10(n)))))
+        # This could be tuned
 
 
 class HashTable(object):
@@ -122,9 +149,6 @@ class HashTable(object):
             raise Hash_table.Out_of_hash_excpt("cord out of range")
         indx = int(sum(cord * self.strides))
         self.hash_table[indx].append(point)
-
-
-Hash_table = HashTable  # legacy
 
 
 class Track(object):
@@ -317,7 +341,8 @@ class IndexedPointND(PointND):
         self.id = id  # unique ID derived from sequential index
 
 
-def link(levels, search_range, hash_generator, memory=0, track_cls=None):
+def link(levels, search_range, hash_generator, memory=0, track_cls=None,
+         neighbor_strategy='BTree', link_strategy='recursive'):
     """Link features into trajectories, assigning a label to each trajectory.
 
     This function is deprecated and lacks some recently-added options,
@@ -330,9 +355,12 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None):
     search_range : integer
         the maximum distance features can move between frames
     hash_generator : a function that returns a HashTable
+        only used if neighbor_strategy is set to 'BTree' (default)
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
+    neighbor_strategy : 'BTree' or 'KDTree'
+    link_strategy : 'recursive' or 'nonrecursive'
 
     Returns  
     -------
@@ -344,12 +372,14 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None):
     """
     # An informative error to help newbies who go astray
     if isinstance(levels, pd.DataFrame):
-        raise TypeError("You may want to use link_df, which accepts "
-                        "to accept DataFrames, instead of link.")
+        raise TypeError("Instead of link, use link_df, which accepts "
+                        "pandas DataFrames.")
 
     if track_cls is None:
         track_cls = Track  # stores Points
     label_generator = link_iter(iter(levels), search_range, memory=memory,
+                                neighbor_strategy=neighbor_strategy,
+                                link_strategy=link_strategy,
                                 track_cls=track_cls, 
                                 hash_generator=hash_generator)
     labels = list(label_generator)
@@ -531,17 +561,28 @@ def link_iter(levels, search_range, memory=0,
     except KeyError:
         raise ValueError("link_strategy must be 'recursive' or 'nonrecursive'")
 
+    level_iter = iter(levels)
+    prev_level = next(level_iter)
+    prev_set = set(prev_level)
+
+    # Make a Hash / Tree for the first level.
+    if neighbor_strategy == 'BTree':
+        prev_hash = hash_generator()
+        for p in prev_set:
+            prev_hash.add_point(p)
+    elif neighbor_strategy == 'KDTree':
+        prev_hash = TreeFinder(prev_level)
+
+    for p in prev_set:
+        p.forward_cands = []
+
     try:
-        track_cls.reset_counter()  # Start ID numbers from zero.
+        # Start ID numbers from zero, incompatible with multithreading.
+        track_cls.reset_counter()  
     except AttributeError:
         # must be using a custom Track class without this method
         pass
 
-    prev_set = set(next(levels))  # initial frame
-    prev_hash = hash_generator()
-    for p in prev_set:
-        prev_hash.add_point(p)
-        p.forward_cands = []
 
     # Assume everything in first level starts a Track.
     track_lst = map(track_cls, prev_set)
@@ -555,32 +596,26 @@ def link_iter(levels, search_range, memory=0,
     yield list(prev_set)  # Short-circuit the loop on first call.
 
     for cur_level in levels:
-        # make a new hash object
-        cur_hash = hash_generator()
-
-        # create the set for the destination level
+        # Create the set for the destination level.
         cur_set = set(cur_level)
-        # create a second copy that will be used as the source in
-        # the next loop
-        tmp_set = set(cur_level)
+        tmp_set = set(cur_level)  # copy used in next loop iteration
 
-        # fill in first 'cur' hash and set up attributes for keeping
-        # track of possible connectionsge the repo
+        # Make a Hash / Tree for the destination level.
+        if neighbor_strategy == 'BTree':
+            cur_hash = hash_generator()
+            for p in cur_set:
+                cur_hash.add_point(p)
+        elif neighbor_strategy == 'KDTree':
+            cur_hash = TreeFinder(cur_level)
+
+        # Set up attributes for keeping track of possible connections.
         for p in cur_set:
-            cur_hash.add_point(p)
             p.back_cands = []
             p.forward_cands = []
-        # sort out what can go to what
-        for p in cur_level:
-            # get
-            work_box = prev_hash.get_region(p, search_range)
-            for wp in work_box:
-                # this should get changed to deal with squared values
-                # to save an eventually square root
-                d = p.distance(wp)
-                if d < search_range:
-                    p.back_cands.append((wp, d))
-                    wp.forward_cands.append((p, d))
+
+        # Sort out what can go to what.
+        assign_candidates(cur_level, prev_hash, search_range, 
+                          neighbor_strategy)
 
         # sort the candidate lists by distance
         for p in cur_set:
@@ -641,8 +676,9 @@ def link_iter(levels, search_range, memory=0,
 
             spl, dpl = subnet_linker(s_sn, len(d_sn), search_range)
 
-            # Identify the particles in the destination set that were not linked to
-            d_remain = set(d for d in d_sn if d is not None)
+            # Identify the particles in the destination set that 
+            # were not linked to.
+            d_remain = set(d for d in d_sn if d is not None)  # TODO DAN
             d_remain -= set(d for d in dpl if d is not None)
             for dp in d_remain:
                 # if unclaimed destination particle, a track in born!
@@ -655,7 +691,7 @@ def link_iter(levels, search_range, memory=0,
                 if sp is not None and dp is not None:
                     sp.track.add_point(dp)
                     _maybe_remove(mem_set, sp)
-                if dp is not None:
+                if dp is not None:  # TODO DAN 'Should never happen' - Natahn
                     del dp.back_cands
                 if sp is not None:
                     del sp.forward_cands
@@ -688,12 +724,50 @@ def link_iter(levels, search_range, memory=0,
                 prev_hash.add_point(m)
                 # re-create the forward_cands list
                 m.forward_cands = []
+            if isinstance(prev_hash, TreeFinder):
+                prev_hash.rebuild()
         prev_set = tmp_set
 
         # add in the memory points
         # store the current level for use in next loop
 
         yield cur_level
+
+
+def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
+    if neighbor_strategy == 'BTree':
+        # (Tom's code)
+        for p in cur_level:
+            # get
+            work_box = prev_hash.get_region(p, search_range)
+            for wp in work_box:
+                # this should get changed to deal with squared values
+                # to save an eventually square root
+                d = p.distance(wp)
+                if d < search_range:
+                    p.back_cands.append((wp, d))
+                    wp.forward_cands.append((p, d))
+    elif neighbor_strategy == 'KDTree':
+        query = prev_hash.kdtree.query
+        hashpts = prev_hash.points
+        hashpts_len = len(hashpts)
+        # TODO: In scipy >= 0.12, 
+        # all neighbors for all particles can be found in one call!
+        for p in cur_level:
+            # get
+            dists, inds = query(p.pos, 10, distance_upper_bound=search_range)
+            for d, i in zip(dists, inds):
+                if i < hashpts_len:
+                    wp = hashpts[i]
+                    if not np.isfinite(d):
+                        i = None
+                        d = search_range   
+                    p.back_cands.append((wp, d))
+                    wp.forward_cands.append((p, d))
+                else:
+                    # cKDTree signals no more neighbors by returning an
+                    # out-of-bounds index
+                    break
 
 
 class SubnetOversizeException(Exception):
@@ -708,7 +782,7 @@ def recursive_linker_obj(s_sn, dest_size, search_range):
     return zip(*snl.best_pairs)
 
 
-class sub_net_linker(object):
+class SubnetLinker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
     MAX_SUB_NET_SIZE = 50
@@ -729,7 +803,8 @@ class sub_net_linker(object):
         self.cur_sum = 0
 
         if self.MAX > sub_net_linker.MAX_SUB_NET_SIZE:
-            raise SubnetOversizeException('sub net contains %d points' % self.MAX)
+            raise SubnetOversizeException("Subnetwork contains %d points"
+                                          % self.MAX)
         # do the computation
         self.do_recur(0)
 
@@ -867,3 +942,6 @@ def _maybe_remove(s, p):
         s.remove(p)
     except KeyError:
         pass
+
+sub_net_linker = SubnetLinker  # legacy
+Hash_table = HashTable  # legacy

@@ -29,3 +29,7 @@ class TestWire(unittest.TestCase):
 
    def test_horizontal_wire(self):
        assert_almost_equal(trackpy.wire.tracking.analyze(self.horizontal), -177.515, decimal=0)
+if __name__ == '__main__':
+    import nose
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)
