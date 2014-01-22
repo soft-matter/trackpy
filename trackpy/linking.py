@@ -341,7 +341,8 @@ class IndexedPointND(PointND):
         self.id = id  # unique ID derived from sequential index
 
 
-def link(levels, search_range, hash_generator, memory=0, track_cls=None):
+def link(levels, search_range, hash_generator, memory=0, track_cls=None,
+         neighbor_strategy='BTree', link_strategy='recursive'):
     """Link features into trajectories, assigning a label to each trajectory.
 
     This function is deprecated and lacks some recently-added options,
@@ -354,9 +355,12 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None):
     search_range : integer
         the maximum distance features can move between frames
     hash_generator : a function that returns a HashTable
+        only used if neighbor_strategy is set to 'BTree' (default)
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
+    neighbor_strategy : 'BTree' or 'KDTree'
+    link_strategy : 'recursive' or 'nonrecursive'
 
     Returns  
     -------
@@ -368,12 +372,14 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None):
     """
     # An informative error to help newbies who go astray
     if isinstance(levels, pd.DataFrame):
-        raise TypeError("You may want to use link_df, which accepts "
-                        "to accept DataFrames, instead of link.")
+        raise TypeError("Instead of link, use link_df, which accepts "
+                        "pandas DataFrames.")
 
     if track_cls is None:
         track_cls = Track  # stores Points
     label_generator = link_iter(iter(levels), search_range, memory=memory,
+                                neighbor_strategy=neighbor_strategy,
+                                link_strategy=link_strategy,
                                 track_cls=track_cls, 
                                 hash_generator=hash_generator)
     labels = list(label_generator)
