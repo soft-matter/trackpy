@@ -18,7 +18,7 @@ a thorough testing framework ensuring code stability and accuracy,
 and complete documentation. 
 
 Several researchers have merged their independent efforts into this code.
-We would like to see others others in the community adopt it and potentially
+We would like to see others in the community adopt it and potentially
 contribute code to it.
 
 Features
@@ -142,7 +142,7 @@ of images is supported out of the box, without OpenCV.
 It is not as simple as the steps above, so beginners are encouraged
 to experiment with a folder full of images first.
 
-### Installing OpenCV on Windows
+### Optional: Installing OpenCV on Windows
 
 1. Install the video software FFmepg using this [Windows installer](http://www.arachneweb.co.uk/software/windows/avchdview/FFmpegSetup.exe)
 Make note of the directory where it is installed. It can be anywhere but, whatever it is,
@@ -167,7 +167,7 @@ installation is probably successful. If you can read video files using
 as expected.
 
 
-### Updating Your Instllation
+### Updating Your Installation
 
 The code is under active development. To update to the current development
 version, run this in the command prompt:
@@ -180,14 +180,18 @@ Verions & Project Roadmap
 A version 0.1 has been tagged and the v0.1.x branch will get bug
 fixes.  This version does not depend on `pandas`.
 
-Any new features will be built on the master branch.  The new
-features include:
+On the current master branch, which the instructions above would download,
+we have made significant changes:
 
  - merging most of Dan Allan's `mr` module
  - replacing `identification.py` with superior `feature.py`
  - making `link` iterative
- - merging Nathen Kiem's `numba` accelerated branch
+ - merging Nathan Keim's KDTree-based linking, which is 2X faster on
+   typical data 
+ - providing access to different linking strategies through 
+   keyword arguments (Type ``help(link)`` or ``help(link_df)`` for details.)
 
+We also plan to merge Nathen Keim's `numba`-accelerated branch.
 
 Contributors
 ------------
