@@ -12,6 +12,15 @@ More Examples and Tutorials:
   * [Load frames from a video file, a multi-frame TIFF, or a folder of images.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/loading-video-frames.ipynb)
   * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/tools-for-large-or-concurrent-jobs.ipynb)
 
+There are many similar projects. (See table below.)
+Our implementation is distinguished by succinct and flexible usage,
+a thorough testing framework ensuring code stability and accuracy,
+scalability, and complete documentation. 
+
+Several researchers have merged their independent efforts into this code.
+We would like to see others in the community adopt it and potentially
+contribute code to it.
+
 Features
 --------
 
@@ -21,8 +30,8 @@ Features
     by John Crocker and Eric Weeks in IDL is reimplemented in
     Python. Wherever possible, existing tools from widely-used Python modules
     are employed.
-  * This reimplemention is full-featured, including subpixel precision down to
-    0.1 pixels, verified with test cases.
+  * This reimplemention is full-featured, including subpixel precision
+    verified with test cases.
   * The module is actively used and tested on **Windows, Mac OSX, and Linux**,
     and it uses only free, open-source software.
   * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
@@ -33,7 +42,7 @@ Features
     SQL database, HDF5 file**, and more.
   * Particle trajectories can be
     characterized, grouped, and plotted using a suite of convenient functions.
-  * To verify correctness and stability, a **suite of over 50 tests reproduces
+  * To verify correctness and stability, a **suite of over 90 tests reproduces
     basic results**.
 
 ### Special Capabilities
@@ -44,7 +53,7 @@ Features
   * Feature-finding works on **images with any number of dimensions**,
     making possible some creative applications.
   * Trajectory-linking is supported in 2 and 3 dimensions.
-  * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457).
+  * **Uncertainty is estimated** following a method [described in this paper](http://dx.doi.org/10.1529/biophysj.104.042457) by Savin and Doyle.
   * **High-performance** components (C extensions, FFTW support) are used
   if available. Since these can be tricky to install on some machines,
   the code will automatically fall back on slower pure Python implementations
@@ -68,6 +77,7 @@ Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
 
+    conda install pip
     pip install http://github.com/soft-matter/yaml-serialize/zipball/master
     pip install http://github.com/soft-matter/pims/zipball/master
     pip install http://github.com/soft-matter/trackpy/zipball/master
@@ -132,7 +142,7 @@ of images is supported out of the box, without OpenCV.
 It is not as simple as the steps above, so beginners are encouraged
 to experiment with a folder full of images first.
 
-### Installing OpenCV on Windows
+### Optional: Installing OpenCV on Windows
 
 1. Install the video software FFmepg using this [Windows installer](http://www.arachneweb.co.uk/software/windows/avchdview/FFmpegSetup.exe)
 Make note of the directory where it is installed. It can be anywhere but, whatever it is,
@@ -142,12 +152,16 @@ Click "Advanced System Settings", then "Properties". With "Path" highlighted,
 click "Edit." This is a list of file paths separated by semicolons, you must
 type in an additional entry. ";C:\Program Files (x86)\ffmpeg" or wherever
 FFmpeg was installed in Step 1.
-3. Install the Windows 32 (Python 2.7) version of OpenCV available on [this page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv).
-4. Download [OpenCV for Windows](http://opencv.org/).
-5. You will now have a folder called ``opencv``. We just need one file
+3. As mentioned above, you need 32-bit Python even if you are
+using a 64-bit system. If you installed 64-bit, uninstall Anaconda,
+download 32-bit Anaconda, and install it. You can check which version you
+have by typing ``conda info``.
+4. Install the Windows 32 (Python 2.7) version of OpenCV available on [this page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv).
+5. Download [OpenCV for Windows](http://opencv.org/).
+6. You will now have a folder called ``opencv``. We just need one file
 from this to make everything work.
-6. Copy the file ``opencv\3rdparty\ffmpeg\opencv_ffmpeg.dll``.
-7. Navigate to the directory where ffmpeg was installed, which you noted
+7. Copy the file ``opencv\3rdparty\ffmpeg\opencv_ffmpeg.dll``.
+8. Navigate to the directory where ffmpeg was installed, which you noted
 in Step 1. From this directory, navigate into ``win32-static\bin``.
 Paste ``opencv_ffmpeg.dll`` here.
 
@@ -157,7 +171,7 @@ installation is probably successful. If you can read video files using
 as expected.
 
 
-### Updating Your Instllation
+### Updating Your Installation
 
 The code is under active development. To update to the current development
 version, run this in the command prompt:
@@ -170,14 +184,18 @@ Verions & Project Roadmap
 A version 0.1 has been tagged and the v0.1.x branch will get bug
 fixes.  This version does not depend on `pandas`.
 
-Any new features will be built on the master branch.  The new
-features include:
+On the current master branch, which the instructions above would download,
+we have made significant changes:
 
  - merging most of Dan Allan's `mr` module
  - replacing `identification.py` with superior `feature.py`
  - making `link` iterative
- - merging Nathen Kiem's `numba` accelerated branch
+ - merging Nathan Keim's KDTree-based linking, which is 2X faster on
+   typical data 
+ - providing access to different linking strategies through 
+   keyword arguments (Type ``help(link)`` or ``help(link_df)`` for details.)
 
+We also plan to merge Nathen Keim's `numba`-accelerated branch.
 
 Contributors
 ------------
