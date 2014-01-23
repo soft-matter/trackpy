@@ -68,6 +68,7 @@ Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
 
+    conda install pip
     pip install http://github.com/soft-matter/yaml-serialize/zipball/master
     pip install http://github.com/soft-matter/pims/zipball/master
     pip install http://github.com/soft-matter/trackpy/zipball/master
