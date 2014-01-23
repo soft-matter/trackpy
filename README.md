@@ -12,6 +12,15 @@ More Examples and Tutorials:
   * [Load frames from a video file, a multi-frame TIFF, or a folder of images.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/loading-video-frames.ipynb)
   * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/github/soft-matter/trackpy/blob/master/examples/tools-for-large-or-concurrent-jobs.ipynb)
 
+There are many similar projects. (See table below.)
+Our implementation is distinguished by succinct and flexible usage,
+a thorough testing framework ensuring code stability and accuracy,
+and complete documentation. 
+
+Several researchers have merged their independent efforts into this code.
+We would like to see others others in the community adopt it and potentially
+contribute code to it.
+
 Features
 --------
 
@@ -21,8 +30,8 @@ Features
     by John Crocker and Eric Weeks in IDL is reimplemented in
     Python. Wherever possible, existing tools from widely-used Python modules
     are employed.
-  * This reimplemention is full-featured, including subpixel precision down to
-    0.1 pixels, verified with test cases.
+  * This reimplemention is full-featured, including subpixel precision
+    verified with test cases.
   * The module is actively used and tested on **Windows, Mac OSX, and Linux**,
     and it uses only free, open-source software.
   * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
@@ -33,7 +42,7 @@ Features
     SQL database, HDF5 file**, and more.
   * Particle trajectories can be
     characterized, grouped, and plotted using a suite of convenient functions.
-  * To verify correctness and stability, a **suite of over 50 tests reproduces
+  * To verify correctness and stability, a **suite of over 90 tests reproduces
     basic results**.
 
 ### Special Capabilities
@@ -44,7 +53,7 @@ Features
   * Feature-finding works on **images with any number of dimensions**,
     making possible some creative applications.
   * Trajectory-linking is supported in 2 and 3 dimensions.
-  * **Uncertainty is estimated** using a method [proposed in this paper](http://dx.doi.org/10.1529/biophysj.104.042457).
+  * **Uncertainty is estimated** following a method [described in this paper](http://dx.doi.org/10.1529/biophysj.104.042457) by Savin and Doyle.
   * **High-performance** components (C extensions, FFTW support) are used
   if available. Since these can be tricky to install on some machines,
   the code will automatically fall back on slower pure Python implementations
