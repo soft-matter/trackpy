@@ -268,13 +268,13 @@ intersphinx_mapping = {'python': ('http://docs.python.org/2.7', None),
 # -- Options for Epub output ----------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u'mr'
-epub_author = u'Author'
-epub_publisher = u'Author'
-epub_copyright = u'2014, Author'
+epub_title = u'trackpy'
+epub_author = u'Trackpy Contributors'
+epub_publisher = u'Trackpy Contributors'
+epub_copyright = u'2010-2014 Trackpy Contributors'
 
 # The basename for the epub file. It defaults to the project name.
-#epub_basename = u'mr'
+#epub_basename = u'trackpy'
 
 # The HTML theme for the epub output. Since the default themes are not optimized
 # for small screen space, using the same theme for HTML and epub output is

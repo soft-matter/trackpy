@@ -9,7 +9,7 @@
 .. toctree::
 
    trackpy.feature
-   trackpy.link
+   trackpy.linking
    trackpy.filtering
    trackpy.motion
    trackpy.plots
