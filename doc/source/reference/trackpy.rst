@@ -5,7 +5,6 @@
 .. automodule:: trackpy.__init__
     :members:
 
-
 .. toctree::
 
    trackpy.feature

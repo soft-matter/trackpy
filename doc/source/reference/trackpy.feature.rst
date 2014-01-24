@@ -26,6 +26,16 @@ filters very dim maxima away, and refines the remainder to subpixel
 accuracy by iteratively honing in on their center of brightness.
 
 
-.. automodule:: trackpy.feature
-   :members:
-   :show-inheritance:
+.. autofunction:: trackpy.locate
+.. autofunction:: trackpy.batch
+
+These locate doesn't do exactly what you want, you can dig into the lower-
+level functions and develop something of your own.
+
+.. autofunction:: trackpy.local_maxima
+.. autofunction:: trackpy.refine
+.. autofunction:: trackpy.binary_mask
+.. autofunction:: trackpy.r_squared_mask
+.. autofunction:: trackpy.theta_mask
+.. autofunction:: trackpy.sinmask
+.. autofunction:: trackpy.cosmask
