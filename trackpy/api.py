@@ -12,4 +12,4 @@ from pims import *
 
 from yaml_serialize import save, load
 # thus avoiding collision with IPython's magic methods of the same name
-from trackpy.wire import RotationCurve  # need it in the same scope as load
+# from trackpy.wire import RotationCurve  # need it in the same scope as load
