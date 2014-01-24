@@ -359,8 +359,10 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    neighbor_strategy : 'BTree' or 'KDTree'
-    link_strategy : 'recursive' or 'nonrecursive'
+    neighbor_strategy : {'BTree', 'KDTree'}
+        algorithm used to identify nearby features
+    link_strategy : {'recursive', 'nonrecursive'}
+        algorithm used to resolve subnetworks of nearby particles
 
     Returns  
     -------
@@ -411,8 +413,10 @@ def link_df(features, search_range, memory=0,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    neighbor_strategy : 'BTree' or 'KDTree'
-    link_strategy : 'recursive' or 'nonrecursive'
+    neighbor_strategy : {'BTree', 'KDTree'}
+        algorithm used to identify nearby features
+    link_strategy : {'recursive', 'nonrecursive'}
+        algorithm used to resolve subnetworks of nearby particles
 
     Returns  
     -------
@@ -518,10 +522,10 @@ def link_iter(levels, search_range, memory=0,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    neighbor_strategy : 'BTree' or 'KDTree'
-        default 'BTree'
-    link_strategy : 'recursive' or 'nonrecursive'
-        default 'recursive'
+    neighbor_strategy : {'BTree', 'KDTree'}
+        algorithm used to identify nearby features
+    link_strategy : {'recursive', 'nonrecursive'}
+        algorithm used to resolve subnetworks of nearby particles
 
     Yields
     ------
@@ -560,6 +564,9 @@ def link_iter(levels, search_range, memory=0,
         subnet_linker = linkers[link_strategy]
     except KeyError:
         raise ValueError("link_strategy must be 'recursive' or 'nonrecursive'")
+
+    if neighbor_strategy not in ['KDTree', 'BTree']:
+        raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
 
     level_iter = iter(levels)
     prev_level = next(level_iter)
