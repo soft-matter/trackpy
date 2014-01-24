@@ -13,16 +13,8 @@ series of images from frame to frame.  The core of the algorithm is to
 choose the frame-to-frame linking that globally minimizes the sum of
 the squared displacements.
 
-:mod:`trackpy` is a simple and extendable implementation of
-Crocker-Grier suitable for tracking a few hundred to a few thousand
-features per frame.  This implementation has been shown to consume an
-unreasonable amount of memory when tracking >20k features.  For large
-data sets, see the `c++ implementation`__ of Crocker-Grier.
-
-
-
-.. _cpp: https://github.com/tacaswell/tracking
-__ cpp_
+Read more, including installation instructions and examples, 
+on our [GitHub README page](https://github.com/soft-matter/trackpy).
 
 
 Contents:
@@ -35,8 +27,6 @@ Contents:
 =======
 .. trackpy documentation master file, created by
    sphinx-quickstart on Sat Jan  4 08:48:59 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 
 Indices and tables
