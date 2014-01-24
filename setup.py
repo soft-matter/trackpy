@@ -74,7 +74,7 @@ setup_parameters = dict(
                         'pims'],
     dependency_links = ['http://github.com/soft-matter/pims/zipball/master#egg=pims',
                         'http://github.com/soft-matter/yaml-serialize/zipball/master#egg=yaml_serialize'],
-    packages = ['trackpy'],
+    packages = ['trackpy', 'trackpy.wire'],
     long_description = read('README.md'),
     ext_modules = [Extension('_Cfilters', ['trackpy/src/Cfilters.c'])],
 )
