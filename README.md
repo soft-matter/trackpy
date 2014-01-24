@@ -59,6 +59,12 @@ Features
   the code will automatically fall back on slower pure Python implementations
   as needed.
 
+Documentation
+-------------
+The tutorials above are the best place to start. There is also
+ **[complete documentation](http://trackpy.readthedocs.org/)** for every 
+function in the package.
+
 Installation
 ------------
 
