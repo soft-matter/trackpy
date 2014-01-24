@@ -51,7 +51,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'trackpy'
-copyright = u'2012, Thomas A Caswell'
+copyright = u'2010-2014, Trackpy Contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -198,14 +198,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'trackpy.tex', u'trackpy Documentation',
-   u'Thomas A Caswell', 'manual'),
-=======
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-  ('index', 'mr.tex', u'mr Documentation',
-   u'Author', 'manual'),
->>>>>>> bed8b818b18569a2bc878ca4d2d136d41229749d
+   u'Trackpy Contributors', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -235,7 +228,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'trackpy', u'trackpy Documentation',
-     [u'Thomas A Caswell'], 1)
+     [u'Trackpy Contributors'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -249,7 +242,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'trackpy', u'trackpy Documentation',
-   u'Thomas A Caswell', 'trackpy', 'One line description of project.',
+   u'Trackpy Contributors', 'trackpy', 'One line description of project.',
    'Miscellaneous'),
 ]
 

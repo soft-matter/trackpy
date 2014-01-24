@@ -8,5 +8,8 @@
 
 .. toctree::
 
-   trackpy.tracking
-   trackpy.identification
+   trackpy.feature
+   trackpy.link
+   trackpy.filtering
+   trackpy.motion
+   trackpy.plots

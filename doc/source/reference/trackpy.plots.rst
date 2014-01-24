@@ -1,7 +1,7 @@
 =========================
- :mod:`tracking` Module
+ :mod:`plots` Module
 =========================
 
-.. automodule:: trackpy.tracking
+.. automodule:: trackpy.plots
    :members:
    :show-inheritance:
