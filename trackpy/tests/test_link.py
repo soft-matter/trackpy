@@ -40,6 +40,13 @@ def _skip_if_no_pytables():
         raise nose.SkipTest('PyTables not installed. Skipping.')
 
 
+def _skip_if_no_numba():
+    try:
+        import numba
+    except ImportError:
+        raise nose.SkipTest('numba not installed. Skipping.')
+
+
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
@@ -469,6 +476,21 @@ class TestKDTreeWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
             return tp.link_df(*args, **kwargs)
         self.link_df = curried_link_df
 
+class TestKDTreeWithNumbaLink(CommonTrackingTests, unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_numba()
+
+        def curried_link(*args, **kwargs):
+            kwargs['link_strategy'] = 'numba'
+            kwargs['neighbor_strategy'] = 'KDTree'
+            return tp.link(*args, **kwargs)
+        self.link = curried_link
+
+        def curried_link_df(*args, **kwargs):
+            kwargs['link_strategy'] = 'numba'
+            kwargs['neighbor_strategy'] = 'KDTree'
+            return tp.link_df(*args, **kwargs)
+        self.link_df = curried_link_df
 
 # Removed after trackpy refactor -- restore with new API.
 # class TestLinkOnDisk(unittest.TestCase):
