@@ -26,7 +26,7 @@ import pandas as pd
 import itertools
 from collections import deque, Iterable
 from .utils import print_update
-
+from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
 class TreeFinder(object):
 
@@ -361,8 +361,9 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
 
     Returns  
     -------
@@ -415,8 +416,9 @@ def link_df(features, search_range, memory=0,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
 
     Returns  
     -------
@@ -524,8 +526,9 @@ def link_iter(levels, search_range, memory=0,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
 
     Yields
     ------
@@ -560,10 +563,15 @@ def link_iter(levels, search_range, memory=0,
 
     linkers = {'recursive': recursive_linker_obj,
                'nonrecursive': nonrecursive_link}
+    if NUMBA_AVAILABLE:
+        linkers['numba'] = numba_link
+        linkers['auto'] = linkers['numba']
+    else:
+        linkers['auto'] = linkers['recursive']
     try:
         subnet_linker = linkers[link_strategy]
     except KeyError:
-        raise ValueError("link_strategy must be 'recursive' or 'nonrecursive'")
+        raise ValueError("link_strategy must be one of: " + ', '.join(linkers.keys()))
 
     if neighbor_strategy not in ['KDTree', 'BTree']:
         raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
@@ -942,6 +950,148 @@ def nonrecursive_link(source_list, dest_size, search_range):
         # print '-------------------------'
     #    print 'done'
     return source_list, best_back
+
+def numba_link(s_sn, dest_size, search_radius):
+    """Recursively find the optimal bonds for a group of particles between 2 frames.
+
+    This is only invoked when there is more than one possibility within
+    ``search_radius``.
+
+    Note that ``dest_size`` is unused; it is determined from the contents of
+    the source list.
+    """
+    # The basic idea: replace Point objects with integer indices into lists of Points.
+    # Then the hard part (recursion) runs quickly because it is just passing arrays.
+    # In fact, we can compile it with numba so that it runs in acceptable time.
+    MAX_SUB_NET_SIZE = 30 # See also the iteration limit hard-coded into _sn_norecur()
+    max_candidates = 9 # Max forward candidates we expect for any particle
+    src_net = list(s_sn)
+    nj = len(src_net) # j will index the source particles
+    if nj > MAX_SUB_NET_SIZE:
+        raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (sub net contains %d points)' % nj)
+    # Build arrays of all destination (forward) candidates and their distances
+    dcands = set()
+    for p in src_net:
+        dcands.update([cand for cand, dist in p.forward_cands])
+    dcands = list(dcands)
+    dcands_map = {cand: i for i, cand in enumerate(dcands)}
+    # A source particle's actual candidates only take up the start of
+    # each row of the array. All other elements represent the null link option
+    # (i.e. particle lost)
+    candsarray = np.ones((nj, max_candidates + 1), dtype=np.int64) * -1
+    distsarray = np.ones((nj, max_candidates + 1), dtype=np.float64) * search_radius
+    ncands = np.zeros((nj,), dtype=np.int64)
+    for j, sp in enumerate(src_net):
+        ncands[j] = len(sp.forward_cands)
+        if ncands[j] > max_candidates:
+            raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (particle has %i forward candidates)' % ncands[j])
+        candsarray[j,:ncands[j]] = [dcands_map[cand] for cand, dist in sp.forward_cands]
+        distsarray[j,:ncands[j]] = [dist for cand, dist in sp.forward_cands]
+    # The assignments are persistent across levels of the recursion
+    best_assignments = np.ones((nj,), dtype=np.int64) * -1
+    cur_assignments = np.ones((nj,), dtype=np.int64) * -1
+    tmp_assignments = np.zeros((nj,), dtype=np.int64)
+    cur_sums = np.zeros((nj,), dtype=np.float64)
+    # In the next line, distsarray is passed in quadrature so that adding distances works.
+    bestsum = _numba_subnet_norecur(ncands, candsarray, distsarray**2, cur_assignments, cur_sums,
+            tmp_assignments, best_assignments)
+    if bestsum < 0:
+        raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (exceeded max iterations for subnet)')
+    # Return particle objects. Account for every source particle we were given.
+    # 'None' denotes a null link and will be used for the memory feature.
+    return zip(*[(src_net[j], (dcands[i] if i >= 0 else None)) \
+            for j, i in enumerate(best_assignments)])
+
+@try_numba_autojit
+def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_sums, tmp_assignments, best_assignments):
+    """Find the optimal track assigments for a subnetwork, without recursion.
+
+    This is for nj source particles. All arguments are arrays with nj rows.
+
+    cur_assignments, tmp_assignments are just temporary registers of length nj.
+    best_assignments is modified in place.
+    Returns the best sum.
+    """
+    itercount = 0
+    nj = candsarray.shape[0]
+    tmp_sum = 0.
+    best_sum = 1.0e23
+    j = 0
+    while 1:
+        itercount += 1
+        if itercount >= 500000000:
+            return -1.0
+        delta = 0 # What to do at the end
+        # This is an endless loop. We go up and down levels of recursion,
+        # and emulate the mechanics of nested "for" loops, using the
+        # blocks of code marked "GO UP" and "GO DOWN". It's not pretty.
+
+        # Load state from the "stack"
+        i = tmp_assignments[j]
+        #if j == 0:
+        #    print i, j, best_sum
+        #    sys.stdout.flush()
+        if i > ncands[j]:
+            # We've exhausted possibilities at this level, including the
+            # null link; make no more changes and go up a level
+            #### GO UP
+            delta = -1
+        else:
+            tmp_sum = cur_sums[j] + dists2array[j,i]
+            if tmp_sum > best_sum:
+                # if we are already greater than the best sum, bail. we
+                # can bail all the way out of this branch because all
+                # the other possible connections (including the null
+                # connection) are more expensive than the current
+                # connection, thus we can discard with out testing all
+                # leaves down this branch
+                #### GO UP
+                delta = -1
+            else:
+                # We have to seriously consider this candidate.
+                # We can have as many null links as we want, but the real particles are finite
+                # This loop looks inefficient but it's what numba wants!
+                flag = 0
+                for jtmp in range(nj):
+                    if cur_assignments[jtmp] == candsarray[j,i]:
+                        if jtmp < j:
+                            flag = 1
+                if flag and candsarray[j,i] >= 0:
+                    # we have already used this destination point; try the next one instead
+                    delta = 0
+                else:
+                    cur_assignments[j] = candsarray[j,i]
+                    # OK, I guess we'll try this assignment
+                    if j + 1 == nj:
+                        # We have made assignments for all the particles,
+                        # and we never exceeded the previous best_sum.
+                        # This is our new optimum.
+                        #print 'hit: %f' % best_sum
+                        best_sum = tmp_sum
+                        # This array is shared by all levels of recursion.
+                        # If it's not touched again, it will be used once we
+                        # get back to link_subnet
+                        for tmpj in range(nj):
+                            best_assignments[tmpj] = cur_assignments[tmpj]
+                        #### GO UP
+                        delta = -1
+                    else:
+                        # Try various assignments for the next particle
+                        #### GO DOWN
+                        delta = 1
+        if delta == -1:
+            if j > 0:
+                j -= 1
+                tmp_assignments[j] += 1 # Try the next candidate at this higher level
+                continue
+            else:
+                return best_sum
+        elif delta == 1:
+            j += 1
+            cur_sums[j] = tmp_sum # Floor for all subsequent sums
+            tmp_assignments[j] = 0
+        else:
+            tmp_assignments[j] += 1
 
 def _maybe_remove(s, p):
     # Begging forgiveness is faster than asking permission

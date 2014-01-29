@@ -36,3 +36,4 @@ pip-log.txt
 trackpy/version.py
 examples/.ipynb_checkpoints
 examples/feature_log*
+.idea
