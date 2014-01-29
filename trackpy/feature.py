@@ -363,7 +363,7 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
 
 def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
-          percentile=64, topn=None, preprocess=True,
+          percentile=64, topn=None, preprocess=True, max_iterations=10,
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False, meta=True):
     """Locate Gaussian-like blobs of a given approximate size.
@@ -396,6 +396,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     topn : Return only the N brightest features above minmass. 
         If None (default), return all features above minmass.
     preprocess : Set to False to turn out automatic preprocessing.
+    max_iterations : integer
+        max number of loops to refine the center of mass, default 10
 
     Returns
     -------
