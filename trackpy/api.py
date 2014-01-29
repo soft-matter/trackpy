@@ -6,6 +6,7 @@ from .feature import locate, batch
 from .preprocessing import bandpass
 from .trajectories import Trajectories
 import utils
+from .try_numba import try_numba_autojit, enable_numba, disable_numba
 
 # Import all of pims top-level for convenience.
 from pims import *
