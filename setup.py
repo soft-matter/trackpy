@@ -3,12 +3,26 @@ from ez_setup import use_setuptools
 use_setuptools()
 
 import os
-import setuptools
-from numpy.distutils.core import setup, Extension
+import sys
 import warnings
 
+# try bootstrapping setuptools if it doesn't exist
+try:
+    import pkg_resources
+    try:
+        pkg_resources.require("setuptools>=0.6c5")
+    except pkg_resources.VersionConflict:
+        from ez_setup import use_setuptools
+        use_setuptools(version="0.6c5")
+    from setuptools import setup, Extension
+    _have_setuptools = True
+except ImportError:
+    # no setuptools installed
+    from numpy.distutils.core import setup, Extension 
+    _have_setuptools = False
+
 MAJOR = 0
-MINOR = 6
+MINOR = 2
 MICRO = 0
 ISRELEASED = False 
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
@@ -18,27 +32,32 @@ FULLVERSION = VERSION
 print FULLVERSION
 
 if not ISRELEASED:
+    import subprocess
     FULLVERSION += '.dev'
-    try:
-        import subprocess
+    
+    pipe = None
+    for cmd in ['git', 'git.cmd']:
         try:
-            pipe = subprocess.Popen(["git", "describe", "HEAD"],
-                                    stdout=subprocess.PIPE).stdout
-        except OSError:
-            # msysgit compatibility
-            pipe = subprocess.Popen(
-                ["git.cmd", "describe", "HEAD"],
-                stdout=subprocess.PIPE).stdout
-        rev = pipe.read().strip()
-        # makes distutils blow up on Python 2.7
-        import sys
-        if sys.version_info[0] >= 3:
-            rev = rev.decode('ascii')
+            pipe = subprocess.Popen([cmd, "describe", "--always",
+                                     "--match", "v[0-9\/]*"],
+                                    stdout=subprocess.PIPE)
+            (so, serr) = pip.communicate()
+            if pipe.returncode == 0:
+                break
+        except:
+            pass
+        if pipe is None or pipe.returncode != 0:
+            warnings.warn("WARNING: Couldn't get git revision, "
+                          "using generic version string")
+        else:
+            rev = so.strip()
+            # makes distutils blow up on Python 2.7
+            if sys.version_info[0] >= 3:
+                rev = rev.decode('ascii')
 
-        FULLVERSION = rev.lstrip('v')
+            # use result of git describe as version string
+            FULLVERSION = rev.lstrip('v')
 
-    except:
-        warnings.warn("WARNING: Couldn't get git revision")
 else:
     FULLVERSION += QUALIFIER
 
