@@ -15,4 +15,4 @@ install:
   - pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/
   - python setup.py build_ext install
 
-script: nosetests -a '!slow'
+script: nosetests --nologcapture -a '!slow'
