@@ -15,6 +15,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
+from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, link, Hash_table
 from copy import deepcopy
 
@@ -41,9 +42,7 @@ def _skip_if_no_pytables():
 
 
 def _skip_if_no_numba():
-    try:
-        import numba
-    except ImportError:
+    if not NUMBA_AVAILABLE:
         raise nose.SkipTest('numba not installed. Skipping.')
 
 
