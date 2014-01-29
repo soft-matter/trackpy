@@ -1,7 +1,8 @@
 from __future__ import division
 import numpy as np
 from scipy.ndimage import morphology
-from trackpy.preprocessing import bandpass
+from .preprocessing import bandpass
+from .masks import binary_mask
 
 def roi(image, diameter, threshold=1):
     """Return a mask selecting the neighborhoods of bright regions.
@@ -59,12 +60,3 @@ def static_error(features, noise, diameter, noise_size=1):
     # ^ Savin & Doyle, Eq. 50
     ep.name = 'ep' # so it can be joined
     return ep
-
-def binary_mask(radius, ndim, separation=None):
-    points = np.arange(-radius, radius + 1)
-    if ndim > 1:
-        coords = np.array(np.meshgrid(*([points]*ndim)))
-    else:
-        coords = points.reshape(1, -1)
-    r = np.sqrt(np.sum(coords**2, 0))
-    return r <= radius
