@@ -70,7 +70,7 @@ setup_parameters = dict(
     author = "Daniel Allan and Thomas Caswell",
     author_email = "dallan@pha.jhu.edu",
     url = "https://github.com/soft-matter/trackpy",
-    install_requires = ['numpy', 'scipy', 'six', 'pandas', 'yaml-serialize',
+    install_requires = ['numpy', 'scipy', 'six', 'pandas', 'yaml_serialize',
                         'pims'],
     dependency_links = ['http://github.com/soft-matter/pims/zipball/master#egg=pims',
                         'http://github.com/soft-matter/yaml-serialize/zipball/master#egg=yaml_serialize'],
