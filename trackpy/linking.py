@@ -361,8 +361,9 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive', 'numba'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
 
     Returns  
     -------
@@ -415,8 +416,9 @@ def link_df(features, search_range, memory=0,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive', 'numba'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
 
     Returns  
     -------
@@ -524,8 +526,9 @@ def link_iter(levels, search_range, memory=0,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive', 'numba'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
 
     Yields
     ------
