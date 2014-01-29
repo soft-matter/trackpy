@@ -3,16 +3,21 @@ language: python
 python:
   - 2.7
 
-virtualenv:
-  system_site_packages: true
+install:
+  - conda create -n testenv --yes pip python=$TRAVIS_PYTHON_VERSION
+  - source activate testenv
+  - conda install --yes numpy scipy nose matplotlib pandas PIL
+# TODO Remove these once setup.py handles dependencies correctly.
+  - pip install -e git+https://github.com/soft-matter/yaml-serialize#egg=yaml_serialize
+  - pip install -e git+https://github.com/soft-matter/pims#egg=pims
+  - pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/
+  - python setup.py install
 
 before_install:
-  - ci/before_install.sh
-
-install:
-  - pip install -e git+https://github.com/soft-matter/yaml-serialize.git#egg=yaml_serialize
-  - pip install -e git+https://github.com/soft-matter/pims.git#egg=pims
-  - pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/
-  - python setup.py build_ext install
+  - sudo apt-get install libhdf5-serial-dev hdf5-tools
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-2.2.2-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-2.2.2-Linux-x86_64.sh -O miniconda.sh; fi
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/anaconda/bin:$PATH
 
 script: nosetests --nologcapture -a '!slow'
