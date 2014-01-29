@@ -16,20 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses>.
 
-import logging
-import os
-import warnings
-
 # Configure logging for all modules in this package.
+import logging
 FORMAT = "%(name)s.%(funcName)s:  %(message)s"
 logging.basicConfig(level=logging.WARN, format=FORMAT)
 
-import numpy as np
-import pandas as pd
-
-# SSH-safe matplotlib import
-import matplotlib as mpl
-import os
 from trackpy.api import *
-
 from trackpy.version import version as __version__
