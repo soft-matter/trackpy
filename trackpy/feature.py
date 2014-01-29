@@ -233,7 +233,8 @@ def _refine(image, raw_image, radius, coords, max_iterations, slices, shape,
 
 def locate(image, diameter, minmass=100., maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
-           percentile=64, topn=None, preprocess=True, max_iterations=10):
+           percentile=64, topn=None, preprocess=True, max_iterations=10,
+           filter_before=True, filter_after=True):
     """Locate Gaussian-like blobs of a given approximate size.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -264,8 +265,6 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     topn : Return only the N brightest features above minmass. 
         If None (default), return all features above minmass.
     preprocess : Set to False to turn out automatic preprocessing.
-    max_iterations : integer
-        max number of loops to refine the center of mass, default 10
 
     Returns
     -------
@@ -273,6 +272,17 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
         where mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
         and ecc is its eccentricity (1 is circular).
+
+    Other Parameters
+    ----------------
+    max_iterations : integer
+        max number of loops to refine the center of mass, default 10
+    filter_before : boolean
+        Use minmass (and maxsize, if set) to eliminate spurrious features
+        based on their estimated mass and size before refining position.
+        True by default for performance.
+    filter_after : boolean
+        Use final characterizations of mass and size to elminate spurrious
 
     See Also
     --------
@@ -315,29 +325,37 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
 
     # Proactively filter based on estimated mass/size before
     # refining positions.
-    approx_mass = np.empty(count_maxima)  # initialize to avoid appending
-    for i in range(count_maxima):
-        approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
-    if maxsize is not None:
-        approx_size = np.empty(count_maxima)
+    if filter_before:
+        approx_mass = np.empty(count_maxima)  # initialize to avoid appending
         for i in range(count_maxima):
-            approx_size[i] = estimate_size(bp_image, radius, coords[i], 
-                                           approx_mass[i])
-        coords = coords[(approx_mass > minmass) & (approx_size < maxsize)]
-    else:
-        coords = coords[approx_mass > minmass]
+            approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
+        condition = approx_mass > minmass
+        if maxsize is not None:
+            approx_size = np.empty(count_maxima)
+            for i in range(count_maxima):
+                approx_size[i] = estimate_size(bp_image, radius, coords[i], 
+                                               approx_mass[i])
+            condition &= approx_size < maxsize
+        coords = coords[condition]
     count_qualified = coords.shape[0]
 
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine(image, bp_image, radius, coords, max_iterations)
 
-    # Filter by minmass again, using final ("exact") mass.
-    exact_mass = refined_coords[:, image.ndim]
-    refined_coords = refined_coords[exact_mass > minmass]
+    # Filter again, using final ("exact") mass -- and size, if set.
+    MASS_COLUMN_INDEX = image.ndim
+    SIZE_COLUMN_INDEX = image.ndim + 1
+    exact_mass = refined_coords[:, MASS_COLUMN_INDEX]
+    if filter_after:
+        condition = exact_mass > minmass
+        if maxsize is not None:
+            exact_size = refined_coords[:, SIZE_COLUMN_INDEX]
+            condition &= exact_size < maxsize
+        refined_coords = refined_coords[condition]
+        exact_mass = exact_mass[condition]  # used below by topn
     count_qualified = refined_coords.shape[0]
 
     if topn is not None and count_qualified > topn:
-        exact_mass = exact_mass[exact_mass > minmass]
         if topn == 1:
             # special case for high performance and correct shape
             refined_coords = refined_coords[np.argmax(exact_mass)]
@@ -364,6 +382,7 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
 def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
+          filter_before=True, filter_after=True,
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False, meta=True):
     """Locate Gaussian-like blobs of a given approximate size.
@@ -408,6 +427,16 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     Other Parameters
     ----------------
+    max_iterations : integer
+        max number of loops to refine the center of mass, default 10
+    filter_before : boolean
+        Use minmass (and maxsize, if set) to eliminate spurrious features
+        based on their estimated mass and size before refining position.
+        True by default for performance.
+    filter_after : boolean
+        Use final characterizations of mass and size to elminate spurrious
+        features. True by default.
+
     store : Optional HDFStore
     conn : Optional connection to a SQL database
     sql_flavor : If using a SQL connection, specify 'sqlite' or 'MySQL'.
@@ -444,7 +473,9 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                      maxsize=maxsize, separation=separation, 
                      noise_size=noise_size, smoothing_size=smoothing_size, 
                      invert=invert, percentile=percentile, topn=topn, 
-                     preprocess=preprocess, store=store, conn=conn, 
+                     preprocess=preprocess, max_iterations=max_iterations,
+                     filter_before=filter_before, filter_after=filter_after,
+                     store=store, conn=conn, 
                      sql_flavor=sql_flavor, table=table,
                      do_not_return=do_not_return)
     if meta:
@@ -464,7 +495,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             frame_no = i
         centroids = locate(image, diameter, minmass, maxsize, separation,
                            noise_size, smoothing_size, threshold, invert,
-                           percentile, topn, preprocess)
+                           percentile, topn, preprocess, max_iterations,
+                           filter_before, filter_after)
         centroids['frame'] = frame_no
         message = "Frame %d: %d features" % (frame_no, len(centroids))
         print_update(message)
