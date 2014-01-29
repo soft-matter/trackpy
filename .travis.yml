@@ -3,10 +3,14 @@ language: python
 python:
   - 2.7
 
+env:
+  - DEPS="numpy scipy nose matplotlib pandas PIL"
+  - DEPS="numpy scipy nose matplotlib pandas PIL numba"
+
 install:
   - conda create -n testenv --yes pip python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
-  - conda install --yes numpy scipy nose matplotlib pandas PIL
+  - conda install --yes $DEPS
 # TODO Remove these once setup.py handles dependencies correctly.
   - pip install -e git+https://github.com/soft-matter/yaml-serialize#egg=yaml_serialize
   - pip install -e git+https://github.com/soft-matter/pims#egg=pims
