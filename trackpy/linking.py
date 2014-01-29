@@ -26,13 +26,7 @@ import pandas as pd
 import itertools
 from collections import deque, Iterable
 from .utils import print_update
-
-HAS_NUMBA = False
-try:
-    import numba
-    HAS_NUMBA = True
-except ImportError:
-    pass
+from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
 class TreeFinder(object):
 
@@ -565,10 +559,12 @@ def link_iter(levels, search_range, memory=0,
         track_cls = DummyTrack  # does not store Points
 
     linkers = {'recursive': recursive_linker_obj,
-               'nonrecursive': nonrecursive_link,
-               'numba': numba_link}
-    if (not HAS_NUMBA) and link_strategy == 'numba':
-        raise ValueError("numba could not be imported; it is not available as a link_strategy")
+               'nonrecursive': nonrecursive_link}
+    if NUMBA_AVAILABLE:
+        linkers['numba'] = numba_link
+        linkers['auto'] = linkers['numba']
+    else:
+        linkers['auto'] = linkers['recursive']
     try:
         subnet_linker = linkers[link_strategy]
     except KeyError:
@@ -1003,97 +999,96 @@ def numba_link(s_sn, dest_size, search_radius):
     return zip(*[(src_net[j], (dcands[i] if i >= 0 else None)) \
             for j, i in enumerate(best_assignments)])
 
-if HAS_NUMBA:
-    @numba.autojit
-    def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_sums, tmp_assignments, best_assignments):
-        """Find the optimal track assigments for a subnetwork, without recursion.
+@try_numba_autojit
+def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_sums, tmp_assignments, best_assignments):
+    """Find the optimal track assigments for a subnetwork, without recursion.
 
-        This is for nj source particles. All arguments are arrays with nj rows.
+    This is for nj source particles. All arguments are arrays with nj rows.
 
-        cur_assignments, tmp_assignments are just temporary registers of length nj.
-        best_assignments is modified in place.
-        Returns the best sum.
-        """
-        itercount = 0
-        nj = candsarray.shape[0]
-        tmp_sum = 0.
-        best_sum = 1.0e23
-        j = 0
-        while 1:
-            itercount += 1
-            if itercount >= 500000000:
-                return -1.0
-            delta = 0 # What to do at the end
-            # This is an endless loop. We go up and down levels of recursion,
-            # and emulate the mechanics of nested "for" loops, using the
-            # blocks of code marked "GO UP" and "GO DOWN". It's not pretty.
+    cur_assignments, tmp_assignments are just temporary registers of length nj.
+    best_assignments is modified in place.
+    Returns the best sum.
+    """
+    itercount = 0
+    nj = candsarray.shape[0]
+    tmp_sum = 0.
+    best_sum = 1.0e23
+    j = 0
+    while 1:
+        itercount += 1
+        if itercount >= 500000000:
+            return -1.0
+        delta = 0 # What to do at the end
+        # This is an endless loop. We go up and down levels of recursion,
+        # and emulate the mechanics of nested "for" loops, using the
+        # blocks of code marked "GO UP" and "GO DOWN". It's not pretty.
 
-            # Load state from the "stack"
-            i = tmp_assignments[j]
-            #if j == 0:
-            #    print i, j, best_sum
-            #    sys.stdout.flush()
-            if i > ncands[j]:
-                # We've exhausted possibilities at this level, including the
-                # null link; make no more changes and go up a level
+        # Load state from the "stack"
+        i = tmp_assignments[j]
+        #if j == 0:
+        #    print i, j, best_sum
+        #    sys.stdout.flush()
+        if i > ncands[j]:
+            # We've exhausted possibilities at this level, including the
+            # null link; make no more changes and go up a level
+            #### GO UP
+            delta = -1
+        else:
+            tmp_sum = cur_sums[j] + dists2array[j,i]
+            if tmp_sum > best_sum:
+                # if we are already greater than the best sum, bail. we
+                # can bail all the way out of this branch because all
+                # the other possible connections (including the null
+                # connection) are more expensive than the current
+                # connection, thus we can discard with out testing all
+                # leaves down this branch
                 #### GO UP
                 delta = -1
             else:
-                tmp_sum = cur_sums[j] + dists2array[j,i]
-                if tmp_sum > best_sum:
-                    # if we are already greater than the best sum, bail. we
-                    # can bail all the way out of this branch because all
-                    # the other possible connections (including the null
-                    # connection) are more expensive than the current
-                    # connection, thus we can discard with out testing all
-                    # leaves down this branch
-                    #### GO UP
-                    delta = -1
+                # We have to seriously consider this candidate.
+                # We can have as many null links as we want, but the real particles are finite
+                # This loop looks inefficient but it's what numba wants!
+                flag = 0
+                for jtmp in range(nj):
+                    if cur_assignments[jtmp] == candsarray[j,i]:
+                        if jtmp < j:
+                            flag = 1
+                if flag and candsarray[j,i] >= 0:
+                    # we have already used this destination point; try the next one instead
+                    delta = 0
                 else:
-                    # We have to seriously consider this candidate.
-                    # We can have as many null links as we want, but the real particles are finite
-                    # This loop looks inefficient but it's what numba wants!
-                    flag = 0
-                    for jtmp in range(nj):
-                        if cur_assignments[jtmp] == candsarray[j,i]:
-                            if jtmp < j:
-                                flag = 1
-                    if flag and candsarray[j,i] >= 0:
-                        # we have already used this destination point; try the next one instead
-                        delta = 0
+                    cur_assignments[j] = candsarray[j,i]
+                    # OK, I guess we'll try this assignment
+                    if j + 1 == nj:
+                        # We have made assignments for all the particles,
+                        # and we never exceeded the previous best_sum.
+                        # This is our new optimum.
+                        #print 'hit: %f' % best_sum
+                        best_sum = tmp_sum
+                        # This array is shared by all levels of recursion.
+                        # If it's not touched again, it will be used once we
+                        # get back to link_subnet
+                        for tmpj in range(nj):
+                            best_assignments[tmpj] = cur_assignments[tmpj]
+                        #### GO UP
+                        delta = -1
                     else:
-                        cur_assignments[j] = candsarray[j,i]
-                        # OK, I guess we'll try this assignment
-                        if j + 1 == nj:
-                            # We have made assignments for all the particles,
-                            # and we never exceeded the previous best_sum.
-                            # This is our new optimum.
-                            #print 'hit: %f' % best_sum
-                            best_sum = tmp_sum
-                            # This array is shared by all levels of recursion.
-                            # If it's not touched again, it will be used once we
-                            # get back to link_subnet
-                            for tmpj in range(nj):
-                                best_assignments[tmpj] = cur_assignments[tmpj]
-                            #### GO UP
-                            delta = -1
-                        else:
-                            # Try various assignments for the next particle
-                            #### GO DOWN
-                            delta = 1
-            if delta == -1:
-                if j > 0:
-                    j -= 1
-                    tmp_assignments[j] += 1 # Try the next candidate at this higher level
-                    continue
-                else:
-                    return best_sum
-            elif delta == 1:
-                j += 1
-                cur_sums[j] = tmp_sum # Floor for all subsequent sums
-                tmp_assignments[j] = 0
+                        # Try various assignments for the next particle
+                        #### GO DOWN
+                        delta = 1
+        if delta == -1:
+            if j > 0:
+                j -= 1
+                tmp_assignments[j] += 1 # Try the next candidate at this higher level
+                continue
             else:
-                tmp_assignments[j] += 1
+                return best_sum
+        elif delta == 1:
+            j += 1
+            cur_sums[j] = tmp_sum # Floor for all subsequent sums
+            tmp_assignments[j] = 0
+        else:
+            tmp_assignments[j] += 1
 
 def _maybe_remove(s, p):
     # Begging forgiveness is faster than asking permission
