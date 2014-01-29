@@ -75,8 +75,8 @@ def make_fig(func):
 
 @make_axes
 def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None, 
-       cmap=mpl.cm.winter, ax=None):
-    """Plot traces of trajectories for each particle.
+       cmap=None, ax=None):
+    """Plot traces of trajectories for each probe.
     Optionally superimpose it on a frame from the video.
 
     Parameters
