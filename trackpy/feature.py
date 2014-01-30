@@ -407,7 +407,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
     return result
 
 
-def locate(image, diameter, minmass=100., maxsize=None, separation=None,
+def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
            filter_before=True, filter_after=True, 
@@ -488,20 +488,25 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     radius = int(diameter)//2
     if smoothing_size is None:
         smoothing_size = diameter
-    image = np.squeeze(image)
+    raw_image = np.squeeze(raw_image)
     if preprocess:
         if invert:
             # It is tempting to do this in place, but if it is called multiple
             # times on the same image, chaos reigns.
             max_value = np.iinfo(image.dtype).max
-            image = image ^ max_value
-        bp_image = bandpass(image, noise_size, smoothing_size, threshold)
+            raw_image = raw_image ^ max_value
+        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
     else:
-        bp_image = image.copy()
-    bp_image = scale_to_gamut(bp_image, image.dtype)
+        image = raw_image.copy()
+    # Coerce the image into integer type. Rescale to fill dynamic range.
+    if np.issubdtype(raw_image.dtype, np.integer):
+        dtype = raw_image.dtype
+    else:
+        dtype = np.int8
+    image = scale_to_gamut(image, dtype)
 
     # Find local maxima.
-    coords = local_maxima(bp_image, radius, separation, percentile)
+    coords = local_maxima(image, radius, separation, percentile)
     count_maxima = coords.shape[0]
 
     # Proactively filter based on estimated mass/size before
@@ -509,19 +514,19 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     if filter_before:
         approx_mass = np.empty(count_maxima)  # initialize to avoid appending
         for i in range(count_maxima):
-            approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
+            approx_mass[i] = estimate_mass(image, radius, coords[i])
         condition = approx_mass > minmass
         if maxsize is not None:
             approx_size = np.empty(count_maxima)
             for i in range(count_maxima):
-                approx_size[i] = estimate_size(bp_image, radius, coords[i], 
+                approx_size[i] = estimate_size(image, radius, coords[i], 
                                                approx_mass[i])
             condition &= approx_size < maxsize
         coords = coords[condition]
     count_qualified = coords.shape[0]
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine(image, bp_image, radius, coords, max_iterations,
+    refined_coords = refine(raw_image, image, radius, coords, max_iterations,
                             engine, characterize)
 
     # Filter again, using final ("exact") mass -- and size, if set.
@@ -562,7 +567,7 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     # and noise (measured here below).
     if characterize:
         black_level, noise = uncertainty.measure_noise(
-            image, diameter, threshold)
+            raw_image, diameter, threshold)
         f['signal'] -= black_level
         ep = uncertainty.static_error(f, noise, diameter, noise_size)
         f = f.join(ep)
