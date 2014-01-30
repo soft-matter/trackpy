@@ -239,11 +239,10 @@ def _refine(image, raw_image, radius, coords, max_iterations,
 
         # Characterize the neighborhood of our final centroid.
         mass[feat] = neighborhood.sum()
-        Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim)*
-                                      neighborhood)/mass[feat])
         if not characterize:
             continue  # short-circuit loop
-
+        Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim)*
+                                  neighborhood)/mass[feat])
         # I only know how to measure eccentricity in 2D.
         if ndim == 2:
             ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
@@ -255,7 +254,7 @@ def _refine(image, raw_image, radius, coords, max_iterations,
         signal[feat] = raw_neighborhood.max()  # black_level subtracted later
 
     if not characterize:
-        result = np.column_stack([final_coords, mass, Rg])
+        result = np.column_stack([final_coords, mass])
     else:
         result = np.column_stack([final_coords, mass, Rg, ecc, signal])
     return result
@@ -277,7 +276,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
     ecc = np.empty(N, dtype=np.float_)
     signal = np.empty(N, dtype=np.float_)
 
-    for feat in range(N):
+    for feat in xrange(N):
         coord = coords[feat, :]
 
         # Define the circular neighborhood of (x, y).
@@ -371,7 +370,6 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
         final_coords[feat] = cm_i[..., ::-1]
 
-
         # Characterize the neighborhood of our final centroid.
         mass_ = np.float_(0)
         Rg_ = np.float_(0)
@@ -384,8 +382,10 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                 if mask[i, j] != 0:
                     px = np.float_(neighborhood[i, j])
                     mass_ += px
-                    Rg_ += r2_mask[i, j]*px
                     # Will short-circuiting if characterize=False slow it down?
+                    if not characterize:
+                        continue
+                    Rg_ += r2_mask[i, j]*px
                     ecc1 += cmask[i, j]*px
                     ecc2 += smask[i, j]*px
                     raw_px = np.float_(raw_neighborhood[i, j])
@@ -393,15 +393,15 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                         signal_ = px
         Rg_ = np.sqrt(Rg_/mass_)
         mass[feat] = mass_
-        Rg[feat] = Rg_
         if characterize:
+            Rg[feat] = Rg_
             center_px = neighborhood[radius, radius]
             ecc_ = np.sqrt(ecc1**2 + ecc2**2)/(mass_ - center_px + 1e-6)
             ecc[feat] = ecc_
             signal[feat] = signal_  # black_level subtracted later
 
     if not characterize:
-        result = np.column_stack([final_coords, mass, Rg])
+        result = np.column_stack([final_coords, mass])
     else:
         result = np.column_stack([final_coords, mass, Rg, ecc, signal])
     return result
@@ -555,9 +555,9 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         coord_columns = ['x', 'y', 'z'][:image.ndim]
     else:
         coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
-    char_columns = ['mass', 'size']
+    char_columns = ['mass']
     if characterize:
-        char_columns += ['ecc', 'signal']
+        char_columns += ['size', 'ecc', 'signal']
     columns = coord_columns + char_columns
     if len(refined_coords) == 0:
         return DataFrame(columns=columns)  # TODO fill with np.empty
