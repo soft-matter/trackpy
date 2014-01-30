@@ -441,7 +441,6 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
         percentile. This helps eliminate spurrious peaks.
     topn : Return only the N brightest features above minmass. 
         If None (default), return all features above minmass.
-    preprocess : Set to False to turn out automatic preprocessing.
 
     Returns
     -------
@@ -452,6 +451,7 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
 
     Other Parameters
     ----------------
+    preprocess : Set to False to turn out bandpass preprocessing.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
@@ -460,8 +460,9 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
         True by default for performance.
     filter_after : boolean
         Use final characterizations of mass and size to elminate spurrious
+        features. True by default.
     characterize : boolean
-        For speed, do not compute "extras:" eccentricity, signal, ep.
+        Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
 
     See Also
@@ -572,6 +573,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=True, filter_after=True,
+          characterize=True, engine='auto',
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False, meta=True):
     """Locate Gaussian-like blobs of a given approximate size.
@@ -603,9 +605,6 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         percentile. This helps eliminate spurrious peaks.
     topn : Return only the N brightest features above minmass. 
         If None (default), return all features above minmass.
-    preprocess : Set to False to turn out automatic preprocessing.
-    max_iterations : integer
-        max number of loops to refine the center of mass, default 10
 
     Returns
     -------
@@ -616,6 +615,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     Other Parameters
     ----------------
+    preprocess : Set to False to turn off bandpass preprocessing.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
@@ -625,6 +625,9 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     filter_after : boolean
         Use final characterizations of mass and size to elminate spurrious
         features. True by default.
+    characterize : boolean
+        Compute "extras": eccentricity, signal, ep. True by default.
+    engine : {'auto', 'python', 'numba'}
 
     store : Optional HDFStore
     conn : Optional connection to a SQL database
@@ -685,7 +688,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         centroids = locate(image, diameter, minmass, maxsize, separation,
                            noise_size, smoothing_size, threshold, invert,
                            percentile, topn, preprocess, max_iterations,
-                           filter_before, filter_after)
+                           filter_before, filter_after, characterize,
+                           engine)
         centroids['frame'] = frame_no
         message = "Frame %d: %d features" % (frame_no, len(centroids))
         print_update(message)
