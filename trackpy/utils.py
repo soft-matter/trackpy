@@ -27,7 +27,6 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import yaml
-from .try_numba import try_numba_autojit
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
@@ -186,19 +185,3 @@ def print_update(message):
         pass
     print message
     sys.stdout.flush()
-
-
-@try_numba_autojit
-def numba_less(arr, val):
-    res = np.empty_like(arr, dtype=np.bool)
-    for i in range(len(arr)):
-        res[i] = arr[i] < val
-    return res
-
-
-@try_numba_autojit
-def numba_greater(arr, val):
-    res = np.empty_like(arr, dtype=np.bool)
-    for i in range(len(arr)):
-        res[i] = arr[i] > val
-    return res

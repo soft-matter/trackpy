@@ -33,9 +33,7 @@ from .utils import record_meta, print_update
 from .masks import *
 import trackpy  # to get trackpy.__version__
 
-from .try_numba import try_numba_autojit
-import numba  # for debugging only
-from .utils import numba_less, numba_greater
+from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
 
 def local_maxima(image, radius, separation, percentile=64):
@@ -139,10 +137,23 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
         Numba is faster if available, but it cannot do walkthrough.
     """
     # Main loop will be performed in separate function.
+    if engine == 'auto':
+        if NUMBA_AVAILABLE:
+            engine = 'numba'
+        else:
+            engine = 'python'
     if engine == 'python':
         results = _refine(raw_image, image, radius, coords, max_iterations, 
                           characterize, walkthrough)
     elif engine == 'numba':
+        if not NUMBA_AVAILABLE:
+            warnings.warn("numba could not be imported. Without it, the "
+                          "'numba' engine runs very slow. Use the 'python' "
+                          "engine or install numba.", UserWarning)
+        if image.ndim != 2:
+            raise NotImplementedError("The numba engine only supports 2D " 
+                                      "images. You can extend it if you feel "
+                                      "like a hero.")
         if walkthrough:
             raise ValueError("walkthrough is not availabe in the nubma engine")
         # Do some extra prep in pure Python that can't be done in numba.
@@ -202,13 +213,10 @@ def _refine(image, raw_image, radius, coords, max_iterations,
                 new_coord[off_center > SHIFT_THRESH] += 1
                 new_coord[off_center < -SHIFT_THRESH] -= 1
                 # Don't move outside the image!
-                upper_bound = image.shape - 1 - radius
+                upper_bound = np.array(image.shape) - 1 - radius
                 new_coord = np.clip(new_coord, radius, upper_bound).astype(int)
                 # Update slice to shifted position.
-                # TOOO Use list comprehension here.
-                for i in np.arange(ndim):
-                    c = new_coord[i]
-                    square[i] = slice(c - radius, c + radius + 1)
+                square = [slice(c - radius, c + radius + 1) for c in new_coord]
                 neighborhood = mask*image[square]
 
             # If we're off by less than half a pixel, interpolate.
@@ -277,7 +285,8 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
         for dim in range(ndim):
              square[dim, 0] = coord[dim] - radius
              square[dim, 1] = coord[dim] + radius + 1
-        neighborhood = image[square[0, 0]:square[0, 1], square[1, 0]:square[1, 1]]
+        neighborhood = image[square[0, 0]:square[0, 1], 
+                             square[1, 0]:square[1, 1]]
         cm_n = np.zeros(2, dtype=np.float_)
         mass_ = np.float_(0)
         for i in range(square_size):
@@ -330,17 +339,19 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                 for dim in range(ndim):
                      square[dim, 0] = new_coord[dim] - radius
                      square[dim, 1] = new_coord[dim] + radius + 1
-                neighborhood = image[square[0, 0]:square[0, 1], square[1, 0]:square[1, 1]]
+                neighborhood = image[square[0, 0]:square[0, 1], 
+                                     square[1, 0]:square[1, 1]]
 
             # If we're off by less than half a pixel, interpolate.
             else:
                 break
+                # TODO Implement this for numba.
                 # Here, coord is a float. We are off the grid.
-                neighborhood = ndimage.shift(neighborhood, -off_center, 
-                                             order=2, mode='constant', cval=0)
-                new_coord = np.float_(coord) + off_center
+                # neighborhood = ndimage.shift(neighborhood, -off_center, 
+                #                              order=2, mode='constant', cval=0)
+                # new_coord = np.float_(coord) + off_center
                 # Disallow any whole-pixels moves on future iterations.
-                allow_moves = False
+                # allow_moves = False
 
             cm_n = np.zeros(2, dtype=np.float_)
             mass_ = np.float_(0)
@@ -374,7 +385,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                     px = np.float_(neighborhood[i, j])
                     mass_ += px
                     Rg_ += r2_mask[i, j]*px
-                    # Will short-circuiting for characterize=False slow it down?
+                    # Will short-circuiting if characterize=False slow it down?
                     ecc1 += cmask[i, j]*px
                     ecc2 += smask[i, j]*px
                     raw_px = np.float_(raw_neighborhood[i, j])

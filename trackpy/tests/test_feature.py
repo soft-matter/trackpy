@@ -39,10 +39,10 @@ def draw_spots(shape, locations, r, noise_level):
     return image
 
 
-def compare(shape, count, radius, noise_level):
+def compare(shape, count, radius, noise_level, engine):
     pos = gen_random_locations(shape, count) 
     image = draw_spots(shape, pos, radius, noise_level)
-    f = tp.locate(image, 2*radius + 1, minmass=1800)
+    f = tp.locate(image, 2*radius + 1, minmass=1800, engine=engine)
     actual = f[['x', 'y']].sort(['x', 'y'])
     expected = DataFrame(pos, columns=['y', 'x'])[['x', 'y']].sort(['x', 'y']) 
     return actual, expected
@@ -57,7 +57,7 @@ class CommonFeatureIdentificationTests(object):
         self.check_skip()
         # simple "smoke" test to see if numba explodes
         dummy_image = np.random.randint(0, 100, (300, 300)).astype(np.uint8)
-        tp.locate(dummy_image, 5)
+        tp.locate(dummy_image, 5, engine=self.engine)
 
     def test_one_centered_gaussian(self):
         self.check_skip()
@@ -69,7 +69,7 @@ class CommonFeatureIdentificationTests(object):
 
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], 4)
-        actual = tp.locate(image, 9, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 9, 1, preprocess=False, engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
 
     def test_subpx_precision(self): 
@@ -83,7 +83,7 @@ class CommonFeatureIdentificationTests(object):
         pos = np.array([7, 13])
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos[::-1])] = 100
-        actual = tp.locate(image, 3, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 3, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=0.001)  # especially precise
 
@@ -94,7 +94,7 @@ class CommonFeatureIdentificationTests(object):
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 100
         image[tuple(pos2[::-1])] = 100
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -105,7 +105,7 @@ class CommonFeatureIdentificationTests(object):
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 100
         image[tuple(pos2[::-1])] = 50
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -113,7 +113,7 @@ class CommonFeatureIdentificationTests(object):
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 50
         image[tuple(pos2[::-1])] = 100
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -123,7 +123,7 @@ class CommonFeatureIdentificationTests(object):
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 100
         image[tuple(pos2[::-1])] = 50
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -131,7 +131,7 @@ class CommonFeatureIdentificationTests(object):
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 50
         image[tuple(pos2[::-1])] = 100
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -146,7 +146,7 @@ class CommonFeatureIdentificationTests(object):
         image[tuple(pos2[::-1])] = 50
         image[tuple(pos3[::-1])] = 100
         image[tuple(pos4[::-1])] = 50
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -156,7 +156,7 @@ class CommonFeatureIdentificationTests(object):
         image[tuple(pos2[::-1])] = 100
         image[tuple(pos3[::-1])] = 50
         image[tuple(pos4[::-1])] = 100
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -168,7 +168,7 @@ class CommonFeatureIdentificationTests(object):
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 100
         image[tuple(pos2[::-1])] = 50
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
@@ -176,23 +176,26 @@ class CommonFeatureIdentificationTests(object):
         image = np.ones(dims, dtype='uint8')
         image[tuple(pos1[::-1])] = 50
         image[tuple(pos2[::-1])] = 100
-        actual = tp.locate(image, 5, 1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, preprocess=False, engine=self.engine)[cols]
         expected = DataFrame(pos.reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
     def test_multiple_simple_sparse(self):
         self.check_skip()
-        actual, expected = compare((200, 300), 4, 2, noise_level=0)
+        actual, expected = compare((200, 300), 4, 2, noise_level=0,
+                                   engine=self.engine)
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_noisy_sparse(self):
         self.check_skip()
-        actual, expected = compare((200, 300), 4, 2, noise_level=1)
+        actual, expected = compare((200, 300), 4, 2, noise_level=1,
+                                   engine=self.engine)
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_more_noisy_sparse(self):
         self.check_skip()
-        actual, expected = compare((200, 300), 4, 2, noise_level=2)
+        actual, expected = compare((200, 300), 4, 2, noise_level=2,
+                                   engine=self.engine)
         assert_allclose(actual, expected, atol=0.5)
 
     def test_topn(self):
@@ -210,13 +213,13 @@ class CommonFeatureIdentificationTests(object):
         image[tuple(pos1[::-1])] = 100
         image[tuple(pos2[::-1])] = 80
         image[tuple(pos3[::-1])] = 90
-        actual = tp.locate(image, 5, 1, topn=2, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, topn=2, preprocess=False, engine=self.engine)[cols]
         actual = actual.sort(['x', 'y'])  # sort for reliable comparison
         expected = DataFrame([[7, 7], [7, 14]], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
         # top 1
-        actual = tp.locate(image, 5, 1, topn=1, preprocess=False)[cols]
+        actual = tp.locate(image, 5, 1, topn=1, preprocess=False, engine=self.engine)[cols]
         actual = actual.sort(['x', 'y'])  # sort for reliable comparison
         expected = DataFrame([[7, 7]], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
@@ -238,28 +241,28 @@ class CommonFeatureIdentificationTests(object):
         SIZE = 2
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], SIZE)
-        actual = tp.locate(image, 7, 1, preprocess=False)['size']
+        actual = tp.locate(image, 7, 1, preprocess=False, engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
 
         SIZE = 3
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], SIZE)
-        actual = tp.locate(image, 11, 1, preprocess=False)['size']
+        actual = tp.locate(image, 11, 1, preprocess=False, engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
 
         SIZE = 5
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], SIZE)
-        actual = tp.locate(image, 17, 1, preprocess=False)['size']
+        actual = tp.locate(image, 17, 1, preprocess=False, engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
         
         SIZE = 7
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], SIZE)
-        actual = tp.locate(image, 23, 1, preprocess=False)['size']
+        actual = tp.locate(image, 23, 1, preprocess=False, engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
         
@@ -276,21 +279,21 @@ class CommonFeatureIdentificationTests(object):
         ECC = 0
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
-        actual = tp.locate(image, 21, 1, preprocess=False)['ecc']
+        actual = tp.locate(image, 21, 1, preprocess=False, engine=self.engine)['ecc']
         expected = ECC
         assert_allclose(actual, expected, atol=0.02)
 
         ECC = 0.2
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
-        actual = tp.locate(image, 21, 1, preprocess=False)['ecc']
+        actual = tp.locate(image, 21, 1, preprocess=False, engine=self.engine)['ecc']
         expected = ECC
         assert_allclose(actual, expected, atol=0.02)
 
         ECC = 0.5
         image = np.ones(dims, dtype='uint8')
         draw_gaussian_spot(image, pos[::-1], 4, ecc=ECC)
-        actual = tp.locate(image, 21, 1, preprocess=False)['ecc']
+        actual = tp.locate(image, 21, 1, preprocess=False, engine=self.engine)['ecc']
         expected = ECC
         assert_allclose(actual, expected, atol=0.02)
 
@@ -307,23 +310,23 @@ class CommonFeatureIdentificationTests(object):
         draw_gaussian_spot(image, pos[::-1], 2)
 
         guess = np.array([[6, 13]])
-        actual = tp.feature.refine(image, image, 6, guess, characterize=False)
+        actual = tp.feature.refine(image, image, 6, guess, characterize=False,
+                                   engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 12]])
-        actual = tp.feature.refine(image, image, 6, guess, characterize=False)
+        actual = tp.feature.refine(image, image, 6, guess, characterize=False,
+                                   engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 14]])
-        actual = tp.feature.refine(image, image, 6, guess, characterize=False)
-        assert_allclose(actual, expected, atol=0.1)
-
-        guess = np.array([[6, 13]])
-        actual = tp.feature.refine(image, image, 6, guess, characterize=False)
+        actual = tp.feature.refine(image, image, 6, guess, characterize=False,
+                                   engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[6, 12]])
-        actual = tp.feature.refine(image, image, 6, guess, characterize=False)
+        actual = tp.feature.refine(image, image, 6, guess, characterize=False,
+                                   engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
 
@@ -331,22 +334,21 @@ class TestFeatureIdentificationWithVanillaNumpy(
     CommonFeatureIdentificationTests, unittest.TestCase):
 
     def setUp(self):
-        import trackpy as tp
-        tp.disable_numba()
+        self.engine = 'python'
 
 
 class TestFeatureIdentificationWithNumba(
     CommonFeatureIdentificationTests, unittest.TestCase):
 
     def setUp(self):
-        import trackpy as tp
+        self.engine = 'numba'
         try:
             import numba
         except ImportError:
-            pass
-            # Test will be skipped -- see check_skip()
+            pass  # Test will be skipped -- see below.
         else:
-            tp.enable_numba()  # enabled by default as of this writing
+            import trackpy as tp
+            tp.enable_numba()
 
     def check_skip(self):
         try:
