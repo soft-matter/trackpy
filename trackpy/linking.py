@@ -1,19 +1,3 @@
-#Copyright 2012 Thomas A Caswell
-#tcaswell@uchicago.edu
-#http://jfi.uchicago.edu/~tcaswell
-#
-#This program is free software; you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation; either version 3 of the License, or (at
-#your option) any later version.
-#
-#This program is distributed in the hope that it will be useful, but
-#WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-#General Public License for more details.
-#
-#You should have received a copy of the GNU General Public License
-#along with this program; if not, see <http://www.gnu.org/licenses>.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -333,7 +317,7 @@ class PointND(Point):
     def __repr__(self):
         coords = '(' + (', '.join(["{:.3f}"]*len(self.pos))).format(*self.pos) + ')'
         track = " in Track %d" % self.track.indx if self.track else ""
-        return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">" 
+        return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">"
 
 class IndexedPointND(PointND):
 
@@ -366,7 +350,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
 
-    Returns  
+    Returns
     -------
     tracks : list of Track (or track_cls) objects
 
@@ -384,7 +368,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     label_generator = link_iter(iter(levels), search_range, memory=memory,
                                 neighbor_strategy=neighbor_strategy,
                                 link_strategy=link_strategy,
-                                track_cls=track_cls, 
+                                track_cls=track_cls,
                                 hash_generator=hash_generator)
     labels = list(label_generator)
     points = sum(map(list, levels), [])  # flatten levels: a list of poits
@@ -421,7 +405,7 @@ def link_df(features, search_range, memory=0,
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
 
-    Returns  
+    Returns
     -------
     trajectories : DataFrame
         This is the input features DataFrame, now with a new column labeling
@@ -437,7 +421,7 @@ def link_df(features, search_range, memory=0,
         For 'BTree' mode only. Define the shape of the search region.
         If None (default), infer shape from range of data.
     box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize 
+        For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     verify_integrity : boolean
@@ -640,7 +624,7 @@ def link_iter(levels, search_range, memory=0,
         For 'BTree' mode only. Define the shape of the search region.
         (Higher-level wrappers of link infer this from the data.)
     box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize 
+        For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     track_cls : class (optional)
@@ -692,7 +676,7 @@ def link_iter(levels, search_range, memory=0,
 
     try:
         # Start ID numbers from zero, incompatible with multithreading.
-        track_cls.reset_counter()  
+        track_cls.reset_counter()
     except AttributeError:
         # must be using a custom Track class without this method
         pass
@@ -728,7 +712,7 @@ def link_iter(levels, search_range, memory=0,
             p.forward_cands = []
 
         # Sort out what can go to what.
-        assign_candidates(cur_level, prev_hash, search_range, 
+        assign_candidates(cur_level, prev_hash, search_range,
                           neighbor_strategy)
 
         # sort the candidate lists by distance
@@ -790,7 +774,7 @@ def link_iter(levels, search_range, memory=0,
 
             spl, dpl = subnet_linker(s_sn, len(d_sn), search_range)
 
-            # Identify the particles in the destination set that 
+            # Identify the particles in the destination set that
             # were not linked to.
             d_remain = set(d for d in d_sn if d is not None)  # TODO DAN
             d_remain -= set(d for d in dpl if d is not None)
@@ -871,6 +855,7 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
                 wp = hashpts[inds[i,j]]
                 p.back_cands.append((wp, dists[i,j]))
                 wp.forward_cands.append((p, dists[i,j]))
+
 
 class SubnetOversizeException(Exception):
     '''An :py:exc:`Exception` to be raised when the sub-nets are too
