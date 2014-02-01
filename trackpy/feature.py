@@ -574,6 +574,11 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         f['signal'] -= black_level
         ep = uncertainty.static_error(f, noise, diameter, noise_size)
         f = f.join(ep)
+
+    # If this is a pims Frame object, it has a frame number.
+    # Tag it on; this is helpful for parallelization.
+    if hasattr(image, 'frame_no') and image.frame_no is not None:
+        f['frame'] = image.frame_no
     return f
 
 
@@ -687,18 +692,16 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     all_centroids = []
     for i, image in enumerate(frames):
-        # If frames has a cursor property, use it. Otherwise, just count
-        # the frames from 0.
-        try:
-            frame_no = frames.cursor - 1
-        except AttributeError:
-            frame_no = i
         centroids = locate(image, diameter, minmass, maxsize, separation,
                            noise_size, smoothing_size, threshold, invert,
                            percentile, topn, preprocess, max_iterations,
                            filter_before, filter_after, characterize,
                            engine)
-        centroids['frame'] = frame_no
+        try:
+            frame_no = image.frame_no
+            # If this works, locate created a 'frame' column.
+        except AttributeError:
+            centroids['frame'] = i  # just counting iterations
         message = "Frame %d: %d features" % (frame_no, len(centroids))
         print_update(message)
         if len(centroids) == 0:
