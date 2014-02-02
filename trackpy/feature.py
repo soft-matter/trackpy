@@ -299,12 +299,12 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
 
         for dim in range(2):
             cm_n[dim] /= mass_
-            cm_i[dim] = cm_n[dim] - np.float_(radius) + np.float_(coord[dim])
+            cm_i[dim] = cm_n[dim] - radius + coord[dim]
         allow_moves = True
         for iteration in range(max_iterations):
             off_center = np.empty_like(cm_n)
             for dim in range(2):
-                off_center[dim] = cm_n[dim] - np.float_(radius)
+                off_center[dim] = cm_n[dim] - radius
             for dim in range(2):
                 if off_center[dim] > GOOD_ENOUGH_THRESH:
                     break  # Proceed through iteration.
@@ -353,7 +353,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                 # allow_moves = False
 
             cm_n = np.zeros(2, dtype=np.float_)
-            mass_ = np.float_(0)
+            mass_ = 0
             for i in range(square_size):
                 for j in range(square_size):
                     if mask[i, j] != 0:
@@ -365,22 +365,22 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
             cm_i = np.empty_like(cm_n)
             for dim in range(2):
                 cm_n[dim] /= mass_
-                cm_i[dim] = cm_n[dim] - np.float_(radius) + np.float_(coord[dim])
+                cm_i[dim] = cm_n[dim] - radius + coord[dim]
             coord = new_coord
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
         final_coords[feat] = cm_i[..., ::-1]
 
         # Characterize the neighborhood of our final centroid.
-        mass_ = np.float_(0)
-        Rg_ = np.float_(0)
-        ecc1 = np.float_(0)
-        ecc2 = np.float_(0)
-        signal_ = np.float_(0)
+        mass_ = 0.
+        Rg_ = 0.
+        ecc1 = 0.
+        ecc2 = 0.
+        signal_ = 0.
         raw_neighborhood = raw_image[square[0, 0]:square[0, 1], square[1, 0]:square[1, 1]]
         for i in range(square_size):
             for j in range(square_size):
                 if mask[i, j] != 0:
-                    px = np.float_(neighborhood[i, j])
+                    px = neighborhood[i, j]
                     mass_ += px
                     # Will short-circuiting if characterize=False slow it down?
                     if not characterize:
@@ -388,7 +388,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                     Rg_ += r2_mask[i, j]*px
                     ecc1 += cmask[i, j]*px
                     ecc2 += smask[i, j]*px
-                    raw_px = np.float_(raw_neighborhood[i, j])
+                    raw_px = raw_neighborhood[i, j]
                     if raw_px > signal_:
                         signal_ = px
         Rg_ = np.sqrt(Rg_/mass_)
