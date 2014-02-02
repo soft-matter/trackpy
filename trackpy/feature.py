@@ -265,7 +265,6 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
     SHIFT_THRESH = 0.6
     GOOD_ENOUGH_THRESH = 0.01
 
-    ndim = image.ndim
     square_size = 2*radius + 1
 
     # Declare arrays that we will fill iteratively through loop.
@@ -275,19 +274,21 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
     Rg = np.empty(N, dtype=np.float_)
     ecc = np.empty(N, dtype=np.float_)
     signal = np.empty(N, dtype=np.float_)
+    square = np.empty((2, 2), dtype=np.int16)
+    coord = np.empty((2,), dtype=np.float_)
+    cm_n = np.zeros(2, dtype=np.float_)
+    cm_i = np.empty_like(cm_n)
 
-    for feat in xrange(N):
-        coord = coords[feat, :]
-
+    for feat in range(N):
         # Define the circular neighborhood of (x, y).
-        square = np.empty((ndim, 2), dtype=np.int16)
-        for dim in range(ndim):
-             square[dim, 0] = coord[dim] - radius
-             square[dim, 1] = coord[dim] + radius + 1
+        for dim in range(2):
+            coord[dim] = coords[feat, dim]
+            square[dim, 0] = coord[dim] - radius
+            square[dim, 1] = coord[dim] + radius + 1
+            cm_n[dim] = 0.0
         neighborhood = image[square[0, 0]:square[0, 1], 
                              square[1, 0]:square[1, 1]]
-        cm_n = np.zeros(2, dtype=np.float_)
-        mass_ = np.float_(0)
+        mass_ = 0.0
         for i in range(square_size):
             for j in range(square_size):
                 if mask[i, j] != 0:
@@ -296,16 +297,15 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                     cm_n[1] += px*j
                     mass_ += neighborhood[i, j]
 
-        cm_i = np.empty_like(cm_n)
-        for dim in range(ndim):
+        for dim in range(2):
             cm_n[dim] /= mass_
             cm_i[dim] = cm_n[dim] - np.float_(radius) + np.float_(coord[dim])
         allow_moves = True
         for iteration in range(max_iterations):
             off_center = np.empty_like(cm_n)
-            for dim in range(ndim):
+            for dim in range(2):
                 off_center[dim] = cm_n[dim] - np.float_(radius)
-            for dim in range(ndim):
+            for dim in range(2):
                 if off_center[dim] > GOOD_ENOUGH_THRESH:
                     break  # Proceed through iteration.
                 break  # Stop iterations.
@@ -313,7 +313,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
             # If we're off by more than half a pixel in any direction, move.
             do_move = False
             if allow_moves:
-                for dim in range(ndim):
+                for dim in range(2):
                     if off_center[dim] > SHIFT_THRESH:
                         do_move = True
             do_move = True
@@ -321,21 +321,21 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
             if do_move:
                 # In here, coord is an integer.
                 new_coord = coord
-                for dim in range(ndim):
+                for dim in range(2):
                     oc = off_center[dim]
                     if oc > SHIFT_THRESH:
                         new_coord[dim] += 1
                     elif oc < - SHIFT_THRESH:
                         new_coord[dim] -= 1
                 # Don't move outside the image!
-                for dim in range(ndim):
+                for dim in range(2):
                     if new_coord[dim] < radius:
                         new_coord[dim] = radius
                     upper_bound = shape[dim] - radius - 1
                     if new_coord[dim] > upper_bound:
                         new_coord[dim] = upper_bound
                 # Update slice to shifted position.
-                for dim in range(ndim):
+                for dim in range(2):
                      square[dim, 0] = new_coord[dim] - radius
                      square[dim, 1] = new_coord[dim] + radius + 1
                 neighborhood = image[square[0, 0]:square[0, 1], 
@@ -363,7 +363,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                         mass_ += neighborhood[i, j]
 
             cm_i = np.empty_like(cm_n)
-            for dim in range(ndim):
+            for dim in range(2):
                 cm_n[dim] /= mass_
                 cm_i[dim] = cm_n[dim] - np.float_(radius) + np.float_(coord[dim])
             coord = new_coord
