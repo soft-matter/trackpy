@@ -81,6 +81,15 @@ write_version_py()
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
+# In some cases, the numpy include path is not present by default.
+# Let's try to obtain it.
+try:
+    import numpy
+except ImportError:
+    ext_include_dirs = []
+else:
+    ext_include_dirs = [numpy.get_include(),]
+
 # Installation tries ext_modules but omits them if compiling fails.
 setup_parameters = dict(
     name = "trackpy",
@@ -95,7 +104,7 @@ setup_parameters = dict(
                         'http://github.com/soft-matter/yaml-serialize/zipball/master#egg=yaml_serialize'],
     packages = ['trackpy', 'trackpy.wire'],
     long_description = read('README.md'),
-    ext_modules = [Extension('_Cfilters', ['trackpy/src/Cfilters.c'])],
+    ext_modules = [Extension('_Cfilters', ['trackpy/src/Cfilters.c'], include_dirs=ext_include_dirs)],
 )
 
 try:
