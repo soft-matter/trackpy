@@ -33,8 +33,6 @@ from .utils import record_meta, print_update
 from .masks import *
 import trackpy  # to get trackpy.__version__
 
-import numba
-from numba import jit, double # FIXME
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
 
@@ -145,6 +143,7 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
         else:
             engine = 'python'
     if engine == 'python':
+        coords = np.array(coords)  # a copy, will not modify in place
         results = _refine(raw_image, image, radius, coords, max_iterations, 
                           characterize, walkthrough)
     elif engine == 'numba':
@@ -159,14 +158,15 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
         if walkthrough:
             raise ValueError("walkthrough is not availabe in the nubma engine")
         # Do some extra prep in pure Python that can't be done in numba.
-        shape = np.array(image.shape)  # need as array, not tuple
+        coords = np.array(coords, dtype=np.float_)
+        shape = np.array(image.shape, dtype=np.int16)  # array, not tuple
         mask = binary_mask(radius, image.ndim)
         r2_mask = r_squared_mask(radius, image.ndim)
         cmask = cosmask(radius)
         smask = sinmask(radius)
-        results = _numba_refine(raw_image, image, radius, np.array(coords),
-                                max_iterations, characterize, shape, 
-                                mask, r2_mask, cmask, smask)
+        results = _numba_refine(raw_image, image, int(radius), coords,
+                                int(max_iterations), characterize, 
+                                shape, mask, r2_mask, cmask, smask)
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
     return results
@@ -180,7 +180,6 @@ def _refine(image, raw_image, radius, coords, max_iterations,
 
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
-    coords = np.asarray(coords).copy()
     slices = [[slice(c - radius, c + radius + 1) for c in coord]
               for coord in coords]
 

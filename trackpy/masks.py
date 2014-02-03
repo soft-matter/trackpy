@@ -20,7 +20,7 @@ def r_squared_mask(radius, ndim):
         coords = np.array(np.meshgrid(*([points]*ndim)))
     else:
         coords = points.reshape(1, -1)
-    r2 = np.sum(coords**2, 0)
+    r2 = np.sum(coords**2, 0).astype(int)
     r2[r2 > radius**2] = 0
     return r2
 
