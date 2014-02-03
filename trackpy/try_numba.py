@@ -29,14 +29,17 @@ else:
 class RegisteredFunction(object):
     "Enable toggling between original function and numba-compiled one."
 
-    def __init__(self, func, fallback=None):
+    def __init__(self, func, fallback=None, autojit_kw=None):
        self.func = func
        self.func_name = func.func_name
        module_name = inspect.getmoduleinfo(func.func_globals['__file__']).name
        module_name = '.'.join(['trackpy', module_name])
        self.module_name = module_name
        if NUMBA_AVAILABLE:
-           self.compiled = numba.autojit(func)
+           if autojit_kw is not None:
+               self.compiled = numba.autojit(**autojit_kw)(func)
+           else:
+               self.compiled = numba.autojit(func)
        if fallback is not None:
            self.ordinary = fallback
        else:
@@ -49,22 +52,29 @@ class RegisteredFunction(object):
         setattr(sys.modules[self.module_name], self.func_name, self.ordinary)
 
 
-def try_numba_autojit(func):
-    # First, handle optional arguments. This is confusing; see
-    # http://stackoverflow.com/questions/3888158
-    # TODO
+def try_numba_autojit(func=None, **kw):
+    """Wrapper for numba.autojit() that treats the function as pure Python if numba is missing.
 
-    # Register the function with a global list of numba-enabled functions.
-    f = RegisteredFunction(func)
-    _registered_functions.append(f)
+    Usage is as with autojit(): Either as a bare decorator (no parentheses), or with keyword
+    arguments.
 
-    if ENABLE_NUMBA_ON_IMPORT and NUMBA_AVAILABLE:
-        # Overwrite the function's reference with a numba-compiled function.
-        # This can be undone by calling disable_numba()
-        return f.compiled
+    The resulting compiled numba function can subsequently be turned on or off with
+    enable_numba() and disable_numba(). It will be on by default."""
+    def return_decorator(func):
+        # Register the function with a global list of numba-enabled functions.
+        f = RegisteredFunction(func, autojit_kw=kw)
+        _registered_functions.append(f)
+
+        if ENABLE_NUMBA_ON_IMPORT and NUMBA_AVAILABLE:
+            # Overwrite the function's reference with a numba-compiled function.
+            # This can be undone by calling disable_numba()
+            return f.compiled
+        else:
+            return f.ordinary
+    if func is None:
+        return return_decorator
     else:
-        return f.ordinary
-
+        return return_decorator(func)
 
 def disable_numba():
     "Do not use numba-accelerated functions, even if numba is available."
