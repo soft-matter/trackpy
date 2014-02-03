@@ -501,7 +501,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         if invert:
             # It is tempting to do this in place, but if it is called multiple
             # times on the same image, chaos reigns.
-            max_value = np.iinfo(image.dtype).max
+            max_value = np.iinfo(raw_image.dtype).max
             raw_image = raw_image ^ max_value
         image = bandpass(raw_image, noise_size, smoothing_size, threshold)
     else:
