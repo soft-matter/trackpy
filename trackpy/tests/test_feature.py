@@ -58,6 +58,7 @@ class CommonFeatureIdentificationTests(object):
         # simple "smoke" test to see if numba explodes
         dummy_image = np.random.randint(0, 100, (300, 300)).astype(np.uint8)
         tp.locate(dummy_image, 5, engine=self.engine)
+        tp.locate(dummy_image, 5, invert=True, engine=self.engine)
 
     def test_one_centered_gaussian(self):
         self.check_skip()
