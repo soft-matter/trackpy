@@ -33,6 +33,8 @@ from .utils import record_meta, print_update
 from .masks import *
 import trackpy  # to get trackpy.__version__
 
+import numba
+from numba import jit, double # FIXME
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
 
@@ -260,7 +262,7 @@ def _refine(image, raw_image, radius, coords, max_iterations,
     return result
 
 @try_numba_autojit
-def _numba_refine(image, raw_image, radius, coords, max_iterations, 
+def _numba_refine(image, raw_image, radius, coords, max_iterations,
                   characterize, shape, mask, r2_mask, cmask, smask):
     SHIFT_THRESH = 0.6
     GOOD_ENOUGH_THRESH = 0.01
@@ -276,8 +278,9 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
     signal = np.empty(N, dtype=np.float_)
     square = np.empty((2, 2), dtype=np.int16)
     coord = np.empty((2,), dtype=np.float_)
-    cm_n = np.zeros(2, dtype=np.float_)
+    cm_n = np.empty(2, dtype=np.float_)
     cm_i = np.empty_like(cm_n)
+    off_center = np.empty_like(cm_n)
 
     for feat in range(N):
         # Define the circular neighborhood of (x, y).
@@ -285,7 +288,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
             coord[dim] = coords[feat, dim]
             square[dim, 0] = coord[dim] - radius
             square[dim, 1] = coord[dim] + radius + 1
-            cm_n[dim] = 0.0
+            cm_n[dim] = 0.
         neighborhood = image[square[0, 0]:square[0, 1], 
                              square[1, 0]:square[1, 1]]
         mass_ = 0.0
@@ -302,7 +305,6 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
             cm_i[dim] = cm_n[dim] - radius + coord[dim]
         allow_moves = True
         for iteration in range(max_iterations):
-            off_center = np.empty_like(cm_n)
             for dim in range(2):
                 off_center[dim] = cm_n[dim] - radius
             for dim in range(2):
@@ -352,8 +354,9 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                 # Disallow any whole-pixels moves on future iterations.
                 # allow_moves = False
 
-            cm_n = np.zeros(2, dtype=np.float_)
-            mass_ = 0
+            for dim in range(2):
+                cm_n[dim] = 0.
+            mass_ = 0.
             for i in range(square_size):
                 for j in range(square_size):
                     if mask[i, j] != 0:
@@ -362,13 +365,13 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                         cm_n[1] += px*j
                         mass_ += neighborhood[i, j]
 
-            cm_i = np.empty_like(cm_n)
             for dim in range(2):
                 cm_n[dim] /= mass_
                 cm_i[dim] = cm_n[dim] - radius + coord[dim]
             coord = new_coord
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        final_coords[feat] = cm_i[..., ::-1]
+        final_coords[feat, 0] = cm_i[1]
+        final_coords[feat, 1] = cm_i[0]
 
         # Characterize the neighborhood of our final centroid.
         mass_ = 0.
