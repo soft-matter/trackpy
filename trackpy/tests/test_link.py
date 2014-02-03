@@ -10,7 +10,7 @@ import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_almost_equal, assert_index_equal)
+                                 assert_almost_equal)
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
