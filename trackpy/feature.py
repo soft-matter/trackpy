@@ -298,7 +298,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                     px = neighborhood[i, j]
                     cm_n[0] += px*i
                     cm_n[1] += px*j
-                    mass_ += neighborhood[i, j]
+                    mass_ += px
 
         for dim in range(2):
             cm_n[dim] /= mass_
@@ -340,6 +340,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                 for dim in range(2):
                      square[dim, 0] = new_coord[dim] - radius
                      square[dim, 1] = new_coord[dim] + radius + 1
+                     cm_n[dim] = 0.
                 neighborhood = image[square[0, 0]:square[0, 1], 
                                      square[1, 0]:square[1, 1]]
 
@@ -347,6 +348,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
             else:
                 break
                 # TODO Implement this for numba.
+                # Remember to zero cm_n somewhere in here.
                 # Here, coord is a float. We are off the grid.
                 # neighborhood = ndimage.shift(neighborhood, -off_center, 
                 #                              order=2, mode='constant', cval=0)
@@ -354,16 +356,15 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
                 # Disallow any whole-pixels moves on future iterations.
                 # allow_moves = False
 
-            for dim in range(2):
-                cm_n[dim] = 0.
-            mass_ = 0.
+            # cm_n was re-zeroed above in an unrelated loop
+            mass_ = 0
             for i in range(square_size):
                 for j in range(square_size):
                     if mask[i, j] != 0:
                         px = neighborhood[i, j]
                         cm_n[0] += px*i
                         cm_n[1] += px*j
-                        mass_ += neighborhood[i, j]
+                        mass_ += px
 
             for dim in range(2):
                 cm_n[dim] /= mass_
