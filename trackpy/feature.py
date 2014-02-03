@@ -33,6 +33,8 @@ from .utils import record_meta, print_update
 from .masks import *
 import trackpy  # to get trackpy.__version__
 
+from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
+
 
 def local_maxima(image, radius, separation, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
@@ -109,7 +111,7 @@ def _safe_center_of_mass(x, radius):
         return result
 
 
-def refine(raw_image, image, radius, coords, max_iterations=10,
+def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
            characterize=True, walkthrough=False):
     """Find the center of mass of a bright feature starting from an estimate.
 
@@ -131,24 +133,55 @@ def refine(raw_image, image, radius, coords, max_iterations=10,
         Compute and return mass, size, eccentricity, signal.
     walkthrough : boolean, False by default
         Print the offset on each loop and display final neighborhood image.
+    engine : {'python', 'numba'}
+        Numba is faster if available, but it cannot do walkthrough.
     """
     # Main loop will be performed in separate function.
-    slices = [[slice(c - radius, c + radius + 1) for c in coord]
-              for coord in coords]
-    shape = np.array(image.shape)
-    results = _refine(raw_image, image, radius, coords, max_iterations, 
-                      slices, shape, characterize, walkthrough)
+    if engine == 'auto':
+        if NUMBA_AVAILABLE:
+            engine = 'numba'
+        else:
+            engine = 'python'
+    if engine == 'python':
+        coords = np.array(coords)  # a copy, will not modify in place
+        results = _refine(raw_image, image, radius, coords, max_iterations, 
+                          characterize, walkthrough)
+    elif engine == 'numba':
+        if not NUMBA_AVAILABLE:
+            warnings.warn("numba could not be imported. Without it, the "
+                          "'numba' engine runs very slow. Use the 'python' "
+                          "engine or install numba.", UserWarning)
+        if image.ndim != 2:
+            raise NotImplementedError("The numba engine only supports 2D " 
+                                      "images. You can extend it if you feel "
+                                      "like a hero.")
+        if walkthrough:
+            raise ValueError("walkthrough is not availabe in the nubma engine")
+        # Do some extra prep in pure Python that can't be done in numba.
+        coords = np.array(coords, dtype=np.float_)
+        shape = np.array(image.shape, dtype=np.int16)  # array, not tuple
+        mask = binary_mask(radius, image.ndim)
+        r2_mask = r_squared_mask(radius, image.ndim)
+        cmask = cosmask(radius)
+        smask = sinmask(radius)
+        results = _numba_refine(raw_image, image, int(radius), coords,
+                                int(max_iterations), characterize, 
+                                shape, mask, r2_mask, cmask, smask)
+    else:
+        raise ValueError("Available engines are 'python' and 'numba'")
     return results
 
 
-def _refine(image, raw_image, radius, coords, max_iterations, slices, shape,
+# (This is pure Python. A numba variant follows below.)
+def _refine(image, raw_image, radius, coords, max_iterations,
             characterize, walkthrough):
     SHIFT_THRESH = 0.6
     GOOD_ENOUGH_THRESH = 0.01
 
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
-    coords = np.asarray(coords).copy()
+    slices = [[slice(c - radius, c + radius + 1) for c in coord]
+              for coord in coords]
 
     # Declare arrays that we will fill iteratively through loop.
     N = coords.shape[0]
@@ -158,7 +191,7 @@ def _refine(image, raw_image, radius, coords, max_iterations, slices, shape,
     ecc = np.empty(N, dtype=np.float64)
     signal = np.empty(N, dtype=np.float64)
 
-    for feat in np.arange(N):
+    for feat in range(N):
         coord = coords[feat]
 
         # Define the circular neighborhood of (x, y).
@@ -181,12 +214,10 @@ def _refine(image, raw_image, radius, coords, max_iterations, slices, shape,
                 new_coord[off_center > SHIFT_THRESH] += 1
                 new_coord[off_center < -SHIFT_THRESH] -= 1
                 # Don't move outside the image!
-                upper_bound = shape - 1 - radius
+                upper_bound = np.array(image.shape) - 1 - radius
                 new_coord = np.clip(new_coord, radius, upper_bound).astype(int)
                 # Update slice to shifted position.
-                for i in np.arange(ndim):
-                    c = new_coord[i]
-                    square[i] = slice(c - radius, c + radius + 1)
+                square = [slice(c - radius, c + radius + 1) for c in new_coord]
                 neighborhood = mask*image[square]
 
             # If we're off by less than half a pixel, interpolate.
@@ -207,13 +238,12 @@ def _refine(image, raw_image, radius, coords, max_iterations, slices, shape,
         if walkthrough:
             plt.imshow(neighborhood)
 
-        if not characterize:
-            continue  # short-circuit loop
-
         # Characterize the neighborhood of our final centroid.
         mass[feat] = neighborhood.sum()
+        if not characterize:
+            continue  # short-circuit loop
         Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim)*
-                                      neighborhood)/mass[feat])
+                                  neighborhood)/mass[feat])
         # I only know how to measure eccentricity in 2D.
         if ndim == 2:
             ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
@@ -225,16 +255,166 @@ def _refine(image, raw_image, radius, coords, max_iterations, slices, shape,
         signal[feat] = raw_neighborhood.max()  # black_level subtracted later
 
     if not characterize:
-        result = final_coords
+        result = np.column_stack([final_coords, mass])
+    else:
+        result = np.column_stack([final_coords, mass, Rg, ecc, signal])
+    return result
+
+@try_numba_autojit
+def _numba_refine(image, raw_image, radius, coords, max_iterations,
+                  characterize, shape, mask, r2_mask, cmask, smask):
+    SHIFT_THRESH = 0.6
+    GOOD_ENOUGH_THRESH = 0.01
+
+    square_size = 2*radius + 1
+
+    # Declare arrays that we will fill iteratively through loop.
+    N = coords.shape[0]
+    final_coords = np.empty_like(coords, dtype=np.float_)
+    mass = np.empty(N, dtype=np.float_)
+    Rg = np.empty(N, dtype=np.float_)
+    ecc = np.empty(N, dtype=np.float_)
+    signal = np.empty(N, dtype=np.float_)
+    square = np.empty((2, 2), dtype=np.int16)
+    coord = np.empty((2,), dtype=np.float_)
+    cm_n = np.empty(2, dtype=np.float_)
+    cm_i = np.empty_like(cm_n)
+    off_center = np.empty_like(cm_n)
+
+    for feat in range(N):
+        # Define the circular neighborhood of (x, y).
+        for dim in range(2):
+            coord[dim] = coords[feat, dim]
+            square[dim, 0] = coord[dim] - radius
+            square[dim, 1] = coord[dim] + radius + 1
+            cm_n[dim] = 0.
+        neighborhood = image[square[0, 0]:square[0, 1], 
+                             square[1, 0]:square[1, 1]]
+        mass_ = 0.0
+        for i in range(square_size):
+            for j in range(square_size):
+                if mask[i, j] != 0:
+                    px = neighborhood[i, j]
+                    cm_n[0] += px*i
+                    cm_n[1] += px*j
+                    mass_ += px
+
+        for dim in range(2):
+            cm_n[dim] /= mass_
+            cm_i[dim] = cm_n[dim] - radius + coord[dim]
+        allow_moves = True
+        for iteration in range(max_iterations):
+            for dim in range(2):
+                off_center[dim] = cm_n[dim] - radius
+            for dim in range(2):
+                if off_center[dim] > GOOD_ENOUGH_THRESH:
+                    break  # Proceed through iteration.
+                break  # Stop iterations.
+
+            # If we're off by more than half a pixel in any direction, move.
+            do_move = False
+            if allow_moves:
+                for dim in range(2):
+                    if off_center[dim] > SHIFT_THRESH:
+                        do_move = True
+            do_move = True
+
+            if do_move:
+                # In here, coord is an integer.
+                new_coord = coord
+                for dim in range(2):
+                    oc = off_center[dim]
+                    if oc > SHIFT_THRESH:
+                        new_coord[dim] += 1
+                    elif oc < - SHIFT_THRESH:
+                        new_coord[dim] -= 1
+                # Don't move outside the image!
+                for dim in range(2):
+                    if new_coord[dim] < radius:
+                        new_coord[dim] = radius
+                    upper_bound = shape[dim] - radius - 1
+                    if new_coord[dim] > upper_bound:
+                        new_coord[dim] = upper_bound
+                # Update slice to shifted position.
+                for dim in range(2):
+                     square[dim, 0] = new_coord[dim] - radius
+                     square[dim, 1] = new_coord[dim] + radius + 1
+                     cm_n[dim] = 0.
+                neighborhood = image[square[0, 0]:square[0, 1], 
+                                     square[1, 0]:square[1, 1]]
+
+            # If we're off by less than half a pixel, interpolate.
+            else:
+                break
+                # TODO Implement this for numba.
+                # Remember to zero cm_n somewhere in here.
+                # Here, coord is a float. We are off the grid.
+                # neighborhood = ndimage.shift(neighborhood, -off_center, 
+                #                              order=2, mode='constant', cval=0)
+                # new_coord = np.float_(coord) + off_center
+                # Disallow any whole-pixels moves on future iterations.
+                # allow_moves = False
+
+            # cm_n was re-zeroed above in an unrelated loop
+            mass_ = 0
+            for i in range(square_size):
+                for j in range(square_size):
+                    if mask[i, j] != 0:
+                        px = neighborhood[i, j]
+                        cm_n[0] += px*i
+                        cm_n[1] += px*j
+                        mass_ += px
+
+            for dim in range(2):
+                cm_n[dim] /= mass_
+                cm_i[dim] = cm_n[dim] - radius + coord[dim]
+            coord = new_coord
+        # matplotlib and ndimage have opposite conventions for xy <-> yx.
+        final_coords[feat, 0] = cm_i[1]
+        final_coords[feat, 1] = cm_i[0]
+
+        # Characterize the neighborhood of our final centroid.
+        mass_ = 0.
+        Rg_ = 0.
+        ecc1 = 0.
+        ecc2 = 0.
+        signal_ = 0.
+        raw_neighborhood = raw_image[square[0, 0]:square[0, 1], square[1, 0]:square[1, 1]]
+        for i in range(square_size):
+            for j in range(square_size):
+                if mask[i, j] != 0:
+                    px = neighborhood[i, j]
+                    mass_ += px
+                    # Will short-circuiting if characterize=False slow it down?
+                    if not characterize:
+                        continue
+                    Rg_ += r2_mask[i, j]*px
+                    ecc1 += cmask[i, j]*px
+                    ecc2 += smask[i, j]*px
+                    raw_px = raw_neighborhood[i, j]
+                    if raw_px > signal_:
+                        signal_ = px
+        Rg_ = np.sqrt(Rg_/mass_)
+        mass[feat] = mass_
+        if characterize:
+            Rg[feat] = Rg_
+            center_px = neighborhood[radius, radius]
+            ecc_ = np.sqrt(ecc1**2 + ecc2**2)/(mass_ - center_px + 1e-6)
+            ecc[feat] = ecc_
+            signal[feat] = signal_  # black_level subtracted later
+
+    if not characterize:
+        result = np.column_stack([final_coords, mass])
     else:
         result = np.column_stack([final_coords, mass, Rg, ecc, signal])
     return result
 
 
-def locate(image, diameter, minmass=100., maxsize=None, separation=None,
+def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
-           filter_before=True, filter_after=True):
+           filter_before=True, filter_after=True, 
+           characterize=True, engine='auto'):
     """Locate Gaussian-like blobs of a given approximate size.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -264,7 +444,6 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
         percentile. This helps eliminate spurrious peaks.
     topn : Return only the N brightest features above minmass. 
         If None (default), return all features above minmass.
-    preprocess : Set to False to turn out automatic preprocessing.
 
     Returns
     -------
@@ -275,6 +454,7 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
 
     Other Parameters
     ----------------
+    preprocess : Set to False to turn out bandpass preprocessing.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
@@ -283,6 +463,10 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
         True by default for performance.
     filter_after : boolean
         Use final characterizations of mass and size to elminate spurrious
+        features. True by default.
+    characterize : boolean
+        Compute "extras": eccentricity, signal, ep. True by default.
+    engine : {'auto', 'python', 'numba'}
 
     See Also
     --------
@@ -307,20 +491,25 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     radius = int(diameter)//2
     if smoothing_size is None:
         smoothing_size = diameter
-    image = np.squeeze(image)
+    raw_image = np.squeeze(raw_image)
     if preprocess:
         if invert:
             # It is tempting to do this in place, but if it is called multiple
             # times on the same image, chaos reigns.
             max_value = np.iinfo(image.dtype).max
-            image = image ^ max_value
-        bp_image = bandpass(image, noise_size, smoothing_size, threshold)
+            raw_image = raw_image ^ max_value
+        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
     else:
-        bp_image = image.copy()
-    bp_image = scale_to_gamut(bp_image, image.dtype)
+        image = raw_image.copy()
+    # Coerce the image into integer type. Rescale to fill dynamic range.
+    if np.issubdtype(raw_image.dtype, np.integer):
+        dtype = raw_image.dtype
+    else:
+        dtype = np.int8
+    image = scale_to_gamut(image, dtype)
 
     # Find local maxima.
-    coords = local_maxima(bp_image, radius, separation, percentile)
+    coords = local_maxima(image, radius, separation, percentile)
     count_maxima = coords.shape[0]
 
     # Proactively filter based on estimated mass/size before
@@ -328,19 +517,20 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
     if filter_before:
         approx_mass = np.empty(count_maxima)  # initialize to avoid appending
         for i in range(count_maxima):
-            approx_mass[i] = estimate_mass(bp_image, radius, coords[i])
+            approx_mass[i] = estimate_mass(image, radius, coords[i])
         condition = approx_mass > minmass
         if maxsize is not None:
             approx_size = np.empty(count_maxima)
             for i in range(count_maxima):
-                approx_size[i] = estimate_size(bp_image, radius, coords[i], 
+                approx_size[i] = estimate_size(image, radius, coords[i], 
                                                approx_mass[i])
             condition &= approx_size < maxsize
         coords = coords[condition]
     count_qualified = coords.shape[0]
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine(image, bp_image, radius, coords, max_iterations)
+    refined_coords = refine(raw_image, image, radius, coords, max_iterations,
+                            engine, characterize)
 
     # Filter again, using final ("exact") mass -- and size, if set.
     MASS_COLUMN_INDEX = image.ndim
@@ -363,19 +553,27 @@ def locate(image, diameter, minmass=100., maxsize=None, separation=None,
         else:
             refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
 
-    # Return the results in a DataFrame.
+    # Put the results in a DataFrame.
     if image.ndim < 4:
         coord_columns = ['x', 'y', 'z'][:image.ndim]
     else:
         coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
-    columns = coord_columns + ['mass', 'size', 'ecc', 'signal']
+    char_columns = ['mass']
+    if characterize:
+        char_columns += ['size', 'ecc', 'signal']
+    columns = coord_columns + char_columns
     if len(refined_coords) == 0:
         return DataFrame(columns=columns)  # TODO fill with np.empty
     f = DataFrame(refined_coords, columns=columns)
-    black_level, noise = uncertainty.measure_noise(image, diameter, threshold)
-    f['signal'] -= black_level
-    ep = uncertainty.static_error(f, noise, diameter, noise_size)
-    f = f.join(ep)
+
+    # Estimate the uncertainty in position using signal (measured in refine)
+    # and noise (measured here below).
+    if characterize:
+        black_level, noise = uncertainty.measure_noise(
+            raw_image, diameter, threshold)
+        f['signal'] -= black_level
+        ep = uncertainty.static_error(f, noise, diameter, noise_size)
+        f = f.join(ep)
     return f
 
 
@@ -383,6 +581,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=1, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=True, filter_after=True,
+          characterize=True, engine='auto',
           store=None, conn=None, sql_flavor=None, table=None,
           do_not_return=False, meta=True):
     """Locate Gaussian-like blobs of a given approximate size.
@@ -414,9 +613,6 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         percentile. This helps eliminate spurrious peaks.
     topn : Return only the N brightest features above minmass. 
         If None (default), return all features above minmass.
-    preprocess : Set to False to turn out automatic preprocessing.
-    max_iterations : integer
-        max number of loops to refine the center of mass, default 10
 
     Returns
     -------
@@ -427,6 +623,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     Other Parameters
     ----------------
+    preprocess : Set to False to turn off bandpass preprocessing.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
@@ -436,6 +633,9 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     filter_after : boolean
         Use final characterizations of mass and size to elminate spurrious
         features. True by default.
+    characterize : boolean
+        Compute "extras": eccentricity, signal, ep. True by default.
+    engine : {'auto', 'python', 'numba'}
 
     store : Optional HDFStore
     conn : Optional connection to a SQL database
@@ -496,7 +696,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         centroids = locate(image, diameter, minmass, maxsize, separation,
                            noise_size, smoothing_size, threshold, invert,
                            percentile, topn, preprocess, max_iterations,
-                           filter_before, filter_after)
+                           filter_before, filter_after, characterize,
+                           engine)
         centroids['frame'] = frame_no
         message = "Frame %d: %d features" % (frame_no, len(centroids))
         print_update(message)
