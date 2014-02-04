@@ -331,7 +331,7 @@ def _numba_refine(image, raw_image, radius, coords, max_iterations,
             if do_move:
                 # In here, coord is an integer.
                 for dim in range(2):
-                    new_coord[dim] = int(round(coord[dim]))
+                    new_coord[dim] = coord[dim] # Casts to int automatically
                     oc = off_center[dim]
                     if oc > SHIFT_THRESH:
                         new_coord[dim] += 1
