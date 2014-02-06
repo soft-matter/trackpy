@@ -704,10 +704,10 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                            percentile, topn, preprocess, max_iterations,
                            filter_before, filter_after, characterize,
                            engine)
-        try:
+        if hasattr(image, 'frame_no') and image.frame_no is not None:
             frame_no = image.frame_no
             # If this works, locate created a 'frame' column.
-        except AttributeError:
+        else:
             frame_no = i
             centroids['frame'] = i  # just counting iterations
         message = "Frame %d: %d features" % (frame_no, len(centroids))
