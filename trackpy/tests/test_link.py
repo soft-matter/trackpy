@@ -49,25 +49,18 @@ def _skip_if_no_numba():
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
-def _dfjoin(df_iter):
-    """Join an iterator of DataFrames into a single DataFrame.
-    Each DataFrame should have a unique set of indices.
-    """
-    res = df_iter.next()
-    for df in df_iter:
-        res = res.append(df)
-    return res.sort(['particle', 'frame']).reset_index(drop=True)
-
 class CommonTrackingTests(object):
 
     def test_one_trivial_stepper(self):
         # One 1D stepper
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        actual = self.link_df(f, 5)
         expected = f.copy()
         expected['particle'] = np.zeros(N)
+        actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5)
+        assert_frame_equal(actual_iter, expected)
 
     def test_two_isolated_steppers(self):
         N = 5
@@ -77,15 +70,19 @@ class CommonTrackingTests(object):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['particle', 'frame'], inplace=True)
+        actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
         actual = self.link_df(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
@@ -93,6 +90,8 @@ class CommonTrackingTests(object):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
     def test_two_isolated_steppers_one_gapped(self):
         N = 5
@@ -106,16 +105,21 @@ class CommonTrackingTests(object):
                       'frame': np.arange(1, N)})
         f = pd.concat([a, b])
         expected = f.copy()
-        actual = self.link_df(f, 5)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         expected.sort(['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
-        print expected
+        actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
+        # link_df_iter() tests not performed, because hash_size is
+        # not knowable from the first frame alone.
 
         # Sort rows by frame (normal use)
         actual = self.link_df(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
@@ -123,6 +127,8 @@ class CommonTrackingTests(object):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
     def test_two_nearby_steppers(self):
         N = 5
@@ -137,10 +143,14 @@ class CommonTrackingTests(object):
         expected.sort(['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
         actual = self.link_df(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
@@ -148,6 +158,8 @@ class CommonTrackingTests(object):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
     def test_two_nearby_steppers_one_gapped(self):
         N = 5
@@ -164,10 +176,14 @@ class CommonTrackingTests(object):
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
         actual = self.link_df(f.sort('frame'), 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
@@ -175,7 +191,9 @@ class CommonTrackingTests(object):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
         assert_frame_equal(actual, expected)
- 
+        actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
+
     def test_memory_on_one_gap(self):
         N = 5
         Y = 2
@@ -185,16 +203,21 @@ class CommonTrackingTests(object):
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
         f = pd.concat([a, b])
-        actual = self.link_df(f, 5, memory=1)
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
         expected.sort(['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
+        actual = self.link_df(f, 5, memory=1)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50), memory=1)
+        assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
         actual = self.link_df(f.sort('frame'), 5, memory=1)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f.sort('frame'), 5,
+                                        memory=1, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
@@ -202,6 +225,8 @@ class CommonTrackingTests(object):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5, memory=1)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f1, 5, memory=1, hash_size=(50, 50))
+        assert_frame_equal(actual_iter, expected)
 
     def test_isolated_continuous_random_walks(self):
         # Two 2D random walks
@@ -212,11 +237,13 @@ class CommonTrackingTests(object):
         a = DataFrame({'x': M + random_walk(N), 'y': M + random_walk(N), 'frame': np.arange(N)})
         b = DataFrame({'x': M + random_walk(N - 1), 'y': M + Y + random_walk(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['particle', 'frame'], inplace=True)
+        actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(2*M, Y + 2*M))
+        assert_frame_equal(actual_iter, expected)
 
         # Many 2D random walks
         np.random.seed(0)
@@ -229,11 +256,13 @@ class CommonTrackingTests(object):
                               'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
         f = pd.concat([walk(*pos) for pos in initial_positions])
-        actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         expected.sort(['particle', 'frame'], inplace=True)
+        actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(200 + M, 200 + M))
+        assert_frame_equal(actual_iter, expected)
 
     def test_nearby_continuous_random_walks(self):
         # Two 2D random walks
@@ -248,10 +277,12 @@ class CommonTrackingTests(object):
                        'y': M + Y + random_walk(N - 1),
                        'frame': np.arange(1, N)})
         f = pd.concat([a, b])
-        actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         expected.sort(['particle', 'frame'], inplace=True)
+        actual = self.link_df(f, 5)
+        assert_frame_equal(actual, expected)
+        actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M + Y))
         assert_frame_equal(actual, expected)
 
         # Several 2D random walks
@@ -266,10 +297,12 @@ class CommonTrackingTests(object):
                               'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
         f = pd.concat([walk(*pos) for pos in initial_positions])
-        actual = self.link_df(f, 5)
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         expected.sort(['particle', 'frame'], inplace=True)
+        actual = self.link_df(f, 5)
+        assert_frame_equal(actual, expected)
+        actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M))
         assert_frame_equal(actual, expected)
 
         # Shuffle rows (crazy!)
@@ -278,6 +311,8 @@ class CommonTrackingTests(object):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
         assert_frame_equal(actual, expected)
+        actual = self.link_df_iter(f1, 5, hash_size=(2*M, 2*M))
+        assert_frame_equal(actual, expected)
 
     def test_start_at_frame_other_than_zero(self):
         # One 1D stepper
@@ -285,9 +320,11 @@ class CommonTrackingTests(object):
         FIRST_FRAME = 3
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
                       'frame': FIRST_FRAME + np.arange(N)})
-        actual = self.link_df(f, 5)
         expected = f.copy()
         expected['particle'] = np.zeros(N)
+        actual = self.link_df(f, 5)
+        assert_frame_equal(actual, expected)
+        actual = self.link_df_iter(f, 5)
         assert_frame_equal(actual, expected)
 
     def test_blank_frame_no_memory(self):
@@ -295,9 +332,11 @@ class CommonTrackingTests(object):
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                       'frame': [0, 1, 2, 4, 5]})
-        actual = self.link_df(f, 5)
         expected = f.copy()
         expected['particle'] = np.zeros(N)
+        actual = self.link_df(f, 5)
+        assert_frame_equal(actual, expected)
+        actual = self.link_df_iter(f, 5)
         assert_frame_equal(actual, expected)
         # This doesn't error, but we might wish it would
         # give the particle a new ID after the gap. It just
@@ -420,129 +459,54 @@ class CommonTrackingTests(object):
     
         assert len(tracks) == p_count, len(tracks)
 
+    def link(self, *args, **kwargs):
+        kwargs.update(self.linker_opts)
+        return tp.link(*args, **kwargs)
+
+    def link_df(self, *args, **kwargs):
+        kwargs.update(self.linker_opts)
+        return tp.link_df(*args, **kwargs)
+
+    def link_df_iter(self, *args, **kwargs):
+        kwargs.update(self.linker_opts)
+        args = list(args)
+        features = args.pop(0)
+        res = pd.concat(tp.link_df_iter(
+            (df for fr, df in features.groupby('frame')), *args, **kwargs))
+        return res.sort(['particle', 'frame']).reset_index(drop=True)
+
 
 class TestBTreeWithRecursiveLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-
-        def curried_link(*args, **kwargs):
-            kwargs['link_strategy'] = 'recursive'
-            kwargs['neighbor_strategy'] = 'BTree'
-            return tp.link(*args, **kwargs)
-        self.link = curried_link
-
-        def curried_link_df(*args, **kwargs):
-            kwargs['link_strategy'] = 'recursive'
-            kwargs['neighbor_strategy'] = 'BTree'
-            return tp.link_df(*args, **kwargs)
-        self.link_df = curried_link_df
-
+        self.linker_opts = dict(link_strategy='recursive',
+                                neighbor_strategy='BTree')
 
 class TestBTreeWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-
-        def curried_link(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'BTree'
-            return tp.link(*args, **kwargs)
-        self.link = curried_link
-
-        def curried_link_df(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'BTree'
-            return tp.link_df(*args, **kwargs)
-        self.link_df = curried_link_df
-
+        self.linker_opts = dict(link_strategy='nonrecursive',
+                                neighbor_strategy='BTree')
 
 class TestKDTreeWithRecursiveLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-
-        def curried_link(*args, **kwargs):
-            kwargs['link_strategy'] = 'recursive'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            return tp.link(*args, **kwargs)
-        self.link = curried_link
-
-        def curried_link_df(*args, **kwargs):
-            kwargs['link_strategy'] = 'recursive'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            return tp.link_df(*args, **kwargs)
-        self.link_df = curried_link_df
-
+        self.linker_opts = dict(link_strategy='recursive',
+                                neighbor_strategy='KDTree')
 
 class TestKDTreeWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-
-        def curried_link(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            return tp.link(*args, **kwargs)
-        self.link = curried_link
-
-        def curried_link_df(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            return tp.link_df(*args, **kwargs)
-        self.link_df = curried_link_df
+        self.linker_opts = dict(link_strategy='nonrecursive',
+                                neighbor_strategy='KDTree')
 
 class TestKDTreeWithNumbaLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
         _skip_if_no_numba()
+        self.linker_opts = dict(link_strategy='numba',
+                                neighbor_strategy='KDTree')
 
-        def curried_link(*args, **kwargs):
-            kwargs['link_strategy'] = 'numba'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            return tp.link(*args, **kwargs)
-        self.link = curried_link
-
-        def curried_link_df(*args, **kwargs):
-            kwargs['link_strategy'] = 'numba'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            return tp.link_df(*args, **kwargs)
-        self.link_df = curried_link_df
-
-class TestLinkDFIter(CommonTrackingTests, unittest.TestCase):
+class TestBTreeWithNumbaLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
-        def curried_link(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            return tp.link(*args, **kwargs)
-        self.link = curried_link
-
-        def curried_link_df(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'KDTree'
-            kwargs['retain_index'] = True
-            args = list(args)
-            features = args.pop(0)
-            return _dfjoin(tp.link_df_iter(
-                (df for fr, df in features.groupby('frame')), *args, **kwargs))
-        self.link_df = curried_link_df
-
-class TestLinkDFIter_BTree(CommonTrackingTests, unittest.TestCase):
-    def setUp(self):
-        def curried_link(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'BTree'
-            return tp.link(*args, **kwargs)
-        self.link = curried_link
-
-        def curried_link_df(*args, **kwargs):
-            kwargs['link_strategy'] = 'nonrecursive'
-            kwargs['neighbor_strategy'] = 'BTree'
-            kwargs['retain_index'] = True
-            args = list(args)
-            features = args.pop(0)
-            try:
-                return _dfjoin(tp.link_df_iter(
-                    (df for fr, df in features.groupby('frame')), *args, **kwargs))
-            except Hash_table.Out_of_hash_excpt:
-                # FIXME
-                # For the random walk tests, it's not possible to predict
-                # the hash size by looking at the first frame. So we set the bar low.
-                raise nose.SkipTest
-        self.link_df = curried_link_df
-
-# FIXME: Add class to test BTree support in link_df_iter()
+        _skip_if_no_numba()
+        self.linker_opts = dict(link_strategy='numba',
+                                neighbor_strategy='BTree')
 
 # Removed after trackpy refactor -- restore with new API.
 # class TestLinkOnDisk(unittest.TestCase):
