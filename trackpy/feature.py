@@ -41,6 +41,8 @@ def local_maxima(image, radius, separation, percentile=64):
 
     # Compute a threshold based on percentile.
     not_black = image[np.nonzero(image)]
+    if len(not_black) == 0:
+        raise ValueError("Image is completely black.")
     threshold = stats.scoreatpercentile(not_black, percentile)
     ndim = image.ndim
 
