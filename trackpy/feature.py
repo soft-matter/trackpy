@@ -706,6 +706,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             frame_no = image.frame_no
             # If this works, locate created a 'frame' column.
         except AttributeError:
+            frame_no = i
             centroids['frame'] = i  # just counting iterations
         message = "Frame %d: %d features" % (frame_no, len(centroids))
         print_update(message)
