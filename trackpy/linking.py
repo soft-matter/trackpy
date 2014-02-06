@@ -19,6 +19,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 from six.moves import zip
+from copy import copy
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -33,7 +34,7 @@ class TreeFinder(object):
     def __init__(self, points):
         """Takes a list of particles.
         """
-        self.points = points
+        self.points = copy(points)
         self.rebuild()
 
     def add_point(self, pt):
@@ -42,7 +43,7 @@ class TreeFinder(object):
     def rebuild(self):
         """Rebuilds tree from ``points`` attribute.
 
-        Needs to be called after ``add_point()`` and before tree is used for 
+        Needs to be called after ``add_point()`` and before tree is used for
         spatial queries again (i.e. when memory is turned on).
         """
 
@@ -474,6 +475,7 @@ def link_df(features, search_range, memory=0,
         frame_no = next(iter(level)).t  # uses an arbitary element from the set
         if verify_integrity:
             _verify_integrity(frame_no, labels) # may issue warnings
+            assert len(labels) <= len(features[features.frame == frame_no].particle)
         features['particle'].update(labels)
 
         msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
@@ -722,6 +724,9 @@ def link_iter(levels, search_range, memory=0,
 
         # set prev_hash to cur hash
         prev_hash = cur_hash
+
+        # add in the memory points
+        # store the current level for use in next loop
         if memory > 0:
             # identify the new memory points
             new_mem_set -= mem_set
@@ -742,9 +747,6 @@ def link_iter(levels, search_range, memory=0,
             if isinstance(prev_hash, TreeFinder):
                 prev_hash.rebuild()
         prev_set = tmp_set
-
-        # add in the memory points
-        # store the current level for use in next loop
 
         yield cur_level
 
