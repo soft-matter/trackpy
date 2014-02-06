@@ -584,8 +584,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.
-    if hasattr(image, 'frame_no') and image.frame_no is not None:
-        f['frame'] = image.frame_no
+    if hasattr(raw_image, 'frame_no') and raw_image.frame_no is not None:
+        f['frame'] = raw_image.frame_no
     return f
 
 
