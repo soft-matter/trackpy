@@ -20,11 +20,11 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import zip
 from copy import copy
+import itertools, functools
 
 import numpy as np
 from scipy.spatial import cKDTree
 import pandas as pd
-import itertools
 from collections import deque, Iterable
 from .utils import print_update
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
@@ -40,14 +40,20 @@ class TreeFinder(object):
     def add_point(self, pt):
         self.points.append(pt)
 
-    def rebuild(self):
+    def rebuild(self, coord_map=None):
         """Rebuilds tree from ``points`` attribute.
 
-        Needs to be called after ``add_point()`` and before tree is used for
+        coord_map : function (optional)
+            Called with a Point instances, returns its "effective" location as a tuple.
+            Used for prediction (see "predict" module).
+
+        rebuild() needs to be called after ``add_point()`` and before tree is used for
         spatial queries again (i.e. when memory is turned on).
         """
 
-        coords = np.array([pt.pos for pt in self.points])
+        if coord_map is None:
+            coord_map = lambda x: x.pos
+        coords = np.array(map(coord_map, self.points))
         n = len(self.points)
         if n == 0:
             raise ValueError('Frame (aka level) contains zero points')
@@ -360,6 +366,9 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
+    predictor : ParticlePredictor instance (optional)
+        Improve performance guessing where a particle will be in the next frame.
+        For examples of how this works, see the "predict" module.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
@@ -396,7 +405,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     tracks = representative_points.apply(lambda x: x.track)
     return tracks
 
-def link_df(features, search_range, memory=0,
+def link_df(features, search_range, memory=0, predictor=None,
             neighbor_strategy='BTree', link_strategy='recursive',
             hash_size=None, box_size=None,
             pos_columns=None, t_column=None, verify_integrity=True,
@@ -415,6 +424,9 @@ def link_df(features, search_range, memory=0,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
+    predictor : ParticlePredictor instance (optional)
+        Improve performance guessing where a particle will be in the next frame.
+        For examples of how this works, see the "predict" module.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
@@ -464,7 +476,7 @@ def link_df(features, search_range, memory=0,
     levels = (_build_level(frame, pos_columns, t_column) for frame_no, frame \
               in features.groupby(t_column))
     labeled_levels = link_iter(
-        levels, search_range, memory=memory,
+        levels, search_range, memory=memory, predictor=predictor,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
         hash_size=hash_size, box_size=box_size)
 
@@ -490,7 +502,7 @@ def link_df(features, search_range, memory=0,
         features.reset_index(drop=True, inplace=True)
     return features
 
-def link_df_iter(features, search_range, memory=0,
+def link_df_iter(features, search_range, memory=0, predictor=None,
             neighbor_strategy='BTree', link_strategy='recursive',
             hash_size=None, box_size=None,
             pos_columns=None, t_column=None, verify_integrity=True,
@@ -560,7 +572,7 @@ def link_df_iter(features, search_range, memory=0,
     levels = (_build_level(frame, pos_columns, t_column) \
                                                 for frame in features_forlinking)
     labeled_levels = link_iter(
-        levels, search_range, memory=memory,
+        levels, search_range, memory=memory, predictor=predictor,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
         hash_size=hash_size, box_size=box_size)
 
@@ -608,7 +620,7 @@ def _verify_integrity(frame_no, labels):
         raise UnknownLinkingError("Some particles were not labeled in Frame %d.")
 
 
-def link_iter(levels, search_range, memory=0,
+def link_iter(levels, search_range, memory=0, predictor=None,
               neighbor_strategy='BTree', link_strategy='recursive',
               hash_size=None, box_size=None,
               track_cls=None, hash_generator=None):
@@ -623,6 +635,9 @@ def link_iter(levels, search_range, memory=0,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
+    predictor : ParticlePredictor instance (optional)
+        Improve performance guessing where a particle will be in the next frame.
+        For examples of how this works, see the "predict" module.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
@@ -714,6 +729,24 @@ def link_iter(levels, search_range, memory=0,
         cur_set = set(cur_level)
         tmp_set = set(cur_level)  # copy used in next loop iteration
 
+        # First, a bit of unfinished business:
+        # If prediction is enabled, we need to update the positions in prev_hash
+        # to where we think they'll be in the frame corresponding to cur_level.
+        if predictor is not None:
+            # This only works for KDTree right now, because KDTree can store particle
+            # positions in a separate data structure from the PointND instances.
+            if not isinstance(prev_hash, TreeFinder):
+                raise NotImplementedError(
+                    'Prediction works with the "KDTree" neighbor_strategy only.')
+            # Get the time of cur_level from its first particle
+            t_next = list(itertools.islice(cur_level, 0, 1))[0].t
+            targeted_predictor = functools.partial(predictor, t_next)
+            prev_hash.rebuild(coord_map=targeted_predictor) # Rewrite positions
+        # The KDTree still needs to be updated if memory points were added.
+        elif memory > 0 and isinstance(prev_hash, TreeFinder):
+            prev_hash.rebuild()
+
+        # Now we can process the new particles.
         # Make a Hash / Tree for the destination level.
         if neighbor_strategy == 'BTree':
             cur_hash = hash_generator()
@@ -841,8 +874,9 @@ def link_iter(levels, search_range, memory=0,
                 prev_hash.add_point(m)
                 # re-create the forward_cands list
                 m.forward_cands = []
-            if isinstance(prev_hash, TreeFinder):
-                prev_hash.rebuild()
+            # If the hash is a KDTree, it still needs to be rebuilt.
+            # In the interests of efficiency, we do it at the top of the next
+            # iteration, once we have dealt with prediction.
         prev_set = tmp_set
 
         yield cur_level
