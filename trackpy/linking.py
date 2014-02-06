@@ -461,7 +461,8 @@ def link_df(features, search_range, memory=0,
     if retain_index:
         orig_index = features.index.copy()  # Save it; restore it at the end.
     features.reset_index(inplace=True, drop=True)
-    levels = _build_level_gen(features.groupby(t_column), pos_columns)
+    levels = (_build_level(frame, pos_columns, t_column) for frame_no, frame \
+              in features.groupby(t_column))
     labeled_levels = link_iter(
         levels, search_range, memory=memory,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
@@ -489,15 +490,119 @@ def link_df(features, search_range, memory=0,
         features.reset_index(drop=True, inplace=True)
     return features
 
+def link_df_iter(features, search_range, memory=0,
+            neighbor_strategy='BTree', link_strategy='recursive',
+            hash_size=None, box_size=None,
+            pos_columns=None, t_column=None, verify_integrity=True,
+            retain_index=False):
+    """Link features into trajectories, assigning a label to each trajectory.
 
-def _build_level_gen(grouped, pos_columns):
-    "Return IndexPointND objects for each group in a DataFrameGroupBy."
-    for frame_no, frame in grouped:
-        build_pt = lambda x: IndexedPointND(frame_no, x[1].values, x[0])
-        level = map(build_pt, frame[pos_columns].iterrows())
-        # iterrows() returns: (index which we use as feature id, data)
-        yield level
+    Parameters
+    ----------
+    features : iterable of DataFrames
+        Each DataFrame must include any number of column(s) for position and a
+        column of frame numbers. By default, 'x' and 'y' are expected for position,
+        and 'frame' is expected for frame number. See below for options to use
+        custom column names.
+    search_range : integer
+        the maximum distance features can move between frames
+    memory : integer
+        the maximum number of frames during which a feature can vanish,
+        then reppear nearby, and be considered the same particle. 0 by default.
+    neighbor_strategy : {'BTree', 'KDTree'}
+        algorithm used to identify nearby features
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
+        algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
 
+    Returns
+    -------
+    trajectories : DataFrame
+        This is the input features DataFrame, now with a new column labeling
+        each particle with an ID number. This is not a copy.
+
+    Other Parameters
+    ----------------
+    pos_columns : DataFrame column names (unlimited dimensions)
+        Default is ['x', 'y']
+    t_column : DataFrame column name
+        Default is 'frame'
+    hash_size : sequence
+        For 'BTree' mode only. Define the shape of the search region.
+        If None (default), infer shape from range of data.
+    box_size : sequence
+        For 'BTree' mode only. Define the parition size to optimize
+        performance. If None (default), the search_range is used, which is
+        a reasonable guess for best performance.
+    verify_integrity : boolean
+        False by default, for fastest performance.
+        Use True if you suspect a bug in linking.
+    retain_index : boolean
+        By default, the index is reset to be sequential. To keep the original
+        index, set to True. Default is fine unless you devise a special use.
+    """
+    # Assign defaults. (Do it here to avoid "mutable defaults" issue.)
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
+    if t_column is None:
+        t_column = 'frame'
+
+    # Group the DataFrame by time steps and make a 'level' out of each
+    # one, using the index to keep track of Points.
+
+    feature_iter = iter(features)
+    # To support the BTree hash method, we have to know about the coordinates of
+    # particles in the first frame.
+    if neighbor_strategy == 'BTree':
+        first_frame = feature_iter.next()
+        if hash_size is None:
+            # avoid OutOfHashException
+            hash_size = (first_frame[pos_columns].max() + 1) * 1.1
+        # Splice the frames back together
+        feature_iter = itertools.chain([first_frame,], feature_iter)
+    # In case of retain_index:
+    features_for_reset, features_forindex = itertools.tee(feature_iter)
+    index_iter = (fr.index.copy() for fr in features_forindex)
+    features_forlinking, features_forpost = itertools.tee(
+        (frame.reset_index(drop=True) for frame in features_for_reset))
+    levels = (_build_level(frame, pos_columns, t_column) \
+                                                for frame in features_forlinking)
+    labeled_levels = link_iter(
+        levels, search_range, memory=memory,
+        neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
+        hash_size=hash_size, box_size=box_size)
+
+    # Re-assemble the features data, now with track labels and (if desired)
+    # the original index.
+    for labeled_level, source_features, old_index in itertools.izip(
+            labeled_levels, features_forpost, index_iter):
+        features = source_features.copy()
+        features['particle'] = np.nan  # placeholder
+        index = map(lambda x: x.id, labeled_level)
+        labels = pd.Series(map(lambda x: x.track.id, labeled_level), index)
+        frame_no = next(iter(labeled_level)).t  # uses an arbitary element from the set
+        if verify_integrity:
+            _verify_integrity(frame_no, labels) # may issue warnings
+            assert all(frame_no == source_features.frame.values)
+            assert len(labels) <= len(features.particle)
+        features['particle'].update(labels)
+
+        if retain_index:
+            features.index = old_index
+        else:
+            features.sort('particle', inplace=True)
+            features.reset_index(drop=True, inplace=True)
+
+        msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
+        print_update(msg)
+
+        yield features
+
+def _build_level(frame, pos_columns, t_column):
+    "Return IndexPointND objects for a DataFrame of points."
+    build_pt = lambda x: IndexedPointND(x[1], x[0][1].values, x[0][0])
+    # iterrows() returns: (index which we use as feature id, data)
+    return map(build_pt, itertools.izip(frame[pos_columns].iterrows(), frame[t_column]))
 
 class UnknownLinkingError(Exception):
     pass

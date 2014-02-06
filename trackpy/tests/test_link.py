@@ -49,6 +49,15 @@ def _skip_if_no_numba():
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
+def _dfjoin(df_iter):
+    """Join an iterator of DataFrames into a single DataFrame.
+    Each DataFrame should have a unique set of indices.
+    """
+    res = df_iter.next()
+    for df in df_iter:
+        res = res.append(df)
+    return res.sort(['particle', 'frame']).reset_index(drop=True)
+
 class CommonTrackingTests(object):
 
     def test_one_trivial_stepper(self):
@@ -490,6 +499,50 @@ class TestKDTreeWithNumbaLink(CommonTrackingTests, unittest.TestCase):
             kwargs['neighbor_strategy'] = 'KDTree'
             return tp.link_df(*args, **kwargs)
         self.link_df = curried_link_df
+
+class TestLinkDFIter(CommonTrackingTests, unittest.TestCase):
+    def setUp(self):
+        def curried_link(*args, **kwargs):
+            kwargs['link_strategy'] = 'nonrecursive'
+            kwargs['neighbor_strategy'] = 'KDTree'
+            return tp.link(*args, **kwargs)
+        self.link = curried_link
+
+        def curried_link_df(*args, **kwargs):
+            kwargs['link_strategy'] = 'nonrecursive'
+            kwargs['neighbor_strategy'] = 'KDTree'
+            kwargs['retain_index'] = True
+            args = list(args)
+            features = args.pop(0)
+            return _dfjoin(tp.link_df_iter(
+                (df for fr, df in features.groupby('frame')), *args, **kwargs))
+        self.link_df = curried_link_df
+
+class TestLinkDFIter_BTree(CommonTrackingTests, unittest.TestCase):
+    def setUp(self):
+        def curried_link(*args, **kwargs):
+            kwargs['link_strategy'] = 'nonrecursive'
+            kwargs['neighbor_strategy'] = 'BTree'
+            return tp.link(*args, **kwargs)
+        self.link = curried_link
+
+        def curried_link_df(*args, **kwargs):
+            kwargs['link_strategy'] = 'nonrecursive'
+            kwargs['neighbor_strategy'] = 'BTree'
+            kwargs['retain_index'] = True
+            args = list(args)
+            features = args.pop(0)
+            try:
+                return _dfjoin(tp.link_df_iter(
+                    (df for fr, df in features.groupby('frame')), *args, **kwargs))
+            except Hash_table.Out_of_hash_excpt:
+                # FIXME
+                # For the random walk tests, it's not possible to predict
+                # the hash size by looking at the first frame. So we set the bar low.
+                raise nose.SkipTest
+        self.link_df = curried_link_df
+
+# FIXME: Add class to test BTree support in link_df_iter()
 
 # Removed after trackpy refactor -- restore with new API.
 # class TestLinkOnDisk(unittest.TestCase):
