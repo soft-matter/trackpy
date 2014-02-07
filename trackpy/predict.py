@@ -34,7 +34,7 @@ class NullPredict(object):
 class NearestVelocityPredict(NullPredict):
     """Predict a particle's position based on the most recent nearby velocity.
 
-    (If the particle was present in the last 2 frames, its own velocity is used.)
+    The guess for the first frame is zero velocity.
     """
     def __init__(self):
         # Use the last 2 frames to make a velocity field
@@ -71,9 +71,25 @@ class NearestVelocityPredict(NullPredict):
         return prediction
 
 class ChannelPredict(NullPredict):
-    """Predict a particle's position based on the most recent nearby velocity.
+    """Predict a particle's position based on its spanwise coordinate in a channel.
 
-    (If the particle was present in the last 2 frames, its own velocity is used.)
+    This operates by binning particles according to their spanwise coordinate and
+    averaging velocity, to make an instantaneous velocity profile.
+
+    Parameters
+    ----------
+    bin_size : Size of bins, in units of spanwise length, over which to average
+        streamwise velocity.
+    flow_axis : Name of coordinate along which particles are flowing (default "x")
+    minsamples : Minimum number of particles in a bin for its average
+        velocity to be valid.
+
+    Notes
+    -----
+    - This currently only works for 2D data.
+    - The guess for the first frame is zero velocity.
+    - Where there were not enough data to make an average velocity (N < minsamples),
+        we borrow from the nearest valid bin.
     """
     def __init__(self, bin_size, flow_axis='x', minsamples=20):
         self.bin_size = bin_size
