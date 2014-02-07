@@ -59,7 +59,7 @@ class CommonTrackingTests(object):
         expected['particle'] = np.zeros(N)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f, 5)
+        actual_iter = self.link_df_iter(f, 5, hash_size=(10, 2))
         assert_frame_equal(actual_iter, expected)
 
     def test_two_isolated_steppers(self):
@@ -324,7 +324,7 @@ class CommonTrackingTests(object):
         expected['particle'] = np.zeros(N)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
-        actual = self.link_df_iter(f, 5)
+        actual = self.link_df_iter(f, 5, hash_size=(6, 2))
         assert_frame_equal(actual, expected)
 
     def test_blank_frame_no_memory(self):
@@ -336,7 +336,7 @@ class CommonTrackingTests(object):
         expected['particle'] = np.zeros(N)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
-        actual = self.link_df_iter(f, 5)
+        actual = self.link_df_iter(f, 5, hash_size=(10, 10))
         assert_frame_equal(actual, expected)
         # This doesn't error, but we might wish it would
         # give the particle a new ID after the gap. It just

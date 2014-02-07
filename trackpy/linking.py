@@ -510,7 +510,8 @@ def link_df_iter(features, search_range, memory=0,
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
-        algorithm used to identify nearby features
+        algorithm used to identify nearby features. Note that when using
+        BTree, you must specify hash_size
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
@@ -529,7 +530,6 @@ def link_df_iter(features, search_range, memory=0,
         Default is 'frame'
     hash_size : sequence
         For 'BTree' mode only. Define the shape of the search region.
-        If None (default), infer shape from range of data.
     box_size : sequence
         For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
@@ -551,18 +551,10 @@ def link_df_iter(features, search_range, memory=0,
     # one, using the index to keep track of Points.
 
     feature_iter = iter(features)
-    # To support the BTree hash method, we have to know about the coordinates of
-    # particles in the first frame.
-    if neighbor_strategy == 'BTree':
-        first_frame = feature_iter.next()
-        if hash_size is None:
-            # avoid OutOfHashException
-            hash_size = (first_frame[pos_columns].max() + 1) * 1.1
-        # Splice the frames back together
-        feature_iter = itertools.chain([first_frame,], feature_iter)
-    # In case of retain_index:
+    # To allow retain_index
     features_for_reset, features_forindex = itertools.tee(feature_iter)
     index_iter = (fr.index.copy() for fr in features_forindex)
+    # To allow extra columns to be recovered later
     features_forlinking, features_forpost = itertools.tee(
         (frame.reset_index(drop=True) for frame in features_for_reset))
     levels = (_build_level(frame, pos_columns, t_column) \
