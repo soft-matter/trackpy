@@ -122,7 +122,8 @@ class ChannelPredict(NullPredict):
         disps = pd.DataFrame(dict(span=self.recent_frames[1][span_axis],
             flow=self.recent_frames[1][self.flow_axis] - \
                 self.recent_frames[0][self.flow_axis])).dropna()
-        disps['bin'] = disps.span - disps.span % self.bin_size
+        # Bin centers
+        disps['bin'] = disps.span - disps.span % self.bin_size + self.bin_size / 2.
         grp = disps.groupby('bin')
         # Only use bins that have enough samples
         profcount = grp.flow.count()
