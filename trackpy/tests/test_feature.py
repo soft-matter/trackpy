@@ -9,7 +9,8 @@ import unittest
 import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
-from pandas.util.testing import (assert_series_equal, assert_frame_equal)
+from pandas.util.testing import (assert_series_equal, assert_frame_equal,
+                                 assert_produces_warning)
 
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -59,6 +60,27 @@ class CommonFeatureIdentificationTests(object):
         dummy_image = np.random.randint(0, 100, (300, 300)).astype(np.uint8)
         tp.locate(dummy_image, 5, engine=self.engine)
         tp.locate(dummy_image, 5, invert=True, engine=self.engine)
+
+    def test_black_image(self):
+        self.check_skip()
+        black_image = np.zeros((21, 23)).astype(np.uint8)
+        with assert_produces_warning(UserWarning):
+            f = tp.locate(black_image, 5, engine=self.engine, preprocess=False)
+
+    def test_maxima_in_margin(self):
+        self.check_skip()
+        black_image = np.ones((21, 23)).astype(np.uint8)
+        black_image[1, 1] = 100
+        with assert_produces_warning(UserWarning):
+            f = tp.locate(black_image, 5, engine=self.engine)
+
+    def test_all_maxima_filtered(self):
+        self.check_skip()
+        black_image = np.ones((21, 23)).astype(np.uint8)
+        black_image[11, 13] = 10
+        with assert_produces_warning(UserWarning):
+            f = tp.locate(black_image, 5, minmass=100,
+                          engine=self.engine, preprocess=False)
 
     def test_one_centered_gaussian(self):
         self.check_skip()
