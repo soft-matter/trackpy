@@ -39,12 +39,13 @@ from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 def local_maxima(image, radius, separation, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
 
+    ndim = image.ndim
     # Compute a threshold based on percentile.
     not_black = image[np.nonzero(image)]
     if len(not_black) == 0:
-        raise ValueError("Image is completely black.")
+        warnings.warn("Image is completely black.", UserWarning)
+        return np.empty((0, ndim))
     threshold = stats.scoreatpercentile(not_black, percentile)
-    ndim = image.ndim
 
     # The intersection of the image with its dilation gives local maxima.
     if not np.issubdtype(image.dtype, np.integer):
@@ -54,7 +55,7 @@ def local_maxima(image, radius, separation, percentile=64):
                                      mode='constant')
     maxima = np.where((image == dilation) & (image > threshold))
     if not np.size(maxima) > 0:
-        _warn_no_maxima()
+        warnings.warn("Image contains no local maxima.", UserWarning)
         return np.empty((0, ndim))
 
     # Flat peaks, for example, return multiple maxima. Eliminate them.
@@ -81,8 +82,7 @@ def local_maxima(image, radius, separation, percentile=64):
         # TODO Change if into loop using slice(None) as :
     maxima = np.where(maxima_map > 0)
     if not np.size(maxima) > 0:
-        warnings.warn("Bad image! All maxima were in the margins.",
-                      UserWarning)
+        warnings.warn("All local maxima were in the margins.", UserWarning)
 
     # Return coords in as a numpy array shaped so it can be passed directly
     # to the DataFrame constructor.
@@ -515,9 +515,27 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         dtype = np.int8
     image = scale_to_gamut(image, dtype)
 
+    # Set up a DataFrame for the final results.
+    if image.ndim < 4:
+        coord_columns = ['x', 'y', 'z'][:image.ndim]
+    else:
+        coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
+    char_columns = ['mass']
+    if characterize:
+        char_columns += ['size', 'ecc', 'signal']
+    columns = coord_columns + char_columns
+    # The 'ep' column is joined on at the end, so we need this...
+    if characterize:
+        all_columns = columns + ['ep']
+    else:
+        all_columns = columns
+
     # Find local maxima.
     coords = local_maxima(image, radius, separation, percentile)
     count_maxima = coords.shape[0]
+
+    if count_maxima == 0:
+        return DataFrame(columns=all_columns)
 
     # Proactively filter based on estimated mass/size before
     # refining positions.
@@ -534,6 +552,10 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
             condition &= approx_size < maxsize
         coords = coords[condition]
     count_qualified = coords.shape[0]
+
+    if count_qualified == 0:
+        warnings.warn("No maxima survived mass- and size-based prefiltering.")
+        return DataFrame(columns=all_columns)
 
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine(raw_image, image, radius, coords, max_iterations,
@@ -552,6 +574,10 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         exact_mass = exact_mass[condition]  # used below by topn
     count_qualified = refined_coords.shape[0]
 
+    if count_qualified == 0:
+        warnings.warn("No maxima survived mass- and size-based filtering.")
+        return DataFrame(columns=all_columns)
+
     if topn is not None and count_qualified > topn:
         if topn == 1:
             # special case for high performance and correct shape
@@ -560,17 +586,6 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         else:
             refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
 
-    # Put the results in a DataFrame.
-    if image.ndim < 4:
-        coord_columns = ['x', 'y', 'z'][:image.ndim]
-    else:
-        coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
-    char_columns = ['mass']
-    if characterize:
-        char_columns += ['size', 'ecc', 'signal']
-    columns = coord_columns + char_columns
-    if len(refined_coords) == 0:
-        return DataFrame(columns=columns)  # TODO fill with np.empty
     f = DataFrame(refined_coords, columns=columns)
 
     # Estimate the uncertainty in position using signal (measured in refine)
@@ -751,7 +766,3 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                               "en masse at this time.") 
     else:
         return pd.concat(all_centroids).reset_index(drop=True)
-
-
-def _warn_no_maxima():
-    warnings.warn("No local maxima were found.", UserWarning)
