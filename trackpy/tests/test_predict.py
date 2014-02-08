@@ -46,50 +46,70 @@ class BaselinePredictTests(unittest.TestCase):
                                  mkframe(0.25, Nside),
                                  mkframe(0.75, Nside)), trackpy.link_df_iter, 1)
 
-class VelocityPredictTests(unittest.TestCase):
+class VelocityPredictTests(object):
     def test_simple_predict(self):
-        pred = predict.NearestVelocityPredict()
-        ll = get_linked_lengths((mkframe(0), mkframe(0.25), mkframe(0.65)),
+        pred = self.predict_class()
+        ll = get_linked_lengths((self.mkframe(0), self.mkframe(0.25), self.mkframe(0.65)),
                                 pred.link_df_iter, 0.45)
         assert all(ll.values == 3)
 
     def test_big_predict(self):
         Nside = Nside_oversize
-        pred = predict.NearestVelocityPredict()
-        ll = get_linked_lengths((mkframe(0, Nside), mkframe(0.25, Nside),
-                                 mkframe(0.75, Nside)),
+        pred = self.predict_class()
+        ll = get_linked_lengths((self.mkframe(0, Nside), self.mkframe(0.25, Nside),
+                                 self.mkframe(0.75, Nside)),
                                 pred.link_df_iter, 0.45)
         assert all(ll.values == 3)
 
     def test_predict_newparticles(self):
         """New particles should get the velocities of nearby ones."""
-        pred = predict.NearestVelocityPredict()
-        ll = get_linked_lengths((mkframe(0), mkframe(0.25), mkframe(0.65, 4),
-                                mkframe(1.05, 4)),
+        pred = self.predict_class()
+        ll = get_linked_lengths((self.mkframe(0), self.mkframe(0.25), self.mkframe(0.65, 4),
+                                self.mkframe(1.05, 4)),
                                 pred.link_df_iter, 0.45)
         assert not any(ll.values == 1)
 
     def test_predict_memory(self):
-        pred = predict.NearestVelocityPredict()
-        frames = [mkframe(0), mkframe(0.25), mkframe(0.65),
-                  mkframe(1.05), mkframe(1.45)]
+        pred = self.predict_class()
+        frames = [self.mkframe(0), self.mkframe(0.25), self.mkframe(0.65),
+                  self.mkframe(1.05), self.mkframe(1.45)]
         ll = get_linked_lengths(frames, pred.link_df_iter, 0.45)
         assert all(ll.values == len(frames))
 
         # Knock out a particle. Make sure tracking fails.
         frames[3].x[5] = np.nan
         frames[3] = frames[3].dropna()
-        pred = predict.NearestVelocityPredict()
+        pred = self.predict_class()
         tr = link(frames, pred.link_df_iter, 0.45)
         starts = tr.groupby('particle').frame.min()
         ends = tr.groupby('particle').frame.max()
         assert not all(ends - starts == 1.45)
 
-        pred = predict.NearestVelocityPredict()
+        pred = self.predict_class()
         tr = link(frames, pred.link_df_iter, 0.45, memory=1)
         starts = tr.groupby('particle').frame.min()
         ends = tr.groupby('particle').frame.max()
         assert all(ends - starts == 1.45), 'Prediction with memory fails.'
+
+class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
+    def setUp(self):
+        self.predict_class = predict.NearestVelocityPredict
+        self.mkframe = mkframe
+
+class ChannelPredictTests(VelocityPredictTests, unittest.TestCase):
+    def setUp(self):
+        def predict_factory():
+            return predict.ChannelPredict(3, minsamples=3)
+        self.predict_class = predict_factory
+        self.mkframe = self._channel_frame
+    def _channel_frame(self, n=1, Nside=3):
+        xg, yg = np.mgrid[:Nside,:Nside]
+        dx = (n - 1) * 0.9 # FIXME: Unclear why this should be smaller and not larger.
+        # Probably due to registration error because of the direction along which
+        # we shift the lattice.
+        dy = 0.
+        return pandas.DataFrame(
+                dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
 
 if __name__ == '__main__':
     unittest.main()

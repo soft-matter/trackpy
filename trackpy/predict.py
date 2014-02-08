@@ -5,7 +5,7 @@
 
 from collections import deque
 import numpy as np
-from scipy.interpolate import NearestNDInterpolator
+from scipy.interpolate import NearestNDInterpolator, interp1d
 import pandas as pd
 from . import linking
 
@@ -70,3 +70,73 @@ class NearestVelocityPredict(NullPredict):
         #print t1, particle, prediction
         return prediction
 
+class ChannelPredict(NullPredict):
+    """Predict a particle's position based on the most recent nearby velocity.
+
+    (If the particle was present in the last 2 frames, its own velocity is used.)
+    """
+    def __init__(self, bin_size, flow_axis='x', minsamples=20):
+        self.bin_size = bin_size
+        self.flow_axis = flow_axis
+        self.minsamples = minsamples
+        # Use the last 2 frames to make a velocity field
+        self.recent_frames = deque([], 2)
+    def observe(self, frame):
+        pframe = frame.set_index('particle')
+        self.recent_frames.append(pframe)
+        if len(self.recent_frames) == 1:
+            # Double the first frame. Velocity field will be zero.
+            self.recent_frames.append(pframe)
+            dt = 1. # Avoid dividing by zero
+        else: # Not the first frame
+            dt = self.recent_frames[1][self.t_column].values[0] - \
+                 self.recent_frames[0][self.t_column].values[0]
+
+        if len(self.pos_columns) != 2:
+            raise ValueError('Implemented for 2 dimensions only')
+        if self.flow_axis not in self.pos_columns:
+            raise ValueError('pos_columns (%r) does not include the specified flow_axis (%s)!' % \
+                             (self.pos_columns, self.flow_axis))
+        poscols = self.pos_columns[:]
+        flow_axis_position = poscols.index(self.flow_axis)
+        poscols.remove(self.flow_axis)
+        span_axis = poscols[0]
+
+        # Compute velocity field
+        disps = pd.DataFrame(dict(span=self.recent_frames[1][span_axis],
+            flow=self.recent_frames[1][self.flow_axis] - \
+                self.recent_frames[0][self.flow_axis])).dropna()
+        disps['bin'] = disps.span - disps.span % self.bin_size
+        grp = disps.groupby('bin')
+        # Only use bins that have enough samples
+        profcount = grp.flow.count()
+        prof = grp.flow.mean()[profcount >= self.minsamples]
+        #prof_pos = pandas.DataFrame({self.flow_axis: 0,
+        #                             span_axis: pandas.Series(prof.index, index=prof.index)})
+
+        outers = prof.values[0], prof.values[-1]
+        prof_ind, prof_vals = list(prof.index), list(prof)
+        prof_ind.insert(0, -np.inf)
+        prof_vals.insert(0, outers[0])
+        prof_ind.append(np.inf)
+        prof_vals.append(outers[1])
+        prof_ends = pd.Series(prof_vals, index=prof_ind)
+        prof_vels = pd.DataFrame({self.flow_axis: prof_ends, span_axis: 0})
+        if len(prof) > 0:
+            prof_interp = interp1d(prof_vels.index.values, prof_vels[self.pos_columns].values,
+                                   'nearest', axis=0)
+            if flow_axis_position == 0:
+                self.interpolator = lambda x: prof_interp(x[1])
+            else:
+                self.interpolator = lambda x: prof_interp(x[0])
+        else:
+            # Not enough samples in any bin
+            nullvel = np.zeros((len(self.pos_columns),))
+            def null_interpolator(x):
+                return nullvel
+            self.interpolator = null_interpolator
+    def predict(self, t1, particle):
+        return particle.pos +  \
+                     self.interpolator(particle.pos) * (t1 - particle.t)
+        #print t1, particle, prediction
+        #return prediction
