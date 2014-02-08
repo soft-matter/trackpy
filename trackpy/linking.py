@@ -57,7 +57,7 @@ class TreeFinder(object):
         n = len(self.points)
         if n == 0:
             raise ValueError('Frame (aka level) contains zero points')
-        self.kdtree = cKDTree(coords, max(3, int(round(np.log10(n)))))
+        self.kdtree = cKDTree(coords, 15)
         # This could be tuned
 
 
@@ -403,7 +403,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     return tracks
 
 def link_df(features, search_range, memory=0,
-            neighbor_strategy='BTree', link_strategy='auto',
+            neighbor_strategy='KDTree', link_strategy='auto',
             predictor=None, hash_size=None, box_size=None,
             pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
@@ -500,7 +500,7 @@ def link_df(features, search_range, memory=0,
     return features
 
 def link_df_iter(features, search_range, memory=0,
-            neighbor_strategy='BTree', link_strategy='auto',
+            neighbor_strategy='KDTree', link_strategy='auto',
             hash_size=None, box_size=None, predictor=None,
             pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
@@ -621,7 +621,7 @@ def _verify_integrity(frame_no, labels):
 
 
 def link_iter(levels, search_range, memory=0,
-              neighbor_strategy='BTree', link_strategy='auto',
+              neighbor_strategy='KDTree', link_strategy='auto',
               hash_size=None, box_size=None, predictor=None,
               track_cls=None, hash_generator=None):
     """Link features into trajectories, assigning a label to each trajectory.
