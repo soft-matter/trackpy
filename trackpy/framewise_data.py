@@ -30,6 +30,10 @@ class FramewiseData(object):
     def t_column(self):
         pass
 
+    @abstractproperty
+    def max_frame(self):
+        pass
+
     def _validate(self, df):
         if self.t_column not in df.columns:
             raise ValueError("Cannot write frame without a column "
@@ -57,14 +61,20 @@ def decode_key(key):
 class PandasHDFStore(FramewiseData):
     "Save each frame's data to a node in a pandas HDFStore."
 
-    def __init__(self, filename, t_column='frame'):
+    def __init__(self, filename, mode='a', t_column='frame'):
         self.filename = os.path.abspath(filename)
         self._t_column = t_column
-        self.store = pd.HDFStore(self.filename)
+        self.store = pd.HDFStore(self.filename, mode)
 
     @property
     def t_column(self):
         return self._t_column
+
+    @property
+    def max_frame(self):
+        keys = self.store.keys()
+        frame_nos = map(decode_key, keys)
+        return max(frame_nos)
 
     def put(self, df):
         frame_no = df[self.t_column].iat[0]  # validated to be all the same
@@ -82,11 +92,14 @@ class PandasHDFStore(FramewiseData):
         all_frames = [self.store.get(key) for key in keys]
         return pd.concat(all_frames)
 
+    def close(self):
+        self.store.close()
+
     def __iter__(self):
         return self._build_generator()
 
     def __del__(self):
-        self.store.close()
+        self.close()
 
     def _build_generator(self):
         keys = self.store.keys()
@@ -103,12 +116,12 @@ class PandasHDFStoreSingleNode(FramewiseData):
     but it simplifies (speeds up?) cross-frame queries,
     like queries for a single probe's entire trajectory."""
 
-    def __init__(self, filename, key, t_column='frame',
+    def __init__(self, filename, key, mode='a', t_column='frame',
                  use_tabular_copy=False):
         self.filename = os.path.abspath(filename)
         self.key = key
         self._t_column = t_column
-        self.store = pd.HDFStore(self.filename)
+        self.store = pd.HDFStore(self.filename, mode)
 
         with pd.get_store(self.filename) as store:
             try:
@@ -117,6 +130,10 @@ class PandasHDFStoreSingleNode(FramewiseData):
                 pass
             else:
                 self._validate_node(use_tabular_copy)
+
+    @property
+    def max_frame(self):
+        return max(self._inspect_frames())
 
     @property
     def t_column(self):
@@ -133,11 +150,14 @@ class PandasHDFStoreSingleNode(FramewiseData):
     def dump(self):
         return self.store.get(self.key)
 
+    def close(self):
+        self.store.close()
+
     def __iter__(self):
         return self._build_generator()
 
     def __del__(self):
-        self.store.close()
+        self.close()
 
     def _build_generator(self):
         for frame_no in self._inspect_frames():
