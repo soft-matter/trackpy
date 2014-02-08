@@ -366,9 +366,6 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    predictor : ParticlePredictor instance (optional)
-        Improve performance guessing where a particle will be in the next frame.
-        For examples of how this works, see the "predict" module.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
@@ -405,9 +402,9 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     tracks = representative_points.apply(lambda x: x.track)
     return tracks
 
-def link_df(features, search_range, memory=0, predictor=None,
+def link_df(features, search_range, memory=0,
             neighbor_strategy='BTree', link_strategy='auto',
-            hash_size=None, box_size=None,
+            predictor=None, hash_size=None, box_size=None,
             pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
     """Link features into trajectories, assigning a label to each trajectory.
@@ -424,14 +421,14 @@ def link_df(features, search_range, memory=0, predictor=None,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    predictor : ParticlePredictor instance (optional)
-        Improve performance guessing where a particle will be in the next frame.
-        For examples of how this works, see the "predict" module.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
+    predictor : function (optional)
+        Improve performance by guessing where a particle will be in the next frame.
+        For examples of how this works, see the "predict" module.
 
     Returns  
     -------
@@ -502,9 +499,9 @@ def link_df(features, search_range, memory=0, predictor=None,
         features.reset_index(drop=True, inplace=True)
     return features
 
-def link_df_iter(features, search_range, memory=0, predictor=None,
+def link_df_iter(features, search_range, memory=0,
             neighbor_strategy='BTree', link_strategy='auto',
-            hash_size=None, box_size=None,
+            hash_size=None, box_size=None, predictor=None,
             pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
     """Link features into trajectories, assigning a label to each trajectory.
@@ -527,6 +524,9 @@ def link_df_iter(features, search_range, memory=0, predictor=None,
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
+    predictor : function (optional)
+        Improve performance by guessing where a particle will be in the next frame.
+        For examples of how this works, see the "predict" module.
 
     Returns
     -------
@@ -620,9 +620,9 @@ def _verify_integrity(frame_no, labels):
         raise UnknownLinkingError("Some particles were not labeled in Frame %d.")
 
 
-def link_iter(levels, search_range, memory=0, predictor=None,
+def link_iter(levels, search_range, memory=0,
               neighbor_strategy='BTree', link_strategy='auto',
-              hash_size=None, box_size=None,
+              hash_size=None, box_size=None, predictor=None,
               track_cls=None, hash_generator=None):
     """Link features into trajectories, assigning a label to each trajectory.
 
@@ -635,14 +635,14 @@ def link_iter(levels, search_range, memory=0, predictor=None,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    predictor : ParticlePredictor instance (optional)
-        Improve performance guessing where a particle will be in the next frame.
-        For examples of how this works, see the "predict" module.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
+    predictor : function (optional)
+        Improve performance by guessing where a particle will be in the next frame.
+        For examples of how this works, see the "predict" module.
 
     Yields
     ------
