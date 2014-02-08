@@ -609,8 +609,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=True, filter_after=True,
           characterize=True, engine='auto',
-          store=None, conn=None, sql_flavor=None, table=None,
-          do_not_return=False, meta=True):
+          output=None, meta=True):
     """Locate Gaussian-like blobs of a given approximate size.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -663,14 +662,10 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
-
-    store : Optional HDFStore
-    conn : Optional connection to a SQL database
-    sql_flavor : If using a SQL connection, specify 'sqlite' or 'MySQL'.
-    table : If using HDFStore or SQL, specify table name.
-        Default: 'features_timestamp'.
-    do_not_return : Save the result frame by frame, but do not return it when
-        finished. Conserved memory for parallel jobs.
+    output : {None, trackpy.PandasHDFStore, SomeCustomClass}
+        If None, return all results as one big DataFrame. Otherwise, pass
+        results from each frame, one at a time, to the write() method
+        of whatever class is specified here.
     meta : By default, a YAML (plain text) log file is saved in the current
         directory. You can specify a different filepath set False.
 
@@ -701,10 +696,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                      noise_size=noise_size, smoothing_size=smoothing_size, 
                      invert=invert, percentile=percentile, topn=topn, 
                      preprocess=preprocess, max_iterations=max_iterations,
-                     filter_before=filter_before, filter_after=filter_after,
-                     store=store, conn=conn, 
-                     sql_flavor=sql_flavor, table=table,
-                     do_not_return=do_not_return)
+                     filter_before=filter_before, filter_after=filter_after)
     if meta:
         if isinstance(meta, str):
             filename = meta
@@ -712,57 +704,30 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             filename = 'feature_log_%s.yml' % timestamp
         record_meta(meta_info, filename)
 
-    all_centroids = []
+    all_features = []
     for i, image in enumerate(frames):
-        centroids = locate(image, diameter, minmass, maxsize, separation,
-                           noise_size, smoothing_size, threshold, invert,
-                           percentile, topn, preprocess, max_iterations,
-                           filter_before, filter_after, characterize,
-                           engine)
+        features = locate(image, diameter, minmass, maxsize, separation,
+                          noise_size, smoothing_size, threshold, invert,
+                          percentile, topn, preprocess, max_iterations,
+                          filter_before, filter_after, characterize,
+                          engine)
         if hasattr(image, 'frame_no') and image.frame_no is not None:
             frame_no = image.frame_no
             # If this works, locate created a 'frame' column.
         else:
             frame_no = i
-            centroids['frame'] = i  # just counting iterations
-        message = "Frame %d: %d features" % (frame_no, len(centroids))
+            features['frame'] = i  # just counting iterations
+        message = "Frame %d: %d features" % (frame_no, len(features))
         print_update(message)
-        if len(centroids) == 0:
+        if len(features) == 0:
             continue
-        indexed = ['frame']  # columns on which you can perform queries
 
-        # HDF Mode: Save iteratively in pandas HDFStore table.
-        if store is not None:
-            store.append(table, centroids, data_columns=indexed)
-            store.flush()  # Force save. Not essential.
-
-        # SQL Mode: Save iteratively in SQL table.
-        elif conn is not None:
-            if sql_flavor is None:
-                raise ValueError("Specifiy sql_flavor: MySQL or sqlite.")
-            pd.io.sql.write_frame(centroids, table, conn,
-                                  flavor=sql_flavor, if_exists='append')
-
-        # Simple Mode: Accumulate all results in memory and return.
+        if output is None:
+            all_features.append(features)
         else:
-            all_centroids.append(centroids)
+            output.put(features)
 
-    if do_not_return:
-        return None
-    if store is not None:
-        try:
-            store.get_storer(table).attrs.meta = meta
-            return store[table]
-        except MemoryError:
-            raise MemoryError("The batch was completed and saved " +
-                              "successfully but it is too large to return " +
-                              "en masse at this time.") 
-    elif conn is not None:
-        try:
-            return pd.io.sql.read_frame("SELECT * FROM %s" % table, conn)
-        except MemoryError:
-            raise MemoryError("The batch was completed and saved " +
-                              "successfully but it is too large to return " +
-                              "en masse at this time.") 
+    if output is None:
+        return pd.concat(all_features).reset_index(drop=True)
     else:
-        return pd.concat(all_centroids).reset_index(drop=True)
+        return output
