@@ -99,7 +99,7 @@ setup_parameters = dict(
     author_email = "dallan@pha.jhu.edu",
     url = "https://github.com/soft-matter/trackpy",
     install_requires = ['numpy', 'scipy', 'six', 'pandas'],
-    packages = ['trackpy', 'trackpy.wire'],
+    packages = ['trackpy'],
     long_description = read('README.md'),
     ext_modules = [Extension('_Cfilters', ['trackpy/src/Cfilters.c'], include_dirs=ext_include_dirs)],
 )

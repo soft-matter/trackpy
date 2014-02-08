@@ -42,7 +42,7 @@ Features
     SQL database, HDF5 file**, and more.
   * Particle trajectories can be
     characterized, grouped, and plotted using a suite of convenient functions.
-  * To verify correctness and stability, a **suite of over 90 tests reproduces
+  * To verify correctness and stability, a **suite of 150 tests reproduces
     basic results**.
 
 ### Special Capabilities
@@ -54,7 +54,8 @@ Features
     making possible some creative applications.
   * Trajectory-linking is supported in 2 and 3 dimensions.
   * **Uncertainty is estimated** following a method [described in this paper](http://dx.doi.org/10.1529/biophysj.104.042457) by Savin and Doyle.
-  * **High-performance** components (C extensions, FFTW support) are used
+  * **High-performance** components (C extensions, FFTW support, numba 
+  support) are used only
   if available. Since these can be tricky to install on some machines,
   the code will automatically fall back on slower pure Python implementations
   as needed.
@@ -84,7 +85,6 @@ Open a command prompt. That's "Terminal" on a Mac, and
 lines:
 
     conda install pip
-    pip install http://github.com/soft-matter/yaml-serialize/zipball/master
     pip install http://github.com/soft-matter/pims/zipball/master
     pip install http://github.com/soft-matter/trackpy/zipball/master
 
@@ -98,7 +98,7 @@ Follow the tutorials to get started.
 ### For Experienced Python Users
 
 You can install any of the dependencies using pip or
-[Anaconda]((https://store.continuum.io/cshop/anaconda/)), which comes
+[Anaconda](https://store.continuum.io/cshop/anaconda/), which comes
 with some of the essential dependencies included.
 
 If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
@@ -113,69 +113,41 @@ Essential Dependencies:
   * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html)
 
 
-You will also need these, which -- like ``trackpy`` itself -- are part of the
-github.com/soft-matter organization.
+You will also need the image- and video-reader pims, which is, like trackpy
+itself, part of the github.com/soft-matter organization.
 
   * [``pims``](https://github.com/soft-matter/pims)
-  * [``yaml-serialize``](https://github.com/soft-matter/trackpy)
 
-Install using pip:
+You can install pims and trackpy using pip:
 
-    pip install http://github.com/soft-matter/yaml-serialize/zipball/master
     pip install http://github.com/soft-matter/pims/zipball/master
-
-And finally, install ``trackpy`` itself.
-
     pip install http://github.com/soft-matter/trackpy/zipball/master
+
+Or, if you plan to edit the code, you can install them manually:
+
+    git clone https://github.com/soft-matter/pims
+    cd pims
+    python setup.py develop
+
+    cd ..
+
+    git clone https://github.com/soft-matter/trackpy
+    cd trackpy
+    python setup.py develop
 
 Optional Dependencies:
 
-  * [``cv2``](http://opencv.org/downloads.html) for reading video files
-      and viewing video with annotations
-  * ``PyTables`` for saving results in an HDF5 file
-  * ``sqlite`` or ``MySQLdb`` for saving results in a SQL database
   * [``pyFFTW``](https://github.com/hgomersall/pyFFTW) to speed up the band
       pass, which is one of the slower steps in feature-finding
+  * [``PyTables``](http://www.pytables.org/moin) for saving results in an 
+      HDF5 file. This is included with Anaconda.
+  * [``numba``] for accelerated feature-finding and linking. This is
+      included with Anaconda. Installing it any other way is difficult;
+      we recommend sticking with Anaconda.
 
-To load video files directly, you need OpenCV. You can work around this
-requirement by converting any video files to folders full of images
-using a utility like [ImageJ](http://rsb.info.nih.gov/ij/). Reading folders
-of images is supported out of the box, without OpenCV.
-
-* Linux: OpenCV is included with Anaconda
-* OSX: OpenCV is easy to install on OSX using [homebrew](http://brew.sh/).
-* Windows: OpenCV can be installed on Windows in a few steps, outlined below.
-It is not as simple as the steps above, so beginners are encouraged
-to experiment with a folder full of images first.
-
-### Optional: Installing OpenCV on Windows
-
-1. Install the video software FFmepg using this [Windows installer](http://www.arachneweb.co.uk/software/windows/avchdview/FFmpegSetup.exe)
-Make note of the directory where it is installed. It can be anywhere but, whatever it is,
-you will need to know that location in the next step.
-2. Right click on Computer (or perhaps "My Computer"), and click Properties.
-Click "Advanced System Settings", then "Properties". With "Path" highlighted,
-click "Edit." This is a list of file paths separated by semicolons, you must
-type in an additional entry. ";C:\Program Files (x86)\ffmpeg" or wherever
-FFmpeg was installed in Step 1.
-3. As mentioned above, you need 32-bit Python even if you are
-using a 64-bit system. If you installed 64-bit, uninstall Anaconda,
-download 32-bit Anaconda, and install it. You can check which version you
-have by typing ``conda info``.
-4. Install the Windows 32 (Python 2.7) version of OpenCV available on [this page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv).
-5. Download [OpenCV for Windows](http://opencv.org/).
-6. You will now have a folder called ``opencv``. We just need one file
-from this to make everything work.
-7. Copy the file ``opencv\3rdparty\ffmpeg\opencv_ffmpeg.dll``.
-8. Navigate to the directory where ffmpeg was installed, which you noted
-in Step 1. From this directory, navigate into ``win32-static\bin``.
-Paste ``opencv_ffmpeg.dll`` here.
-
-Now run ``ipython``. If you can execute ``import cv`` without any errors, the
-installation is probably successful. If you can read video files using
-``trackpy.Video('path/to/video_file.avi')`` then the installation is definitely working
-as expected.
-
+Pims has its own optional dependencies for reading various formats. You
+can read what you need for each format
+[here on pims` README](https://github.com/soft-matter/pims).
 
 ### Updating Your Installation
 
@@ -198,10 +170,12 @@ we have made significant changes:
  - making `link` iterative
  - merging Nathan Keim's KDTree-based linking, which is 2X faster on
    typical data 
+ - merging Nathan Keim's numba-acceleration, falling back on pure Python
+   if numba is not available
  - providing access to different linking strategies through 
    keyword arguments (Type ``help(link)`` or ``help(link_df)`` for details.)
-
-We also plan to merge Nathen Keim's `numba`-accelerated branch.
+ - reworking out-of-core (on-disk) processing of large data sets
+   to suit 
 
 Contributors
 ------------
