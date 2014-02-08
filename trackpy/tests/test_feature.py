@@ -82,6 +82,20 @@ class CommonFeatureIdentificationTests(object):
             f = tp.locate(black_image, 5, minmass=100,
                           engine=self.engine, preprocess=False)
 
+    def test_warn_color_image(self):
+        self.check_skip()
+
+        # RGB-like
+        image = np.random.randint(0, 100, (21, 23, 3)).astype(np.uint8)
+        with assert_produces_warning(UserWarning):
+            tp.locate(image, 5)
+
+        # RGBA-like
+        image = np.random.randint(0, 100, (21, 23, 4)).astype(np.uint8)
+        with assert_produces_warning(UserWarning):
+            tp.locate(image, 5)
+
+
     def test_one_centered_gaussian(self):
         self.check_skip()
         L = 21
