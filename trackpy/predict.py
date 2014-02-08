@@ -61,6 +61,7 @@ class NearestVelocityPredict(NullPredict):
             self.interpolator = NearestNDInterpolator(positions, vels)
         else:
             # Sadly, the 2 most recent frames had no points in common.
+            raise UserWarning('Could not generate velocity field for prediction: no tracks')
             def null_interpolator(*x):
                 return np.zeros((len(x),))
             self.interpolator = null_interpolator
@@ -148,6 +149,8 @@ class ChannelPredict(NullPredict):
                 self.interpolator = lambda x: prof_interp(x[0])
         else:
             # Not enough samples in any bin
+            raise UserWarning(
+                'Could not generate velocity field for prediction: not enough tracks or bin_size too small')
             nullvel = np.zeros((len(self.pos_columns),))
             def null_interpolator(x):
                 return nullvel
