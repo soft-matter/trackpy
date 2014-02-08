@@ -406,7 +406,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     return tracks
 
 def link_df(features, search_range, memory=0, predictor=None,
-            neighbor_strategy='BTree', link_strategy='recursive',
+            neighbor_strategy='BTree', link_strategy='auto',
             hash_size=None, box_size=None,
             pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
@@ -503,7 +503,7 @@ def link_df(features, search_range, memory=0, predictor=None,
     return features
 
 def link_df_iter(features, search_range, memory=0, predictor=None,
-            neighbor_strategy='BTree', link_strategy='recursive',
+            neighbor_strategy='BTree', link_strategy='auto',
             hash_size=None, box_size=None,
             pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
@@ -621,7 +621,7 @@ def _verify_integrity(frame_no, labels):
 
 
 def link_iter(levels, search_range, memory=0, predictor=None,
-              neighbor_strategy='BTree', link_strategy='recursive',
+              neighbor_strategy='BTree', link_strategy='auto',
               hash_size=None, box_size=None,
               track_cls=None, hash_generator=None):
     """Link features into trajectories, assigning a label to each trajectory.
