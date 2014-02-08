@@ -862,27 +862,15 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
                     p.back_cands.append((wp, d))
                     wp.forward_cands.append((p, d))
     elif neighbor_strategy == 'KDTree':
-        query = prev_hash.kdtree.query
         hashpts = prev_hash.points
-        hashpts_len = len(hashpts)
-        # TODO: In scipy >= 0.12, 
-        # all neighbors for all particles can be found in one call!
-        for p in cur_level:
-            # get
-            dists, inds = query(p.pos, 10, distance_upper_bound=search_range)
-            for d, i in zip(dists, inds):
-                if i < hashpts_len:
-                    wp = hashpts[i]
-                    if not np.isfinite(d):
-                        i = None
-                        d = search_range   
-                    p.back_cands.append((wp, d))
-                    wp.forward_cands.append((p, d))
-                else:
-                    # cKDTree signals no more neighbors by returning an
-                    # out-of-bounds index
-                    break
-
+        cur_coords = np.array(map(lambda x: x.pos, cur_level))
+        dists, inds = prev_hash.kdtree.query(cur_coords, 10, distance_upper_bound=search_range)
+        nn = np.sum(np.isfinite(dists), 1) # Number of neighbors of each particle
+        for i, p in enumerate(cur_level):
+            for j in xrange(nn[i]):
+                wp = hashpts[inds[i,j]]
+                p.back_cands.append((wp, dists[i,j]))
+                wp.forward_cands.append((p, dists[i,j]))
 
 class SubnetOversizeException(Exception):
     '''An :py:exc:`Exception` to be raised when the sub-nets are too
