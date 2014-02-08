@@ -499,6 +499,13 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     if smoothing_size is None:
         smoothing_size = diameter
     raw_image = np.squeeze(raw_image)
+    shape = raw_image.shape
+    # Check whether the image looks suspiciously like a color image.
+    if 3 in shape or 4 in shape:
+        dim = raw_image.ndim
+        warnings.warn("I am interpreting the image as {0}-dimensional. "
+                      "If it is actually a {1}-dimensional color image, "
+                      "convert it to grayscale first.".format(dim, dim-1))
     if preprocess:
         if invert:
             # It is tempting to do this in place, but if it is called multiple
