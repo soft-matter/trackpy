@@ -3,6 +3,7 @@
 
 """Tools to improve tracking performance by guessing where a particle will appear next."""
 
+from warnings import warn
 from collections import deque
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator, interp1d
@@ -16,7 +17,7 @@ class NullPredict(object):
     def link_df_iter(self, *args, **kw):
         """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
         if getattr(self, '_already_linked', False):
-            raise UserWarning('Perform tracking with a fresh predictor instance to avoid surprises.')
+            warn('Perform tracking with a fresh predictor instance to avoid surprises.')
         self._already_linked = True
         kw['predictor'] = self.predict
         self.pos_columns = kw.get('pos_columns', ['x', 'y'])
@@ -61,7 +62,7 @@ class NearestVelocityPredict(NullPredict):
             self.interpolator = NearestNDInterpolator(positions, vels)
         else:
             # Sadly, the 2 most recent frames had no points in common.
-            raise UserWarning('Could not generate velocity field for prediction: no tracks')
+            warn('Could not generate velocity field for prediction: no tracks')
             def null_interpolator(*x):
                 return np.zeros((len(x),))
             self.interpolator = null_interpolator
@@ -149,8 +150,8 @@ class ChannelPredict(NullPredict):
                 self.interpolator = lambda x: prof_interp(x[0])
         else:
             # Not enough samples in any bin
-            raise UserWarning(
-                'Could not generate velocity field for prediction: not enough tracks or bin_size too small')
+            warn('Could not generate velocity field for prediction: ' + \
+                 'not enough tracks or bin_size too small')
             nullvel = np.zeros((len(self.pos_columns),))
             def null_interpolator(x):
                 return nullvel
