@@ -421,7 +421,7 @@ def link_df(features, search_range, memory=0,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    neighbor_strategy : {'BTree', 'KDTree'}
+    neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
@@ -518,7 +518,7 @@ def link_df_iter(features, search_range, memory=0,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    neighbor_strategy : {'BTree', 'KDTree'}
+    neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Note that when using
         BTree, you must specify hash_size
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
@@ -635,7 +635,7 @@ def link_iter(levels, search_range, memory=0,
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
-    neighbor_strategy : {'BTree', 'KDTree'}
+    neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
