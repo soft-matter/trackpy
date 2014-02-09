@@ -104,9 +104,7 @@ class ChannelPredictTests(VelocityPredictTests, unittest.TestCase):
         self.mkframe = self._channel_frame
     def _channel_frame(self, n=1, Nside=3):
         xg, yg = np.mgrid[:Nside,:Nside]
-        dx = (n - 1) * 0.9 # FIXME: Unclear why this should be smaller and not larger.
-        # Probably due to registration error because of the direction along which
-        # we shift the lattice.
+        dx = (n - 1) * np.sqrt(2)
         dy = 0.
         return pandas.DataFrame(
                 dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
