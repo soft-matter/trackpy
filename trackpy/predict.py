@@ -128,7 +128,7 @@ class ChannelPredict(NullPredict):
         grp = disps.groupby('bin')
         # Only use bins that have enough samples
         profcount = grp.flow.count()
-        prof = grp.flow.mean()[profcount >= self.minsamples]
+        prof = grp.flow.mean()[profcount >= self.minsamples] / dt
         #prof_pos = pandas.DataFrame({self.flow_axis: 0,
         #                             span_axis: pandas.Series(prof.index, index=prof.index)})
 
