@@ -96,7 +96,7 @@ class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
         self.predict_class = predict.NearestVelocityPredict
         self.mkframe = mkframe
 
-class ChannelPredictTests(VelocityPredictTests, unittest.TestCase):
+class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
         def predict_factory():
             return predict.ChannelPredict(3, minsamples=3)
@@ -108,6 +108,19 @@ class ChannelPredictTests(VelocityPredictTests, unittest.TestCase):
         dy = 0.
         return pandas.DataFrame(
                 dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
+
+class ChannelPredictYTests(VelocityPredictTests, unittest.TestCase):
+    def setUp(self):
+        def predict_factory():
+            return predict.ChannelPredict(3, 'y', minsamples=3)
+        self.predict_class = predict_factory
+        self.mkframe = self._channel_frame
+    def _channel_frame(self, n=1, Nside=3):
+        xg, yg = np.mgrid[:Nside,:Nside]
+        dx = 0.
+        dy = (n - 1) * np.sqrt(2)
+        return pandas.DataFrame(
+            dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
 
 if __name__ == '__main__':
     unittest.main()
