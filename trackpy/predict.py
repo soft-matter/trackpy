@@ -32,15 +32,12 @@ class NullPredict(object):
         """Predict the position of 'particle' at time 't1'"""
         return particle.pos
 
-class NearestVelocityPredict(NullPredict):
-    """Predict a particle's position based on the most recent nearby velocity.
-
-    The guess for the first frame is zero velocity.
-    """
+class _RecentVelocityPredict(NullPredict):
     def __init__(self):
         # Use the last 2 frames to make a velocity field
         self.recent_frames = deque([], 2)
-    def observe(self, frame):
+    def _compute_velocities(self, frame):
+        """Compute velocity field based on a newly-tracked frame."""
         pframe = frame.set_index('particle')
         self.recent_frames.append(pframe)
         if len(self.recent_frames) == 1:
@@ -55,11 +52,21 @@ class NearestVelocityPredict(NullPredict):
         disps = self.recent_frames[1][self.pos_columns].join(
             self.recent_frames[1][self.pos_columns] - \
                 self.recent_frames[0][self.pos_columns], rsuffix='_disp_').dropna()
-        positions = disps[self.pos_columns].values
-        vels = disps[[cn + '_disp_' for cn in self.pos_columns]].values / dt
-        self.ndims = len(self.pos_columns)
-        if positions.shape[0] > 0:
-            self.interpolator = NearestNDInterpolator(positions, vels)
+        positions = disps[self.pos_columns]
+        vels = disps[[cn + '_disp_' for cn in self.pos_columns]] / dt
+        # 'vels' will have same column names as 'positions'
+        vels.rename(columns=lambda n: n[:-6], inplace=True)
+        return dt, positions, vels
+
+class NearestVelocityPredict(_RecentVelocityPredict):
+    """Predict a particle's position based on the most recent nearby velocity.
+
+    The guess for the first frame is zero velocity.
+    """
+    def observe(self, frame):
+        dt, positions, vels = self._compute_velocities(frame)
+        if positions.values.shape[0] > 0:
+            self.interpolator = NearestNDInterpolator(positions.values, vels.values)
         else:
             # Sadly, the 2 most recent frames had no points in common.
             warn('Could not generate velocity field for prediction: no tracks')
@@ -67,12 +74,12 @@ class NearestVelocityPredict(NullPredict):
                 return np.zeros((len(x),))
             self.interpolator = null_interpolator
     def predict(self, t1, particle):
-        prediction = particle.pos +  \
+        return particle.pos +  \
                      self.interpolator(*particle.pos) * (t1 - particle.t)
         #print t1, particle, prediction
-        return prediction
+        #return prediction
 
-class ChannelPredict(NullPredict):
+class ChannelPredict(_RecentVelocityPredict):
     """Predict a particle's position based on its spanwise coordinate in a channel.
 
     This operates by binning particles according to their spanwise coordinate and
@@ -94,22 +101,14 @@ class ChannelPredict(NullPredict):
         we borrow from the nearest valid bin.
     """
     def __init__(self, bin_size, flow_axis='x', minsamples=20):
+        super(ChannelPredict, self).__init__()
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
         # Use the last 2 frames to make a velocity field
         self.recent_frames = deque([], 2)
     def observe(self, frame):
-        pframe = frame.set_index('particle')
-        self.recent_frames.append(pframe)
-        if len(self.recent_frames) == 1:
-            # Double the first frame. Velocity field will be zero.
-            self.recent_frames.append(pframe)
-            dt = 1. # Avoid dividing by zero
-        else: # Not the first frame
-            dt = self.recent_frames[1][self.t_column].values[0] - \
-                 self.recent_frames[0][self.t_column].values[0]
-
+        # Sort out dimensions and axes
         if len(self.pos_columns) != 2:
             raise ValueError('Implemented for 2 dimensions only')
         if self.flow_axis not in self.pos_columns:
@@ -120,28 +119,25 @@ class ChannelPredict(NullPredict):
         poscols.remove(self.flow_axis)
         span_axis = poscols[0]
 
-        # Compute velocity field
-        disps = pd.DataFrame(dict(span=self.recent_frames[1][span_axis],
-            flow=self.recent_frames[1][self.flow_axis] - \
-                self.recent_frames[0][self.flow_axis])).dropna()
+        # Make velocity profile
+        dt, positions, vels = self._compute_velocities(frame)
         # Bin centers
-        disps['bin'] = disps.span - disps.span % self.bin_size + self.bin_size / 2.
-        grp = disps.groupby('bin')
+        vels['bin'] = positions[span_axis] - positions[span_axis] \
+                                             % self.bin_size + self.bin_size / 2.
+        grpvels = vels.groupby('bin')[self.flow_axis]
         # Only use bins that have enough samples
-        profcount = grp.flow.count()
-        prof = grp.flow.mean()[profcount >= self.minsamples] / dt
-        #prof_pos = pandas.DataFrame({self.flow_axis: 0,
-        #                             span_axis: pandas.Series(prof.index, index=prof.index)})
+        profcount = grpvels.count()
+        prof = grpvels.mean()[profcount >= self.minsamples]
 
-        outers = prof.values[0], prof.values[-1]
-        prof_ind, prof_vals = list(prof.index), list(prof)
-        prof_ind.insert(0, -np.inf)
-        prof_vals.insert(0, outers[0])
-        prof_ind.append(np.inf)
-        prof_vals.append(outers[1])
-        prof_ends = pd.Series(prof_vals, index=prof_ind)
-        prof_vels = pd.DataFrame({self.flow_axis: prof_ends, span_axis: 0})
         if len(prof) > 0:
+            # Handle boundary conditions for interpolator
+            prof_ind, prof_vals = list(prof.index), list(prof)
+            prof_ind.insert(0, -np.inf)
+            prof_ind.append(np.inf)
+            prof_vals.insert(0, prof.values[0])
+            prof_vals.append(prof.values[-1])
+            prof_vels = pd.DataFrame({self.flow_axis: pd.Series(prof_vals, index=prof_ind),
+                                      span_axis: 0})
             prof_interp = interp1d(prof_vels.index.values, prof_vels[self.pos_columns].values,
                                    'nearest', axis=0)
             if flow_axis_position == 0:
