@@ -1168,7 +1168,7 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_
                         delta = 1
         if delta == -1:
             if j > 0:
-                j -= 1
+                j += -1
                 tmp_assignments[j] += 1 # Try the next candidate at this higher level
                 continue
             else:

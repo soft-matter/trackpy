@@ -338,7 +338,7 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
                     if oc > SHIFT_THRESH:
                         new_coord[dim] += 1
                     elif oc < - SHIFT_THRESH:
-                        new_coord[dim] -= 1
+                        new_coord[dim] += -1
                     # Don't move outside the image!
                     if new_coord[dim] < radius:
                         new_coord[dim] = radius

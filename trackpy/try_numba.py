@@ -7,11 +7,14 @@ import logging
 
 def _hush_llvm():
     # Necessary for current stable release 0.11.
-    # Not necessary in master, probably future release will fix.
+    # Not necessary (and unimplemented) in numba >= 0.12 (February 2014)
     # See http://stackoverflow.com/a/20663852/1221924
-    import numba.codegen.debug
-    llvmlogger = logging.getLogger('numba.codegen.debug')
-    llvmlogger.setLevel(logging.INFO)
+    try:
+        import numba.codegen.debug
+        llvmlogger = logging.getLogger('numba.codegen.debug')
+        llvmlogger.setLevel(logging.INFO)
+    except ImportError:
+        pass
 
 
 ENABLE_NUMBA_ON_IMPORT = True
