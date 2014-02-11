@@ -4,8 +4,8 @@ python:
   - 2.7
 
 env:
-  - DEPS="numpy scipy nose matplotlib pandas PIL"
-  - DEPS="numpy scipy nose matplotlib pandas PIL numba"
+  - DEPS="numpy=1.7.1 scipy=0.13.0 nose matplotlib=1.3 pandas=0.13.0 PIL"
+  - DEPS="numpy=1.7.1 scipy=0.13.0 nose matplotlib=1.3 pandas=0.13.0 PIL numba=0.11"
 
 install:
   - conda create -n testenv --yes pip python=$TRAVIS_PYTHON_VERSION
@@ -23,5 +23,7 @@ before_install:
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
   - export PATH=/home/travis/anaconda/bin:$PATH
+  # Learned the hard way: miniconda is not always up-to-date with conda.
+  - conda update --yes conda
 
 script: nosetests --nologcapture -a '!slow'
