@@ -175,10 +175,10 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
 
 
 # (This is pure Python. A numba variant follows below.)
-def _refine(image, raw_image, radius, coords, max_iterations,
+def _refine(raw_image, image, radius, coords, max_iterations,
             characterize, walkthrough):
     SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.01
+    GOOD_ENOUGH_THRESH = 0.005
 
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
@@ -272,7 +272,7 @@ def _get_numba_refine_locals():
         return dict(square0=int_, square1=int_, square_size=int_, Rg_=double, ecc_=double)
 
 @try_numba_autojit(locals=_get_numba_refine_locals())
-def _numba_refine(image, raw_image, radius, coords, max_iterations,
+def _numba_refine(raw_image, image, radius, coords, max_iterations,
                   characterize, shape, mask, r2_mask, cmask, smask):
     SHIFT_THRESH = 0.6
     GOOD_ENOUGH_THRESH = 0.01

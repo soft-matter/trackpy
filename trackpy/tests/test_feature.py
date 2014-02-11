@@ -79,7 +79,7 @@ class CommonFeatureIdentificationTests(object):
         black_image = np.ones((21, 23)).astype(np.uint8)
         black_image[11, 13] = 10
         with assert_produces_warning(UserWarning):
-            f = tp.locate(black_image, 5, minmass=100,
+            f = tp.locate(black_image, 5, minmass=1000,
                           engine=self.engine, preprocess=False)
 
     def test_warn_color_image(self):
