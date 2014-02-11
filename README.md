@@ -84,6 +84,7 @@ Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
 
+    conda install numpy=1.7.1 scipy=0.13.0 matplotlib=1.3 pandas=0.13.0 numba=0.11 PIL pyyaml
     conda install pip
     pip install http://github.com/soft-matter/pims/zipball/master
     pip install http://github.com/soft-matter/trackpy/zipball/master
@@ -111,6 +112,7 @@ Essential Dependencies:
   * [``scipy``](http://www.scipy.org/)
   * [``matplotlib``](http://matplotlib.org/)
   * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html)
+  * [``pyyaml``](http://pyyaml.org/)
 
 
 You will also need the image- and video-reader pims, which is, like trackpy
@@ -143,7 +145,8 @@ Optional Dependencies:
       HDF5 file. This is included with Anaconda.
   * [``numba``] for accelerated feature-finding and linking. This is
       included with Anaconda. Installing it any other way is difficult;
-      we recommend sticking with Anaconda.
+      we recommend sticking with Anaconda. Currently we support v0.11
+      but not v0.12.
 
 Pims has its own optional dependencies for reading various formats. You
 can read what you need for each format
