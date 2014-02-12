@@ -1,3 +1,4 @@
+import functools
 import unittest
 import nose.tools
 import numpy as np
@@ -32,6 +33,16 @@ class BaselinePredictTests(unittest.TestCase):
         pred = predict.NullPredict()
         ll = get_linked_lengths((mkframe(0), mkframe(0.25)),
                                 pred.link_df_iter, 0.45)
+        assert all(ll.values == 2)
+
+    def test_predict_decorator(self):
+        """Make sure that a prediction of no motion does not interfere
+        with normal tracking.
+        """
+        pred = predict.null_predict
+        pred_link = functools.partial(trackpy.link_df_iter, predictor=pred)
+        ll = get_linked_lengths((mkframe(0), mkframe(0.25)),
+                                pred_link, 0.45)
         assert all(ll.values == 2)
 
     def test_fail_predict(self):

@@ -5,12 +5,26 @@
 
 from warnings import warn
 from collections import deque
+import functools
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator, interp1d
 import pandas as pd
 from . import linking
 
-def null_predict(particle, source_frame, dest_frame):
+def predictor(predict_func):
+    """Decorator to vectorize a predictor function for a single particle.
+
+    Converts P(t1, particle) into Pvec(t1, particles), where 'particles' is a list
+    of particle instances, and 'Pvec' can be passed to a linking function
+    (e.g. link_df_iter()) via its 'predictor' argument.
+    """
+    def Pvec(t1, particles):
+        targeted_p = functools.partial(predict_func, t1)
+        return map(targeted_p, particles)
+    return Pvec
+
+@predictor
+def null_predict(t1, particle):
     return (particle.pos)
 
 class NullPredict(object):
@@ -28,9 +42,9 @@ class NullPredict(object):
     def observe(self, frame):
         """Examine the latest output of the linker, to update our predictions."""
         pass
-    def predict(self, t1, particle):
-        """Predict the position of 'particle' at time 't1'"""
-        return particle.pos
+    def predict(self, t1, particles):
+        """Predict the positions of 'particles' at time 't1'"""
+        return map(lambda p: p.pos, particles)
 
 class _RecentVelocityPredict(NullPredict):
     def __init__(self):
@@ -73,11 +87,12 @@ class NearestVelocityPredict(_RecentVelocityPredict):
             def null_interpolator(*x):
                 return np.zeros((len(x),))
             self.interpolator = null_interpolator
-    def predict(self, t1, particle):
-        return particle.pos +  \
-                     self.interpolator(*particle.pos) * (t1 - particle.t)
-        #print t1, particle, prediction
-        #return prediction
+    def predict(self, t1, particles):
+        poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
+        positions = np.array(poslist)
+        times = np.array(tlist)
+        return positions + self.interpolator(positions) * \
+               np.tile(t1 - times, (positions.shape[1], 1)).T
 
 class ChannelPredict(_RecentVelocityPredict):
     """Predict a particle's position based on its spanwise coordinate in a channel.
@@ -141,9 +156,9 @@ class ChannelPredict(_RecentVelocityPredict):
             prof_interp = interp1d(prof_vels.index.values, prof_vels[self.pos_columns].values,
                                    'nearest', axis=0)
             if flow_axis_position == 0:
-                self.interpolator = lambda x: prof_interp(x[1])
+                self.interpolator = lambda x: prof_interp(x[:,1])
             else:
-                self.interpolator = lambda x: prof_interp(x[0])
+                self.interpolator = lambda x: prof_interp(x[:,0])
         else:
             # Not enough samples in any bin
             warn('Could not generate velocity field for prediction: ' + \
@@ -152,8 +167,9 @@ class ChannelPredict(_RecentVelocityPredict):
             def null_interpolator(x):
                 return nullvel
             self.interpolator = null_interpolator
-    def predict(self, t1, particle):
-        return particle.pos +  \
-                     self.interpolator(particle.pos) * (t1 - particle.t)
-        #print t1, particle, prediction
-        #return prediction
+    def predict(self, t1, particles):
+        poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
+        positions = np.array(poslist)
+        times = np.array(tlist)
+        return positions + self.interpolator(positions) * \
+               np.tile(t1 - times, (positions.shape[1], 1)).T

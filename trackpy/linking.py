@@ -45,18 +45,17 @@ class TreeFinder(object):
         """Rebuilds tree from ``points`` attribute.
 
         coord_map : function (optional)
-            Called with a Point instances, returns its "effective" location as a tuple.
-            Used for prediction (see "predict" module).
+            Called with a list of N Point instances, returns their "effective" locations,
+            as an N x d array (or list of tuples). Used for prediction (see "predict" module).
 
         rebuild() needs to be called after ``add_point()`` and before tree is used for
         spatial queries again (i.e. when memory is turned on).
         """
 
         if coord_map is None:
-            coord_map = lambda x: x.pos
-        coords = np.array(map(coord_map, self.points))
-        n = len(self.points)
-        if n == 0:
+            coord_map = functools.partial(map, lambda x: x.pos)
+        coords = np.asarray(coord_map(self.points))
+        if len(self.points) == 0:
             raise ValueError('Frame (aka level) contains zero points')
         self._kdtree = cKDTree(coords, 15)
         # This could be tuned
