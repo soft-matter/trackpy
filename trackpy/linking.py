@@ -750,9 +750,6 @@ def link_iter(levels, search_range, memory=0,
             t_next = list(itertools.islice(cur_level, 0, 1))[0].t
             targeted_predictor = functools.partial(predictor, t_next)
             prev_hash.rebuild(coord_map=targeted_predictor) # Rewrite positions
-        # The KDTree still needs to be updated if memory points were added.
-        elif memory > 0 and isinstance(prev_hash, TreeFinder):
-            prev_hash.rebuild()
 
         # Now we can process the new particles.
         # Make a Hash / Tree for the destination level.
@@ -883,9 +880,6 @@ def link_iter(levels, search_range, memory=0,
                 # re-create the forward_cands list
                 m.forward_cands = []
 
-            # If the hash is a KDTree, it still needs to be rebuilt.
-            # In the interests of efficiency, we do it at the top of the next
-            # iteration, once we have dealt with prediction.
         prev_set = tmp_set
 
         yield cur_level
