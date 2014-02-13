@@ -186,8 +186,8 @@ Contributors
 * **Daniel Allan** feature-finding, uncertainty estimation,
 motion characterization and discrimination, plotting tools, tests
 * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
-* **Nathan Keim** alternative trajectory-linking implementations and major
-speed-ups
+* **Nathan Keim** alternative trajectory-linking implementations, major
+speed-ups, prediction
 
 Related Projects
 ----------------
@@ -201,7 +201,7 @@ Related Projects
 | Graham Milne | http://zone.ni.com/devzone/cda/epd/p/id/948 | LabVIEW |
 | Ryan Smith and Gabe Spalding | http://titan.iwu.edu/~gspaldin/rytrack.html | stand alone/IDL GUI |
 | Peter J Lu | https://github.com/peterlu/PLuTARC_centerfind2D | C++ (identification only) |
-| Thomas A Casswell | https://github.com/tacaswell/tracking | C++ |
+| Thomas A Caswell | https://github.com/tacaswell/tracking | C++ |
 
 Support
 -------
@@ -216,3 +216,7 @@ PhD thesis work in Sidney R Nagel's and Margaret L Gardel's groups at
 the University of Chicago, Chicago IL.  This work was supported in
 part by NSF Grant DMR-1105145 and NSF-MRSEC DMR-0820054.  Tom can be
 reached at tcaswell@gmail.com.
+
+This package was developed in part by Nathan C. Keim, as part of his postdoctoral
+research in Paulo Arratia's group at the University of Pennsylvania,
+Philadelphia. This work was supported by NSF-MRSEC DMR-1120901.
