@@ -2,6 +2,7 @@ import ast
 import sys
 import inspect
 from functools import wraps, partial
+from warnings import warn
 import logging
 
 
@@ -17,16 +18,25 @@ def _hush_llvm():
         pass
 
 
-ENABLE_NUMBA_ON_IMPORT = True
+ENABLE_NUMBA_ON_IMPORT = False
 _registered_functions = list()  # functions that can be numba-compiled
 
+NUMBA_AVAILABLE = False
 try:
     import numba
 except ImportError:
-    NUMBA_AVAILABLE = False
+    message = ("To use numba-accelerated variants of core "
+               "functions, you must install numba.")
 else:
-    NUMBA_AVAILABLE = True
-    _hush_llvm()
+    v = numba.__version__
+    major, minor, micro = v.split('.')
+    if major == '0' and minor == '11':
+        NUMBA_AVAILABLE = True
+        _hush_llvm()
+    else:
+        message = ("Trackpy currently supports numba 0.11* only. "
+                  "Version {0} is currently installed. Trackpy will run "
+                  "with numba disabled.".format(v))
 
 
 class RegisteredFunction(object):
@@ -38,15 +48,21 @@ class RegisteredFunction(object):
        module_name = inspect.getmoduleinfo(func.func_globals['__file__']).name
        module_name = '.'.join(['trackpy', module_name])
        self.module_name = module_name
-       if NUMBA_AVAILABLE:
-           if autojit_kw is not None:
-               self.compiled = numba.autojit(**autojit_kw)(func)
-           else:
-               self.compiled = numba.autojit(func)
+       self.autojit_kw = autojit_kw
        if fallback is not None:
            self.ordinary = fallback
        else:
            self.ordinary = func
+
+    @property
+    def compiled(self):
+        # Compile it if this is the first time.
+        if (not hasattr(self, '_compiled')) and NUMBA_AVAILABLE:
+            if self.autojit_kw is not None:
+                self._compiled = numba.autojit(**self.autojit_kw)(self.func)
+            else:
+                self._compiled = numba.autojit(self.func)
+        return self._compiled
 
     def point_to_compiled_func(self):
         setattr(sys.modules[self.module_name], self.func_name, self.compiled)
@@ -91,5 +107,4 @@ def enable_numba():
         for f in _registered_functions:
             f.point_to_compiled_func()
     else:
-        raise ImportError("To use numba-accelerated variants of core "
-                          "functions, you must install numba.")
+        raise ImportError(message)
