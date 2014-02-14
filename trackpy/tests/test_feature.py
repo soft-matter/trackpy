@@ -95,6 +95,31 @@ class CommonFeatureIdentificationTests(object):
         with assert_produces_warning(UserWarning):
             tp.locate(image, 5)
 
+    def test_flat_peak(self):
+        # This tests the part of locate_maxima that eliminates multiple
+        # maxima in the same mask area.
+        self.check_skip()
+        image = np.ones((21, 23)).astype(np.uint8)
+        image[11, 13] = 100
+        image[11, 14] = 100
+        image[12, 13] = 100
+        count = len(tp.locate(image, 5, preprocess=False))
+        self.assertEqual(count, 1)
+
+        image = np.ones((21, 23)).astype(np.uint8)
+        image[11, 13] = 100
+        image[11, 14] = 100
+        image[12, 13] = 100
+        image[12, 13] = 100
+        count = len(tp.locate(image, 5, preprocess=False))
+        self.assertEqual(count, 1)
+
+        image = np.ones((21, 23)).astype(np.uint8)
+        image[11, 13] = 100
+        image[11, 14] = 100
+        image[11, 15] = 100
+        count = len(tp.locate(image, 5, preprocess=False))
+        self.assertEqual(count, 1)
 
     def test_one_centered_gaussian(self):
         self.check_skip()
