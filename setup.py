@@ -18,7 +18,7 @@ try:
     _have_setuptools = True
 except ImportError:
     # no setuptools installed
-    from numpy.distutils.core import setup, Extension 
+    from numpy.distutils.core import setup
     _have_setuptools = False
 
 MAJOR = 0
@@ -90,7 +90,6 @@ except ImportError:
 else:
     ext_include_dirs = [numpy.get_include(),]
 
-# Installation tries ext_modules but omits them if compiling fails.
 setup_parameters = dict(
     name = "trackpy",
     version = FULLVERSION,
@@ -101,15 +100,6 @@ setup_parameters = dict(
     install_requires = ['numpy', 'scipy', 'six', 'pandas'],
     packages = ['trackpy'],
     long_description = read('README.md'),
-    ext_modules = [Extension('_Cfilters', ['trackpy/src/Cfilters.c'], include_dirs=ext_include_dirs)],
 )
 
-try:
-    setup(**setup_parameters)
-except SystemExit:
-    warnings.warn(
-        """DON'T PANIC! Compiling C is not working, so I will fall back
-on pure Python code that does the same thing, just slower.""")
-    # Try again without ext_modules.
-    del setup_parameters['ext_modules']
-    setup(**setup_parameters)
+setup(**setup_parameters)
