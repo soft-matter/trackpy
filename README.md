@@ -98,9 +98,12 @@ Follow the tutorials to get started.
 
 ### For Experienced Python Users
 
-You can install any of the dependencies using pip or
+You can install any of the dependencies using pip, but we
+recommend starting with
 [Anaconda](https://store.continuum.io/cshop/anaconda/), which comes
-with some of the essential dependencies included.
+with several of the essential dependencies included.
+[Canopy](https://www.enthought.com/products/canopy/) is another
+distribution that makes a good starting point.
 
 If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
 (One of the optional dependencies, ``opencv``, is not readily compatible with 64-bit
@@ -146,7 +149,7 @@ Optional Dependencies:
   * [``numba``] for accelerated feature-finding and linking. This is
       included with Anaconda. Installing it any other way is difficult;
       we recommend sticking with Anaconda. Note that `numba` v0.12.0
-      (included with Anaconda 1.8.0) has a bug and will not work at all;
+      (included with Anaconda 1.9.0) has a bug and will not work at all;
       if you have this version, you should update Anaconda.
 
 Pims has its own optional dependencies for reading various formats. You
