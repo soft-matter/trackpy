@@ -318,17 +318,18 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
             for dim in range(2):
                 off_center[dim] = cm_n[dim] - radius
             for dim in range(2):
-                if off_center[dim] > GOOD_ENOUGH_THRESH:
+                if abs(off_center[dim]) > GOOD_ENOUGH_THRESH:
                     break  # Proceed through iteration.
-                break  # Stop iterations.
+            else:
+                break
 
             # If we're off by more than half a pixel in any direction, move.
             do_move = False
             if allow_moves:
                 for dim in range(2):
-                    if off_center[dim] > SHIFT_THRESH:
+                    if abs(off_center[dim]) > SHIFT_THRESH:
                         do_move = True
-            do_move = True
+                        break
 
             if do_move:
                 # In here, coord is an integer.
@@ -375,7 +376,7 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
 
             for dim in range(2):
                 cm_n[dim] /= mass_
-                cm_i[dim] = cm_n[dim] - radius + coord[dim]
+                cm_i[dim] = cm_n[dim] - radius + new_coord[dim]
                 coord[dim] = new_coord[dim]
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
         final_coords[feat, 0] = cm_i[1]
