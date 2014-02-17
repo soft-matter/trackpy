@@ -1,21 +1,3 @@
-# Copyright 2012 Daniel B. Allan
-# dallan@pha.jhu.edu, daniel.b.allan@gmail.com
-# http://pha.jhu.edu/~dallan
-# http://www.danallan.com
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or (at
-# your option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, see <http://www.gnu.org/licenses>.
-
 from __future__ import division
 import logging
 import numpy as np
@@ -27,7 +9,7 @@ from scipy.spatial import cKDTree
 logger = logging.getLogger(__name__)
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
-    """Compute the mean displacement and mean squared displacement of one 
+    """Compute the mean displacement and mean squared displacement of one
     trajectory over a range of time intervals.
 
     Parameters
@@ -42,7 +24,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     Returns
     -------
     DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
-    
+
     If detail is True, the DataFrame also contains a column N,
     the estimated number of statistically independent measurements
     that comprise the result at each lagtime.
@@ -57,10 +39,10 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """
     pos = traj.set_index('frame')[['x', 'y']]
     t = traj['frame']
-    # Reindex with consecutive frames, placing NaNs in the gaps. 
+    # Reindex with consecutive frames, placing NaNs in the gaps.
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
     max_lagtime = min(max_lagtime, len(t)) # checking to be safe
-    lagtimes = 1 + np.arange(max_lagtime) 
+    lagtimes = 1 + np.arange(max_lagtime)
     disp = pd.concat([pos.sub(pos.shift(lt)) for lt in lagtimes],
                      keys=lagtimes, names=['lagt', 'frames'])
     results = mpp*disp.mean(level=0)
@@ -75,10 +57,10 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
 
 def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     """Compute the mean squared displacements of particles individually.
-    
+
     Parameters
     ----------
-    traj : DataFrame of trajectories of multiple particles, including 
+    traj : DataFrame of trajectories of multiple particles, including
         columns particle, frame, x, and y
     mpp : microns per pixel
     fps : frames per second
@@ -91,7 +73,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     Returns
     -------
     DataFrame([Probe 1 msd, Probe 2 msd, ...], index=t)
-    
+
     Notes
     -----
     Input units are pixels and frames. Output units are microns and seconds.
@@ -112,11 +94,11 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     return results
 
 def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
-    """Compute the mean squared displacements of an ensemble of particles. 
-    
+    """Compute the mean squared displacements of an ensemble of particles.
+
     Parameters
     ----------
-    traj : DataFrame of trajectories of multiple particles, including 
+    traj : DataFrame of trajectories of multiple particles, including
         columns particle, frame, x, and y
     mpp : microns per pixel
     fps : frames per second
@@ -129,7 +111,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     -------
     Series[msd, index=t] or, if detail=True,
     DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
-    
+
     Notes
     -----
     Input units are pixels and frames. Output units are microns and seconds.
@@ -155,12 +137,12 @@ def compute_drift(traj, smoothing=0):
     ----------
     traj : DataFrame of trajectories, including columns x, y, frame, and particle
     smoothing : integer
-        Smooth the drift using a forward-looking rolling mean over 
+        Smooth the drift using a forward-looking rolling mean over
         this many frames.
 
     Returns
     -------
-    drift : DataFrame([x, y], index=frame)    
+    drift : DataFrame([x, y], index=frame)
 
     Examples
     --------
@@ -174,7 +156,7 @@ def compute_drift(traj, smoothing=0):
     # Probe by particle, take the difference between frames.
     delta = pd.concat([t.set_index('frame', drop=False).diff()
                        for p, t in traj.groupby('particle')])
-    # Keep only deltas between frames that are consecutive. 
+    # Keep only deltas between frames that are consecutive.
     delta = delta[delta['frame'] == 1]
     # Restore the original frame column (replacing delta frame).
     del delta['frame']
@@ -187,11 +169,11 @@ def compute_drift(traj, smoothing=0):
 
 def subtract_drift(traj, drift=None):
     """Return a copy of particle trajectores with the overall drift subtracted out.
-    
+
     Parameters
     ----------
     traj : DataFrame of trajectories, including columns x, y, and frame
-    drift : optional DataFrame([x, y], index=frame) like output of 
+    drift : optional DataFrame([x, y], index=frame) like output of
          compute_drift(). If no drift is passed, drift is computed from traj.
 
     Returns
@@ -199,7 +181,7 @@ def subtract_drift(traj, drift=None):
     traj : a copy, having modified columns x and y
     """
 
-    if drift is None: 
+    if drift is None:
         drift = compute_drift(traj)
     return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
 
@@ -217,8 +199,8 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
         Probes with MSD up to this quantile are deemed outliers.
     upper : float between 0 and 1, default 0.9
         Probes with MSD above this quantile are deemed outliers.
-        
-    
+
+
     Returns
     -------
     Series of boolean values, indexed by particle number
@@ -242,8 +224,8 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     ----------
     pos : DataFrame of x or (or!) y positions, one column per particle, indexed
         by frame
-    lagtime : integer interval of frames 
-        Compare the correlation function at this lagtime. Default is 23 
+    lagtime : integer interval of frames
+        Compare the correlation function at this lagtime. Default is 23
         (1 second at 24 fps).
     mpp : microns per pixel, DEFAULT TO 1 because it is usually fine to use
         pixels for this analysis
@@ -254,8 +236,8 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
 
     Returns
     -------
-    vh : If ensemble=True, a DataFrame with each particle's van Hove correlation 
-        function, indexed by displacement. If ensemble=False, a Series with 
+    vh : If ensemble=True, a DataFrame with each particle's van Hove correlation
+        function, indexed by displacement. If ensemble=False, a Series with
         the van Hove correlation function of the whole ensemble.
 
     Example
@@ -263,7 +245,7 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     pos = traj.set_index(['frame', 'particle'])['x'].unstack() # particles as columns
     vh = vanhove(pos)
     """
-    # Reindex with consecutive frames, placing NaNs in the gaps. 
+    # Reindex with consecutive frames, placing NaNs in the gaps.
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
     assert lagtime <= pos.index.values.max(), \
         "There is a no data out to frame %s. " % frame
@@ -272,9 +254,9 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     values = disp.values.flatten()
     values = values[np.isfinite(values)]
     global_bins = np.histogram(values, bins=bins)[1]
-    # Use those bins to histogram each column by itself. 
+    # Use those bins to histogram each column by itself.
     vh = disp.apply(
-        lambda x: Series(np.histogram(x, bins=global_bins, density=True)[0])) 
+        lambda x: Series(np.histogram(x, bins=global_bins, density=True)[0]))
     vh.index = global_bins[:-1]
     if ensemble:
         return vh.sum(1)/len(vh.columns)
@@ -283,7 +265,7 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
 
 def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
     """Measure the diagonal size of a trajectory.
-    
+
     Parameters
     ----------
     single_trajectory : DataFrame containing a single trajectory
@@ -302,7 +284,7 @@ def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
 
     >>> many_trajectories.groupby('particle').filter(lambda x: tp.diagonal_size(x) > 5)
     """
-    
+
     pos = single_trajectory.set_index(t_column)[pos_columns]
     return np.sqrt(np.sum(pos.apply(np.ptp)**2))
 
@@ -343,10 +325,10 @@ def direction_corr(t, frame1, frame2):
     upper_triangle = np.triu_indices_from(r, 1)
     result = DataFrame({'r': r[upper_triangle],
                         'cos': cosine[upper_triangle]})
-    return result 
+    return result
 
 def velocity_corr(t, frame1, frame2):
-    """Compute the velocity correlation between 
+    """Compute the velocity correlation between
     every pair of particles' displacements.
 
     Parameters
@@ -367,7 +349,7 @@ def velocity_corr(t, frame1, frame2):
     upper_triangle = np.triu_indices_from(r, 1)
     result = DataFrame({'r': r[upper_triangle],
                         'dot_product': dot_product[upper_triangle]})
-    return result 
+    return result
 
 def theta_entropy(pos, bins=24, plot=True):
     """Plot the distrbution of directions and return its Shannon entropy.
@@ -394,7 +376,7 @@ def theta_entropy(pos, bins=24, plot=True):
     bins = np.linspace(-np.pi, np.pi, bins + 1)
     if plot:
         Series(direction).hist(bins=bins)
-    return shannon_entropy(direction.dropna(), bins) 
+    return shannon_entropy(direction.dropna(), bins)
 
 def shannon_entropy(x, bins):
     """Compute the Shannon entropy of the distribution of x."""
@@ -442,7 +424,7 @@ def proximity(features, pos_columns=['x', 'y']):
     Returns
     -------
     proximity : DataFrame
-        distance to each particle's nearest neighbor, 
+        distance to each particle's nearest neighbor,
         indexed by particle if 'particle' column is present in input
 
     Example

@@ -1,21 +1,3 @@
-# Copyright 2012 Daniel B. Allan
-# dallan@pha.jhu.edu, daniel.b.allan@gmail.com
-# http://pha.jhu.edu/~dallan
-# http://www.danallan.com
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or (at
-# your option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, see <http://www.gnu.org/licenses>.
-
 
 from __future__ import division
 import warnings
@@ -120,7 +102,7 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
     Characterize the neighborhood of a local maximum, and iteratively
     hone in on its center-of-brightness. Return its coordinates, integrated
     brightness, size (Rg), eccentricity (0=circular), and signal strength.
-    
+
     Parameters
     ----------
     raw_image : array (any dimensions)
@@ -146,7 +128,7 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
             engine = 'python'
     if engine == 'python':
         coords = np.array(coords)  # a copy, will not modify in place
-        results = _refine(raw_image, image, radius, coords, max_iterations, 
+        results = _refine(raw_image, image, radius, coords, max_iterations,
                           characterize, walkthrough)
     elif engine == 'numba':
         if not NUMBA_AVAILABLE:
@@ -154,7 +136,7 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
                           "'numba' engine runs very slow. Use the 'python' "
                           "engine or install numba.", UserWarning)
         if image.ndim != 2:
-            raise NotImplementedError("The numba engine only supports 2D " 
+            raise NotImplementedError("The numba engine only supports 2D "
                                       "images. You can extend it if you feel "
                                       "like a hero.")
         if walkthrough:
@@ -225,7 +207,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
             # If we're off by less than half a pixel, interpolate.
             else:
                 # Here, coord is a float. We are off the grid.
-                neighborhood = ndimage.shift(neighborhood, -off_center, 
+                neighborhood = ndimage.shift(neighborhood, -off_center,
                                              order=2, mode='constant', cval=0)
                 new_coord = coord + off_center
                 # Disallow any whole-pixels moves on future iterations.
@@ -358,7 +340,7 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
                 # TODO Implement this for numba.
                 # Remember to zero cm_n somewhere in here.
                 # Here, coord is a float. We are off the grid.
-                # neighborhood = ndimage.shift(neighborhood, -off_center, 
+                # neighborhood = ndimage.shift(neighborhood, -off_center,
                 #                              order=2, mode='constant', cval=0)
                 # new_coord = np.float_(coord) + off_center
                 # Disallow any whole-pixels moves on future iterations.
@@ -421,7 +403,7 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
 def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=1, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
-           filter_before=True, filter_after=True, 
+           filter_before=True, filter_after=True,
            characterize=True, engine='auto'):
     """Locate Gaussian-like blobs of a given approximate size.
 
@@ -450,7 +432,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    topn : Return only the N brightest features above minmass. 
+    topn : Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
 
     Returns
@@ -555,7 +537,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         if maxsize is not None:
             approx_size = np.empty(count_maxima)
             for i in range(count_maxima):
-                approx_size[i] = estimate_size(image, radius, coords[i], 
+                approx_size[i] = estimate_size(image, radius, coords[i],
                                                approx_mass[i])
             condition &= approx_size < maxsize
         coords = coords[condition]
@@ -645,7 +627,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         default.
     percentile : Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurrious peaks.
-    topn : Return only the N brightest features above minmass. 
+    topn : Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
 
     Returns
@@ -689,7 +671,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     References
     ----------
     .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
-    
+
     """
     # Gather meta information and save as YAML in current directory.
     timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S')
@@ -699,12 +681,13 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         source = None
     meta_info = dict(timestamp=timestamp,
                      trackpy_version=trackpy.__version__,
-                     source=source, diameter=diameter, minmass=minmass, 
-                     maxsize=maxsize, separation=separation, 
-                     noise_size=noise_size, smoothing_size=smoothing_size, 
-                     invert=invert, percentile=percentile, topn=topn, 
+                     source=source, diameter=diameter, minmass=minmass,
+                     maxsize=maxsize, separation=separation,
+                     noise_size=noise_size, smoothing_size=smoothing_size,
+                     invert=invert, percentile=percentile, topn=topn,
                      preprocess=preprocess, max_iterations=max_iterations,
                      filter_before=filter_before, filter_after=filter_after)
+
     if meta:
         if isinstance(meta, str):
             filename = meta
