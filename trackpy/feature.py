@@ -70,10 +70,10 @@ def local_maxima(image, radius, separation, percentile=64):
 
 def estimate_mass(image, radius, coord):
     "Compute the total brightness in the neighborhood of a local maximum."
+    raise DeprecationWarning('estimate_mass() has been inlined into locate() and will be removed.')
     square = [slice(c - radius, c + radius + 1) for c in coord]
     neighborhood = binary_mask(radius, image.ndim)*image[square]
     return np.sum(neighborhood)
-
 
 def estimate_size(image, radius, coord, estimated_mass):
     "Compute the total brightness in the neighborhood of a local maximum."
@@ -313,7 +313,7 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
             if do_move:
                 # In here, coord is an integer.
                 for dim in range(2):
-                    new_coord[dim] = int(round(coord[dim]))
+                    new_coord[dim] = coord[dim] # Casts to int automatically
                     oc = off_center[dim]
                     if oc > SHIFT_THRESH:
                         new_coord[dim] += 1
@@ -528,8 +528,10 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # refining positions.
     if filter_before:
         approx_mass = np.empty(count_maxima)  # initialize to avoid appending
+        neighborhood_mask = binary_mask(radius, image.ndim)
         for i in range(count_maxima):
-            approx_mass[i] = estimate_mass(image, radius, coords[i])
+            approx_mass[i] = np.sum(neighborhood_mask * \
+                             image[[slice(c - radius, c + radius + 1) for c in coords[i]]])
         condition = approx_mass > minmass
         if maxsize is not None:
             approx_size = np.empty(count_maxima)
