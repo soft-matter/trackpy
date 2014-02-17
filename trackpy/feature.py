@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 from scipy import ndimage
 from scipy import stats
+from scipy.spatial import cKDTree
 from pandas import DataFrame, Series
 import matplotlib.pyplot as plt  # for walkthrough
 
 from trackpy import uncertainty
 from trackpy.preprocessing import bandpass, scale_to_gamut
-from .C_fallback_python import nullify_secondary_maxima
 from .utils import record_meta, print_update
 from .masks import *
 import trackpy  # to get trackpy.__version__
@@ -35,40 +35,37 @@ def local_maxima(image, radius, separation, percentile=64):
     footprint = binary_mask(radius, ndim, separation)
     dilation = ndimage.grey_dilation(image, footprint=footprint,
                                      mode='constant')
-    maxima = np.where((image == dilation) & (image > threshold))
+    maxima = np.vstack(np.where((image == dilation) & (image > threshold))).T
     if not np.size(maxima) > 0:
         warnings.warn("Image contains no local maxima.", UserWarning)
         return np.empty((0, ndim))
 
-    # Flat peaks, for example, return multiple maxima. Eliminate them.
-    maxima_map = np.zeros_like(image)
-    maxima_map[maxima] = image[maxima]
-    footprint = binary_mask(separation, ndim, separation)
-    maxima_map = ndimage.generic_filter(
-        maxima_map, nullify_secondary_maxima(), footprint=footprint,
-        mode='constant')
-    maxima = np.where(maxima_map > 0)
+    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
+    while True:
+        duplicates = cKDTree(maxima, 30).query_pairs(separation)
+        if len(duplicates) == 0:
+            break
+        to_drop = []
+        for pair in duplicates:
+            # Take the average position.
+            # This is just a starting point, so we won't go into subpx precision here.
+            merged = maxima[pair[0]]
+            merged = maxima[[pair[0], pair[1]]].mean(0).astype(int)
+            maxima[pair[0]] = merged  # overwrite one
+            to_drop.append(pair[1])  # queue other to be dropped
+        maxima = np.delete(maxima, to_drop, 0)
 
     # Do not accept peaks near the edges.
-    margin = int(separation)//2
-    maxima_map[..., -margin:] = 0
-    maxima_map[..., :margin] = 0
-    if ndim > 1:
-        maxima_map[..., -margin:, :] = 0
-        maxima_map[..., :margin, :] = 0
-    if ndim > 2:
-        maxima_map[..., -margin:, :, :] = 0
-        maxima_map[..., :margin, :, :] = 0
-    if ndim > 3:
-        raise NotImplementedError("I tap out beyond three dimensions.")
-        # TODO Change if into loop using slice(None) as :
-    maxima = np.where(maxima_map > 0)
+    shape = np.array(image.shape)
+    margin = int(separation) // 2
+    near_edge = np.any((maxima < margin) | (maxima > (shape - margin)), 1)
+    maxima = maxima[~near_edge]
     if not np.size(maxima) > 0:
         warnings.warn("All local maxima were in the margins.", UserWarning)
 
     # Return coords in as a numpy array shaped so it can be passed directly
     # to the DataFrame constructor.
-    return np.vstack(maxima).T
+    return maxima 
 
 
 def estimate_mass(image, radius, coord):
