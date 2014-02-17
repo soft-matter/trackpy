@@ -34,13 +34,6 @@ def hash_generator(dims, box_size):
     return lambda: Hash_table(dims, box_size)
 
 
-def _skip_if_no_pytables():
-    try:
-        import tables
-    except ImportError:
-        raise nose.SkipTest('PyTables not installed. Skipping.')
-
-
 def _skip_if_no_numba():
     if not NUMBA_AVAILABLE:
         raise nose.SkipTest('numba not installed. Skipping.')
@@ -508,46 +501,6 @@ class TestBTreeWithNumbaLink(CommonTrackingTests, unittest.TestCase):
         self.linker_opts = dict(link_strategy='numba',
                                 neighbor_strategy='BTree')
 
-# Removed after trackpy refactor -- restore with new API.
-# class TestLinkOnDisk(unittest.TestCase):
-# 
-#    def setUp(self):
-#        _skip_if_no_pytables()
-#        filename = os.path.join(path, 'features_size9_masscut2000.df')
-#        f = pd.read_pickle(filename)
-#        self.key = 'features'
-#        with pd.get_store('temp1.h5') as store:
-#            store.put(self.key, f)
-#        with pd.get_store('temp2.h5') as store:
-#            store.append(self.key, f, data_columns=['frame'])
-#
-#    def test_nontabular_raises(self):
-#        # Attempting to Link a non-tabular node should raise.
-#        _skip_if_no_pytables()
-#        f = lambda: tp.LinkOnDisk('temp1.h5', self.key)
-#        self.assertRaises(ValueError, f)
-#
-#    def test_nontabular_with_use_tabular_copy(self):
-#        # simple smoke test
-#        _skip_if_no_pytables()
-#        linker = tp.LinkOnDisk('temp1.h5', self.key, use_tabular_copy=True)
-#        linker.link(8, 2)
-#        linker.save('temp3.h5', 'traj')
-#
-#    def test_tabular(self):
-#        # simple smoke test
-#        _skip_if_no_pytables()
-#        linker = tp.LinkOnDisk('temp2.h5', self.key)
-#        linker.link(8, 2)
-#        linker.save('temp4.h5', 'traj')
-#
-#    def tearDown(self):
-#        temp_files = ['temp1.h5', 'temp2.h5', 'temp3.h5', 'temp4.h5']
-#        for filename in temp_files:
-#            try:
-#                os.remove(filename)
-#            except OSError:
-#                pass
 if __name__ == '__main__':
     import nose
     nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 import trackpy as tp
+from trackpy.try_numba import NUMBA_AVAILABLE
 
 import unittest
 import nose
@@ -404,18 +405,9 @@ class TestFeatureIdentificationWithNumba(
 
     def setUp(self):
         self.engine = 'numba'
-        try:
-            import numba
-        except ImportError:
-            pass  # Test will be skipped -- see below.
-        else:
-            import trackpy as tp
-            tp.enable_numba()
 
     def check_skip(self):
-        try:
-            import numba
-        except ImportError:
+        if not NUMBA_AVAILABLE:
             raise nose.SkipTest("Numba not installed. Skipping.")
 
 
