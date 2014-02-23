@@ -22,6 +22,7 @@ ENABLE_NUMBA_ON_IMPORT = False
 _registered_functions = list()  # functions that can be numba-compiled
 
 NUMBA_AVAILABLE = False
+
 try:
     import numba
 except ImportError:
@@ -30,13 +31,16 @@ except ImportError:
 else:
     v = numba.__version__
     major, minor, micro = v.split('.')
-    if major == '0' and minor == '11':
+    if major == '0' and minor == '12' and micro == '0':
+        # Importing numba code will take forever. Disable numba.
+        message = ("Trackpy does not support numba 0.12.0. "
+                   "Version {0} is currently installed. Trackpy will run "
+                   "with numba disabled. Please downgrade numba to version "
+                   "0.11, or update to latest version.".format(v))
+        warn(message)
+    else:
         NUMBA_AVAILABLE = True
         _hush_llvm()
-    else:
-        message = ("Trackpy currently supports numba 0.11* only. "
-                  "Version {0} is currently installed. Trackpy will run "
-                  "with numba disabled.".format(v))
 
 
 class RegisteredFunction(object):
