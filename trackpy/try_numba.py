@@ -18,7 +18,7 @@ def _hush_llvm():
         pass
 
 
-ENABLE_NUMBA_ON_IMPORT = False
+ENABLE_NUMBA_ON_IMPORT = True
 _registered_functions = list()  # functions that can be numba-compiled
 
 NUMBA_AVAILABLE = False
