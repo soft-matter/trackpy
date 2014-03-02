@@ -113,6 +113,30 @@ class NearestVelocityPredict(_RecentVelocityPredict):
         return positions + self.interpolator(positions) * \
                np.tile(t1 - times, (positions.shape[1], 1)).T
 
+class DriftPredict(_RecentVelocityPredict):
+    """Predict a particle's position based on the mean velocity of all particles.
+
+    Parameters
+    ----------
+    initial_guess : Array of length d. Otherwise assumed to be zero velocity.
+    """
+    def __init__(self, initial_guess=None):
+        super(DriftPredict, self).__init__()
+        self.initial_guess = initial_guess
+    def observe(self, frame):
+        dt, positions, vels = self._compute_velocities(frame)
+        if self.initial_guess is not None:
+            self.vel = np.asarray(self.initial_guess)
+            self.initial_guess = None
+        else:
+            self.vel = vels.mean().values
+    def predict(self, t1, particles):
+        poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
+        positions = np.array(poslist)
+        times = np.array(tlist)
+        return positions + self.vel * \
+               np.tile(t1 - times, (positions.shape[1], 1)).T
+
 class ChannelPredict(_RecentVelocityPredict):
     """Predict a particle's position based on its spanwise coordinate in a channel.
 
@@ -204,5 +228,6 @@ class ChannelPredict(_RecentVelocityPredict):
         times = np.array(tlist)
         return positions + self.interpolator(positions) * \
                np.tile(t1 - times, (positions.shape[1], 1)).T
+
 
 

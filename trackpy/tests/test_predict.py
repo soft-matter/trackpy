@@ -117,6 +117,20 @@ class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
                                 pred.link_df_iter, 0.45)
         assert all(ll.values == 3)
 
+class DriftPredictTests(VelocityPredictTests, unittest.TestCase):
+    def setUp(self):
+        self.predict_class = predict.DriftPredict
+        self.mkframe = mkframe
+    def test_initial_guess(self):
+        """When an accurate initial velocity is given, velocities
+        in the first pair of frames may be large."""
+        pred = self.predict_class(initial_guess=(1., -1.))
+        ll = get_linked_lengths((self.mkframe(0), self.mkframe(1.),
+                                 self.mkframe(2.)),
+                                pred.link_df_iter, 0.45)
+        assert all(ll.values == 3)
+
+
 class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
         self.predict_class = functools.partial(
