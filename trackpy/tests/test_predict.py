@@ -106,12 +106,21 @@ class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
         self.predict_class = predict.NearestVelocityPredict
         self.mkframe = mkframe
+    def test_initial_guess(self):
+        """When an accurate initial velocity is given, velocities
+        in the first pair of frames may be large."""
+        pred = self.predict_class(
+            initial_guess_positions=[(0., 0.)],
+            initial_guess_vels=[(1., -1.)])
+        ll = get_linked_lengths((self.mkframe(0), self.mkframe(1.),
+                                 self.mkframe(2.)),
+                                pred.link_df_iter, 0.45)
+        assert all(ll.values == 3)
 
 class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
-        def predict_factory():
-            return predict.ChannelPredict(3, minsamples=3)
-        self.predict_class = predict_factory
+        self.predict_class = functools.partial(
+            predict.ChannelPredict,  3, minsamples=3)
         self.mkframe = self._channel_frame
     def _channel_frame(self, n=1, Nside=3):
         xg, yg = np.mgrid[:Nside,:Nside]
@@ -119,6 +128,23 @@ class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
         dy = 0.
         return pandas.DataFrame(
                 dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
+    def test_initial_guess(self):
+        """When an accurate initial velocity profile is given, velocities
+        in the first pair of frames may be large."""
+        def _shear_frame(t=1., Nside=4):
+            xg, yg = np.mgrid[:Nside,:Nside]
+            dx = 0.45 * t * yg
+            return pandas.DataFrame(
+                dict(x=(xg + dx).flatten(), y=yg.flatten(), frame=t))
+        inity = np.arange(4)
+        initprof = np.vstack((inity, inity*0.45)).T
+        pred = self.predict_class(
+            initial_profile_guess=initprof)
+        print _shear_frame(1.)
+        ll = get_linked_lengths((_shear_frame(0), _shear_frame(1.),
+                                 _shear_frame(2.)),
+                        pred.link_df_iter, 0.45)
+        assert all(ll.values == 3)
 
 class ChannelPredictYTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
