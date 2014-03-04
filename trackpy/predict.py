@@ -75,23 +75,66 @@ class _RecentVelocityPredict(NullPredict):
 class NearestVelocityPredict(_RecentVelocityPredict):
     """Predict a particle's position based on the most recent nearby velocity.
 
-    The guess for the first frame is zero velocity.
+    Parameters
+    ----------
+    initial_guess_positions : Nxd array, optional
+    initial_guess_vels : Nxd array, optional
+        If specified, these initialize the velocity field with velocity
+        samples at the given points.
     """
+
+    def __init__(self, initial_guess_positions=None,
+                 initial_guess_vels=None):
+        super(NearestVelocityPredict, self).__init__()
+        if initial_guess_positions is not None:
+            self.use_initial_guess = True
+            self.interpolator = NearestNDInterpolator(
+                np.asarray(initial_guess_positions),
+                np.asarray(initial_guess_vels))
+        else:
+            self.use_initial_guess = False
     def observe(self, frame):
         dt, positions, vels = self._compute_velocities(frame)
-        if positions.values.shape[0] > 0:
-            self.interpolator = NearestNDInterpolator(positions.values, vels.values)
+        if self.use_initial_guess:
+            self.use_initial_guess = False
         else:
-            # Sadly, the 2 most recent frames had no points in common.
-            warn('Could not generate velocity field for prediction: no tracks')
-            def null_interpolator(*x):
-                return np.zeros((len(x),))
-            self.interpolator = null_interpolator
+            if positions.values.shape[0] > 0:
+                self.interpolator = NearestNDInterpolator(positions.values, vels.values)
+            else:
+                # Sadly, the 2 most recent frames had no points in common.
+                warn('Could not generate velocity field for prediction: no tracks')
+                def null_interpolator(*x):
+                    return np.zeros((len(x),))
+                self.interpolator = null_interpolator
     def predict(self, t1, particles):
         poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
         positions = np.array(poslist)
         times = np.array(tlist)
         return positions + self.interpolator(positions) * \
+               np.tile(t1 - times, (positions.shape[1], 1)).T
+
+class DriftPredict(_RecentVelocityPredict):
+    """Predict a particle's position based on the mean velocity of all particles.
+
+    Parameters
+    ----------
+    initial_guess : Array of length d. Otherwise assumed to be zero velocity.
+    """
+    def __init__(self, initial_guess=None):
+        super(DriftPredict, self).__init__()
+        self.initial_guess = initial_guess
+    def observe(self, frame):
+        dt, positions, vels = self._compute_velocities(frame)
+        if self.initial_guess is not None:
+            self.vel = np.asarray(self.initial_guess)
+            self.initial_guess = None
+        else:
+            self.vel = vels.mean().values
+    def predict(self, t1, particles):
+        poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
+        positions = np.array(poslist)
+        times = np.array(tlist)
+        return positions + self.vel * \
                np.tile(t1 - times, (positions.shape[1], 1)).T
 
 class ChannelPredict(_RecentVelocityPredict):
@@ -107,21 +150,27 @@ class ChannelPredict(_RecentVelocityPredict):
     flow_axis : Name of coordinate along which particles are flowing (default "x")
     minsamples : Minimum number of particles in a bin for its average
         velocity to be valid.
+    initial_profile_guess : Nx2 array (optional)
+        (spanwise coordinate, streamwise velocity) samples specifying
+        initial velocity profile. Samples must be sufficiently dense to account
+        for variation in the velocity profile. If omitted, initial velocities are
+        assumed to be zero.
 
     Notes
     -----
     - This currently only works for 2D data.
-    - The guess for the first frame is zero velocity.
     - Where there were not enough data to make an average velocity (N < minsamples),
         we borrow from the nearest valid bin.
     """
-    def __init__(self, bin_size, flow_axis='x', minsamples=20):
+    def __init__(self, bin_size, flow_axis='x', minsamples=20,
+                 initial_profile_guess=None):
         super(ChannelPredict, self).__init__()
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
         # Use the last 2 frames to make a velocity field
         self.recent_frames = deque([], 2)
+        self.initial_profile_guess = initial_profile_guess
     def observe(self, frame):
         # Sort out dimensions and axes
         if len(self.pos_columns) != 2:
@@ -136,13 +185,19 @@ class ChannelPredict(_RecentVelocityPredict):
 
         # Make velocity profile
         dt, positions, vels = self._compute_velocities(frame)
-        # Bin centers
-        vels['bin'] = positions[span_axis] - positions[span_axis] \
-                                             % self.bin_size + self.bin_size / 2.
-        grpvels = vels.groupby('bin')[self.flow_axis]
-        # Only use bins that have enough samples
-        profcount = grpvels.count()
-        prof = grpvels.mean()[profcount >= self.minsamples]
+
+        if self.initial_profile_guess is not None:
+            self.initial_profile_guess = np.asarray(self.initial_profile_guess)
+            prof = pd.Series(self.initial_profile_guess[:,1],
+                                 index=self.initial_profile_guess[:,0])
+        else:
+            # Bin centers
+            vels['bin'] = positions[span_axis] - positions[span_axis] \
+                                                 % self.bin_size + self.bin_size / 2.
+            grpvels = vels.groupby('bin')[self.flow_axis]
+            # Only use bins that have enough samples
+            profcount = grpvels.count()
+            prof = grpvels.mean()[profcount >= self.minsamples]
 
         if len(prof) > 0:
             # Handle boundary conditions for interpolator
@@ -173,3 +228,6 @@ class ChannelPredict(_RecentVelocityPredict):
         times = np.array(tlist)
         return positions + self.interpolator(positions) * \
                np.tile(t1 - times, (positions.shape[1], 1)).T
+
+
+
