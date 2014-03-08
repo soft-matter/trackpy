@@ -6,7 +6,8 @@ trackpy
 What is it?
 -----------
 
-**trackpy** is a Python package providing tools for particle tracking. **[Read the walkthrough](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/blob/master/notebooks/walkthrough.ipynb)** to skim or study an example project from start to finish.
+**trackpy** is a Python package providing tools for particle tracking.
+**[Read the walkthrough](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/blob/master/notebooks/walkthrough.ipynb)** to skim or study an example project from start to finish.
 
 Then browse a list of **[more examples](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/tree/master/notebooks/)**, or
 download the [full repository of sample code and data](https://github.com/soft-matter/trackpy-examples) to try them yourself.
@@ -25,9 +26,9 @@ Features
 
 ### Basics
 
-  * The [widely-used particle locating algorithm](http://www.physics.emory.edu/~weeks/idl/tracking.html) originally implemented
-    by John Crocker and Eric Weeks in IDL is reimplemented in
-    Python. Wherever possible, existing tools from widely-used Python modules
+  * The [widely-used particle locating algorithm](http://www.physics.emory.edu/~weeks/idl/tracking.html)
+    originally implemented by John Crocker and Eric Weeks in IDL is reimplemented
+    in Python. Wherever possible, existing tools from widely-used Python modules
     are employed.
   * This reimplemention is full-featured, including subpixel precision
     verified with test cases.
@@ -37,11 +38,12 @@ Features
     **multi-frame TIFF, or a directory of sequential images (TIFF,
     PNG, JPG, etc.)**.
   * Results are given as DataFrames, high-performance spreadsheet-like objects
-    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html) which can easily be saved to a **CSV file, Excel spreadsheet,
+    from [Python pandas](http://pandas.pydata.org/pandas-docs/stable/overview.html)
+    which can easily be saved to a **CSV file, Excel spreadsheet,
     SQL database, HDF5 file**, and more.
   * Particle trajectories can be
     characterized, grouped, and plotted using a suite of convenient functions.
-  * To verify correctness and stability, a **suite of 150 tests reproduces
+  * To verify correctness and stability, a **suite of 150+ tests reproduces
     basic results**.
 
 ### Special Capabilities
@@ -61,9 +63,9 @@ Features
 
 Documentation
 -------------
-The tutorials listed above are the best place to start. To try them out on your
+The examples linked to above are the best place to start. To try them out on your
 own computer, you will want to have the sample data as well; you can download
-all of the tutorials and data from the
+all of the examples and data from the
 [examples repository](https://github.com/soft-matter/trackpy-examples). There is also
  **[complete documentation](http://trackpy.readthedocs.org/)** for every
 function in the package.
@@ -83,10 +85,10 @@ If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-
 (One of the optional dependencies is not yet compatible with 64-bit Python.)
 
 Open a command prompt. That's "Terminal" on a Mac, and
-"Start > Applications > Command Prompt" on Windows. Type these
+"Start > Applications > Command Prompt" on Windows. Type or paste these
 lines:
 
-    conda install numpy=1.7.1 scipy=0.13.0 matplotlib=1.3 pandas=0.13.0 numba=0.11 PIL pyyaml
+    conda install numpy=1.7.1 scipy=0.13.0 matplotlib=1.3 pandas=0.13.0 numba=0.12.2 PIL pyyaml
     conda install pip
     pip install http://github.com/soft-matter/pims/zipball/master
     pip install http://github.com/soft-matter/trackpy/zipball/master
@@ -133,14 +135,10 @@ You can install pims and trackpy using pip:
 Or, if you plan to edit the code, you can install them manually:
 
     git clone https://github.com/soft-matter/pims
-    cd pims
-    python setup.py develop
-
-    cd ..
+    pip install -e pims
 
     git clone https://github.com/soft-matter/trackpy
-    cd trackpy
-    python setup.py develop
+    pip install -e trackpy
 
 Optional Dependencies:
 
@@ -148,9 +146,9 @@ Optional Dependencies:
       pass, which is one of the slower steps in feature-finding
   * [``PyTables``](http://www.pytables.org/moin) for saving results in an 
       HDF5 file. This is included with Anaconda.
-  * [``numba``] for accelerated feature-finding and linking. This is
-      included with Anaconda. Installing it any other way is difficult;
-      we recommend sticking with Anaconda. Note that `numba` v0.12.0
+  * [``numba``](http://numba.pydata.org/) for accelerated feature-finding and linking. This is
+      included with Anaconda and Canopy. Installing it any other way is difficult;
+      we recommend sticking with one of these. Note that `numba` v0.12.0
       (included with Anaconda 1.9.0) has a bug and will not work at all;
       if you have this version, you should update Anaconda.
 
