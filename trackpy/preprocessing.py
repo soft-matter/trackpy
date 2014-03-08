@@ -11,9 +11,11 @@ try:
     import pyfftw
 except ImportError:
     # Use numpy.
+    USING_FFTW = False
     fftn = np.fft.fftn
     ifftn = np.fft.ifftn
 else:
+    USING_FFTW = True
     pyfftw.interfaces.cache.enable()
     planned = False
     def _maybe_align(a):

@@ -19,6 +19,9 @@ tp.locate(dummy_noise_image, 9, engine='numba')
 #print 'Locate using Python Engine with Default Settings (Accurate)'
 #b(u"timeit tp.locate(real_image, 9, engine='python', preprocess=False)")
 
+print '10x: Locate using Python Engine with Default Settings (Accurate)'
+b(u"timeit tp.locate(big_image, 9, engine='python', preprocess=False)")
+
 print '10x: Locate using Python Engine with Fast Settings (Sloppy)'
 b(u"timeit tp.locate(big_image, 9, engine='python', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
 

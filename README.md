@@ -11,6 +11,8 @@ What is it?
 More Examples and Tutorials:
   * [Load frames from a video file, a multi-frame TIFF, or a folder of images.](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/blob/master/notebooks/loading-video-frames.ipynb)
   * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/blob/master/notebooks/tools-for-large-or-concurrent-jobs.ipynb)
+  * [Browse all the example notebooks](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/tree/master/notebooks/), or
+  [check out the full repository of sample code and data](https://github.com/soft-matter/trackpy-examples).
 
 There are many similar projects. (See table below.)
 Our implementation is distinguished by succinct and flexible usage,
@@ -62,8 +64,11 @@ Features
 
 Documentation
 -------------
-The tutorials above are the best place to start. There is also
- **[complete documentation](http://trackpy.readthedocs.org/)** for every 
+The tutorials listed above are the best place to start. To try them out on your
+own computer, you will want to have the sample data as well; you can download
+all of the tutorials and data from the
+[examples repository](https://github.com/soft-matter/trackpy-examples). There is also
+ **[complete documentation](http://trackpy.readthedocs.org/)** for every
 function in the package.
 
 Installation
@@ -98,9 +103,12 @@ Follow the tutorials to get started.
 
 ### For Experienced Python Users
 
-You can install any of the dependencies using pip or
+You can install any of the dependencies using pip, but we
+recommend starting with
 [Anaconda](https://store.continuum.io/cshop/anaconda/), which comes
-with some of the essential dependencies included.
+with several of the essential dependencies included.
+[Canopy](https://www.enthought.com/products/canopy/) is another
+distribution that makes a good starting point.
 
 If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
 (One of the optional dependencies, ``opencv``, is not readily compatible with 64-bit
@@ -146,7 +154,7 @@ Optional Dependencies:
   * [``numba``] for accelerated feature-finding and linking. This is
       included with Anaconda. Installing it any other way is difficult;
       we recommend sticking with Anaconda. Note that `numba` v0.12.0
-      (included with Anaconda 1.8.0) has a bug and will not work at all;
+      (included with Anaconda 1.9.0) has a bug and will not work at all;
       if you have this version, you should update Anaconda.
 
 Pims has its own optional dependencies for reading various formats. You
