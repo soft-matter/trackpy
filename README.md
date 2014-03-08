@@ -8,11 +8,8 @@ What is it?
 
 **trackpy** is a Python package providing tools for particle tracking. **[Read the walkthrough](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/blob/master/notebooks/walkthrough.ipynb)** to skim or study an example project from start to finish.
 
-More Examples and Tutorials:
-  * [Load frames from a video file, a multi-frame TIFF, or a folder of images.](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/blob/master/notebooks/loading-video-frames.ipynb)
-  * [Save data in a variety of formats; handle large or concurrent jobs; access partial data sets while they are processed.](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/blob/master/notebooks/tools-for-large-or-concurrent-jobs.ipynb)
-  * [Browse all the example notebooks](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/tree/master/notebooks/), or
-  [check out the full repository of sample code and data](https://github.com/soft-matter/trackpy-examples).
+Then browse a list of **[more examples](http://nbviewer.ipython.org/github/soft-matter/trackpy-examples/tree/master/notebooks/)**, or
+download the [full repository of sample code and data](https://github.com/soft-matter/trackpy-examples) to try them yourself.
 
 There are many similar projects. (See table below.)
 Our implementation is distinguished by succinct and flexible usage,
@@ -52,12 +49,12 @@ Features
   * Both feature-finding and trajectory-linking can be performed on
     **arbitrarily long videos** using a fixed, modest amount of memory. (Results
     can be read and saved to disk throughout.)
-  * Feature-finding works on **images with any number of dimensions**,
+  * A **prediction framework** tracks particles under channel flow, general random drift, or other
+    scenarios where its velocity is correlated between time steps.
+  * Feature-finding and trajectory-linking works on **images with any number of dimensions**,
     making possible some creative applications.
-  * Trajectory-linking is supported in 2 and 3 dimensions.
   * **Uncertainty is estimated** following a method [described in this paper](http://dx.doi.org/10.1529/biophysj.104.042457) by Savin and Doyle.
-  * **High-performance** components (C extensions, FFTW support, numba 
-  support) are used only
+  * **High-performance** components (numba acceleration and FFTW support) are used only if
   if available. Since these can be tricky to install on some machines,
   the code will automatically fall back on slower pure Python implementations
   as needed.
