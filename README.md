@@ -51,8 +51,8 @@ Features
   * Both feature-finding and trajectory-linking can be performed on
     **arbitrarily long videos** using a fixed, modest amount of memory. (Results
     can be read and saved to disk throughout.)
-  * A **prediction framework** tracks particles under channel flow, general random drift, or other
-    scenarios where its velocity is correlated between time steps.
+  * A **prediction framework** helps track particles in fluid flows,
+    or other scenarios where velocity is correlated between time steps.
   * Feature-finding and trajectory-linking works on **images with any number of dimensions**,
     making possible some creative applications.
   * **Uncertainty is estimated** following a method [described in this paper](http://dx.doi.org/10.1529/biophysj.104.042457) by Savin and Doyle.
