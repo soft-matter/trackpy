@@ -11,16 +11,16 @@ import trackpy as tp
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
-class TestFeatureSaving(unittest.TestCase):
+class FeatureSavingTester(object):
 
-    def setUp(self):
+    def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
         self.v = tp.ImageSequence(directory)
         self.PARAMS = (11, 3000)
         self.expected = tp.batch(self.v[[0, 1]], *self.PARAMS,
                                  engine='python', meta=False)
 
-    def test_PandasHDFStore(self):
+    def test_storage(self):
         STORE_NAME = 'temp_for_testing.h5'
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
@@ -31,9 +31,26 @@ class TestFeatureSaving(unittest.TestCase):
         else:
             tp.batch(self.v[[0, 1]], *self.PARAMS,
                      output=s, engine='python', meta=False)
+            print s.store.keys()
+            print dir(s.store.root)
+            assert len(s) == 2
+            assert s.max_frame == 1
             assert_frame_equal(s.dump().reset_index(drop=True), 
                                self.expected.reset_index(drop=True))
+            assert_frame_equal(s[0], s.get(0))
             os.remove(STORE_NAME)
+
+
+class TestPandasHDFStore(FeatureSavingTester, unittest.TestCase):
+    def setUp(self):
+        self.prepare()
+        self.storage_class = tp.PandasHDFStore
+
+
+class TestPandasHDFStoreSingleNode(FeatureSavingTester, unittest.TestCase):
+    def setUp(self):
+        self.prepare()
+        self.storage_class = tp.PandasHDFStoreSingleNode
 
 if __name__ == '__main__':
     import nose

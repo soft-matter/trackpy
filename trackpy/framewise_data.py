@@ -19,20 +19,30 @@ class FramewiseData(object):
         pass
 
     @abstractmethod
-    def dump(self):
+    def keys(self):
         pass
 
     @abstractmethod
-    def __iter__(self):
+    def close(self):
         pass
 
     @abstractproperty
     def t_column(self):
         pass
 
-    @abstractproperty
+    def __getitem__(self, frame_no):
+        return self.get(frame_no)
+
+    def __len__(self):
+        return len(self.keys())
+
+    def dump(self):
+        """Return data from all frames in a single DataFrame"""
+        return pd.concat(iter(self))
+
+    @property
     def max_frame(self):
-        pass
+        return max(self.keys())
 
     def _validate(self, df):
         if self.t_column not in df.columns:
@@ -41,6 +51,13 @@ class FramewiseData(object):
         if df[self.t_column].nunique() != 1:
             raise ValueError("Found multiple values for 'frame'. "
                              "Write one frame at a time.")
+
+    def __iter__(self):
+        return self._build_generator()
+
+    def _build_generator(self):
+        for frame_no in self.keys():
+            yield self.get(frame_no)
 
 
 KEY_PREFIX = 'Frame_'
@@ -54,7 +71,7 @@ def code_key(frame_no):
 
 
 def decode_key(key):
-    frame_no = int(key[len_key_prefix + 1:])
+    frame_no = int(key[len_key_prefix:])
     return frame_no
 
 
@@ -72,9 +89,7 @@ class PandasHDFStore(FramewiseData):
 
     @property
     def max_frame(self):
-        keys = self.store.keys()
-        frame_nos = map(decode_key, keys)
-        return max(frame_nos)
+        return max(self.keys())
 
     def put(self, df):
         frame_no = df[self.t_column].iat[0]  # validated to be all the same
@@ -86,27 +101,17 @@ class PandasHDFStore(FramewiseData):
         frame = self.store.get(key)
         return frame
 
-    def dump(self):
-        keys = self.store.keys()
-        keys = sorted(keys, key=decode_key)  # sort numerically
-        all_frames = [self.store.get(key) for key in keys]
-        return pd.concat(all_frames)
+    def keys(self):
+        r = [decode_key(key) for key in dir(self.store.root) if \
+            key.startswith(KEY_PREFIX)]
+        r.sort()
+        return r
 
     def close(self):
         self.store.close()
 
-    def __iter__(self):
-        return self._build_generator()
-
     def __del__(self):
         self.close()
-
-    def _build_generator(self):
-        keys = self.store.keys()
-        keys = sorted(keys, key=decode_key)  # sort numerically
-        for key in keys:
-            frame = self.store.get(key)
-            yield frame
 
 
 class PandasHDFStoreSingleNode(FramewiseData):
@@ -132,10 +137,6 @@ class PandasHDFStoreSingleNode(FramewiseData):
                 self._validate_node(use_tabular_copy)
 
     @property
-    def max_frame(self):
-        return max(self._inspect_frames())
-
-    @property
     def t_column(self):
         return self._t_column
 
@@ -153,18 +154,10 @@ class PandasHDFStoreSingleNode(FramewiseData):
     def close(self):
         self.store.close()
 
-    def __iter__(self):
-        return self._build_generator()
-
     def __del__(self):
         self.close()
 
-    def _build_generator(self):
-        for frame_no in self._inspect_frames():
-            frame = self.store.select(self.key, 'frame == %d' % frame_no)
-            yield frame
-
-    def _inspect_frames(self):
+    def keys(self):
         # I assume one column can fit in memory, which is not ideal.
         # Chunking does not seem to be implemented for select_column.
         frame_nos = self.store.select_column(self.key, self.t_column).unique()
