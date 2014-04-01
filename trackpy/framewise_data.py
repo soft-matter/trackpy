@@ -1,9 +1,7 @@
 import os
-import itertools
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 import pandas as pd
-import numpy as np
 
 
 class FramewiseData(object):
@@ -18,8 +16,8 @@ class FramewiseData(object):
     def get(self, frame_no):
         pass
 
-    @abstractmethod
-    def keys(self):
+    @abstractproperty
+    def frames(self):
         pass
 
     @abstractmethod
@@ -34,7 +32,7 @@ class FramewiseData(object):
         return self.get(frame_no)
 
     def __len__(self):
-        return len(self.keys())
+        return len(self.frames)
 
     def dump(self):
         """Return data from all frames in a single DataFrame"""
@@ -42,7 +40,7 @@ class FramewiseData(object):
 
     @property
     def max_frame(self):
-        return max(self.keys())
+        return max(self.frames)
 
     def _validate(self, df):
         if self.t_column not in df.columns:
@@ -56,7 +54,7 @@ class FramewiseData(object):
         return self._build_generator()
 
     def _build_generator(self):
-        for frame_no in self.keys():
+        for frame_no in self.frames:
             yield self.get(frame_no)
 
 
@@ -89,7 +87,7 @@ class PandasHDFStore(FramewiseData):
 
     @property
     def max_frame(self):
-        return max(self.keys())
+        return max(self.frames)
 
     def put(self, df):
         frame_no = df[self.t_column].iat[0]  # validated to be all the same
@@ -101,7 +99,13 @@ class PandasHDFStore(FramewiseData):
         frame = self.store.get(key)
         return frame
 
-    def keys(self):
+    @property
+    def frames(self):
+        """Returns sorted list of integer frame numbers in file"""
+        # Pandas' store.keys() scans the entire file looking for stored Pandas
+        # structures. This is very slow for large numbers of frames.
+        # Instead, scan the root level of the file for nodes with names
+        # matching our scheme; we know they are DataFrames.
         r = [decode_key(key) for key in dir(self.store.root) if \
             key.startswith(KEY_PREFIX)]
         r.sort()
@@ -157,7 +161,9 @@ class PandasHDFStoreSingleNode(FramewiseData):
     def __del__(self):
         self.close()
 
-    def keys(self):
+    @property
+    def frames(self):
+        """Returns sorted list of integer frame numbers in file"""
         # I assume one column can fit in memory, which is not ideal.
         # Chunking does not seem to be implemented for select_column.
         frame_nos = self.store.select_column(self.key, self.t_column).unique()
