@@ -25,8 +25,8 @@ class FeatureSavingTester(object):
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
         try:
-            s = tp.PandasHDFStore(STORE_NAME)
-        except:
+            s = self.storage_class(STORE_NAME)
+        except IOError:
             nose.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
             tp.batch(self.v[[0, 1]], *self.PARAMS,
@@ -38,6 +38,7 @@ class FeatureSavingTester(object):
             assert_frame_equal(s.dump().reset_index(drop=True), 
                                self.expected.reset_index(drop=True))
             assert_frame_equal(s[0], s.get(0))
+            s.close()
             os.remove(STORE_NAME)
 
 

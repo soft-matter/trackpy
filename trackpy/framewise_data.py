@@ -125,7 +125,7 @@ class PandasHDFStoreSingleNode(FramewiseData):
     but it simplifies (speeds up?) cross-frame queries,
     like queries for a single probe's entire trajectory."""
 
-    def __init__(self, filename, key, mode='a', t_column='frame',
+    def __init__(self, filename, key='FrameData', mode='a', t_column='frame',
                  use_tabular_copy=False):
         self.filename = os.path.abspath(filename)
         self.key = key
