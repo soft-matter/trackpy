@@ -48,10 +48,64 @@ class TestPandasHDFStore(FeatureSavingTester, unittest.TestCase):
         self.storage_class = tp.PandasHDFStore
 
 
+class TestPandasHDFStoreBig(FeatureSavingTester, unittest.TestCase):
+    def setUp(self):
+        self.prepare()
+        self.storage_class = tp.PandasHDFStoreBig
+
+    def test_cache(self):
+        """Store some frames, make a cache, then store some more frames."""
+        STORE_NAME = 'temp_for_testing.h5'
+        if os.path.isfile(STORE_NAME):
+            os.remove(STORE_NAME)
+        try:
+            s = self.storage_class(STORE_NAME)
+        except IOError:
+            nose.SkipTest('Cannot make an HDF5 file. Skipping')
+        else:
+            framedata = self.expected[self.expected.frame == 0]
+            def putfake(store, i):
+                fdat = framedata.copy()
+                fdat.frame = i
+                store.put(fdat)
+            for i in range(10): putfake(s, i)
+            assert s._frames_cache is None
+            s._flush_cache() # Should do nothing
+            assert set(range(10)) == set(s.frames) # Make cache
+            assert set(range(10)) == set(s.frames) # Hit memory cache
+            assert s._frames_cache is not None
+            assert s._cache_dirty
+            assert s._CACHE_NAME not in s.store
+
+            s._flush_cache()
+            assert s._CACHE_NAME in s.store
+            assert not s._cache_dirty
+
+            # Invalidate cache
+            for i in range(10, 20): putfake(s, i)
+            assert s._frames_cache is None
+            assert s._CACHE_NAME not in s.store
+            assert set(range(20)) == set(s.frames)
+            assert s._frames_cache is not None
+
+            s.rebuild_cache() # Just to try it
+
+            s.close() # Write cache
+
+            # Load cache from disk
+            s = self.storage_class(STORE_NAME, 'r')
+            assert set(range(20)) == set(s.frames) # Hit cache
+            assert not s._cache_dirty
+
+            s.close()
+            os.remove(STORE_NAME)
+
+
 class TestPandasHDFStoreSingleNode(FeatureSavingTester, unittest.TestCase):
     def setUp(self):
         self.prepare()
         self.storage_class = tp.PandasHDFStoreSingleNode
+
 
 if __name__ == '__main__':
     import nose

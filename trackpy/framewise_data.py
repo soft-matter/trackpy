@@ -102,6 +102,10 @@ class PandasHDFStore(FramewiseData):
     @property
     def frames(self):
         """Returns sorted list of integer frame numbers in file"""
+        return self._get_frame_nos()
+
+    def _get_frame_nos(self):
+        """Returns sorted list of integer frame numbers in file"""
         # Pandas' store.keys() scans the entire file looking for stored Pandas
         # structures. This is very slow for large numbers of frames.
         # Instead, scan the root level of the file for nodes with names
@@ -116,6 +120,66 @@ class PandasHDFStore(FramewiseData):
 
     def __del__(self):
         self.close()
+
+class PandasHDFStoreBig(PandasHDFStore):
+    """Like PandasHDFStore, but keeps a cache of frame numbers.
+
+    This can give a large performance boost when a file contains thousands
+    of frames.
+
+    If a file was made in PandasHDFStore, opening it with this class
+    and then closing it will add a cache (if mode != 'r').
+    """
+
+    def __init__(self, filename, mode='a', t_column='frame'):
+        super(PandasHDFStoreBig, self).__init__(filename, mode, t_column)
+        self._CACHE_NAME = '_Frames_Cache'
+        self._frames_cache = None
+        self._cache_dirty = False # Whether _frames_cache needs to be written out
+
+    @property
+    def frames(self):
+        # Hit memory cache, then disk cache
+        if self._frames_cache is not None:
+            return self._frames_cache
+        else:
+            try:
+                self._frames_cache = list(self.store[self._CACHE_NAME].index.values)
+                self._cache_dirty = False
+            except KeyError:
+                self._frames_cache = self._get_frame_nos()
+                self._cache_dirty = True # In memory, but not in file
+            return self._frames_cache
+
+    def put(self, df):
+        self._invalidate_cache()
+        super(PandasHDFStoreBig, self).put(df)
+
+    def rebuild_cache(self):
+        """Delete cache on disk and rebuild it."""
+        self._invalidate_cache()
+        _ = self.frames # Compute cache
+        self._flush_cache()
+
+    def _invalidate_cache(self):
+        self._frames_cache = None
+        try:
+            del self.store[self._CACHE_NAME]
+        except KeyError: pass
+
+    def _flush_cache(self):
+        """Writes frame cache if dirty and file is writable."""
+        if self._frames_cache is not None and self._cache_dirty \
+                and self.store.root._v_file._iswritable():
+            self.store[self._CACHE_NAME] = pd.DataFrame({'dummy': 1},
+                                                        index=self._frames_cache)
+            self._cache_dirty = False
+
+    def close(self):
+        """Updates cache, writes if necessary, then closes file."""
+        _ = self.frames # Compute cache
+        self._flush_cache()
+        super(PandasHDFStoreBig, self).close()
 
 
 class PandasHDFStoreSingleNode(FramewiseData):
