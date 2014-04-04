@@ -119,7 +119,8 @@ class PandasHDFStore(FramewiseData):
         self.store.close()
 
     def __del__(self):
-        self.close()
+        if hasattr(self, 'store'):
+            self.close()
 
 class PandasHDFStoreBig(PandasHDFStore):
     """Like PandasHDFStore, but keeps a cache of frame numbers.
@@ -223,7 +224,8 @@ class PandasHDFStoreSingleNode(FramewiseData):
         self.store.close()
 
     def __del__(self):
-        self.close()
+        if hasattr(self, 'store'):
+            self.close()
 
     @property
     def frames(self):
