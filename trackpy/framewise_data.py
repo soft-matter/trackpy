@@ -90,7 +90,7 @@ class PandasHDFStore(FramewiseData):
         return max(self.frames)
 
     def put(self, df):
-        frame_no = df[self.t_column].iat[0]  # validated to be all the same
+        frame_no = df[self.t_column].values[0]  # validated to be all the same
         key = code_key(frame_no)
         self.store.put(key, df, data_columns=True)
 
