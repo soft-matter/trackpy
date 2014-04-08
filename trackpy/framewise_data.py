@@ -57,6 +57,11 @@ class FramewiseData(object):
         for frame_no in self.frames:
             yield self.get(frame_no)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
 
 KEY_PREFIX = 'Frame_'
 len_key_prefix = len(KEY_PREFIX)
@@ -118,10 +123,6 @@ class PandasHDFStore(FramewiseData):
     def close(self):
         self.store.close()
 
-    def __del__(self):
-        if hasattr(self, 'store'):
-            self.close()
-
 class PandasHDFStoreBig(PandasHDFStore):
     """Like PandasHDFStore, but keeps a cache of frame numbers.
 
@@ -133,10 +134,10 @@ class PandasHDFStoreBig(PandasHDFStore):
     """
 
     def __init__(self, filename, mode='a', t_column='frame'):
-        super(PandasHDFStoreBig, self).__init__(filename, mode, t_column)
         self._CACHE_NAME = '_Frames_Cache'
         self._frames_cache = None
         self._cache_dirty = False # Whether _frames_cache needs to be written out
+        super(PandasHDFStoreBig, self).__init__(filename, mode, t_column)
 
     @property
     def frames(self):
@@ -178,8 +179,9 @@ class PandasHDFStoreBig(PandasHDFStore):
 
     def close(self):
         """Updates cache, writes if necessary, then closes file."""
-        _ = self.frames # Compute cache
-        self._flush_cache()
+        if self.store.root._v_file._iswritable():
+            _ = self.frames # Compute cache
+            self._flush_cache()
         super(PandasHDFStoreBig, self).close()
 
 
