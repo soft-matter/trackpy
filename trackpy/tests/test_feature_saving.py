@@ -11,6 +11,13 @@ import trackpy as tp
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
+def _skip_if_no_pytables():
+    try:
+        import tables
+    except ImportError:
+        raise nose.SkipTest('pytables not installed. Skipping.')
+
+
 class FeatureSavingTester(object):
 
     def prepare(self):
@@ -44,12 +51,14 @@ class FeatureSavingTester(object):
 
 class TestPandasHDFStore(FeatureSavingTester, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_pytables()
         self.prepare()
         self.storage_class = tp.PandasHDFStore
 
 
 class TestPandasHDFStoreBig(FeatureSavingTester, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_pytables()
         self.prepare()
         self.storage_class = tp.PandasHDFStoreBig
 
@@ -103,6 +112,7 @@ class TestPandasHDFStoreBig(FeatureSavingTester, unittest.TestCase):
 
 class TestPandasHDFStoreSingleNode(FeatureSavingTester, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_pytables()
         self.prepare()
         self.storage_class = tp.PandasHDFStoreSingleNode
 
