@@ -62,9 +62,9 @@ class NullPredict(object):
         return map(lambda p: p.pos, particles)
 
 class _RecentVelocityPredict(NullPredict):
-    def __init__(self):
-        # Use the last 2 frames to make a velocity field
-        self.recent_frames = deque([], 2)
+    def __init__(self, span=1):
+        """Use the 'span'+1 most recent frames to make a velocity field."""
+        self.recent_frames = deque([], span + 1)
 
     def state(self):
         return list(self.recent_frames)
@@ -78,12 +78,12 @@ class _RecentVelocityPredict(NullPredict):
             self.recent_frames.append(pframe)
             dt = 1. # Avoid dividing by zero
         else: # Not the first frame
-            dt = self.recent_frames[1][self.t_column].values[0] - \
+            dt = self.recent_frames[-1][self.t_column].values[0] - \
                  self.recent_frames[0][self.t_column].values[0]
 
         # Compute velocity field
-        disps = self.recent_frames[1][self.pos_columns].join(
-            self.recent_frames[1][self.pos_columns] - \
+        disps = self.recent_frames[-1][self.pos_columns].join(
+            self.recent_frames[-1][self.pos_columns] - \
                 self.recent_frames[0][self.pos_columns], rsuffix='_disp_').dropna()
         positions = disps[self.pos_columns]
         vels = disps[[cn + '_disp_' for cn in self.pos_columns]] / dt
@@ -100,11 +100,13 @@ class NearestVelocityPredict(_RecentVelocityPredict):
     initial_guess_vels : Nxd array, optional
         If specified, these initialize the velocity field with velocity
         samples at the given points.
+    span : integer, default 1
+        Compute velocity field from the most recent span+1 frames.
     """
 
     def __init__(self, initial_guess_positions=None,
-                 initial_guess_vels=None):
-        super(NearestVelocityPredict, self).__init__()
+                 initial_guess_vels=None, span=1):
+        super(NearestVelocityPredict, self).__init__(span=span)
         if initial_guess_positions is not None:
             self.use_initial_guess = True
             self.interpolator = NearestNDInterpolator(
@@ -146,9 +148,11 @@ class DriftPredict(_RecentVelocityPredict):
     Parameters
     ----------
     initial_guess : Array of length d. Otherwise assumed to be zero velocity.
+    span : integer, default 1
+        Compute velocity field from the most recent span+1 frames.
     """
-    def __init__(self, initial_guess=None):
-        super(DriftPredict, self).__init__()
+    def __init__(self, initial_guess=None, span=1):
+        super(DriftPredict, self).__init__(span=span)
         self.initial_guess = initial_guess
 
     def observe(self, frame):
@@ -184,6 +188,8 @@ class ChannelPredict(_RecentVelocityPredict):
         initial velocity profile. Samples must be sufficiently dense to account
         for variation in the velocity profile. If omitted, initial velocities are
         assumed to be zero.
+    span : integer, default 1
+        Compute velocity field from the most recent span+1 frames.
 
     Notes
     -----
@@ -192,8 +198,8 @@ class ChannelPredict(_RecentVelocityPredict):
         we borrow from the nearest valid bin.
     """
     def __init__(self, bin_size, flow_axis='x', minsamples=20,
-                 initial_profile_guess=None):
-        super(ChannelPredict, self).__init__()
+                 initial_profile_guess=None, span=1):
+        super(ChannelPredict, self).__init__(span=span)
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
@@ -267,7 +273,7 @@ class ChannelPredict(_RecentVelocityPredict):
                np.tile(t1 - times, (positions.shape[1], 1)).T
 
 def instrumented(limit=None):
-    """Wraps a predictor *class* and allows it to record its inputs and outputs.
+    """Decorate a predictor class and allow it to record inputs and outputs.
 
     Use when diagnosing prediction.
 
