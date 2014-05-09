@@ -816,7 +816,7 @@ def link_iter(levels, search_range, memory=0,
             d_remain = set(d for d in d_sn if d is not None)  # TODO DAN
             d_remain -= set(d for d in dpl if d is not None)
             for dp in d_remain:
-                # if unclaimed destination particle, a track in born!
+                # if unclaimed destination particle, a track is born!
                 track_lst.append(track_cls(dp))
                 # clean up
                 del dp.back_cands
@@ -826,7 +826,7 @@ def link_iter(levels, search_range, memory=0,
                 if sp is not None and dp is not None:
                     sp.track.add_point(dp)
                     _maybe_remove(mem_set, sp)
-                if dp is not None:  # TODO DAN 'Should never happen' - Natahn
+                if dp is not None:  # TODO DAN 'Should never happen' - Nathan
                     del dp.back_cands
                 if sp is not None:
                     del sp.forward_cands
@@ -1071,11 +1071,10 @@ def numba_link(s_sn, dest_size, search_radius):
     # The basic idea: replace Point objects with integer indices into lists of Points.
     # Then the hard part (recursion) runs quickly because it is just passing arrays.
     # In fact, we can compile it with numba so that it runs in acceptable time.
-    MAX_SUB_NET_SIZE = 30 # See also the iteration limit hard-coded into _sn_norecur()
     max_candidates = 9 # Max forward candidates we expect for any particle
     src_net = list(s_sn)
     nj = len(src_net) # j will index the source particles
-    if nj > MAX_SUB_NET_SIZE:
+    if nj > SubnetLinker.MAX_SUB_NET_SIZE:
         raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (sub net contains %d points)' % nj)
     # Build arrays of all destination (forward) candidates and their distances
     dcands = set()
