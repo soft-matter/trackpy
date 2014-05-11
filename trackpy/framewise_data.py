@@ -79,12 +79,16 @@ def decode_key(key):
 
 
 class PandasHDFStore(FramewiseData):
-    "Save each frame's data to a node in a pandas HDFStore."
+    """Save each frame's data to a node in a pandas HDFStore.
 
-    def __init__(self, filename, mode='a', t_column='frame'):
+    Any additional keyword arguments to the constructor are passed to
+    pandas.HDFStore().
+    """
+
+    def __init__(self, filename, mode='a', t_column='frame', **kwargs):
         self.filename = os.path.abspath(filename)
         self._t_column = t_column
-        self.store = pd.HDFStore(self.filename, mode)
+        self.store = pd.HDFStore(self.filename, mode, **kwargs)
 
     @property
     def t_column(self):
@@ -131,13 +135,17 @@ class PandasHDFStoreBig(PandasHDFStore):
 
     If a file was made in PandasHDFStore, opening it with this class
     and then closing it will add a cache (if mode != 'r').
+
+    Any additional keyword arguments to the constructor are passed to
+    pandas.HDFStore().
     """
 
-    def __init__(self, filename, mode='a', t_column='frame'):
+    def __init__(self, filename, mode='a', t_column='frame', **kwargs):
         self._CACHE_NAME = '_Frames_Cache'
         self._frames_cache = None
-        self._cache_dirty = False # Whether _frames_cache needs to be written out
-        super(PandasHDFStoreBig, self).__init__(filename, mode, t_column)
+        self._cache_dirty = False  # Whether _frames_cache needs to be written out
+        super(PandasHDFStoreBig, self).__init__(filename, mode, t_column,
+                                                **kwargs)
 
     @property
     def frames(self):
@@ -190,14 +198,18 @@ class PandasHDFStoreSingleNode(FramewiseData):
 
     This implementation is more complex than PandasHDFStore,
     but it simplifies (speeds up?) cross-frame queries,
-    like queries for a single probe's entire trajectory."""
+    like queries for a single probe's entire trajectory.
+
+    Any additional keyword arguments to the constructor are passed to
+    pandas.HDFStore().
+    """
 
     def __init__(self, filename, key='FrameData', mode='a', t_column='frame',
-                 use_tabular_copy=False):
+                 use_tabular_copy=False, **kwargs):
         self.filename = os.path.abspath(filename)
         self.key = key
         self._t_column = t_column
-        self.store = pd.HDFStore(self.filename, mode)
+        self.store = pd.HDFStore(self.filename, mode, **kwargs)
 
         with pd.get_store(self.filename) as store:
             try:

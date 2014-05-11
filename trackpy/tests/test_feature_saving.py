@@ -1,6 +1,8 @@
 import unittest
 import nose
 
+import functools
+
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
@@ -110,11 +112,29 @@ class TestPandasHDFStoreBig(FeatureSavingTester, unittest.TestCase):
             os.remove(STORE_NAME)
 
 
+class TestPandasHDFStoreBigCompressed(FeatureSavingTester, unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_pytables()
+        self.prepare()
+        self.storage_class = functools.partial(
+            tp.PandasHDFStoreBig, complevel=4, complib='zlib', fletcher32=True)
+
+
 class TestPandasHDFStoreSingleNode(FeatureSavingTester, unittest.TestCase):
     def setUp(self):
         _skip_if_no_pytables()
         self.prepare()
         self.storage_class = tp.PandasHDFStoreSingleNode
+
+
+class TestPandasHDFStoreSingleNodeCompressed(FeatureSavingTester,
+                                             unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_pytables()
+        self.prepare()
+        self.storage_class = functools.partial(
+            tp.PandasHDFStoreSingleNode,
+            complevel=4, complib='zlib', fletcher32=True)
 
 
 if __name__ == '__main__':
