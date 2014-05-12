@@ -742,139 +742,238 @@ def link_iter(levels, search_range, memory=0,
         a function that returns a HashTable, included for legacy support.
         Specifying hash_size and box_size (above) fully defined a HashTable.
     """
-    if hash_generator is None:
-        if neighbor_strategy == 'BTree':
-            if hash_size is None:
-                raise ValueError("In 'BTree' mode, you must specify hash_size")
-            if box_size is None:
-                box_size = search_range
-        hash_generator = lambda: Hash_table(hash_size, box_size)
-    if track_cls is None:
-        track_cls = DummyTrack  # does not store Points
+    linker = Linker(search_range, memory=memory, neighbor_strategy=neighbor_strategy,
+                 link_strategy=link_strategy, hash_size=hash_size,
+                 box_size=box_size, predictor=predictor, track_cls=track_cls,
+                 hash_generator=hash_generator)
+    return linker.link(levels)
 
-    linkers = {'recursive': recursive_linker_obj,
-               'nonrecursive': nonrecursive_link}
-    if NUMBA_AVAILABLE:
-        linkers['numba'] = numba_link
-        linkers['auto'] = linkers['numba']
-    else:
-        linkers['auto'] = linkers['recursive']
-    try:
-        subnet_linker = linkers[link_strategy]
-    except KeyError:
-        raise ValueError("link_strategy must be one of: " +
-                         ', '.join(linkers.keys()))
+class Linker(object):
+    """See link_iter() for a description of parameters."""
+    def __init__(self, search_range, memory=0,
+              neighbor_strategy='KDTree', link_strategy='auto',
+              hash_size=None, box_size=None, predictor=None,
+              track_cls=None, hash_generator=None):
+        self.search_range = search_range
+        self.memory = memory
+        self.predictor = predictor
+        self.track_cls = track_cls
+        self.hash_generator = hash_generator
+        self.neighbor_strategy = neighbor_strategy
 
-    if neighbor_strategy not in ['KDTree', 'BTree']:
-        raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
+        if self.hash_generator is None:
+            if neighbor_strategy == 'BTree':
+                if hash_size is None:
+                    raise ValueError("In 'BTree' mode, you must specify hash_size")
+                if box_size is None:
+                    box_size = search_range
+            self.hash_generator = lambda: Hash_table(hash_size, box_size)
+        if self.track_cls is None:
+            self.track_cls = DummyTrack  # does not store Points
 
-    level_iter = iter(levels)
-    prev_level = next(level_iter)
-    prev_set = set(prev_level)
+        linkers = {'recursive': recursive_linker_obj,
+                   'nonrecursive': nonrecursive_link}
+        if NUMBA_AVAILABLE:
+            linkers['numba'] = numba_link
+            linkers['auto'] = linkers['numba']
+        else:
+            linkers['auto'] = linkers['recursive']
+        try:
+            self.subnet_linker = linkers[link_strategy]
+        except KeyError:
+            raise ValueError("link_strategy must be one of: " + ', '.join(linkers.keys()))
 
-    # Make a Hash / Tree for the first level.
-    if neighbor_strategy == 'BTree':
-        prev_hash = hash_generator()
+        if self.neighbor_strategy not in ['KDTree', 'BTree']:
+            raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
+
+    def link(self, levels):
+        level_iter = iter(levels)
+        prev_level = next(level_iter)
+        prev_set = set(prev_level)
+
+        # Make a Hash / Tree for the first level.
+        if self.neighbor_strategy == 'BTree':
+            prev_hash = self.hash_generator()
+            for p in prev_set:
+                prev_hash.add_point(p)
+        elif self.neighbor_strategy == 'KDTree':
+            prev_hash = TreeFinder(prev_level)
+
         for p in prev_set:
-            prev_hash.add_point(p)
-    elif neighbor_strategy == 'KDTree':
-        prev_hash = TreeFinder(prev_level)
-
-    for p in prev_set:
-        p.forward_cands = []
-
-    try:
-        # Start ID numbers from zero, incompatible with multithreading.
-        track_cls.reset_counter()
-    except AttributeError:
-        # must be using a custom Track class without this method
-        pass
-
-    # Assume everything in first level starts a Track.
-    track_lst = [track_cls(p) for p in prev_set]
-    mem_set = set()
-
-    # Initialize memory with empty sets.
-    mem_history = []
-    for j in range(memory):
-        mem_history.append(set())
-
-    yield list(prev_set)  # Short-circuit the loop on first call.
-
-    for cur_level in levels:
-        # Create the set for the destination level.
-        cur_set = set(cur_level)
-        tmp_set = set(cur_level)  # copy used in next loop iteration
-
-        # First, a bit of unfinished business:
-        #
-        # If prediction is enabled, we need to update the positions in
-        # prev_hash to where we think they'll be in the frame corresponding to
-        # cur_level.
-        if predictor is not None:
-            # This only works for KDTree right now, because KDTree can store
-            # particle positions in a separate data structure from the PointND
-            # instances.
-            if not isinstance(prev_hash, TreeFinder):
-                raise NotImplementedError(
-                    'Prediction works with the "KDTree" neighbor_strategy only.')
-            # Get the time of cur_level from its first particle
-            t_next = list(itertools.islice(cur_level, 0, 1))[0].t
-            targeted_predictor = functools.partial(predictor, t_next)
-            prev_hash.rebuild(coord_map=targeted_predictor)  # Rewrite positions
-
-        # Now we can process the new particles.
-        # Make a Hash / Tree for the destination level.
-        if neighbor_strategy == 'BTree':
-            cur_hash = hash_generator()
-            for p in cur_set:
-                cur_hash.add_point(p)
-        elif neighbor_strategy == 'KDTree':
-            cur_hash = TreeFinder(cur_level)
-
-        # Set up attributes for keeping track of possible connections.
-        for p in cur_set:
-            p.back_cands = []
             p.forward_cands = []
 
-        # Sort out what can go to what.
-        assign_candidates(cur_level, prev_hash, search_range,
-                          neighbor_strategy)
+        try:
+            # Start ID numbers from zero, incompatible with multithreading.
+            self.track_cls.reset_counter()
+        except AttributeError:
+            # must be using a custom Track class without this method
+            pass
 
-        # sort the candidate lists by distance
-        for p in cur_set:
-            p.back_cands.sort(key=lambda x: x[1])
-        for p in prev_set:
-            p.forward_cands.sort(key=lambda x: x[1])
 
-        new_mem_set = set()
+        # Assume everything in first level starts a Track.
+        self.track_lst = map(self.track_cls, prev_set)
+        self.mem_set = set()
+
+        # Initialize memory with empty sets.
+        mem_history = []
+        for j in range(self.memory):
+            mem_history.append(set())
+
+        yield list(prev_set)  # Short-circuit the loop on first call.
+
+        for cur_level in levels:
+            # Create the set for the destination level.
+            cur_set = set(cur_level)
+            tmp_set = set(cur_level)  # copy used in next loop iteration
+
+            # First, a bit of unfinished business:
+            # If prediction is enabled, we need to update the positions in prev_hash
+            # to where we think they'll be in the frame corresponding to cur_level.
+            if self.predictor is not None:
+                # This only works for KDTree right now, because KDTree can store particle
+                # positions in a separate data structure from the PointND instances.
+                if not isinstance(prev_hash, TreeFinder):
+                    raise NotImplementedError(
+                        'Prediction works with the "KDTree" neighbor_strategy only.')
+                # Get the time of cur_level from its first particle
+                t_next = list(itertools.islice(cur_level, 0, 1))[0].t
+                targeted_predictor = functools.partial(self.predictor, t_next)
+                prev_hash.rebuild(coord_map=targeted_predictor) # Rewrite positions
+
+            # Now we can process the new particles.
+            # Make a Hash / Tree for the destination level.
+            if self.neighbor_strategy == 'BTree':
+                cur_hash = self.hash_generator()
+                for p in cur_set:
+                    cur_hash.add_point(p)
+            elif self.neighbor_strategy == 'KDTree':
+                cur_hash = TreeFinder(cur_level)
+
+            # Set up attributes for keeping track of possible connections.
+            for p in cur_set:
+                p.back_cands = []
+                p.forward_cands = []
+
+            # Sort out what can go to what.
+            assign_candidates(cur_level, prev_hash, self.search_range,
+                              self.neighbor_strategy)
+
+            # sort the candidate lists by distance
+            # TODO: This is redundant for KDTree
+            for p in cur_set:
+                p.back_cands.sort(key=lambda x: x[1])
+            for p in prev_set:
+                p.forward_cands.sort(key=lambda x: x[1])
+
+            spl, dpl = self.assign_links(cur_set, prev_set, self.search_range)
+
+            # Identify the particles in the destination set that
+            # were not linked to.
+            #d_remain = set(d for d in cur_set if d is not None)  # TODO DAN
+            #d_remain -= set(d for d in dpl if d is not None)
+            #for dp in d_remain:
+            #    # if unclaimed destination particle, a track is born!
+            #    self.track_lst.append(self.track_cls(dp))
+            #    # clean up
+            #    del dp.back_cands
+
+            new_mem_set = set()
+            for sp, dp in zip(spl, dpl):
+                # Do linking
+                if sp is not None and dp is not None:
+                    sp.track.add_point(dp)
+                    _maybe_remove(self.mem_set, sp)
+                elif sp is None:
+                    # if unclaimed destination particle, a track is born!
+                    self.track_lst.append(self.track_cls(dp))
+                elif dp is None:
+                    # add the unmatched source particles to the new
+                    # memory set
+                    new_mem_set.add(sp)
+                else:  # FIXME: Temporary
+                    raise AssertionError()
+
+                # Clean up
+                if dp is not None:
+                    del dp.back_cands
+                if sp is not None:
+                    try:
+                        del sp.forward_cands
+                    except AttributeError:
+                        pass
+
+            # FIXME: Here's where we need to have been updating prev_set all along
+            # FIXME: A clearer strategy is to have assign_links() return *all* particles
+            # in dpl, spl, then make sets of linkable and unlinkable particles.
+            # Then we will not have to handle remainders.
+
+            # Remember the source particles left unlinked that were not in
+            # a subnetwork.
+            #for sp in prev_set:
+                #new_mem_set.add(sp)
+
+            # set prev_hash to cur hash
+            prev_hash = cur_hash
+
+            # add in the memory points
+            # store the current level for use in next loop
+            if self.memory > 0:
+                # identify the new memory points
+                new_mem_set -= self.mem_set
+                mem_history.append(new_mem_set)
+                # remove points that are now too old
+                self.mem_set -= mem_history.pop(0)
+                # add the new points
+                self.mem_set |= new_mem_set
+                # add the memory particles to what will be the next source
+                # set
+                tmp_set |= self.mem_set
+                # add memory points to prev_hash (to be used as the next source)
+                for m in self.mem_set:
+                    # add points to the hash
+                    prev_hash.add_point(m)
+                    # re-create the forward_cands list
+                    m.forward_cands = []
+
+            prev_set = tmp_set
+
+            yield cur_level
+
+    def assign_links(self, dest_set, source_set, search_range):
+        """Match particles in dest_set with source_set.
+
+        Returns source, dest lists of equal length, corresponding
+        to pairs of source and destination particles. A 'None' value
+        denotes that a match was not found.
+
+        Note that this does not actually change the state within link().
+        All actions are taken within link(), based on the recommendations
+        of assign_links().
+        """
+        prev_set = source_set.copy()
+        cur_set = dest_set.copy()
+        spl, dpl = [], []
         # while there are particles left to link, link
         while len(cur_set) > 0:
             p = cur_set.pop()
             bc_c = len(p.back_cands)
             # no backwards candidates
             if bc_c == 0:
-                # add a new track
-                track_lst.append(track_cls(p))
-                # clean up tracking apparatus
-                del p.back_cands
-                # short circuit loop
-                continue
+                # particle will get a new track
+                dpl.append(p)
+                spl.append(None)
+                continue  # do next cur_set particle
             if bc_c == 1:
                 # one backwards candidate
                 b_c_p = p.back_cands[0]
                 # and only one forward candidate
                 b_c_p_0 = b_c_p[0]
                 if len(b_c_p_0.forward_cands) == 1:
-                    # add to the track of the candidate
-                    b_c_p_0.track.add_point(p)
-                    _maybe_remove(mem_set, b_c_p_0)
-                    # clean up tracking apparatus
-                    del p.back_cands
-                    del b_c_p_0.forward_cands
-                    prev_set.discard(b_c_p_0)
-                    # short circuit loop
-                    continue
+                    # schedule these particles for linking
+                    dpl.append(p)
+                    spl.append(b_c_p_0)
+                    prev_set.discard(b_c_p_0)  # FIXME: Necessary?
+                    continue  # do next cur_set particle
             # we need to generate the sub networks
             done_flg = False
             s_sn = set()                  # source sub net
@@ -887,7 +986,7 @@ def link_iter(levels, search_range, memory=0,
                 for dp in d_sn:
                     for c_sp in dp.back_cands:
                         s_sn.add(c_sp[0])
-                        prev_set.discard(c_sp[0])
+                        prev_set.discard(c_sp[0])  # FIXME: Necessary?
                 for sp in s_sn:
                     for c_dp in sp.forward_cands:
                         d_sn.add(c_dp[0])
@@ -898,63 +997,32 @@ def link_iter(levels, search_range, memory=0,
             for _s in s_sn:
                 _s.forward_cands.append((None, search_range))
 
-            spl, dpl = subnet_linker(s_sn, len(d_sn), search_range)
+            # TODO: "try" clause goes here. If oversize: use a smaller search_range
+            # to prune the candidate lists of s_sn, d_sn; then recurse.
+            sn_spl, sn_dpl = self.subnet_linker(s_sn, len(d_sn), search_range)
 
-            # Identify the particles in the destination set that
-            # were not linked to.
-            d_remain = set(d for d in d_sn if d is not None)  # TODO DAN
-            d_remain -= set(d for d in dpl if d is not None)
-            for dp in d_remain:
-                # if unclaimed destination particle, a track is born!
-                track_lst.append(track_cls(dp))
-                # clean up
-                del dp.back_cands
+            for dp in d_sn - set(sn_dpl):
+                # Unclaimed destination particle in subnet
+                sn_spl.append(None)
+                sn_dpl.append(dp)
 
-            for sp, dp in zip(spl, dpl):
-                # do linking and clean up
-                if sp is not None and dp is not None:
-                    sp.track.add_point(dp)
-                    _maybe_remove(mem_set, sp)
-                if dp is not None:  # TODO DAN 'Should never happen' - Nathan
-                    del dp.back_cands
-                if sp is not None:
-                    del sp.forward_cands
-                    if dp is None:
-                        # add the unmatched source particles to the new
-                        # memory set
-                        new_mem_set.add(sp)
+            assert set(sn_spl) - set([None]) == s_sn
+            assert set(sn_dpl) - set([None]) == d_sn
 
-        # Remember the source particles left unlinked that were not in
-        # a subnetwork.
-        for sp in prev_set:
-            new_mem_set.add(sp)
+            spl.extend(sn_spl)
+            dpl.extend(sn_dpl)
 
-        # set prev_hash to cur hash
-        prev_hash = cur_hash
+        # Leftovers
+        for pp in prev_set:
+            spl.append(pp)
+            dpl.append(None)
 
-        # add in the memory points
-        # store the current level for use in next loop
-        if memory > 0:
-            # identify the new memory points
-            new_mem_set -= mem_set
-            mem_history.append(new_mem_set)
-            # remove points that are now too old
-            mem_set -= mem_history.pop(0)
-            # add the new points
-            mem_set |= new_mem_set
-            # add the memory particles to what will be the next source
-            # set
-            tmp_set |= mem_set
-            # add memory points to prev_hash (to be used as the next source)
-            for m in mem_set:
-                # add points to the hash
-                prev_hash.add_point(m)
-                # re-create the forward_cands list
-                m.forward_cands = []
+        # FIXME: Temporary
+        assert len(cur_set) == 0
+        assert set(dpl) - set([None]) == dest_set - set([None])
+        assert set(spl) - set([None]) == source_set - set([None])
 
-        prev_set = tmp_set
-
-        yield cur_level
+        return spl, dpl
 
 
 def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
@@ -991,7 +1059,7 @@ class SubnetOversizeException(Exception):
 
 def recursive_linker_obj(s_sn, dest_size, search_range):
     snl = sub_net_linker(s_sn, dest_size, search_range)
-    return zip(*snl.best_pairs)
+    return map(list, zip(*snl.best_pairs))
 
 
 class SubnetLinker(object):
