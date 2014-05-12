@@ -848,7 +848,7 @@ def link_iter(levels, search_range, memory=0,
             p.forward_cands.sort(key=lambda x: x[1])
 
         new_mem_set = set()
-        # while there are particles left to link, linkge the repo
+        # while there are particles left to link, link
         while len(cur_set) > 0:
             p = cur_set.pop()
             bc_c = len(p.back_cands)
@@ -863,7 +863,7 @@ def link_iter(levels, search_range, memory=0,
             if bc_c == 1:
                 # one backwards candidate
                 b_c_p = p.back_cands[0]
-                # and only one forward candidatege the repo
+                # and only one forward candidate
                 b_c_p_0 = b_c_p[0]
                 if len(b_c_p_0.forward_cands) == 1:
                     # add to the track of the candidate
