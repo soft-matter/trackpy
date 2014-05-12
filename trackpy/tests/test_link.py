@@ -521,6 +521,26 @@ class TestOnce(unittest.TestCase):
         tp.link_df_iter(f, 5, t_column=name, verify_integrity=True)
 
 
+class NumbaOnlyTests(CommonTrackingTests):
+    """Tests that are unbearably slow without a fast subnet linker."""
+    def test_adaptive_range(self):
+        cg = contracting_grid()
+        tracks = self.link_df(cg, 1, adaptive_step=0.8)
+        # Transform back to origin
+        tracks.x -= 100
+        tracks.y -= 100
+        assert len(cg) == len(tracks)
+        tr0 = tracks[tracks.frame == 0].set_index('particle')
+        tr1 = tracks[tracks.frame == 1].set_index('particle')
+        only0 = list(set(tr0.index) - set(tr1.index))
+        only1 = list(set(tr1.index) - set(tr0.index))
+        # From the first frame, the outermost particles should have been lost.
+        assert all((tr0.x.ix[only0].abs() > 9.5) | (tr0.y.ix[only0].abs() > 9.5))
+        # There should be new tracks in the second frame, corresponding to the
+        # middle radii.
+        assert all((tr1.x.ix[only1].abs() == 4.5) | (tr1.y.ix[only1].abs() == 4.5))
+
+
 class TestBTreeWithRecursiveLink(CommonTrackingTests, unittest.TestCase):
     def setUp(self):
         self.linker_opts = dict(link_strategy='recursive',
@@ -541,13 +561,13 @@ class TestKDTreeWithNonrecursiveLink(CommonTrackingTests, unittest.TestCase):
         self.linker_opts = dict(link_strategy='nonrecursive',
                                 neighbor_strategy='KDTree')
 
-class TestKDTreeWithNumbaLink(CommonTrackingTests, unittest.TestCase):
+class TestKDTreeWithNumbaLink(NumbaOnlyTests, unittest.TestCase):
     def setUp(self):
         _skip_if_no_numba()
         self.linker_opts = dict(link_strategy='numba',
                                 neighbor_strategy='KDTree')
 
-class TestBTreeWithNumbaLink(CommonTrackingTests, unittest.TestCase):
+class TestBTreeWithNumbaLink(NumbaOnlyTests, unittest.TestCase):
     def setUp(self):
         _skip_if_no_numba()
         self.linker_opts = dict(link_strategy='numba',

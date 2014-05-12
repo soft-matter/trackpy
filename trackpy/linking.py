@@ -448,7 +448,8 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
 def link_df(features, search_range, memory=0,
             neighbor_strategy='KDTree', link_strategy='auto',
             predictor=None, hash_size=None, box_size=None,
-            pos_columns=None, t_column=None, verify_integrity=False,
+            adaptive_step=None, adaptive_limit=5,
+            pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
     """Link features into trajectories, assigning a label to each trajectory.
 
@@ -474,6 +475,12 @@ def link_df(features, search_range, memory=0,
         the next frame.
 
         For examples of how this works, see the "predict" module.
+    adaptive_step : float (optional)
+        If a subnet is too large, retry with a search_range reduced by this factor
+        (e.g. 0.9). If None, adaptive search is disabled.
+    adaptive_limit : integer
+        Maximum number of times to apply adaptive_step before giving up and
+        raising a SubnetOversizeException.
 
     Returns
     -------
@@ -519,6 +526,7 @@ def link_df(features, search_range, memory=0,
               in features.groupby(t_column))
     labeled_levels = link_iter(
         levels, search_range, memory=memory, predictor=predictor,
+        adaptive_step=adaptive_step, adaptive_limit=adaptive_limit,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
         hash_size=hash_size, box_size=box_size)
 
@@ -553,11 +561,12 @@ def link_df(features, search_range, memory=0,
 
 
 def link_df_iter(features, search_range, memory=0,
-                 neighbor_strategy='KDTree', link_strategy='auto',
-                 hash_size=None, box_size=None, predictor=None,
-                 pos_columns=None, t_column=None, verify_integrity=True,
-                 retain_index=False):
-    """Link features into trajectories link_df, but return results iteratively.
+            neighbor_strategy='KDTree', link_strategy='auto',
+            hash_size=None, box_size=None, predictor=None,
+            adaptive_step=None, adaptive_limit=5,
+            pos_columns=None, t_column=None, verify_integrity=True,
+            retain_index=False):
+    """Link features into trajectories, assigning a label to each trajectory.
 
     Parameters
     ----------
@@ -582,6 +591,12 @@ def link_df_iter(features, search_range, memory=0,
         next frame.
 
         For examples of how this works, see the "predict" module.
+    adaptive_step : float (optional)
+        If a subnet is too large, retry with a search_range reduced by this factor
+        (e.g. 0.9). If None, adaptive search is disabled.
+    adaptive_limit : integer
+        Maximum number of times to apply adaptive_step before giving up and
+        raising a SubnetOversizeException.
 
     Returns
     -------
@@ -631,6 +646,7 @@ def link_df_iter(features, search_range, memory=0,
     # make a generator of the levels post-linking
     labeled_levels = link_iter(
         levels, search_range, memory=memory, predictor=predictor,
+        adaptive_step=adaptive_step, adaptive_limit=adaptive_limit,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
         hash_size=hash_size, box_size=box_size)
 
@@ -695,6 +711,7 @@ def _verify_integrity(frame_no, labels):
 def link_iter(levels, search_range, memory=0,
               neighbor_strategy='KDTree', link_strategy='auto',
               hash_size=None, box_size=None, predictor=None,
+              adaptive_step=None, adaptive_limit=5,
               track_cls=None, hash_generator=None):
     """Link features into trajectories, assigning a label to each trajectory.
 
@@ -720,6 +737,12 @@ def link_iter(levels, search_range, memory=0,
         Improve performance by guessing where a particle will be in the
         next frame.
         For examples of how this works, see the "predict" module.
+    adaptive_step : float (optional)
+        If a subnet is too large, retry with a search_range reduced by this factor
+        (e.g. 0.9). If None, adaptive search is disabled.
+    adaptive_limit : integer
+        Maximum number of times to apply adaptive_step before giving up and
+        raising a SubnetOversizeException.
 
     Returns
     -------
@@ -744,8 +767,9 @@ def link_iter(levels, search_range, memory=0,
     """
     linker = Linker(search_range, memory=memory, neighbor_strategy=neighbor_strategy,
                  link_strategy=link_strategy, hash_size=hash_size,
-                 box_size=box_size, predictor=predictor, track_cls=track_cls,
-                 hash_generator=hash_generator)
+                 box_size=box_size, predictor=predictor,
+                 adaptive_step=adaptive_step, adaptive_limit=adaptive_limit,
+                 track_cls=track_cls, hash_generator=hash_generator)
     return linker.link(levels)
 
 class Linker(object):
@@ -753,10 +777,13 @@ class Linker(object):
     def __init__(self, search_range, memory=0,
               neighbor_strategy='KDTree', link_strategy='auto',
               hash_size=None, box_size=None, predictor=None,
+              adaptive_step=None, adaptive_limit=5,
               track_cls=None, hash_generator=None):
         self.search_range = search_range
         self.memory = memory
         self.predictor = predictor
+        self.adaptive_step = adaptive_step
+        self.adaptive_limit = adaptive_limit
         self.track_cls = track_cls
         self.hash_generator = hash_generator
         self.neighbor_strategy = neighbor_strategy
@@ -859,23 +886,12 @@ class Linker(object):
                               self.neighbor_strategy)
 
             # sort the candidate lists by distance
-            # TODO: This is redundant for KDTree
             for p in cur_set:
                 p.back_cands.sort(key=lambda x: x[1])
             for p in prev_set:
                 p.forward_cands.sort(key=lambda x: x[1])
 
             spl, dpl = self.assign_links(cur_set, prev_set, self.search_range)
-
-            # Identify the particles in the destination set that
-            # were not linked to.
-            #d_remain = set(d for d in cur_set if d is not None)  # TODO DAN
-            #d_remain -= set(d for d in dpl if d is not None)
-            #for dp in d_remain:
-            #    # if unclaimed destination particle, a track is born!
-            #    self.track_lst.append(self.track_cls(dp))
-            #    # clean up
-            #    del dp.back_cands
 
             new_mem_set = set()
             for sp, dp in zip(spl, dpl):
@@ -890,8 +906,6 @@ class Linker(object):
                     # add the unmatched source particles to the new
                     # memory set
                     new_mem_set.add(sp)
-                else:  # FIXME: Temporary
-                    raise AssertionError()
 
                 # Clean up
                 if dp is not None:
@@ -901,16 +915,6 @@ class Linker(object):
                         del sp.forward_cands
                     except AttributeError:
                         pass
-
-            # FIXME: Here's where we need to have been updating prev_set all along
-            # FIXME: A clearer strategy is to have assign_links() return *all* particles
-            # in dpl, spl, then make sets of linkable and unlinkable particles.
-            # Then we will not have to handle remainders.
-
-            # Remember the source particles left unlinked that were not in
-            # a subnetwork.
-            #for sp in prev_set:
-                #new_mem_set.add(sp)
 
             # set prev_hash to cur hash
             prev_hash = cur_hash
@@ -939,7 +943,8 @@ class Linker(object):
 
             yield cur_level
 
-    def assign_links(self, dest_set, source_set, search_range):
+    def assign_links(self, dest_set, source_set, search_range,
+                     recursion_counter=0):
         """Match particles in dest_set with source_set.
 
         Returns source, dest lists of equal length, corresponding
@@ -972,7 +977,7 @@ class Linker(object):
                     # schedule these particles for linking
                     dpl.append(p)
                     spl.append(b_c_p_0)
-                    prev_set.discard(b_c_p_0)  # FIXME: Necessary?
+                    prev_set.discard(b_c_p_0)
                     continue  # do next cur_set particle
             # we need to generate the sub networks
             done_flg = False
@@ -986,7 +991,7 @@ class Linker(object):
                 for dp in d_sn:
                     for c_sp in dp.back_cands:
                         s_sn.add(c_sp[0])
-                        prev_set.discard(c_sp[0])  # FIXME: Necessary?
+                        prev_set.discard(c_sp[0])
                 for sp in s_sn:
                     for c_dp in sp.forward_cands:
                         d_sn.add(c_dp[0])
@@ -997,17 +1002,28 @@ class Linker(object):
             for _s in s_sn:
                 _s.forward_cands.append((None, search_range))
 
-            # TODO: "try" clause goes here. If oversize: use a smaller search_range
-            # to prune the candidate lists of s_sn, d_sn; then recurse.
-            sn_spl, sn_dpl = self.subnet_linker(s_sn, len(d_sn), search_range)
+            try:
+                sn_spl, sn_dpl = self.subnet_linker(s_sn, len(d_sn), search_range)
 
-            for dp in d_sn - set(sn_dpl):
-                # Unclaimed destination particle in subnet
-                sn_spl.append(None)
-                sn_dpl.append(dp)
+                for dp in d_sn - set(sn_dpl):
+                    # Unclaimed destination particle in subnet
+                    sn_spl.append(None)
+                    sn_dpl.append(dp)
+            except SubnetOversizeException:
+                if self.adaptive_step is None or recursion_counter >= self.adaptive_limit:
+                    raise
+                # Reduce search_range
+                new_range = search_range * self.adaptive_step
+                # Prune the candidate lists of s_sn, d_sn; then recurse.
+                pruner = lambda p: p[1] <= new_range
+                for sp in s_sn:
+                    sp.forward_cands = filter(pruner, sp.forward_cands)
+                for dp in d_sn:
+                    dp.back_cands = filter(pruner, dp.back_cands)
 
-            assert set(sn_spl) - set([None]) == s_sn
-            assert set(sn_dpl) - set([None]) == d_sn
+                sn_spl, sn_dpl = self.assign_links(
+                    d_sn, s_sn, new_range,
+                    recursion_counter=recursion_counter + 1)
 
             spl.extend(sn_spl)
             dpl.extend(sn_dpl)
@@ -1016,11 +1032,6 @@ class Linker(object):
         for pp in prev_set:
             spl.append(pp)
             dpl.append(None)
-
-        # FIXME: Temporary
-        assert len(cur_set) == 0
-        assert set(dpl) - set([None]) == dest_set - set([None])
-        assert set(spl) - set([None]) == source_set - set([None])
 
         return spl, dpl
 
@@ -1065,7 +1076,7 @@ def recursive_linker_obj(s_sn, dest_size, search_range):
 class SubnetLinker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
-    MAX_SUB_NET_SIZE = 50
+    MAX_SUB_NET_SIZE = 30
 
     def __init__(self, s_sn, dest_size, search_range):
         #        print 'made sub linker'
@@ -1266,8 +1277,8 @@ def numba_link(s_sn, dest_size, search_radius):
         raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (exceeded max iterations for subnet)')
     # Return particle objects. Account for every source particle we were given.
     # 'None' denotes a null link and will be used for the memory feature.
-    return zip(*[(src_net[j], (dcands[i] if i >= 0 else None)) \
-            for j, i in enumerate(best_assignments)])
+    return map(list, zip(*[(src_net[j], (dcands[i] if i >= 0 else None)) \
+            for j, i in enumerate(best_assignments)]))
 
 
 @try_numba_autojit
