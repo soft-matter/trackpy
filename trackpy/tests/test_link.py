@@ -346,15 +346,15 @@ class CommonTrackingTests(object):
         self.link_df(f, 8, 2, verify_integrity=True)
 
     def test_search_range(self):
-        t = link(unit_steps(), 1.1, hash_generator((10, 10), 1))
+        t = self.link(unit_steps(), 1.1, hash_generator((10, 10), 1))
         assert len(t) == 1  # One track
-        t_short = link(unit_steps(), 0.9, hash_generator((10, 10), 1))
+        t_short = self.link(unit_steps(), 0.9, hash_generator((10, 10), 1))
         assert len(t_short) == len(unit_steps())  # Each step is a separate track.
 
-        t = link(random_walk_legacy(), max_disp + 0.1, 
+        t = self.link(random_walk_legacy(), max_disp + 0.1,
                  hash_generator((10, 10), 1))
         assert len(t) == 1  # One track
-        t_short = link(random_walk_legacy(), max_disp - 0.1, 
+        t_short = self.link(random_walk_legacy(), max_disp - 0.1,
                        hash_generator((10, 10), 1))
         assert len(t_short) > 1  # Multiple tracks
 
@@ -368,9 +368,9 @@ class CommonTrackingTests(object):
         gapped = lambda: deepcopy([[a[0], b[0]], [a[1], b[1]], [a[2]],
                                   [a[3], b[3]], [a[4], b[4]]])
         safe_disp = 1 + random_x.max() - random_x.min()  # Definitely large enough
-        t0 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=0)
+        t0 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=0)
         assert len(t0) == 3, len(t0)
-        t2 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=2)
+        t2 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=2)
         assert len(t2) == 2, len(t2)
 
 
@@ -383,7 +383,7 @@ class CommonTrackingTests(object):
         levels.append([PointND(1, [1, 1])])  # one vanishes, but is remembered
         levels.append([PointND(2, [1, 1]), PointND(2, [2, 1])]) # resume Track
         levels.append([PointND(3, [1, 1]), PointND(3, [2, 1]), PointND(3, [4, 1])])
-        t = link(levels, 5, hash_generator((10, 10), 1), memory=2)
+        t = self.link(levels, 5, hash_generator((10, 10), 1), memory=2)
         assert len(t) == 3, len(t)
     
      
@@ -393,9 +393,9 @@ class CommonTrackingTests(object):
         gapped = lambda: deepcopy([[a[0]], [a[1], b[1]], [a[2]],
                                   [a[3]], [a[4], b[4]]])
         safe_disp = 1 + random_x.max() - random_x.min()  # large enough
-        t0 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=1)
+        t0 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=1)
         assert len(t0) == 3, len(t0)
-        t2 = link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=4)
+        t2 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=4)
         assert len(t2) == 2, len(t2)
     
     
@@ -403,8 +403,8 @@ class CommonTrackingTests(object):
         """No matter what the box size, there should be one track, and it should
         contain all the points."""
         for box_size in [0.1, 1, 10]:
-            t1 = link(unit_steps(), 1.1, hash_generator((10, 10), box_size))
-            t2 = link(random_walk_legacy(), max_disp + 1,
+            t1 = self.link(unit_steps(), 1.1, hash_generator((10, 10), box_size))
+            t2 = self.link(random_walk_legacy(), max_disp + 1,
                       hash_generator((10, 10), box_size))
             assert len(t1) == 1
             assert len(t2) == 1
@@ -424,7 +424,7 @@ class CommonTrackingTests(object):
 
         hash_generator = lambda: Hash_table((level_count + 1,
                                             p_count * 2 + 1), .5)
-        tracks = link(levels, 1.5, hash_generator)
+        tracks = self.link(levels, 1.5, hash_generator)
     
         assert len(tracks) == p_count
     
@@ -452,7 +452,7 @@ class CommonTrackingTests(object):
         hash_generator = lambda: Hash_table((level_count + 1,
                                             p_count*2 + level_count*shift + 1),
                                             .5)
-        tracks = link(levels, 8, hash_generator)
+        tracks = self.link(levels, 8, hash_generator)
     
         assert len(tracks) == p_count, len(tracks)
 
