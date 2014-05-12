@@ -1136,6 +1136,9 @@ def nonrecursive_link(source_list, dest_size, search_range):
     source_list.sort(key=lambda x: len(x.forward_cands))
     MAX = len(source_list)
 
+    if MAX > sub_net_linker.MAX_SUB_NET_SIZE:
+        raise SubnetOversizeException("Subnetwork contains %d points" % MAX)
+
     max_links = min(MAX, dest_size)
     k_stack = deque([0])
     j = 0

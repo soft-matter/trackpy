@@ -46,6 +46,26 @@ def _skip_if_no_numba():
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
+def contracting_grid():
+    """Two frames with a grid of 441 points.
+
+    In the second frame, the points contract, so that the outermost set
+    coincides with the second-outermost set in the previous frame.
+
+    This is a way to challenge (and/or stump) a subnet solver.
+    """
+    pts0x, pts0y = np.mgrid[-10:11,-10:11]
+    pts0 = pd.DataFrame(dict(x=pts0x.flatten(), y=pts0y.flatten(),
+                             frame=0))
+    pts1 = pts0.copy()
+    pts1.frame = 1
+    pts1.x = pts1.x * 0.9
+    pts1.y = pts1.y * 0.9
+    allpts = pd.concat([pts0, pts1], ignore_index=True)
+    allpts.x += 100  # Because BTree doesn't allow negative coordinates
+    allpts.y += 100
+    return allpts
+
 class CommonTrackingTests(object):
 
     def test_one_trivial_stepper(self):
@@ -455,6 +475,15 @@ class CommonTrackingTests(object):
         tracks = self.link(levels, 8, hash_generator)
     
         assert len(tracks) == p_count, len(tracks)
+
+    @nose.tools.raises(tp.SubnetOversizeException)
+    def test_oversize_fail(self):
+        self.link_df(contracting_grid(), 1)
+
+    @nose.tools.raises(tp.SubnetOversizeException)
+    def test_adaptive_fail(self):
+        """Check recursion limit"""
+        self.link_df(contracting_grid(), 1, adaptive_step=0.99)
 
     def link(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
