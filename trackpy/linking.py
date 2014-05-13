@@ -813,6 +813,11 @@ class Linker(object):
         if self.neighbor_strategy not in ['KDTree', 'BTree']:
             raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
 
+        if self.adaptive_step is not None and (1*self.adaptive_step <= 0 or \
+                1*self.adaptive_step >= 1):
+            raise ValueError("adaptive_step must be None, or between 0 and 1 "
+                             "non-inclusive.")
+
     def link(self, levels):
         level_iter = iter(levels)
         prev_level = next(level_iter)
@@ -891,6 +896,7 @@ class Linker(object):
             for p in prev_set:
                 p.forward_cands.sort(key=lambda x: x[1])
 
+            # Note that this modifies cur_set, prev_set, but that's OK.
             spl, dpl = self.assign_links(cur_set, prev_set, self.search_range)
 
             new_mem_set = set()
@@ -955,19 +961,17 @@ class Linker(object):
         All actions are taken within link(), based on the recommendations
         of assign_links().
         """
-        prev_set = source_set.copy()
-        cur_set = dest_set.copy()
         spl, dpl = [], []
         # while there are particles left to link, link
-        while len(cur_set) > 0:
-            p = cur_set.pop()
+        while len(dest_set) > 0:
+            p = dest_set.pop()
             bc_c = len(p.back_cands)
             # no backwards candidates
             if bc_c == 0:
                 # particle will get a new track
                 dpl.append(p)
                 spl.append(None)
-                continue  # do next cur_set particle
+                continue  # do next dest_set particle
             if bc_c == 1:
                 # one backwards candidate
                 b_c_p = p.back_cands[0]
@@ -977,8 +981,8 @@ class Linker(object):
                     # schedule these particles for linking
                     dpl.append(p)
                     spl.append(b_c_p_0)
-                    prev_set.discard(b_c_p_0)
-                    continue  # do next cur_set particle
+                    source_set.discard(b_c_p_0)
+                    continue  # do next dest_set particle
             # we need to generate the sub networks
             done_flg = False
             s_sn = set()                  # source sub net
@@ -991,11 +995,11 @@ class Linker(object):
                 for dp in d_sn:
                     for c_sp in dp.back_cands:
                         s_sn.add(c_sp[0])
-                        prev_set.discard(c_sp[0])
+                        source_set.discard(c_sp[0])
                 for sp in s_sn:
                     for c_dp in sp.forward_cands:
                         d_sn.add(c_dp[0])
-                        cur_set.discard(c_dp[0])
+                        dest_set.discard(c_dp[0])
                 done_flg = (len(d_sn) == d_sn_sz) and (len(s_sn) == s_sn_sz)
 
             # add in penalty for not linking
@@ -1029,7 +1033,7 @@ class Linker(object):
             dpl.extend(sn_dpl)
 
         # Leftovers
-        for pp in prev_set:
+        for pp in source_set:
             spl.append(pp)
             dpl.append(None)
 
