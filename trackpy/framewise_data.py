@@ -57,6 +57,11 @@ class FramewiseData(object):
         for frame_no in self.frames:
             yield self.get(frame_no)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
 
 KEY_PREFIX = 'Frame_'
 len_key_prefix = len(KEY_PREFIX)
@@ -74,12 +79,16 @@ def decode_key(key):
 
 
 class PandasHDFStore(FramewiseData):
-    "Save each frame's data to a node in a pandas HDFStore."
+    """Save each frame's data to a node in a pandas HDFStore.
 
-    def __init__(self, filename, mode='a', t_column='frame'):
+    Any additional keyword arguments to the constructor are passed to
+    pandas.HDFStore().
+    """
+
+    def __init__(self, filename, mode='a', t_column='frame', **kwargs):
         self.filename = os.path.abspath(filename)
         self._t_column = t_column
-        self.store = pd.HDFStore(self.filename, mode)
+        self.store = pd.HDFStore(self.filename, mode, **kwargs)
 
     @property
     def t_column(self):
@@ -90,7 +99,7 @@ class PandasHDFStore(FramewiseData):
         return max(self.frames)
 
     def put(self, df):
-        frame_no = df[self.t_column].iat[0]  # validated to be all the same
+        frame_no = df[self.t_column].values[0]  # validated to be all the same
         key = code_key(frame_no)
         self.store.put(key, df, data_columns=True)
 
@@ -101,6 +110,10 @@ class PandasHDFStore(FramewiseData):
 
     @property
     def frames(self):
+        """Returns sorted list of integer frame numbers in file"""
+        return self._get_frame_nos()
+
+    def _get_frame_nos(self):
         """Returns sorted list of integer frame numbers in file"""
         # Pandas' store.keys() scans the entire file looking for stored Pandas
         # structures. This is very slow for large numbers of frames.
@@ -114,8 +127,70 @@ class PandasHDFStore(FramewiseData):
     def close(self):
         self.store.close()
 
-    def __del__(self):
-        self.close()
+class PandasHDFStoreBig(PandasHDFStore):
+    """Like PandasHDFStore, but keeps a cache of frame numbers.
+
+    This can give a large performance boost when a file contains thousands
+    of frames.
+
+    If a file was made in PandasHDFStore, opening it with this class
+    and then closing it will add a cache (if mode != 'r').
+
+    Any additional keyword arguments to the constructor are passed to
+    pandas.HDFStore().
+    """
+
+    def __init__(self, filename, mode='a', t_column='frame', **kwargs):
+        self._CACHE_NAME = '_Frames_Cache'
+        self._frames_cache = None
+        self._cache_dirty = False  # Whether _frames_cache needs to be written out
+        super(PandasHDFStoreBig, self).__init__(filename, mode, t_column,
+                                                **kwargs)
+
+    @property
+    def frames(self):
+        # Hit memory cache, then disk cache
+        if self._frames_cache is not None:
+            return self._frames_cache
+        else:
+            try:
+                self._frames_cache = list(self.store[self._CACHE_NAME].index.values)
+                self._cache_dirty = False
+            except KeyError:
+                self._frames_cache = self._get_frame_nos()
+                self._cache_dirty = True # In memory, but not in file
+            return self._frames_cache
+
+    def put(self, df):
+        self._invalidate_cache()
+        super(PandasHDFStoreBig, self).put(df)
+
+    def rebuild_cache(self):
+        """Delete cache on disk and rebuild it."""
+        self._invalidate_cache()
+        _ = self.frames # Compute cache
+        self._flush_cache()
+
+    def _invalidate_cache(self):
+        self._frames_cache = None
+        try:
+            del self.store[self._CACHE_NAME]
+        except KeyError: pass
+
+    def _flush_cache(self):
+        """Writes frame cache if dirty and file is writable."""
+        if self._frames_cache is not None and self._cache_dirty \
+                and self.store.root._v_file._iswritable():
+            self.store[self._CACHE_NAME] = pd.DataFrame({'dummy': 1},
+                                                        index=self._frames_cache)
+            self._cache_dirty = False
+
+    def close(self):
+        """Updates cache, writes if necessary, then closes file."""
+        if self.store.root._v_file._iswritable():
+            _ = self.frames # Compute cache
+            self._flush_cache()
+        super(PandasHDFStoreBig, self).close()
 
 
 class PandasHDFStoreSingleNode(FramewiseData):
@@ -123,14 +198,18 @@ class PandasHDFStoreSingleNode(FramewiseData):
 
     This implementation is more complex than PandasHDFStore,
     but it simplifies (speeds up?) cross-frame queries,
-    like queries for a single probe's entire trajectory."""
+    like queries for a single probe's entire trajectory.
 
-    def __init__(self, filename, key, mode='a', t_column='frame',
-                 use_tabular_copy=False):
+    Any additional keyword arguments to the constructor are passed to
+    pandas.HDFStore().
+    """
+
+    def __init__(self, filename, key='FrameData', mode='a', t_column='frame',
+                 use_tabular_copy=False, **kwargs):
         self.filename = os.path.abspath(filename)
         self.key = key
         self._t_column = t_column
-        self.store = pd.HDFStore(self.filename, mode)
+        self.store = pd.HDFStore(self.filename, mode, **kwargs)
 
         with pd.get_store(self.filename) as store:
             try:
@@ -159,7 +238,8 @@ class PandasHDFStoreSingleNode(FramewiseData):
         self.store.close()
 
     def __del__(self):
-        self.close()
+        if hasattr(self, 'store'):
+            self.close()
 
     @property
     def frames(self):
