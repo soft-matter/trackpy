@@ -88,7 +88,8 @@ Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type or paste these
 lines:
 
-    conda install numpy=1.7.1 scipy=0.13.0 matplotlib=1.3 pandas=0.13.0 numba=0.12.2 PIL pyyaml
+    conda update conda
+    conda install numpy=1.8 scipy=0.14.0 matplotlib=1.3 pandas=0.13.0 PIL pyyaml numba=0.12.2
     conda install pip
     pip install http://github.com/soft-matter/pims/zipball/master
     pip install http://github.com/soft-matter/trackpy/zipball/master
@@ -150,7 +151,8 @@ Optional Dependencies:
       included with Anaconda and Canopy. Installing it any other way is difficult;
       we recommend sticking with one of these. Note that `numba` v0.12.0
       (included with Anaconda 1.9.0) has a bug and will not work at all;
-      if you have this version, you should update Anaconda.
+      if you have this version, you should update Anaconda. We support numba 
+      versions 0.11 and 0.12.2.
 
 Pims has its own optional dependencies for reading various formats. You
 can read what you need for each format
@@ -166,23 +168,27 @@ version, run this in the command prompt:
 Verions & Project Roadmap
 -------------------------
 
-A version 0.1 has been tagged and the v0.1.x branch will get bug
-fixes.  This version does not depend on `pandas`.
+The current stable release is Version 0.2. See the 
+[releases page](https://github.com/soft-matter/trackpy/releases) for details.
 
-On the current master branch, which the instructions above would download,
-we have made significant changes:
+The original release is tagged Version 0.1. 
+Although there have been major changes to the code, v0.2 maintains complete
+reverse compatibility with v0.1 and can be used as drop-in replacement.
+We recommend all users upgrade.
 
- - merging most of Dan Allan's `mr` module
- - replacing `identification.py` with superior `feature.py`
- - making `link` iterative
- - merging Nathan Keim's KDTree-based linking, which is 2X faster on
-   typical data 
- - merging Nathan Keim's numba-acceleration, falling back on pure Python
-   if numba is not available
- - providing access to different linking strategies through 
-   keyword arguments (Type ``help(link)`` or ``help(link_df)`` for details.)
- - reworking out-of-core (on-disk) processing of large data sets
-   to suit 
+The `master` branch on github contains the latest tested development code.
+Changes are thoroughly tested before being merged. If you want to use the
+latest features it should be safe to rely on the master branch.
+(The primary contributors do.)
+
+Roadmap:
+
+* expansion of data structures to simplify sharing frame-wise data
+between research groups
+* interactive filtering and visualization tools
+* continued performance improvments and benchmarking for a range of
+use cases (frame size, particle density, etc.)
+* tests that compare results again "battle-tested" Crocker-Grier code
 
 Contributors
 ------------
