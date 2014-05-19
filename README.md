@@ -1,7 +1,7 @@
 trackpy
 =======
 
-[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy)
+[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy) [![doi](https://zenodo.org/badge/3990/soft-matter/trackpy.png)](https://zenodo.org/record/9971)
 
 What is it?
 -----------
@@ -20,6 +20,8 @@ scalability, and complete documentation.
 Several researchers have merged their independent efforts into this code.
 We would like to see others in the community adopt it and potentially
 contribute code to it.
+
+*If you use trackpy in published research, please read the section [Citing Trackpy](#citing-trackpy).*
 
 Features
 --------
@@ -198,6 +200,18 @@ motion characterization and discrimination, plotting tools, tests
 * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
 * **Nathan Keim** alternative trajectory-linking implementations, major
 speed-ups, prediction
+
+Citing Trackpy
+--------------
+
+If you use trackpy for published research, please cite this repository,
+including the primary contributors' names -- Daniel B. Allan, Thomas A. Caswell,
+and Nathan C. Keim -- and `doi:10.5281/zenodo.9971`.
+If your citation style *also* allows for a URL,
+please include `github.com/soft-matter/trackpy` to help other
+researchers discover trackpy. Our
+[DOI record page](https://zenodo.org/record/9971)
+provides more detail and citations in various formats.
 
 Related Projects
 ----------------
