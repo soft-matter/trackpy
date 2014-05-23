@@ -136,8 +136,8 @@ def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None,
 ptraj = plot_traj # convenience alias
 
 @make_axes
-def annotate(centroids, image, circle_size=170, color='g',
-             invert=False, ax=None):
+def annotate(centroids, image, circle_size=170, color=None,
+             invert=False, ax=None, split_category=None, split_thresh=None):
     """Mark identified features with white circles.
 
     Parameters
@@ -146,17 +146,36 @@ def annotate(centroids, image, circle_size=170, color='g',
     image : image array (or string path to image file)
     circle_size : size of circle annotations in matplotlib's annoying
         arbitrary units, default 170
-    color : string
-        default 'g'
+    color : single matplotlib color or a list of multiple colors
+        default None
     invert : If you give a filepath as the image, specify whether to invert
         black and white. Default True.
     ax : matplotlib axes object, defaults to current axes
-
+    split_category : string, parameter to use to split the data into sections
+        default None
+    split_thresh : single value or list of ints or floats threshold to split 
+        particles into sections for plotting in multiple colors
+        default None
+    
     Returns
     ------
     axes
     """
     import matplotlib.pyplot as plt
+    from itertools import tee, izip
+    from collections import Iterable
+
+    # https://docs.python.org/2/library/itertools.html
+    def pairwise(iterable):
+        "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+        a, b = tee(iterable)
+        next(b, None)
+        return izip(a, b)
+
+    if color is None:
+        color = 'g'
+    if not (split_thresh, Iterable):
+        split_thresh = [split_thresh]
 
     # The parameter image can be an image object or a filename.
     if isinstance(image, basestring):
@@ -167,9 +186,29 @@ def annotate(centroids, image, circle_size=170, color='g',
         ax.imshow(image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
     ax.set_xlim(0, image.shape[1])
     ax.set_ylim(0, image.shape[0])
-    ax.scatter(centroids['x'], centroids['y'],
-               s=circle_size, facecolors='none', edgecolors=color)
+
+    if split_category is None:
+        if np.size(color) > 1:
+            raise ValueError("multiple colors specified, no split category specified")
+        ax.scatter(centroids['x'], centroids['y'],
+                   s=circle_size, facecolors='none', edgecolors=color)
+    else:
+        if len(color) != len(split_thresh) + 1:
+            raise ValueError("number of colors must be number of thresholds plus 1")
+        low = centroids[split_category] < split_thresh[0]
+        ax.scatter(centroids['x'][low], centroids['y'][low], 
+                   s=circle_size, facecolors='none', edgecolors=color[0])
+
+        for c, (bot, top) in izip(color[1:-1], pairwise(split_thresh)):
+            indx = ((centroids[split_category]) >= bot) & ((centroids[split_category]) < top)
+            ax.scatter(centroids['x'][indx], centroids['y'][indx], 
+                       s=circle_size, facecolors='none', edgecolors=c)
+
+        high = centroids[split_category] >= split_thresh[-1]
+        ax.scatter(centroids['x'][high], centroids['y'][high], 
+                   s=circle_size, facecolors='none', edgecolors=color[-1])
     return ax
+
 
 @make_axes
 def mass_ecc(f, ax=None):
