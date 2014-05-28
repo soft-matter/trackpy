@@ -193,7 +193,7 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None,
         **kwargs):
     data = data.dropna()
     x, y = data.index.values.astype('float64'), data.values
-    datalines = plt.plot(x, y, 'o', label=data.name)
+    datalines = plt.plot(x, y, 'o', label=data.name, **kwargs)
     ax = datalines[0].get_axes()
     if logx:
         ax.set_xscale('log')
@@ -249,7 +249,27 @@ def examine_jumps(data, jumps):
     fig2.show()
 
 @make_axes
-def plot_displacements(t, frame1, frame2, ax=None, **kwargs):
+def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
+    """Plot arrows showing particles displacements between two frames.
+
+    Parameters
+    ----------
+    t : DataFrame
+        trajectories, including columns 'frame' and 'particle'
+    frame1 : integer
+        frame number
+    frame2: integer
+        frame number
+    scale : float
+        scale factor, if 1 (default) then arrow end is placed at particle
+        destination; if any other number arrows are rescaled
+
+    Other Parameters
+    ----------------
+    ax : matplotlib axes (optional)
+
+    Any other keyword arguments will pass through to matplotlib's `annotate`.
+    """
     a = t[t.frame == frame1]
     b = t[t.frame == frame2]
     j= a.set_index('particle')[['x', 'y']].join(
@@ -257,8 +277,20 @@ def plot_displacements(t, frame1, frame2, ax=None, **kwargs):
     j['dx'] = j.x_b - j.x
     j['dy'] = j.y_b - j.y
     arrow_specs = j[['x', 'y', 'dx', 'dy']].dropna()
+
+    # Arrow defaults
+    default_arrow_props = dict(arrowstyle='->', connectionstyle='arc3',
+                               linewidth=2)
+    kwargs['arrowprops'] = kwargs.get('arrowprops', default_arrow_props)
     for _, row in arrow_specs.iterrows():
-        ax.arrow(*list(row), head_width=4, **kwargs)
+        xy = row[['x', 'y']]  # arrow start
+        xytext = xy.values + scale*row[['dx', 'dy']].values  # arrow end
+        # Use ax.annotate instead of ax.arrow because it is allows more
+        # control over arrow style.
+        ax.annotate("",
+                    xy=xy, xycoords='data',
+                    xytext=xytext, textcoords='data',
+                    **kwargs)
     ax.set_xlim(arrow_specs.x.min(), arrow_specs.x.max())
     ax.set_ylim(arrow_specs.y.min(), arrow_specs.y.max())
     return ax
