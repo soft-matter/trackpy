@@ -102,9 +102,23 @@ class VelocityPredictTests(object):
         ends = tr.groupby('particle').frame.max()
         assert all(ends - starts == 1.45), 'Prediction with memory fails.'
 
+    def test_predict_diagnostics(self):
+        """Minimally test predictor instrumentation."""
+        pred = self.instrumented_predict_class()
+        Nside = Nside_oversize
+        ll = get_linked_lengths((self.mkframe(0, Nside), self.mkframe(0.25, Nside),
+                                 self.mkframe(0.75, Nside)),
+                                pred.link_df_iter, 0.45)
+        assert all(ll.values == 3)
+        diags = pred.dump()
+        assert len(diags) == 2
+
+
 class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
         self.predict_class = predict.NearestVelocityPredict
+        self.instrumented_predict_class = \
+            predict.instrumented()(self.predict_class)
         self.mkframe = mkframe
     def test_initial_guess(self):
         """When an accurate initial velocity is given, velocities
@@ -120,6 +134,8 @@ class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
 class DriftPredictTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
         self.predict_class = predict.DriftPredict
+        self.instrumented_predict_class = \
+            predict.instrumented()(self.predict_class)
         self.mkframe = mkframe
     def test_initial_guess(self):
         """When an accurate initial velocity is given, velocities
@@ -135,6 +151,8 @@ class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
         self.predict_class = functools.partial(
             predict.ChannelPredict,  3, minsamples=3)
+        self.instrumented_predict_class = functools.partial(
+            predict.instrumented()(predict.ChannelPredict), 3, minsamples=3)
         self.mkframe = self._channel_frame
     def _channel_frame(self, n=1, Nside=3):
         xg, yg = np.mgrid[:Nside,:Nside]
@@ -152,19 +170,23 @@ class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
                 dict(x=(xg + dx).flatten(), y=yg.flatten(), frame=t))
         inity = np.arange(4)
         initprof = np.vstack((inity, inity*0.45)).T
-        pred = self.predict_class(
-            initial_profile_guess=initprof)
+        # We need a weird bin size (1.1) to avoid bin boundaries coinciding
+        # with particle positions.
+        pred = predict.ChannelPredict(1.1, minsamples=3,
+                                      initial_profile_guess=initprof)
         print _shear_frame(1.)
         ll = get_linked_lengths((_shear_frame(0), _shear_frame(1.),
-                                 _shear_frame(2.)),
+                                 _shear_frame(2), _shear_frame(3)),
                         pred.link_df_iter, 0.45)
-        assert all(ll.values == 3)
+        assert all(ll.values == 4)
 
 class ChannelPredictYTests(VelocityPredictTests, unittest.TestCase):
     def setUp(self):
-        def predict_factory():
-            return predict.ChannelPredict(3, 'y', minsamples=3)
-        self.predict_class = predict_factory
+        self.predict_class = functools.partial(
+            predict.ChannelPredict, 3, 'y', minsamples=3)
+        self.instrumented_predict_class = functools.partial(
+            predict.instrumented()(predict.ChannelPredict),
+            3, 'y', minsamples=3)
         self.mkframe = self._channel_frame
     def _channel_frame(self, n=1, Nside=3):
         xg, yg = np.mgrid[:Nside,:Nside]
