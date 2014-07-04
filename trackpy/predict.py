@@ -78,12 +78,12 @@ class _RecentVelocityPredict(NullPredict):
             self.recent_frames.append(pframe)
             dt = 1. # Avoid dividing by zero
         else: # Not the first frame
-            dt = self.recent_frames[-1][self.t_column].values[0] - \
-                 self.recent_frames[0][self.t_column].values[0]
+            dt = (self.recent_frames[-1][self.t_column].values[0] -
+                 self.recent_frames[0][self.t_column].values[0])
 
         # Compute velocity field
         disps = self.recent_frames[-1][self.pos_columns].join(
-            self.recent_frames[-1][self.pos_columns] - \
+            self.recent_frames[-1][self.pos_columns] -
                 self.recent_frames[0][self.pos_columns], rsuffix='_disp_').dropna()
         positions = disps[self.pos_columns]
         vels = disps[[cn + '_disp_' for cn in self.pos_columns]] / dt
@@ -139,8 +139,8 @@ class NearestVelocityPredict(_RecentVelocityPredict):
         poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
         positions = np.array(poslist)
         times = np.array(tlist)
-        return positions + self.interpolator(positions) * \
-               np.tile(t1 - times, (positions.shape[1], 1)).T
+        return (positions + self.interpolator(positions) *
+               np.tile(t1 - times, (positions.shape[1], 1)).T)
 
 class DriftPredict(_RecentVelocityPredict):
     """Predict a particle's position based on the mean velocity of all particles.
@@ -167,8 +167,8 @@ class DriftPredict(_RecentVelocityPredict):
         poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
         positions = np.array(poslist)
         times = np.array(tlist)
-        return positions + self.vel * \
-               np.tile(t1 - times, (positions.shape[1], 1)).T
+        return (positions + self.vel *
+               np.tile(t1 - times, (positions.shape[1], 1)).T)
 
 class ChannelPredict(_RecentVelocityPredict):
     """Predict a particle's position based on its spanwise coordinate in a channel.
@@ -212,7 +212,7 @@ class ChannelPredict(_RecentVelocityPredict):
         if len(self.pos_columns) != 2:
             raise ValueError('Implemented for 2 dimensions only')
         if self.flow_axis not in self.pos_columns:
-            raise ValueError('pos_columns (%r) does not include the specified flow_axis (%s)!' % \
+            raise ValueError('pos_columns (%r) does not include the specified flow_axis (%s)!' %
                              (self.pos_columns, self.flow_axis))
         poscols = self.pos_columns[:]
         flow_axis_position = poscols.index(self.flow_axis)
@@ -228,8 +228,8 @@ class ChannelPredict(_RecentVelocityPredict):
             self.initial_profile_guess = None  # Don't reuse
         else:
             # Bin centers
-            vels['bin'] = positions[span_axis] - positions[span_axis] \
-                                                 % self.bin_size + self.bin_size / 2.
+            vels['bin'] = (positions[span_axis] - positions[span_axis]
+                                                 % self.bin_size + self.bin_size / 2.)
             grpvels = vels.groupby('bin')[self.flow_axis]
             # Only use bins that have enough samples
             profcount = grpvels.count()
@@ -252,7 +252,7 @@ class ChannelPredict(_RecentVelocityPredict):
                 self.interpolator = lambda x: prof_interp(x[:,0])
         else:
             # Not enough samples in any bin
-            warn('Could not generate velocity field for prediction: ' + \
+            warn('Could not generate velocity field for prediction: '
                  'not enough tracks or bin_size too small')
             nullvel = np.zeros((len(self.pos_columns),))
             def null_interpolator(x):
@@ -269,8 +269,8 @@ class ChannelPredict(_RecentVelocityPredict):
         poslist, tlist = zip(*[(p.pos, p.t) for p in particles])
         positions = np.array(poslist)
         times = np.array(tlist)
-        return positions + self.interpolator(positions) * \
-               np.tile(t1 - times, (positions.shape[1], 1)).T
+        return (positions + self.interpolator(positions) *
+               np.tile(t1 - times, (positions.shape[1], 1)).T)
 
 def instrumented(limit=None):
     """Decorate a predictor class and allow it to record inputs and outputs.
