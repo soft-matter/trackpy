@@ -667,6 +667,22 @@ class CommonFeatureIdentificationTests(object):
                                    engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
+    def test_uncertainty_failure(self):
+        self.check_skip()
+        L = 21
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = np.array([7, 13])
+        cols = ['x', 'y']
+        expected = DataFrame(pos.reshape(1, -1), columns=cols)
+
+        image = 100*np.ones(dims, dtype='uint8')
+        image[:, [0, -1]] = 255
+        draw_gaussian_spot(image, pos[::-1], 4, max_value=150)
+        actual = tp.locate(image, 9, 1, preprocess=False, engine=self.engine)
+        print actual.signal, actual.ep
+        self.assertLess(np.asscalar(actual.signal), 0)
+        assert_equal(np.asscalar(actual.ep), np.nan)
+
 
 class TestFeatureIdentificationWithVanillaNumpy(
     CommonFeatureIdentificationTests, unittest.TestCase):

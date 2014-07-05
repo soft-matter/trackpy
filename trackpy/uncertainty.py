@@ -82,6 +82,8 @@ def static_error(features, noise, diameter, noise_size=1, ndim=2):
     When either radius or noise_size are anisotropic, the returned DataFrame
     contains one column for each dimension.
 
+    Where uncertainty estimation fails, NaN is returned.
+
     Note
     ----
     This is an adjusted version of the process described by Thierry Savin and
@@ -109,6 +111,8 @@ def static_error(features, noise, diameter, noise_size=1, ndim=2):
         assert 'noise' in noise
         temp = features.join(noise, on='frame')
         ep = _static_error(temp['mass'], temp['noise'], radius, noise_size)
+
+    ep = ep.where(ep > 0, np.nan)
 
     if ep.ndim == 1:
         ep.name = 'ep'
