@@ -1,4 +1,3 @@
-
 from __future__ import division
 import warnings
 import numpy as np
@@ -7,7 +6,6 @@ from scipy import ndimage
 from scipy import stats
 from scipy.spatial import cKDTree
 from pandas import DataFrame, Series
-import matplotlib.pyplot as plt  # for walkthrough
 
 from trackpy import uncertainty
 from trackpy.preprocessing import bandpass, scale_to_gamut
@@ -217,6 +215,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         final_coords[feat] = cm_i[..., ::-1]
 
         if walkthrough:
+            import matplotlib.pyplot as plt
             plt.imshow(neighborhood)
 
         # Characterize the neighborhood of our final centroid.
