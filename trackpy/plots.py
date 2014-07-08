@@ -82,7 +82,7 @@ def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None,
     import matplotlib.pyplot as plt
 
     if cmap is None:
-        cmap = mpl.cmap.winter
+        cmap = plt.cm.winter
 
     if (superimpose is not None) and (mpp != 1):
         raise NotImplementedError("When superimposing over an image, you " +
