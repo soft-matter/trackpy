@@ -72,8 +72,18 @@ require(["widgets/js/widget"], function(WidgetManager){
                 that.filter_points();
             };
 
+            var handle_max_size_change = function() {
+                that.filter_points();
+            };
+
+            var handle_min_size_change = function() {
+                that.filter_points();
+            };
+
             this.model.on("change:min_mass", handle_min_mass_change);
             this.model.on("change:max_mass", handle_max_mass_change);
+            this.model.on("change:min_size", handle_min_size_change);
+            this.model.on("change:max_size", handle_max_size_change);
             this.model.on("change:initialized", draw_plot);
             
         },
@@ -82,8 +92,11 @@ require(["widgets/js/widget"], function(WidgetManager){
             var pts = mpld3.get_element(this.model.get('idpts'));
             var min_mass = this.model.get('min_mass');
             var max_mass = this.model.get('max_mass');
+            var min_size= this.model.get('min_size');
+            var max_size = this.model.get('max_size');
             var mass_data = JSON.parse(this.model.get('mass_data'));
-            pts.elements().transition().style('opacity', function(d, i) { return (mass_data[i] > min_mass) & (mass_data[i] < max_mass) ? 1 : 0});
+            var size_data = JSON.parse(this.model.get('size_data'));
+            pts.elements().transition().style('opacity', function(d, i) { return (mass_data[i] > min_mass) & (mass_data[i] < max_mass) & (size_data[i] > min_size) & (size_data[i] < max_size) ? 1 : 0});
         },
         
         update: function() {
@@ -128,16 +141,18 @@ def interactive_filter(f, image, imshow_kws={}, plot_kws={}):
     my_widget.figid = 'fig_' + get_id(fig) + str(int(random.random() * 1E10))
     my_widget.idpts = mpld3.utils.get_id(points[0], 'pts')
     my_widget.mass_data = json.dumps(f['mass'].tolist(), cls=NumpyEncoder)
+    my_widget.size_data = json.dumps(f['size'].tolist(), cls=NumpyEncoder)
 
     display(Javascript(JAVASCRIPT))
     fig.clf()
 
     from IPython.utils.traitlets import link
-    for col in ['mass']:
+    for col in ['mass', 'size']:
         if np.issubdtype(f[col].dtype, np.float):
-            slider_widget = widgets.IntSliderWidget
+            slider_widget = widgets.IntRangeSliderWidget
         elif np.issubdtype(f[col].dtype, np.integer):
-            slider_widget = widgets.FloatSliderWidget
+            slider_widget = widgets.IntRangeSliderWidget
+            # slider_widget = widgets.FloatSliderWidget
             step = 1
         else:
             continue
@@ -145,18 +160,14 @@ def interactive_filter(f, image, imshow_kws={}, plot_kws={}):
             step = 1
         else:
             step = f[col].ptp()/100
-        min_sw = slider_widget(min=f[col].min(), max=f[col].max(),
-                               step=step,
-                               description='minimum {0}'.format(col))
-        max_sw = slider_widget(min=f[col].min(), max=f[col].max(),
-                               step=step,
-                               description='maximum {0}'.format(col))
-        link((my_widget, 'min_{0}'.format(col)), (min_sw, 'value'))
-        link((my_widget, 'max_{0}'.format(col)), (max_sw, 'value'))
-        min_sw.value = f[col].min()
-        max_sw.value = f[col].max()
-        display(min_sw)
-        display(max_sw)
+        sw = slider_widget(min=f[col].min(), max=f[col].max(), step=step,
+                           description=col)
+        link((my_widget, 'min_{0}'.format(col)), (sw, 'lower_value'))
+        link((my_widget, 'max_{0}'.format(col)), (sw, 'upper_value'))
+        # This might be redundant, depending on how sliders are ultimately implemented.
+        sw.lower_value = f[col].min()
+        sw.upper_value = f[col].max()
+        display(sw)
 
     return my_widget
 
@@ -175,8 +186,11 @@ class FigureWidget(widgets.DOMWidget):
     initialized = Unicode('', sync=True)  # used to trigger first drawing after DOM is updated
 
     mass_data = Unicode('', sync=True)
+    size_data = Unicode('', sync=True)
     min_mass = Float(0, sync=True)
     max_mass = Float(0, sync=True)
+    min_size = Float(0, sync=True)
+    max_size = Float(0, sync=True)
     idpts = Unicode('', sync=True)
 
     def display(self):
