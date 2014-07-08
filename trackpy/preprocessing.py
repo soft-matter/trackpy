@@ -1,8 +1,7 @@
-import sys
-import warnings
 import numpy as np
 from scipy.ndimage.filters import uniform_filter
 from scipy.ndimage.fourier import fourier_gaussian
+from .utils import print_update
 
 
 # When loading module, try to use pyFFTW ("Fastest Fourier Transform in the
@@ -21,12 +20,12 @@ else:
     def _maybe_align(a):
         global planned
         if not planned:
-            warnings.warn("FFTW is configuring itself. This will take " +
-                          "several sections, but subsequent calls will run " +
-                          "*much* faster.", UserWarning)
-            sys.stderr.flush()  # Show that warning immediately.
+            print_update("Note: FFTW is configuring itself. This will take " +
+                         "several seconds, but subsequent calls will run " +
+                         "*much* faster.")
             planned = True 
-        return pyfftw.n_byte_align(a, a.dtype.alignment)
+        result = pyfftw.n_byte_align(a, a.dtype.alignment)
+        return result
     fftn = lambda a: pyfftw.interfaces.numpy_fft.fftn(_maybe_align(a))
     ifftn = lambda a: pyfftw.interfaces.numpy_fft.ifftn(_maybe_align(a))
 
