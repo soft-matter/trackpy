@@ -397,7 +397,7 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
 
 
 def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
-           noise_size=1, smoothing_size=None, threshold=1, invert=False,
+           noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
            filter_before=True, filter_after=True,
            characterize=True, engine='auto'):
@@ -423,7 +423,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     smoothing_size : size of boxcar smoothing, in pixels
         Default is the same is feature separation.
     threshold : Clip bandpass result below this value.
-        Default 1; use 8 for 16-bit images.
+        Default None, passed through to bandpass.
     invert : Set to True if features are darker than background. False by
         default.
     percentile : Features must have a peak brighter than pixels in this
@@ -489,8 +489,13 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         if invert:
             # It is tempting to do this in place, but if it is called multiple
             # times on the same image, chaos reigns.
-            max_value = np.iinfo(raw_image.dtype).max
-            raw_image = raw_image ^ max_value
+            if np.issubdtype(raw_image.dtype, np.integer):
+                max_value = np.iinfo(raw_image.dtype).max
+                raw_image = raw_image ^ max_value
+            else:
+                # To avoid degrading performance, assume gamut is zero to one.
+                # Have you ever encountered an image of unnormalized floats?
+                raw_image = 1 - raw_image
         image = bandpass(raw_image, noise_size, smoothing_size, threshold)
     else:
         image = raw_image.copy()
@@ -591,7 +596,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
 
 def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
-          noise_size=1, smoothing_size=None, threshold=1, invert=False,
+          noise_size=1, smoothing_size=None, threshold=None, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=True, filter_after=True,
           characterize=True, engine='auto',
@@ -618,7 +623,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     smoothing_size : size of boxcar smoothing, in pixels
         Default is the same is feature separation.
     threshold : Clip bandpass result below this value.
-        Default 1; use 8 for 16-bit images.
+        Default None, passed through to bandpass.
     invert : Set to True if features are darker than background. False by
         default.
     percentile : Features must have a peak brighter than pixels in this

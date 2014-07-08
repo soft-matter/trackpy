@@ -6,6 +6,7 @@ from pandas import DataFrame, Series
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 
+import warnings
 import unittest
 import nose
 from numpy.testing import assert_almost_equal, assert_allclose
@@ -25,7 +26,7 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
     if max_value is None:
         max_value = np.iinfo(image.dtype).max - 3
     spot = max_value*np.exp(-((x/(1 - ecc))**2 + (y*(1 - ecc))**2)/(2*r**2)).T
-    image += spot
+    image += spot.astype(image.dtype)
 
 
 def gen_random_locations(shape, count):
@@ -55,16 +56,23 @@ class CommonFeatureIdentificationTests(object):
     def check_skip(self):
         pass
 
-    def test_smoke_test(self):
+    def test_smoke_datatypes(self):
         self.check_skip()
+        SHAPE = (300, 300)
         # simple "smoke" test to see if numba explodes
-        dummy_image = np.random.randint(0, 100, (300, 300)).astype(np.uint8)
+        dummy_image = np.random.randint(0, 100, SHAPE).astype(np.uint8)
+        tp.locate(dummy_image, 5, engine=self.engine)
+        tp.locate(dummy_image, 5, invert=True, engine=self.engine)
+
+        # Check float types
+        dummy_image = np.random.rand(*SHAPE)
         tp.locate(dummy_image, 5, engine=self.engine)
         tp.locate(dummy_image, 5, invert=True, engine=self.engine)
 
     def test_black_image(self):
         self.check_skip()
         black_image = np.zeros((21, 23)).astype(np.uint8)
+        warnings.simplefilter('always')
         with assert_produces_warning(UserWarning):
             f = tp.locate(black_image, 5, engine=self.engine, preprocess=False)
 
