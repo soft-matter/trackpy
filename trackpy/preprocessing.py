@@ -30,10 +30,28 @@ else:
     ifftn = lambda a: pyfftw.interfaces.numpy_fft.ifftn(_maybe_align(a))
 
 
-def bandpass(image, lshort, llong, threshold=1):
+def bandpass(image, lshort, llong, threshold=None):
     """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
-    retaining features of intermediate scale."""
+    retaining features of intermediate scale.
+
+    Parmeters
+    ---------
+    image : ndarray
+    lshort : small-scale cutoff (noise)
+    llong : large-scale cutoff
+    threshold : float or integer
+        By default, 1 for integer images and 1/256. for float images.
+
+    Returns
+    -------
+    ndarray, the bandpassed image
+    """
+    if threshold is None:
+        if np.issubdtype(image.dtype, np.integer):
+            threshold = 1
+        else:
+            threshold = 1/256.
     if not 2*lshort < llong:
         raise ValueError("The smoothing length scale must be more" +
                          "than twice the noise length scale.")
