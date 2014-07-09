@@ -97,7 +97,8 @@ setup_parameters = dict(
     author = "Daniel Allan and Thomas Caswell",
     author_email = "dallan@pha.jhu.edu",
     url = "https://github.com/soft-matter/trackpy",
-    install_requires = ['numpy', 'scipy', 'six', 'pandas'],
+    install_requires = ['numpy', 'scipy', 'six', 'pandas',
+                        'pyyaml', 'matplotlib', 'pims'],
     packages = ['trackpy'],
     long_description = read('README.md'),
 )
