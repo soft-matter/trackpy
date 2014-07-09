@@ -91,10 +91,9 @@ Open a command prompt. That's "Terminal" on a Mac, and
 lines:
 
     conda update conda
-    conda install numpy=1.8 scipy=0.14.0 matplotlib=1.3 pandas=0.13.0 PIL pyyaml numba=0.12.2
+    conda install numpy=1.8 scipy=0.14.0 matplotlib=1.3 pandas=0.13.0 scikit-image=0.10.1 pyyaml numba=0.12.2
     conda install pip
-    pip install http://github.com/soft-matter/pims/zipball/master
-    pip install http://github.com/soft-matter/trackpy/zipball/master
+    pip install trackpy
 
 In the command prompt, type
 
@@ -112,10 +111,6 @@ with several of the essential dependencies included.
 [Canopy](https://www.enthought.com/products/canopy/) is another
 distribution that makes a good starting point.
 
-If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
-(One of the optional dependencies, ``opencv``, is not readily compatible with 64-bit
-Python.)
-
 Essential Dependencies:
 
   * [``numpy``](http://www.scipy.org/)
@@ -125,15 +120,15 @@ Essential Dependencies:
   * [``pyyaml``](http://pyyaml.org/)
 
 
-You will also need the image- and video-reader pims, which is, like trackpy
+You will also need the image- and video-reader PIMS, which is, like trackpy
 itself, part of the github.com/soft-matter organization.
 
-  * [``pims``](https://github.com/soft-matter/pims)
+  * [``PIMS``](https://github.com/soft-matter/pims)
 
-You can install pims and trackpy using pip:
+You can install PIMS and trackpy using pip:
 
-    pip install http://github.com/soft-matter/pims/zipball/master
-    pip install http://github.com/soft-matter/trackpy/zipball/master
+    pip install pims
+    pip install trackpy
 
 Or, if you plan to edit the code, you can install them manually:
 
@@ -156,9 +151,9 @@ Optional Dependencies:
       if you have this version, you should update Anaconda. We support numba 
       versions 0.11 and 0.12.2.
 
-Pims has its own optional dependencies for reading various formats. You
+PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format
-[here on pims` README](https://github.com/soft-matter/pims).
+[here on PIMS` README](https://github.com/soft-matter/pims).
 
 ### Updating Your Installation
 
@@ -170,11 +165,11 @@ version, run this in the command prompt:
 Verions & Project Roadmap
 -------------------------
 
-The current stable release is Version 0.2. See the 
+The current stable release is Version 0.2.1. See the 
 [releases page](https://github.com/soft-matter/trackpy/releases) for details.
 
 The original release is tagged Version 0.1. 
-Although there have been major changes to the code, v0.2 maintains complete
+Although there have been major changes to the code, v0.2.x maintains complete
 reverse compatibility with v0.1 and can be used as drop-in replacement.
 We recommend all users upgrade.
 
