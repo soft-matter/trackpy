@@ -32,7 +32,6 @@ def make_axes(func):
                 legend = None
             else:
                 del kwargs['legend']
-                print 'hi'
             result = func(*args, **kwargs)
             if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or \
                     legend is False):
