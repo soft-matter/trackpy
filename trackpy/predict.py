@@ -2,11 +2,16 @@
 # keimnathan@gmail.com
 
 """Tools to improve tracking performance by guessing where a particle will appear next."""
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
+from six.moves import zip
 
 from copy import copy
 from warnings import warn
 from collections import deque
 import functools, itertools
+
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator, interp1d
 import pandas as pd
@@ -325,8 +330,8 @@ def instrumented(limit=None):
                 # most recent linking operation, which corresponds to the
                 # most recent element of self.diag_predictions.
                 # There may be an extra observation from the beginning
-                # of the tracking process, which izip() will ignore.
-                for obs, pred in itertools.izip(
+                # of the tracking process, which zip() will ignore.
+                for obs, pred in zip(
                         reversed(self.diag_observations),
                         reversed(self.diag_predictions)):
                     dd = pred.copy()

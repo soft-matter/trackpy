@@ -1,18 +1,22 @@
-from __future__ import division
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
+from six.moves import range
 import os
+import unittest
+import warnings
+
+import nose
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-import trackpy as tp
-from trackpy.try_numba import NUMBA_AVAILABLE
-
-import warnings
-import unittest
-import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_produces_warning)
+
+import trackpy as tp
+from trackpy.try_numba import NUMBA_AVAILABLE
 
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -24,7 +28,7 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
                          "the image square.")
     ndim = image.ndim
     pos = maybe_permute_position(pos)
-    coords = np.meshgrid(*np.array(map(np.arange, image.shape)) - pos,
+    coords = np.meshgrid(*np.array([np.arange(s) for s in image.shape]) - pos,
                          indexing='ij')
     if max_value is None:
         max_value = np.iinfo(image.dtype).max - 3
@@ -56,8 +60,9 @@ def maybe_permute_position(pos):
 
 def gen_random_locations(shape, count):
     np.random.seed(0)
-    shape = np.asarray(shape)[::-1]  # TODO
-    return np.array([map(np.random.randint, shape) for _ in xrange(count)])
+    shape = maybe_permute_position(shape)
+    return np.array(
+        [[np.random.randint(s) for s in shape] for _ in range(count)])
 
 
 def draw_spots(shape, locations, r, noise_level):

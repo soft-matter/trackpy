@@ -1,15 +1,15 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
 import six
-from six.moves import zip
+from six.moves import zip, range
 from copy import copy
 import itertools, functools
+from collections import deque, Iterable
 
 import numpy as np
 from scipy.spatial import cKDTree
 import pandas as pd
-from collections import deque, Iterable
+
 from .utils import print_update
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
@@ -38,7 +38,7 @@ class TreeFinder(object):
 
         if coord_map is None:
             coord_map = functools.partial(map, lambda x: x.pos)
-        coords = np.asarray(coord_map(self.points))
+        coords = np.asarray(list(coord_map(self.points)))
         if len(self.points) == 0:
             raise ValueError('Frame (aka level) contains zero points')
         self._kdtree = cKDTree(coords, 15)
@@ -384,10 +384,10 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
                                 track_cls=track_cls,
                                 hash_generator=hash_generator)
     labels = list(label_generator)
-    points = sum(map(list, levels), [])  # flatten levels: a list of poits
+    points = [level for level_list in levels for level in level_list]  # flat
     points = pd.Series(points)
-    labels = sum(map(list, labels), [])  # flatten labels
-    labels = map(lambda x: x.track.indx, labels)  # a list of Track indexes
+    labels = [label.track.indx for label_list in labels
+              for label in label_list]  # flat
     grouped = points.groupby(labels)
     representative_points = grouped.first()  # one point from each Track
     tracks = representative_points.apply(lambda x: x.track)
@@ -471,8 +471,8 @@ def link_df(features, search_range, memory=0,
     # Do the tracking, and update the DataFrame after each iteration.
     features['particle'] = np.nan  # placeholder
     for level in labeled_levels:
-        index = map(lambda x: x.id, level)
-        labels = pd.Series(map(lambda x: x.track.id, level), index)
+        index = [x.id for x in level]
+        labels = pd.Series([x.track.id for x in level], index)
         frame_no = next(iter(level)).t  # uses an arbitary element from the set
         if verify_integrity:
             _verify_integrity(frame_no, labels) # may issue warnings
@@ -569,12 +569,12 @@ def link_df_iter(features, search_range, memory=0,
 
     # Re-assemble the features data, now with track labels and (if desired)
     # the original index.
-    for labeled_level, source_features, old_index in itertools.izip(
+    for labeled_level, source_features, old_index in zip(
             labeled_levels, features_forpost, index_iter):
         features = source_features.copy()
         features['particle'] = np.nan  # placeholder
-        index = map(lambda x: x.id, labeled_level)
-        labels = pd.Series(map(lambda x: x.track.id, labeled_level), index)
+        index = [x.id for x in  labeled_level]
+        labels = pd.Series([x.track.id for x in labeled_level], index)
         frame_no = next(iter(labeled_level)).t  # uses an arbitary element from the set
         if verify_integrity:
             _verify_integrity(frame_no, labels) # may issue warnings
@@ -597,7 +597,8 @@ def _build_level(frame, pos_columns, t_column):
     "Return IndexPointND objects for a DataFrame of points."
     build_pt = lambda x: IndexedPointND(x[1], x[0][1].values, x[0][0])
     # iterrows() returns: (index which we use as feature id, data)
-    return map(build_pt, itertools.izip(frame[pos_columns].iterrows(), frame[t_column]))
+    zipped = zip(frame[pos_columns].iterrows(), frame[t_column])
+    return [build_pt(pt) for pt in zipped]
 
 class UnknownLinkingError(Exception):
     pass
@@ -705,7 +706,7 @@ def link_iter(levels, search_range, memory=0,
 
 
     # Assume everything in first level starts a Track.
-    track_lst = map(track_cls, prev_set)
+    track_lst = [track_cls(p) for p in prev_set]
     mem_set = set()
 
     # Initialize memory with empty sets.
@@ -883,11 +884,11 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
                     wp.forward_cands.append((p, d))
     elif neighbor_strategy == 'KDTree':
         hashpts = prev_hash.points
-        cur_coords = np.array(map(lambda x: x.pos, cur_level))
+        cur_coords = np.array([x.pos for x in cur_level])
         dists, inds = prev_hash.kdtree.query(cur_coords, 10, distance_upper_bound=search_range)
         nn = np.sum(np.isfinite(dists), 1) # Number of neighbors of each particle
         for i, p in enumerate(cur_level):
-            for j in xrange(nn[i]):
+            for j in range(nn[i]):
                 wp = hashpts[inds[i,j]]
                 p.back_cands.append((wp, dists[i,j]))
                 wp.forward_cands.append((p, dists[i,j]))

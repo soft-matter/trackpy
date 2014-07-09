@@ -1,1 +1,1 @@
-from .linking import *  # legacy
+from trackpy.linking import *  # legacy

@@ -1,17 +1,35 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
+import functools
 import unittest
 import nose
+import os
 
-import functools
-
+import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
-import os
-
 import trackpy as tp 
 
+
 path, _ = os.path.split(os.path.abspath(__file__))
+
+
+# This is six stuff here because pandas.HDFStore is fussy about the string type of one of
+# its option args. There seems to be no good reason for that at all.
+if six.PY2:
+    zlib = six.binary_type('zlib')
+elif six.PY3:
+    zlib = 'zlib'
+else:
+    raise("six is confused")
+
+
+def _random_hash():
+    return ''.join(map(str, np.random.randint(0, 10, 10)))
+
 
 def _skip_if_no_pytables():
     try:
@@ -30,7 +48,7 @@ class FeatureSavingTester(object):
                                  engine='python', meta=False)
 
     def test_storage(self):
-        STORE_NAME = 'temp_for_testing.h5'
+        STORE_NAME = 'temp_for_testing_{0}.h5'.format(_random_hash())
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
         try:
@@ -40,8 +58,8 @@ class FeatureSavingTester(object):
         else:
             tp.batch(self.v[[0, 1]], *self.PARAMS,
                      output=s, engine='python', meta=False)
-            print s.store.keys()
-            print dir(s.store.root)
+            if len(s) != 2:
+                raise
             assert len(s) == 2
             assert s.max_frame == 1
             assert_frame_equal(s.dump().reset_index(drop=True), 
@@ -66,7 +84,7 @@ class TestPandasHDFStoreBig(FeatureSavingTester, unittest.TestCase):
 
     def test_cache(self):
         """Store some frames, make a cache, then store some more frames."""
-        STORE_NAME = 'temp_for_testing.h5'
+        STORE_NAME = 'temp_for_testing_{0}.h5'.format(_random_hash())
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
         try:
@@ -117,7 +135,8 @@ class TestPandasHDFStoreBigCompressed(FeatureSavingTester, unittest.TestCase):
         _skip_if_no_pytables()
         self.prepare()
         self.storage_class = functools.partial(
-            tp.PandasHDFStoreBig, complevel=4, complib='zlib', fletcher32=True)
+            tp.PandasHDFStoreBig, complevel=4, complib=zlib,
+            fletcher32=True)
 
 
 class TestPandasHDFStoreSingleNode(FeatureSavingTester, unittest.TestCase):
@@ -134,7 +153,7 @@ class TestPandasHDFStoreSingleNodeCompressed(FeatureSavingTester,
         self.prepare()
         self.storage_class = functools.partial(
             tp.PandasHDFStoreSingleNode,
-            complevel=4, complib='zlib', fletcher32=True)
+            complevel=4, complib=zlib, fletcher32=True)
 
 
 if __name__ == '__main__':

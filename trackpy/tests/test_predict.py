@@ -1,8 +1,13 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
 import functools
 import unittest
+
 import nose.tools
 import numpy as np
 import pandas
+
 import trackpy
 from trackpy import predict
 
@@ -174,7 +179,7 @@ class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
         # with particle positions.
         pred = predict.ChannelPredict(1.1, minsamples=3,
                                       initial_profile_guess=initprof)
-        print _shear_frame(1.)
+        print(_shear_frame(1.))
         ll = get_linked_lengths((_shear_frame(0), _shear_frame(1.),
                                  _shear_frame(2), _shear_frame(3)),
                         pred.link_df_iter, 0.45)

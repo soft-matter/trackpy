@@ -1,10 +1,14 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
 import unittest
-import nose
-from numpy.testing import assert_allclose
 
+import nose
 import numpy as np
 import pandas as pd
+from numpy.testing import assert_allclose
 from pandas import DataFrame, Series
+
 import trackpy as tp
 
 class TestCorrelations(unittest.TestCase):

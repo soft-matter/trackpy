@@ -1,3 +1,6 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
 import collections
 import functools
 import re
@@ -5,10 +8,12 @@ import sys
 import time
 import warnings
 from datetime import datetime, timedelta
+
 import pandas as pd
 import numpy as np
 from scipy import stats
 import yaml
+
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
@@ -28,6 +33,7 @@ def fit_powerlaw(data, plot=True, **kwargs):
         import plots
         plots.fit(data, fits, logx=True, logy=True, legend=False, **kwargs)
     return values
+
 
 class memo(object):
    """Decorator. Caches a function's return value each time it is called.
@@ -59,6 +65,7 @@ class memo(object):
       '''Support instance methods.'''
       return functools.partial(self.__call__, obj)
 
+
 def extract(pattern, string, group, convert=None):
     """Extract a pattern from a string. Optionally, convert it
     to a desired type (float, timestamp, etc.) by specifying a function.
@@ -76,10 +83,12 @@ def extract(pattern, string, group, convert=None):
         return None if type(group) is int else (None,)*len(group)
     return convert(result) if convert else result
 
+
 def timestamp(ts_string):
     "Convert a timestamp string to a datetime type."
     if ts_string is None: return None
     return datetime.strptime(ts_string, '%Y-%m-%d %H:%M:%S')
+
 
 def time_interval(raw):
     "Convert a time interval string into a timedelta type."
@@ -88,9 +97,10 @@ def time_interval(raw):
     h, m, s = map(int, m.group(1,2,3))
     return timedelta(hours=h, minutes=m, seconds=s)
 
+
 def suppress_plotting():
-    import matplotlib as mpl
-    mpl.pyplot.switch_backend('Agg') # does not plot to screen
+    import matplotlib.pyplot as plt
+    plt.switch_backend('Agg') # does not plot to screen
 
 
 # HH:MM:SS, H:MM:SS, MM:SS, M:SS all OK
@@ -99,6 +109,7 @@ lazy_timestamp_pat = r'\d?\d?:?\d?\d:\d\d'
 # a time stamp followed by any text comment
 ltp = lazy_timestamp_pat
 video_log_pattern = r'(' + ltp + r')-?(' + ltp + r')? ?(RF)?(.+)?'
+
 
 def lazy_timestamp(partial_timestamp):
     """Regularize a lazy timestamp like '0:37' -> '00:00:37'.
@@ -122,6 +133,7 @@ HH:MM:SS, H:MM:SS, MM:SS, and M:SS all OK.
     digits = ['0', '0', ':', '0', '0', ':', '0', '0']
     digits[-len(partial_digits):] = partial_digits
     return ''.join(digits)
+
 
 def timedelta_to_frame(timedeltas, fps):
     """Convert timedelta times into frame numbers.
@@ -148,22 +160,26 @@ def timedelta_to_frame(timedeltas, fps):
     result = result.where(timedeltas.notnull(), np.nan)
     return result
 
+
 def random_walk(N):
     return np.cumsum(np.random.randn(N), 1)
+
 
 def record_meta(meta_data, filename):
     with open(filename, 'w') as output:
         output.write(yaml.dump(meta_data, default_flow_style=False))
+
 
 try:
     from IPython.core.display import clear_output
 except ImportError:
     pass
 
+
 def print_update(message):
     try:
         clear_output()
     except Exception:
         pass
-    print message
+    print(message)
     sys.stdout.flush()

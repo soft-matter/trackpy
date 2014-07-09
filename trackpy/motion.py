@@ -1,12 +1,13 @@
-from __future__ import division
-import logging
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
+
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from scipy import interpolate
 from scipy.spatial import cKDTree
 
-logger = logging.getLogger(__name__)
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean displacement and mean squared displacement of one
@@ -289,10 +290,10 @@ def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
     return np.sqrt(np.sum(pos.apply(np.ptp)**2))
 
 def is_localized(traj, threshold=0.4):
-    raise NotImplementedError, "I will rewrite this."
+    raise NotImplementedError("This function has been removed.")
 
 def is_diffusive(traj, threshold=0.9):
-    raise NotImplementedError, "I will rewrite this."
+    raise NotImplementedError("This function has been removed.")
 
 def relate_frames(t, frame1, frame2):
     a = t[t.frame == frame1]
