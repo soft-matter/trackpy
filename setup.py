@@ -21,6 +21,7 @@ except ImportError:
     from numpy.distutils.core import setup
     _have_setuptools = False
 
+# Don't forget to update the "release =" line in doc/source/conf.py
 MAJOR = 0
 MINOR = 2
 MICRO = 1
