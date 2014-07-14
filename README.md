@@ -88,19 +88,22 @@ If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-
 
 Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type or paste these
-lines:
+lines to make certain that Anaconda will work well with trackpy:
 
     conda update conda
     conda install numpy=1.8 scipy=0.14.0 matplotlib=1.3 pandas=0.13.0 scikit-image=0.10.1 pyyaml numba=0.12.2
     conda install pip
+    
+Then, to install trackpy:
+
     pip install trackpy
 
-In the command prompt, type
+Finally, to try it out, type
 
     ipython notebook
 
 This will automatically open a browser tab, ready to interpret Python code.
-Follow the tutorials to get started.
+To get started, check out the links to tutorials at the top of this document.
 
 ### For Experienced Python Users
 
