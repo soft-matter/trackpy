@@ -21,63 +21,12 @@ except ImportError:
     from numpy.distutils.core import setup
     _have_setuptools = False
 
-# Don't forget to update the "release =" line in doc/source/conf.py
-MAJOR = 0
-MINOR = 2
-MICRO = 1
-ISRELEASED = True
-VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
-QUALIFIER = ''
-
-FULLVERSION = VERSION
-print FULLVERSION
-
-if not ISRELEASED:
-    import subprocess
-    FULLVERSION += '.dev'
-    
-    pipe = None
-    for cmd in ['git', 'git.cmd']:
-        try:
-            pipe = subprocess.Popen([cmd, "describe", "--always",
-                                     "--match", "v[0-9\/]*"],
-                                    stdout=subprocess.PIPE)
-            (so, serr) = pip.communicate()
-            if pipe.returncode == 0:
-                break
-        except:
-            pass
-        if pipe is None or pipe.returncode != 0:
-            warnings.warn("WARNING: Couldn't get git revision, "
-                          "using generic version string")
-        else:
-            rev = so.strip()
-            # makes distutils blow up on Python 2.7
-            if sys.version_info[0] >= 3:
-                rev = rev.decode('ascii')
-
-            # use result of git describe as version string
-            FULLVERSION = rev.lstrip('v')
-
-else:
-    FULLVERSION += QUALIFIER
-
-def write_version_py(filename=None):
-    cnt = """\
-version = '%s'
-short_version = '%s'
-"""
-    if not filename:
-        filename = os.path.join(
-            os.path.dirname(__file__), 'trackpy', 'version.py')
-
-    a = open(filename, 'w')
-    try:
-        a.write(cnt % (FULLVERSION, VERSION))
-    finally:
-        a.close()
-
-write_version_py()
+import versioneer
+versioneer.VCS = 'git'
+versioneer.versionfile_source = 'trackpy/_version.py'
+versioneer.versionfile_build = 'trackpy/_version.py'
+versioneer.tag_prefix = 'v'
+versioneer.parentdir_prefix = '.'
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
@@ -93,7 +42,8 @@ else:
 
 setup_parameters = dict(
     name = "trackpy",
-    version = FULLVERSION,
+    version = versioneer.get_version(),
+    cmdclass = versioneer.get_cmdclass(),
     description = "particle-tracking toolkit",
     author = "Daniel Allan and Thomas Caswell",
     author_email = "dallan@pha.jhu.edu",
