@@ -1080,6 +1080,9 @@ def recursive_linker_obj(s_sn, dest_size, search_range):
 class SubnetLinker(object):
     '''A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking'''
+
+    # TODO: This number should be more like 15 when adaptive search is enabled.
+    # In that case, it's better for subnet linking to fail faster.
     MAX_SUB_NET_SIZE = 30
 
     def __init__(self, s_sn, dest_size, search_range):
@@ -1277,8 +1280,6 @@ def numba_link(s_sn, dest_size, search_radius):
     # In the next line, distsarray is passed in quadrature so that adding distances works.
     bestsum = _numba_subnet_norecur(ncands, candsarray, distsarray**2, cur_assignments, cur_sums,
             tmp_assignments, best_assignments)
-    if bestsum < 0:
-        raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (exceeded max iterations for subnet)')
     # Return particle objects. Account for every source particle we were given.
     # 'None' denotes a null link and will be used for the memory feature.
     return map(list, zip(*[(src_net[j], (dcands[i] if i >= 0 else None)) \
@@ -1296,16 +1297,12 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
     best_assignments is modified in place.
     Returns the best sum.
     """
-    itercount = 0
     nj = candsarray.shape[0]
     tmp_sum = 0.
     best_sum = 1.0e23
     j = 0
     while 1:
-        itercount += 1
-        if itercount >= 500000000:
-            return -1.0
-        delta = 0  # What to do at the end
+        delta = 0 # What to do at the end
         # This is an endless loop. We go up and down levels of recursion,
         # and emulate the mechanics of nested "for" loops, using the
         # blocks of code marked "GO UP" and "GO DOWN". It's not pretty.
