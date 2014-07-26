@@ -57,6 +57,10 @@ def static_error(features, noise, diameter, noise_size=1):
         N_S = features.join(noise, on='frame')['noise']/features['signal']
     s = 2*((diameter//2-1)/features['size'])**2
     ep = N_S*noise_size/(2*np.pi**0.5)*s/(1-np.exp(-s))
+    # It is possible for signal to be negative. In those cases, our scheme
+    # for estimating uncertainty is not workable. Instead of returning
+    # a negative value for uncertainty, return NaN.
+    ep = ep.where(ep > 0, np.nan)
     # ^ Savin & Doyle, Eq. 50
     ep.name = 'ep' # so it can be joined
     return ep
