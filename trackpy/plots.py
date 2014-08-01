@@ -152,8 +152,9 @@ def annotate(centroids, image, circle_size=170, color=None,
     ax : matplotlib axes object, defaults to current axes
     split_category : string, parameter to use to split the data into sections
         default None
-    split_thresh : single value or list of ints or floats threshold to split 
-        particles into sections for plotting in multiple colors
+    split_thresh : single value or list of ints or floats to split 
+        particles into sections for plotting in multiple colors.
+        List items should be ordered by increasing value.
         default None
     
     Returns
@@ -173,7 +174,7 @@ def annotate(centroids, image, circle_size=170, color=None,
 
     if color is None:
         color = 'g'
-    if not (split_thresh, Iterable):
+    if not isinstance(split_thresh, Iterable):
         split_thresh = [split_thresh]
 
     # The parameter image can be an image object or a filename.
