@@ -28,7 +28,7 @@ def percentile_threshold(image, percentile):
     return stats.scoreatpercentile(not_black, percentile)
 
 
-def local_maxima(image, radius, separation, percentile=64):
+def local_maxima(image, radius, separation=0, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
 
     ndim = image.ndim
@@ -41,7 +41,7 @@ def local_maxima(image, radius, separation, percentile=64):
     # The intersection of the image with its dilation gives local maxima.
     if not np.issubdtype(image.dtype, np.integer):
         raise TypeError("Perform dilation on exact (i.e., integer) data.")
-    footprint = binary_mask(radius, ndim, separation)
+    footprint = binary_mask(radius, ndim)
     dilation = ndimage.grey_dilation(image, footprint=footprint,
                                      mode='constant')
     maxima = np.vstack(np.where((image == dilation) & (image > threshold))).T
@@ -50,18 +50,19 @@ def local_maxima(image, radius, separation, percentile=64):
         return np.empty((0, ndim))
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    while True:
-        duplicates = cKDTree(maxima, 30).query_pairs(separation)
-        if len(duplicates) == 0:
-            break
-        to_drop = []
-        for pair in duplicates:
-            # Take the average position.
-            # This is just a starting point, so we won't go into subpx precision here.
-            merged = maxima.take(pair, 0).mean(0).astype(int)
-            maxima[pair[0]] = merged  # overwrite one
-            to_drop.append(pair[1])  # queue other to be dropped
-        maxima = np.delete(maxima, to_drop, 0)
+    if separation:
+        while True:
+            duplicates = cKDTree(maxima, 30).query_pairs(separation)
+            if len(duplicates) == 0:
+                break
+            to_drop = []
+            for pair in duplicates:
+                # Take the average position.
+                # This is just a starting point, so we won't go into subpx precision here.
+                merged = maxima.take(pair, 0).mean(0).astype(int)
+                maxima[pair[0]] = merged  # overwrite one
+                to_drop.append(pair[1])  # queue other to be dropped
+            maxima = np.delete(maxima, to_drop, 0)
 
     # Do not accept peaks near the edges.
     shape = np.array(image.shape)
@@ -482,7 +483,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # Validate parameters and set defaults.
     if not diameter & 1:
         raise ValueError("Feature diameter must be an odd number. Round up.")
-    if not separation:
+    if separation is None:
         separation = int(diameter) + 1
     radius = int(diameter)//2
     if smoothing_size is None:

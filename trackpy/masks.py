@@ -7,7 +7,7 @@ import numpy as np
 from .utils import memo
 
 @memo
-def binary_mask(radius, ndim, separation=None):
+def binary_mask(radius, ndim):
     "circular mask in a square array"
     points = np.arange(-radius, radius + 1)
     if ndim > 1:
