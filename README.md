@@ -168,8 +168,7 @@ version, run this in the command prompt:
 Verions & Project Roadmap
 -------------------------
 
-The current stable release is Version 0.2.1. See the 
-[releases page](https://github.com/soft-matter/trackpy/releases) for details.
+See the [releases page](https://github.com/soft-matter/trackpy/releases) for details.
 
 The original release is tagged Version 0.1. 
 Although there have been major changes to the code, v0.2.x maintains complete
