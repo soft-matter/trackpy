@@ -24,7 +24,7 @@ except ImportError:
 # Don't forget to update the "release =" line in doc/source/conf.py
 MAJOR = 0
 MINOR = 2
-MICRO = 1
+MICRO = 2
 ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
