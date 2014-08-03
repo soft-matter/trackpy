@@ -58,7 +58,7 @@ copyright = u'2010-2014, Trackpy Contributors'
 # built documents.
 #
 # The short X.Y version.
-release = '0.2.1'
+release = '0.2.2'
 version = ''
 # The full version, including alpha/beta/rc tags.
 
