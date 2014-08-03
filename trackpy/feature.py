@@ -18,17 +18,25 @@ import trackpy  # to get trackpy.__version__
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
+def percentile_threshold(image, percentile):
+    """Find grayscale threshold based on distribution in image."""
+
+    ndim = image.ndim
+    not_black = image[np.nonzero(image)]
+    if len(not_black) == 0:
+        return np.nan
+    return stats.scoreatpercentile(not_black, percentile)
+
 
 def local_maxima(image, radius, separation, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
 
     ndim = image.ndim
     # Compute a threshold based on percentile.
-    not_black = image[np.nonzero(image)]
-    if len(not_black) == 0:
+    threshold = percentile_threshold(image, percentile)
+    if np.isnan(threshold):
         warnings.warn("Image is completely black.", UserWarning)
         return np.empty((0, ndim))
-    threshold = stats.scoreatpercentile(not_black, percentile)
 
     # The intersection of the image with its dilation gives local maxima.
     if not np.issubdtype(image.dtype, np.integer):
@@ -50,8 +58,7 @@ def local_maxima(image, radius, separation, percentile=64):
         for pair in duplicates:
             # Take the average position.
             # This is just a starting point, so we won't go into subpx precision here.
-            merged = maxima[pair[0]]
-            merged = maxima[[pair[0], pair[1]]].mean(0).astype(int)
+            merged = maxima.take(pair, 0).mean(0).astype(int)
             maxima[pair[0]] = merged  # overwrite one
             to_drop.append(pair[1])  # queue other to be dropped
         maxima = np.delete(maxima, to_drop, 0)
@@ -138,7 +145,7 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
                                       "images. You can extend it if you feel "
                                       "like a hero.")
         if walkthrough:
-            raise ValueError("walkthrough is not availabe in the nubma engine")
+            raise ValueError("walkthrough is not availabe in the numba engine")
         # Do some extra prep in pure Python that can't be done in numba.
         coords = np.array(coords, dtype=np.float_)
         shape = np.array(image.shape, dtype=np.int16)  # array, not tuple
@@ -417,7 +424,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     diameter : feature size in px
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurrious features.
+        crucial parameter for elminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
         Default is the feature diameter + 1.
@@ -430,7 +437,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     invert : Set to True if features are darker than background. False by
         default.
     percentile : Features must have a peak brighter than pixels in this
-        percentile. This helps eliminate spurrious peaks.
+        percentile. This helps eliminate spurious peaks.
     topn : Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
 
@@ -447,11 +454,11 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
-        Use minmass (and maxsize, if set) to eliminate spurrious features
+        Use minmass (and maxsize, if set) to eliminate spurious features
         based on their estimated mass and size before refining position.
         True by default for performance.
     filter_after : boolean
-        Use final characterizations of mass and size to elminate spurrious
+        Use final characterizations of mass and size to eliminate spurious
         features. True by default.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
@@ -617,7 +624,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     diameter : feature size in px
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurrious features.
+        crucial parameter for elminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
         Default is the feature diameter + 1.
@@ -630,7 +637,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     invert : Set to True if features are darker than background. False by
         default.
     percentile : Features must have a peak brighter than pixels in this
-        percentile. This helps eliminate spurrious peaks.
+        percentile. This helps eliminate spurious peaks.
     topn : Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
 
@@ -647,11 +654,11 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
-        Use minmass (and maxsize, if set) to eliminate spurrious features
+        Use minmass (and maxsize, if set) to eliminate spurious features
         based on their estimated mass and size before refining position.
         True by default for performance.
     filter_after : boolean
-        Use final characterizations of mass and size to elminate spurrious
+        Use final characterizations of mass and size to elminate spurious
         features. True by default.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
