@@ -28,7 +28,7 @@ def percentile_threshold(image, percentile):
     return stats.scoreatpercentile(not_black, percentile)
 
 
-def local_maxima(image, radius, separation, percentile=64):
+def local_maxima(image, radius, separation=0, percentile=64):
     """Find local maxima whose brightness is above a given percentile."""
 
     ndim = image.ndim
@@ -41,7 +41,7 @@ def local_maxima(image, radius, separation, percentile=64):
     # The intersection of the image with its dilation gives local maxima.
     if not np.issubdtype(image.dtype, np.integer):
         raise TypeError("Perform dilation on exact (i.e., integer) data.")
-    footprint = binary_mask(radius, ndim, separation)
+    footprint = binary_mask(radius, ndim)
     dilation = ndimage.grey_dilation(image, footprint=footprint,
                                      mode='constant')
     maxima = np.vstack(np.where((image == dilation) & (image > threshold))).T
@@ -491,7 +491,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # Validate parameters and set defaults.
     if not diameter & 1:
         raise ValueError("Feature diameter must be an odd number. Round up.")
-    if not separation:
+    if separation is None:
         separation = int(diameter) + 1
     radius = int(diameter)//2
     if smoothing_size is None:
