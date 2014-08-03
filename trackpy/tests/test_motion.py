@@ -1,15 +1,18 @@
-from __future__ import division
-import trackpy as tp 
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
+import unittest
+
+import nose
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-
-import unittest
-import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
+
+import trackpy as tp 
 from trackpy.utils import suppress_plotting
 
 def random_walk(N):

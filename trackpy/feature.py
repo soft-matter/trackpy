@@ -1,5 +1,8 @@
-from __future__ import division
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
 import warnings
+
 import numpy as np
 import pandas as pd
 from scipy import ndimage
@@ -7,8 +10,8 @@ from scipy import stats
 from scipy.spatial import cKDTree
 from pandas import DataFrame, Series
 
-from trackpy import uncertainty
-from trackpy.preprocessing import bandpass, scale_to_gamut
+from . import uncertainty
+from .preprocessing import bandpass, scale_to_gamut
 from .utils import record_meta, print_update
 from .masks import *
 import trackpy  # to get trackpy.__version__
@@ -182,7 +185,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         for iteration in range(max_iterations):
             off_center = cm_n - radius
             if walkthrough:
-                print off_center
+                print_update(off_center)
             if np.all(np.abs(off_center) < GOOD_ENOUGH_THRESH):
                 break  # Accurate enough.
 

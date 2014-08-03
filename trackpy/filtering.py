@@ -1,3 +1,7 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
+
 """Simple functions that eliminate spurrious trajectories
 by wrapping pandas group-by and filter capabilities."""
 
@@ -20,7 +24,7 @@ def filter_stubs(tracks, threshold=100):
         tracks['frame']
         tracks['particle']
     except KeyError:
-        raise ValueError, "Tracks must contain columns 'frame' and 'particle'."
+        raise ValueError("Tracks must contain columns 'frame' and 'particle'.")
     grouped = tracks.reset_index(drop=True).groupby('particle')
     filtered = grouped.filter(lambda x: x.frame.count() >= threshold)
     return filtered.set_index('frame', drop=False)
@@ -45,7 +49,7 @@ def filter_clusters(tracks, quantile=0.8, threshold=None):
         tracks['frame']
         tracks['particle']
     except KeyError:
-        raise ValueError, "Tracks must contain columns 'frame' and 'particle'."
+        raise ValueError("Tracks must contain columns 'frame' and 'particle'.")
     if threshold is None:
         threshold = tracks['size'].quantile(quantile)
 

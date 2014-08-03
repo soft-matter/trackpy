@@ -1,10 +1,12 @@
-from __future__ import division
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
 import os
-import trackpy as tp
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-
 import unittest
 import nose
 from numpy.testing import assert_almost_equal, assert_allclose
@@ -12,12 +14,14 @@ from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
 
+import trackpy as tp
+from trackpy.try_numba import NUMBA_AVAILABLE
+from trackpy.linking import PointND, link, Hash_table
+
+
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
-from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.linking import PointND, link, Hash_table
-from copy import deepcopy
 
 # Call lambda function for a fresh copy each time.
 unit_steps = lambda: [[PointND(t, (x, 0))] for t, x in enumerate(range(5))]

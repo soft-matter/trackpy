@@ -30,7 +30,6 @@ VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
 FULLVERSION = VERSION
-print FULLVERSION
 
 if not ISRELEASED:
     import subprocess

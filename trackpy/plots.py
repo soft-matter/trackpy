@@ -1,13 +1,18 @@
 """These functions generate handy plots."""
-
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
+from six.moves import zip
+from itertools import tee
+from collections import Iterable
 from functools import wraps
+
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-import logging
-import motion
 
-logger = logging.getLogger(__name__)
+from .utils import print_update
+
 
 def make_axes(func):
     """
@@ -110,8 +115,8 @@ def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None,
         x = traj.set_index(['frame', 'particle'])['x'].unstack()
         y = traj.set_index(['frame', 'particle'])['y'].unstack()
         color_numbers = traj['frame'].values/float(traj['frame'].max())
-        logger.info("Drawing multicolor lines takes awhile. "
-                    "Come back in a minute.")
+        print_update("Drawing multicolor lines takes awhile. "
+                     "Come back in a minute.")
         for particle in x:
             points = np.array(
                 [x[particle].values, y[particle].values]).T.reshape(-1, 1, 2)
@@ -162,15 +167,13 @@ def annotate(centroids, image, circle_size=170, color=None,
     axes
     """
     import matplotlib.pyplot as plt
-    from itertools import tee, izip
-    from collections import Iterable
 
     # https://docs.python.org/2/library/itertools.html
     def pairwise(iterable):
         "s -> (s0,s1), (s1,s2), (s2, s3), ..."
         a, b = tee(iterable)
         next(b, None)
-        return izip(a, b)
+        return zip(a, b)
 
     if color is None:
         color = 'g'
@@ -178,7 +181,7 @@ def annotate(centroids, image, circle_size=170, color=None,
         split_thresh = [split_thresh]
 
     # The parameter image can be an image object or a filename.
-    if isinstance(image, basestring):
+    if isinstance(image, six.string_types):
         image = plt.imread(image)
     if invert:
         ax.imshow(1-image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
@@ -199,7 +202,7 @@ def annotate(centroids, image, circle_size=170, color=None,
         ax.scatter(centroids['x'][low], centroids['y'][low], 
                    s=circle_size, facecolors='none', edgecolors=color[0])
 
-        for c, (bot, top) in izip(color[1:-1], pairwise(split_thresh)):
+        for c, (bot, top) in zip(color[1:-1], pairwise(split_thresh)):
             indx = ((centroids[split_category]) >= bot) & ((centroids[split_category]) < top)
             ax.scatter(centroids['x'][indx], centroids['y'][indx], 
                        s=circle_size, facecolors='none', edgecolors=c)

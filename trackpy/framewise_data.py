@@ -1,7 +1,12 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import six
 import os
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 import pandas as pd
+
+from .utils import print_update
 
 
 class FramewiseData(object):
@@ -119,8 +124,8 @@ class PandasHDFStore(FramewiseData):
         # structures. This is very slow for large numbers of frames.
         # Instead, scan the root level of the file for nodes with names
         # matching our scheme; we know they are DataFrames.
-        r = [decode_key(key) for key in dir(self.store.root) if \
-            key.startswith(KEY_PREFIX)]
+        r = [decode_key(key) for key in self.store.root._v_children.keys() if
+             key.startswith(KEY_PREFIX)]
         r.sort()
         return r
 
@@ -179,8 +184,8 @@ class PandasHDFStoreBig(PandasHDFStore):
 
     def _flush_cache(self):
         """Writes frame cache if dirty and file is writable."""
-        if self._frames_cache is not None and self._cache_dirty \
-                and self.store.root._v_file._iswritable():
+        if (self._frames_cache is not None and self._cache_dirty
+                and self.store.root._v_file._iswritable()):
             self.store[self._CACHE_NAME] = pd.DataFrame({'dummy': 1},
                                                         index=self._frames_cache)
             self._cache_dirty = False
@@ -269,6 +274,6 @@ def _make_tabular_copy(store, key):
     """Copy the contents nontabular node in a pandas HDFStore
     into a tabular node"""
     tabular_key = key + '/tabular'
-    print "Making a tabular copy of %s at %s" % (key, tabular_key)
+    print_update("Making a tabular copy of %s at %s" % (key, tabular_key))
     store.append(tabular_key, store.get(key), data_columns=True)
     return tabular_key
