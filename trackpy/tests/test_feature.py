@@ -235,6 +235,34 @@ class CommonFeatureIdentificationTests(object):
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
 
+    def test_reject_peaks_near_edge(self):
+        """Check whether local maxima near the edge of the image
+        are properly rejected, so as not to cause crashes later."""
+        N = 30
+        diameter = 9
+        y = np.arange(20, 10*N + 1, 20)
+        x = np.linspace(diameter / 2. - 2, diameter * 1.5, len(y))
+        cols = ['x', 'y']
+        expected = DataFrame(np.vstack([x, y]).T, columns=cols)
+
+        dims = (y.max() - y.min() + 5*diameter, int(4 * diameter) - 2)
+        image = np.ones(dims, dtype='uint8')
+        for xpos, ypos in expected[['x', 'y']].values:
+            draw_gaussian_spot(image, [xpos, ypos], 4, max_value=100)
+        def locate(image, **kwargs):
+            return tp.locate(image, diameter, 1, preprocess=False,
+                             engine=self.engine, **kwargs)[cols]
+        # All we care about is that this doesn't crash
+        actual = locate(image)
+        assert len(actual)
+        # Check the other sides
+        actual = locate(np.fliplr(image))
+        assert len(actual)
+        actual = locate(image.transpose())
+        assert len(actual)
+        actual = locate(np.flipud(image.transpose()))
+        assert len(actual)
+
     def test_subpx_precision(self): 
         self.check_skip()
         L = 21
