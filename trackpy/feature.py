@@ -28,8 +28,19 @@ def percentile_threshold(image, percentile):
     return stats.scoreatpercentile(not_black, percentile)
 
 
-def local_maxima(image, radius, separation=0, percentile=64):
-    """Find local maxima whose brightness is above a given percentile."""
+def local_maxima(image, radius, separation=0, percentile=64, margin=None):
+    """Find local maxima whose brightness is above a given percentile.
+
+    Parameters
+    ----------
+    radius : integer definition of "local" in "local maxima"
+    separation : maxima closer than this distance will be merged
+    percentile : chooses minimum grayscale value for a local maximum
+    margin : zone of exclusion at edges of image. Defaults to radius.
+            A smarter value is set by locate().
+    """
+    if margin is None:
+        margin = int(radius)
 
     ndim = image.ndim
     # Compute a threshold based on percentile.
@@ -51,8 +62,7 @@ def local_maxima(image, radius, separation=0, percentile=64):
 
     # Do not accept peaks near the edges.
     shape = np.array(image.shape)
-    margin = int(separation) // 2
-    near_edge = np.any((maxima < margin) | (maxima > (shape - margin)), 1)
+    near_edge = np.any((maxima < margin) | (maxima > (shape - margin - 1)), 1)
     maxima = maxima[~near_edge]
     if not np.size(maxima) > 0:
         warnings.warn("All local maxima were in the margins.", UserWarning)
@@ -541,7 +551,13 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         all_columns = columns
 
     # Find local maxima.
-    coords = local_maxima(image, radius, separation, percentile)
+    # Define zone of exclusion at edges of image, avoiding
+    #   - Features with incomplete image data ("radius")
+    #   - Extended particles that cannot be explored during subpixel
+    #       refinement ("separation")
+    #   - Invalid output of the bandpass step ("smoothing_size")
+    margin = max(radius, separation // 2 - 1, smoothing_size // 2)
+    coords = local_maxima(image, radius, separation, percentile, margin)
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:
