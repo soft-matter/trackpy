@@ -66,8 +66,8 @@ def local_maxima(image, radius, separation=0, percentile=64):
 
     # Do not accept peaks near the edges.
     shape = np.array(image.shape)
-    margin = int(separation) // 2
-    near_edge = np.any((maxima < margin) | (maxima > (shape - margin)), 1)
+    margin = int(radius)
+    near_edge = np.any((maxima < margin) | (maxima > (shape - margin - 1)), 1)
     maxima = maxima[~near_edge]
     if not np.size(maxima) > 0:
         warnings.warn("All local maxima were in the margins.", UserWarning)
