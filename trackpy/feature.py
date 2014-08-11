@@ -6,7 +6,6 @@ import warnings
 import numpy as np
 import pandas as pd
 from scipy import ndimage
-from scipy import stats
 from scipy.spatial import cKDTree
 from pandas import DataFrame, Series
 
@@ -25,7 +24,7 @@ def percentile_threshold(image, percentile):
     not_black = image[np.nonzero(image)]
     if len(not_black) == 0:
         return np.nan
-    return stats.scoreatpercentile(not_black, percentile)
+    return np.percentile(not_black, percentile)
 
 
 def local_maxima(image, radius, separation=0, percentile=64):
