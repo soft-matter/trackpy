@@ -253,8 +253,28 @@ class PandasHDFStoreSingleNode(FramewiseData):
         self.store.append(self.key, df, data_columns=True)
 
     def get(self, frame_no):
-        frame = self.store.select(self.key, 'frame == %d' % frame_no)
+        frame = self.store.select(self.key, '{0} == {1}'.format(
+            self._t_column, frame_no))
         return frame
+
+    def dump(self, N=None):
+        """Return data from all, or the first N, frames in a single DataFrame
+
+        Parameters
+        ----------
+        N : integer
+            optional; if None, return all frames
+
+        Returns
+        -------
+        DataFrame
+        """
+        if N is None:
+            return self.store.select(self.key)
+        else:
+            Nth_frame = self.frames[N - 1]
+            return self.store.select(self.key, '{0} <= {1}'.format(
+                self._t_column, Nth_frame))
 
     def close(self):
         self.store.close()
