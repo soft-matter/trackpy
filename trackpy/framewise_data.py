@@ -39,9 +39,23 @@ class FramewiseData(object):
     def __len__(self):
         return len(self.frames)
 
-    def dump(self):
-        """Return data from all frames in a single DataFrame"""
-        return pd.concat(iter(self))
+    def dump(self, N=None):
+        """Return data from all, or the first N, frames in a single DataFrame
+
+        Parameters
+        ----------
+        N : integer
+            optional; if None, return all frames
+
+        Returns
+        -------
+        DataFrame
+        """
+        if N is None:
+            return pd.concat(iter(self))
+        else:
+            i = iter(self)
+            return pd.concat((next(i) for _ in range(N)))
 
     @property
     def max_frame(self):
@@ -241,9 +255,6 @@ class PandasHDFStoreSingleNode(FramewiseData):
     def get(self, frame_no):
         frame = self.store.select(self.key, 'frame == %d' % frame_no)
         return frame
-
-    def dump(self):
-        return self.store.get(self.key)
 
     def close(self):
         self.store.close()
