@@ -106,7 +106,13 @@ class PandasHDFStore(FramewiseData):
     def put(self, df):
         frame_no = df[self.t_column].values[0]  # validated to be all the same
         key = code_key(frame_no)
-        self.store.put(key, df, data_columns=True)
+        # Store data as tabular instead of fixed-format.
+        # Make sure remove any prexisting data, so don't really 'append'.
+        try:
+            self.store.remove(key)
+        except KeyError:
+            pass
+        self.store.put(key, df, format='table')
 
     def get(self, frame_no):
         key = code_key(frame_no)
