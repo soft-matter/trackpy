@@ -165,8 +165,8 @@ version, run this in the command prompt:
 
     pip install --upgrade http://github.com/soft-matter/trackpy/zipball/master
 
-Verions & Project Roadmap
--------------------------
+Versions & Project Roadmap
+--------------------------
 
 See the [releases page](https://github.com/soft-matter/trackpy/releases) for details.
 
