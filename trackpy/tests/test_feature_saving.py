@@ -42,7 +42,7 @@ class FeatureSavingTester(object):
 
     def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
-        self.v = tp.ImageSequence(directory)
+        self.v = tp.ImageSequence(os.path.join(directory, '*.png'))
         self.PARAMS = (11, 3000)
         self.expected = tp.batch(self.v[[0, 1]], *self.PARAMS,
                                  engine='python', meta=False)
@@ -58,10 +58,12 @@ class FeatureSavingTester(object):
         else:
             tp.batch(self.v[[0, 1]], *self.PARAMS,
                      output=s, engine='python', meta=False)
-            if len(s) != 2:
-                raise
-            assert len(s) == 2
-            assert s.max_frame == 1
+            self.assertEqual(len(s), 2)
+            self.assertEqual(s.max_frame, 1)
+            count_total_dumped = s.dump()['frame'].nunique()
+            count_one_dumped = s.dump(1)['frame'].nunique()
+            self.assertEqual(count_total_dumped, 2)
+            self.assertEqual(count_one_dumped, 1)
             assert_frame_equal(s.dump().reset_index(drop=True), 
                                self.expected.reset_index(drop=True))
             assert_frame_equal(s[0], s.get(0))
