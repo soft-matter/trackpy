@@ -15,7 +15,7 @@ round features in images.
 `locate` returns a DataFrame (a spreadsheet-like object) listing the
 position, mass (total brightness), size (radius-of-gyration of brightness),
 and eccentricity. It also lists the signal, a measure related the contrast,
-and ep for epislon, the estimated uncertainty in the position of the feature.
+and ep for epsilon, the estimated uncertainty in the position of the feature.
 
 `locate` prepares the image by performing a band pass using sensible defaults
 derived from the diameter you specified. You choose your settings or

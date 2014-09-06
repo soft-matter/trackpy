@@ -441,7 +441,7 @@ def link_df(features, search_range, memory=0,
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     verify_integrity : boolean
-        False by default, for fastest performance.
+        True by default. Set to False for fastest performance.
         Use True if you suspect a bug in linking.
     retain_index : boolean
         By default, the index is reset to be sequential. To keep the original
