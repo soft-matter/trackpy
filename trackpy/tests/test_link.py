@@ -342,8 +342,8 @@ class CommonTrackingTests(object):
     def test_real_data_that_causes_duplicate_bug(self):
         filename = 'reproduce_duplicate_track_assignment.df'
         f = pd.read_pickle(os.path.join(path, filename))
-        self.link_df(f, 8, 2) # not all parameters reproduce it, but these do
-        # If there are duplicates, _verify_integrity will raise and this will error.
+        # Not all parameters reproduce it, but these do
+        self.link_df(f, 8, 2, verify_integrity=True)
 
     def test_search_range(self):
         t = link(unit_steps(), 1.1, hash_generator((10, 10), 1))
@@ -471,6 +471,25 @@ class CommonTrackingTests(object):
         res = pd.concat(tp.link_df_iter(
             (df for fr, df in features.groupby('frame')), *args, **kwargs))
         return res.sort(['particle', 'frame']).reset_index(drop=True)
+
+
+class TestOnce(unittest.TestCase):
+    # simple API tests that need only run on one engine
+    def setUp(self):
+        N = 5
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        self.features = f
+
+    def test_t_column(self):
+        f = self.features.copy()
+        cols = list(f.columns)
+        name = 'arbitrary name'
+        cols[cols.index('frame')] = name
+        f.columns = cols
+
+        # smoke tests
+        tp.link_df(f, 5, t_column=name, verify_integrity=True)
+        tp.link_df_iter(f, 5, t_column=name, verify_integrity=True)
 
 
 class TestBTreeWithRecursiveLink(CommonTrackingTests, unittest.TestCase):

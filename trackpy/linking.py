@@ -475,8 +475,15 @@ def link_df(features, search_range, memory=0,
         labels = pd.Series([x.track.id for x in level], index)
         frame_no = next(iter(level)).t  # uses an arbitary element from the set
         if verify_integrity:
-            _verify_integrity(frame_no, labels) # may issue warnings
-            assert len(labels) <= len(features[features.frame == frame_no].particle)
+            # This checks that the labeling is sane and tries
+            # to raise informatively if some unknown bug in linking
+            # produces a malformed labeling.
+            _verify_integrity(frame_no, labels)
+            # an additional check particular to link_df
+            if len(labels) > len(features[features[t_column] == frame_no]):
+                raise UnknownLinkingError("There are more labels than "
+                                          "particles to be labeled in Frame "
+                                           "%d".format(frame_no))
         features['particle'].update(labels)
 
         msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
@@ -577,9 +584,19 @@ def link_df_iter(features, search_range, memory=0,
         labels = pd.Series([x.track.id for x in labeled_level], index)
         frame_no = next(iter(labeled_level)).t  # uses an arbitary element from the set
         if verify_integrity:
-            _verify_integrity(frame_no, labels) # may issue warnings
-            assert all(frame_no == source_features.frame.values)
-            assert len(labels) <= len(features.particle)
+            # This checks that the labeling is sane and tries
+            # to raise informatively if some unknown bug in linking
+            # produces a malformed labeling.
+            _verify_integrity(frame_no, labels)
+            # additional checks particular to link_df_iter
+            if not all(frame_no == source_features.frame.values):
+                raise UnknownLinkingError("The features passed for Frame %d "
+                                          "do not all share the same frame "
+                                          "number.".format(frame_no))
+            if len(labels) > len(features):
+                raise UnknownLinkingError("There are more labels than "
+                                          "particles to be labeled in Frame "
+                                           "%d".format(frame_no))
         features['particle'].update(labels)
 
         if retain_index:
@@ -607,10 +624,11 @@ class UnknownLinkingError(Exception):
 def _verify_integrity(frame_no, labels):
     if labels.duplicated().sum() > 0:
         raise UnknownLinkingError(
-            "There are two particles with the same label in Frame %d.")
+            "There are two particles with the same label in Frame %d.".format(
+                frame_no))
     if np.any(labels < 0):
-        raise UnknownLinkingError("Some particles were not labeled in Frame %d.")
-
+        raise UnknownLinkingError("Some particles were not labeled "
+                                  "in Frame %d.".format(frame_no))
 
 def link_iter(levels, search_range, memory=0,
               neighbor_strategy='KDTree', link_strategy='auto',
