@@ -396,7 +396,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
 def link_df(features, search_range, memory=0,
             neighbor_strategy='KDTree', link_strategy='auto',
             predictor=None, hash_size=None, box_size=None,
-            pos_columns=None, t_column=None, verify_integrity=True,
+            pos_columns=None, t_column=None, verify_integrity=False,
             retain_index=False):
     """Link features into trajectories, assigning a label to each trajectory.
 
@@ -441,7 +441,7 @@ def link_df(features, search_range, memory=0,
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
     verify_integrity : boolean
-        True by default. Set to False for fastest performance.
+        False by default for fastest performance.
         Use True if you suspect a bug in linking.
     retain_index : boolean
         By default, the index is reset to be sequential. To keep the original
