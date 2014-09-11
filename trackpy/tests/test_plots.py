@@ -21,6 +21,14 @@ class TestPlots(unittest.TestCase):
         suppress_plotting()
         plots.plot_traj(self.sparse, label=True)
 
+    def test_ptraj_t_column(self):
+        suppress_plotting()
+        df = self.sparse.copy()
+        cols = list(df.columns)
+        cols[cols.index('frame')] = 'arbitrary name'
+        df.columns = cols
+        plots.plot_traj(df, t_column='arbitrary name')
+
     def test_annotate(self):
         suppress_plotting()
         f = DataFrame({'x': [0, 1], 'y': [0, 1], 'frame': [0, 0],

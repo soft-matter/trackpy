@@ -62,8 +62,9 @@ def make_fig(func):
     return wrapper
 
 @make_axes
-def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None,
-       cmap=None, ax=None):
+def plot_traj(traj, colorby='particle', mpp=None, label=False,
+              superimpose=None, cmap=None, ax=None, t_column=None,
+              **kwargs):
     """Plot traces of trajectories for each particle.
     Optionally superimpose it on a frame from the video.
 
@@ -72,11 +73,14 @@ def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None,
     traj : DataFrame including columns x and y
     colorby: {'particle', 'frame'}
     mpp : microns per pixel
+        If omitted, the labels will be labeled in units of pixels.
     label : Set to True to write particle ID numbers next to trajectories.
     superimpose : background image, default None
     cmap : This is only used in colorby='frame' mode.
         Default = mpl.cm.winter
     ax : matplotlib axes object, defaults to current axes
+    t_column : DataFrame column name
+        Default is 'frame'
 
     Returns
     -------
@@ -84,37 +88,44 @@ def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None,
     """
     import matplotlib as mpl
     import matplotlib.pyplot as plt
+    from matplotlib.collections import LineCollection
 
     if cmap is None:
         cmap = plt.cm.winter
+    if t_column is None:
+        t_column = 'frame'
 
-    if (superimpose is not None) and (mpp != 1):
-        raise NotImplementedError("When superimposing over an image, you " +
-                                  "must plot in units of pixels. Leave " +
-                                  "microns per pixel mpp=1.")
     # Axes labels
-    if mpp == 1:
+    if mpp is None:
         ax.set_xlabel('x [px]')
         ax.set_ylabel('y [px]')
+        mpp = 1.  # for computations of image extent below
     else:
-        ax.set_xlabel(r'x [$\mu$m]')
-        ax.set_ylabel(r'y [$\mu$m]')
+        if mpl.rcParams['text.usetex']:
+            ax.set_xlabel(r'x [\textmu m]')
+            ax.set_ylabel(r'y [\textmu m]')
+        else:
+            ax.set_xlabel(u'x [\xb5m]')
+            ax.set_ylabel(u'y [\xb5m]')
     # Background image
     if superimpose is not None:
-        ax.imshow(superimpose, cmap=plt.cm.gray)
-        ax.set_xlim(0, superimpose.shape[1])
-        ax.set_ylim(0, superimpose.shape[0])
+        ax.imshow(superimpose, cmap=plt.cm.gray,
+                  origin='lower', interpolation='none',
+                  extent=[0, superimpose.shape[1]*mpp,
+                          0, superimpose.shape[0]*mpp],
+                  vmin=kwargs.get('vmin'), vmax=kwargs.get('vmax'))
+        ax.set_xlim(0, superimpose.shape[1]*mpp)
+        ax.set_ylim(0, superimpose.shape[0]*mpp)
     # Trajectories
     if colorby == 'particle':
         # Unstack particles into columns.
-        unstacked = traj.set_index(['frame', 'particle']).unstack()
+        unstacked = traj.set_index([t_column, 'particle']).unstack()
         ax.plot(mpp*unstacked['x'], mpp*unstacked['y'], linewidth=1)
     if colorby == 'frame':
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine
-        from matplotlib.collections import LineCollection
-        x = traj.set_index(['frame', 'particle'])['x'].unstack()
-        y = traj.set_index(['frame', 'particle'])['y'].unstack()
-        color_numbers = traj['frame'].values/float(traj['frame'].max())
+        x = traj.set_index([t_column, 'particle'])['x'].unstack()
+        y = traj.set_index([t_column, 'particle'])['y'].unstack()
+        color_numbers = traj[t_column].values/float(traj[t_column].max())
         print_update("Drawing multicolor lines takes awhile. "
                      "Come back in a minute.")
         for particle in x:
@@ -127,8 +138,8 @@ def plot_traj(traj, colorby='particle', mpp=1, label=False, superimpose=None,
             ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
             ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
     if label:
-        unstacked = traj.set_index(['frame', 'particle'])[['x', 'y']].unstack()
-        first_frame = int(traj['frame'].min())
+        unstacked = traj.set_index([t_column, 'particle'])[['x', 'y']].unstack()
+        first_frame = int(traj[t_column].min())
         coords = unstacked.fillna(method='backfill').stack().loc[first_frame]
         for particle_id, coord in coords.iterrows():
             plt.text(coord['x'], coord['y'], "%d" % particle_id,
