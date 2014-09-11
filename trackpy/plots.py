@@ -105,8 +105,8 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
             ax.set_xlabel(r'x [\textmu m]')
             ax.set_ylabel(r'y [\textmu m]')
         else:
-            ax.set_xlabel(u'x [\xb5m]')
-            ax.set_ylabel(u'y [\xb5m]')
+            ax.set_xlabel('x [\xb5m]')
+            ax.set_ylabel('y [\xb5m]')
     # Background image
     if superimpose is not None:
         ax.imshow(superimpose, cmap=plt.cm.gray,
