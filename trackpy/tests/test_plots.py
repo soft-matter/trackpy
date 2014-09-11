@@ -21,6 +21,10 @@ class TestPlots(unittest.TestCase):
         suppress_plotting()
         plots.plot_traj(self.sparse, label=True)
 
+    def test_ptraj_unicode_labels(self):
+        # smoke test
+        plots.plot_traj(self.sparse, mpp=0.5)
+
     def test_ptraj_t_column(self):
         suppress_plotting()
         df = self.sparse.copy()
