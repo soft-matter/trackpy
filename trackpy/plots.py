@@ -71,7 +71,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     Parameters
     ----------
     traj : DataFrame including columns x and y
-    colorby: {'particle', 'frame'}
+    colorby : {'particle', 'frame'}
     mpp : microns per pixel
         If omitted, the labels will be labeled in units of pixels.
     label : Set to True to write particle ID numbers next to trajectories.
@@ -325,7 +325,7 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
         trajectories, including columns 'frame' and 'particle'
     frame1 : integer
         frame number
-    frame2: integer
+    frame2 : integer
         frame number
     scale : float
         scale factor, if 1 (default) then arrow end is placed at particle
