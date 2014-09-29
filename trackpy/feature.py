@@ -43,7 +43,7 @@ def local_maxima(image, radius, percentile=64, margin=None):
             A smarter value is set by locate().
     """
     if margin is None:
-        margin = int(radius)
+        margin = radius
 
     ndim = image.ndim
     # Compute a threshold based on percentile.
@@ -77,14 +77,14 @@ def local_maxima(image, radius, percentile=64, margin=None):
 
 def estimate_mass(image, radius, coord):
     "Compute the total brightness in the neighborhood of a local maximum."
-    square = [slice(c - radius, c + radius + 1) for c in coord]
+    square = [slice(c - rad, c + rad + 1) for c,rad in zip(coord,radius)]
     neighborhood = binary_mask(radius, image.ndim)*image[square]
     return np.sum(neighborhood)
 
 
 def estimate_size(image, radius, coord, estimated_mass):
     "Compute the total brightness in the neighborhood of a local maximum."
-    square = [slice(c - radius, c + radius + 1) for c in coord]
+    square = [slice(c - rad, c + rad + 1) for c,rad in zip(coord,radius)]
     neighborhood = binary_mask(radius, image.ndim)*image[square]
     Rg = np.sqrt(np.sum(r_squared_mask(radius, image.ndim)*neighborhood)/
                  estimated_mass)
@@ -191,7 +191,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
-    slices = [[slice(c - radius, c + radius + 1) for c in coord]
+    slices = [[slice(c - rad, c + rad + 1) for c,rad in zip(coord,radius)]
               for coord in coords]
 
     # Declare arrays that we will fill iteratively through loop.
@@ -228,7 +228,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
                 upper_bound = np.array(image.shape) - 1 - radius
                 new_coord = np.clip(new_coord, radius, upper_bound).astype(int)
                 # Update slice to shifted position.
-                square = [slice(c - radius, c + radius + 1) for c in new_coord]
+                square = [slice(c - rad, c + rad + 1) for c,rad in zip(new_coord,radius)]
                 neighborhood = mask*image[square]
 
             # If we're off by less than half a pixel, interpolate.
@@ -502,15 +502,31 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     """
 
     # Validate parameters and set defaults.
-    if not diameter & 1:
-        raise ValueError("Feature diameter must be an odd number. Round up.")
-    if separation is None:
-        separation = int(diameter) + 1
-    radius = int(diameter)//2
-    if smoothing_size is None:
-        smoothing_size = diameter
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
+    
+    if type(diameter) == int: diameter = (diameter,) * len(shape)    
+    elif type(diameter) == list: diameter = tuple(diameter)
+    if len(diameter) != len(shape):
+        raise ValueError("Diameter list length differs from image dimension.")
+    for diam in diameter:
+        if not diam & 1:
+            raise ValueError("Feature diameter must be an odd number. Round up.")
+
+    radius = tuple([x//2 for x in diameter])
+           
+    if separation is None: separation = tuple([x + 1 for x in diameter]) 
+    elif type(separation) == int: separation = (separation,) * len(shape)
+    elif type(separation) == list: separation = tuple(separation)
+    if len(diameter) != len(shape):
+        raise ValueError("Separation list length differs from image dimension.")
+        
+    if smoothing_size is None: smoothing_size = separation
+    elif type(smoothing_size) == int: smoothing_size = (smoothing_size,) * len(shape)
+    elif type(smoothing_size) == list: smoothing_size = tuple(smoothing_size)
+    if len(diameter) != len(shape):
+        raise ValueError("Smoothing size list length differs from image dimension.")
+
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim

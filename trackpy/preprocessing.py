@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import numpy as np
-from scipy.ndimage.filters import uniform_filter
+from scipy.ndimage.filters import uniform_filter1d
 from scipy.ndimage.fourier import fourier_gaussian
 
 from .utils import print_update
@@ -39,12 +39,17 @@ def bandpass(image, lshort, llong, threshold=None):
     """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
     retaining features of intermediate scale.
-
+    
     Parmeters
     ---------
     image : ndarray
     lshort : small-scale cutoff (noise)
     llong : large-scale cutoff
+    for both lshort and llong:
+        give a tuple value for different sizes per dimension
+        give int value for same value for all dimensions
+        when 2*lshort >= llong, no noise filtering is applied
+    
     threshold : float or integer
         By default, 1 for integer images and 1/256. for float images.
 
@@ -52,17 +57,25 @@ def bandpass(image, lshort, llong, threshold=None):
     -------
     ndarray, the bandpassed image
     """
+    if type(lshort) == int: lshort = (lshort,) * image.ndim        
+    if type(llong) == int: llong = (llong,) * image.ndim  
     if threshold is None:
         if np.issubdtype(image.dtype, np.integer):
             threshold = 1
         else:
             threshold = 1/256.
-    if not 2*lshort < llong:
-        raise ValueError("The smoothing length scale must be more" +
-                         "than twice the noise length scale.")
+    lshortfiltered = list(lshort)
+    for i in xrange(image.ndim):
+        if 2*lshortfiltered[i] > llong[i]:
+            lshortfiltered[i] = 0
     settings = dict(mode='nearest', cval=0)
-    boxcar = uniform_filter(image, 2*llong+1, **settings)
-    gaussian = ifftn(fourier_gaussian(fftn(image), lshort))
+    axes = range(image.ndim)
+    sizes = [x*2+1 for x in llong]
+    boxcar = np.asarray(image) 
+    for (axis,size) in zip(axes,sizes):
+        boxcar = uniform_filter1d(boxcar,size,axis,**settings)
+    
+    gaussian = ifftn(fourier_gaussian(fftn(image), lshortfiltered))
     result = gaussian - boxcar
     return np.where(result > threshold, result.real, 0)
 
