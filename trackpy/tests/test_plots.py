@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from pandas import Series, DataFrame
 from trackpy import plots
-from trackpy.utils import suppress_plotting
+from trackpy.utils import suppress_plotting, fit_powerlaw
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
@@ -70,6 +70,13 @@ class TestPlots(unittest.TestCase):
         bad_call = lambda: plots.annotate(
             f, frame, split_category='not a column', split_thresh=15, color='r')
         self.assertRaises(bad_call)
+
+    def test_fit_powerlaw(self):
+        # smoke test
+        suppress_plotting()
+        em = Series([1, 2, 3], index=[1, 2, 3])
+        fit_powerlaw(em)
+        fit_powerlaw(em, plot=False)
 
 
 if __name__ == '__main__':

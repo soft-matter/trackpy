@@ -30,7 +30,7 @@ def fit_powerlaw(data, plot=True, **kwargs):
     values = values.T
     fits = pd.concat(fits, axis=1)
     if plot:
-        import plots
+        from trackpy import plots
         plots.fit(data, fits, logx=True, logy=True, legend=False, **kwargs)
     return values
 
