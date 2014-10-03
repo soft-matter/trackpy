@@ -207,7 +207,9 @@ def annotate(centroids, image, circle_size=None, color=None,
         return zip(a, b)
 
     if color is None:
-        color = []
+        color = ['r']
+    if isinstance(color, six.string_types):
+        color = [color]
     if not isinstance(split_thresh, Iterable):
         split_thresh = [split_thresh]
 
@@ -225,7 +227,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         if np.size(color) > 1:
             raise ValueError("multiple colors specified, no split category "
                              "specified")
-        _plot_style.update(markeredgecolor=color)
+        _plot_style.update(markeredgecolor=color[0])
         ax.plot(centroids['x'], centroids['y'],
                 **_plot_style)
     else:
