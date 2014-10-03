@@ -111,11 +111,9 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     if superimpose is not None:
         ax.imshow(superimpose, cmap=plt.cm.gray,
                   origin='lower', interpolation='none',
-                  extent=[0, superimpose.shape[1]*mpp,
-                          0, superimpose.shape[0]*mpp],
                   vmin=kwargs.get('vmin'), vmax=kwargs.get('vmax'))
-        ax.set_xlim(0, superimpose.shape[1]*mpp)
-        ax.set_ylim(0, superimpose.shape[0]*mpp)
+        ax.set_xlim(-0.5 * mpp, (superimpose.shape[1] - 0.5) * mpp)
+        ax.set_ylim(-0.5 * mpp, (superimpose.shape[0] - 0.5) * mpp)
     # Trajectories
     if colorby == 'particle':
         # Unstack particles into columns.
@@ -151,16 +149,18 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
 ptraj = plot_traj # convenience alias
 
 @make_axes
-def annotate(centroids, image, circle_size=170, color=None,
-             invert=False, ax=None, split_category=None, split_thresh=None):
+def annotate(centroids, image, circle_size=None, color=None,
+             invert=False, ax=None, split_category=None, split_thresh=None,
+             imshow_style={}, plot_style={}):
     """Mark identified features with white circles.
 
     Parameters
     ----------
     centroids : DataFrame including columns x and y
     image : image array (or string path to image file)
-    circle_size : size of circle annotations in matplotlib's annoying
-        arbitrary units, default 170
+    circle_size : Deprecated.
+        This will be removed in a future version of trackpy.
+        Use `plot_style={'markersize': ...}` instead.
     color : single matplotlib color or a list of multiple colors
         default None
     invert : If you give a filepath as the image, specify whether to invert
@@ -172,12 +172,32 @@ def annotate(centroids, image, circle_size=170, color=None,
         particles into sections for plotting in multiple colors.
         List items should be ordered by increasing value.
         default None
+    imshow_style : dictionary of keyword arguments passed through to
+        the `Axes.imshow(...)` command the displays the image
+    plot_style : dictionary of keyword arguments passed through to
+        the `Axes.plot(...)` command that marks the features
     
     Returns
     ------
     axes
     """
     import matplotlib.pyplot as plt
+
+    if circle_size is not None:
+        warnings.warn("circle_size will be removed in future version of "
+                      "trackpy. Use plot_style={'markersize': ...} instead.")
+        if 'marker_size' not in plot_style:
+            plot_style['marker_size'] = np.sqrt(circle_size)  # area vs. dia.
+        else:
+            raise ValueError("passed in both 'marker_size' and 'circle_size'") 
+
+    _plot_style = dict(markersize=15, markeredgewidth=2,
+                       markerfacecolor='none', markeredgecolor='r',
+                       marker='o', linestyle='none')
+    _plot_style.update(**_normalize_kwargs(plot_style, 'line2d'))
+    _imshow_style = dict(origin='lower', interpolation='none',
+                         cmap=plt.cm.gray)
+    _imshow_style.update(imshow_style)
 
     # https://docs.python.org/2/library/itertools.html
     def pairwise(iterable):
@@ -187,7 +207,7 @@ def annotate(centroids, image, circle_size=170, color=None,
         return zip(a, b)
 
     if color is None:
-        color = 'g'
+        color = []
     if not isinstance(split_thresh, Iterable):
         split_thresh = [split_thresh]
 
@@ -195,32 +215,39 @@ def annotate(centroids, image, circle_size=170, color=None,
     if isinstance(image, six.string_types):
         image = plt.imread(image)
     if invert:
-        ax.imshow(1-image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
+        ax.imshow(1-image, **_imshow_style)
     else:
-        ax.imshow(image, origin='upper', shape=image.shape, cmap=plt.cm.gray)
-    ax.set_xlim(0, image.shape[1])
-    ax.set_ylim(0, image.shape[0])
+        ax.imshow(image, **_imshow_style)
+    ax.set_xlim(-0.5, image.shape[1] - 0.5)
+    ax.set_ylim(-0.5, image.shape[0] - 0.5)
 
     if split_category is None:
         if np.size(color) > 1:
-            raise ValueError("multiple colors specified, no split category specified")
-        ax.scatter(centroids['x'], centroids['y'],
-                   s=circle_size, facecolors='none', edgecolors=color)
+            raise ValueError("multiple colors specified, no split category "
+                             "specified")
+        _plot_style.update(markeredgecolor=color)
+        ax.plot(centroids['x'], centroids['y'],
+                **_plot_style)
     else:
         if len(color) != len(split_thresh) + 1:
-            raise ValueError("number of colors must be number of thresholds plus 1")
+            raise ValueError("number of colors must be number of thresholds "
+                             "plus 1")
         low = centroids[split_category] < split_thresh[0]
-        ax.scatter(centroids['x'][low], centroids['y'][low], 
-                   s=circle_size, facecolors='none', edgecolors=color[0])
+        _plot_style.update(markeredgecolor=color[0])
+        ax.plot(centroids['x'][low], centroids['y'][low], 
+                **_plot_style)
 
         for c, (bot, top) in zip(color[1:-1], pairwise(split_thresh)):
-            indx = ((centroids[split_category]) >= bot) & ((centroids[split_category]) < top)
-            ax.scatter(centroids['x'][indx], centroids['y'][indx], 
-                       s=circle_size, facecolors='none', edgecolors=c)
+            indx = ((centroids[split_category] >= bot) &
+                    (centroids[split_category] < top))
+            _plot_style.update(markeredgecolor=c)
+            ax.plot(centroids['x'][indx], centroids['y'][indx], 
+                    **_plot_style)
 
         high = centroids[split_category] >= split_thresh[-1]
-        ax.scatter(centroids['x'][high], centroids['y'][high], 
-                   s=circle_size, facecolors='none', edgecolors=color[-1])
+        _plot_style.update(markeredgecolor=color[-1])
+        ax.plot(centroids['x'][high], centroids['y'][high], 
+                **_plot_style)
     return ax
 
 
@@ -361,3 +388,20 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
     ax.set_xlim(arrow_specs.x.min(), arrow_specs.x.max())
     ax.set_ylim(arrow_specs.y.min(), arrow_specs.y.max())
     return ax
+
+
+def _normalize_kwargs(kwargs, kind='patch'):
+    """Convert matplotlib keywords from short to long form."""
+    # Source:
+    # github.com/tritemio/FRETBursts/blob/fit_experim/fretbursts/burst_plot.py
+    if kind == 'line2d':
+        long_names = dict(c='color', ls='linestyle', lw='linewidth',
+                          mec='markeredgecolor', mew='markeredgewidth',
+                          mfc='markerfacecolor', ms='markersize',)
+    elif kind == 'patch':
+        long_names = dict(c='color', ls='linestyle', lw='linewidth',
+                          ec='edgecolor', fc='facecolor',)
+    for short_name in long_names:
+        if short_name in kwargs:
+            kwargs[long_names[short_name]] = kwargs.pop(short_name)
+    return kwargs
