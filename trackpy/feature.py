@@ -41,21 +41,6 @@ def local_maxima(image, radius, separation, percentile=64):
         warnings.warn("Image contains no local maxima.", UserWarning)
         return np.empty((0, ndim))
 
-    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    while True:
-        duplicates = cKDTree(maxima, 30).query_pairs(separation)
-        if len(duplicates) == 0:
-            break
-        to_drop = []
-        for pair in duplicates:
-            # Take the average position.
-            # This is just a starting point, so we won't go into subpx precision here.
-            merged = maxima[pair[0]]
-            merged = maxima[[pair[0], pair[1]]].mean(0).astype(int)
-            maxima[pair[0]] = merged  # overwrite one
-            to_drop.append(pair[1])  # queue other to be dropped
-        maxima = np.delete(maxima, to_drop, 0)
-
     # Do not accept peaks near the edges.
     shape = np.array(image.shape)
     margin = int(separation) // 2
@@ -93,8 +78,8 @@ def _safe_center_of_mass(x, radius):
         return result
 
 
-def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
-           characterize=True, walkthrough=False):
+def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
+           engine='auto', characterize=True, walkthrough=False):
     """Find the center of mass of a bright feature starting from an estimate.
 
     Characterize the neighborhood of a local maximum, and iteratively
@@ -151,6 +136,29 @@ def refine(raw_image, image, radius, coords, max_iterations=10, engine='auto',
                                 shape, mask, r2_mask, cmask, smask)
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
+
+    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
+    if separation > 0:
+        mass_index = image.ndim  # i.e., index of the 'mass' column
+        while True:
+            positions = results[:, :mass_index]
+            mass = results[:, mass_index]
+            duplicates = cKDTree(positions, 30).query_pairs(separation)
+            if len(duplicates) == 0:
+                break
+            to_drop = []
+            for pair in duplicates:
+                # Drop the dimmer one.
+                if np.equal(*mass.take(pair, 0)):
+                    # Rare corner case: a tie!
+                    # Break ties by sorting by position, simply to avoid
+                    # any randomness resulting from cKDTree returning a set.
+                    dimmer = np.argsort(positions.take(pair, 0))[0, 0]
+                else:
+                    dimmer = np.argmin(mass.take(pair, 0))
+                to_drop.append(pair[dimmer])
+            results = np.delete(results, to_drop, 0)
+
     return results
 
 
@@ -552,8 +560,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         return DataFrame(columns=all_columns)
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine(raw_image, image, radius, coords, max_iterations,
-                            engine, characterize)
+    refined_coords = refine(raw_image, image, radius, coords, separation,
+                            max_iterations, engine, characterize)
 
     # Filter again, using final ("exact") mass -- and size, if set.
     MASS_COLUMN_INDEX = image.ndim

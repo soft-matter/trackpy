@@ -153,20 +153,59 @@ class CommonFeatureIdentificationTests(object):
         image[11, 13] = 100
         image[11, 14] = 100
         image[12, 13] = 100
-        count = len(tp.locate(image, 5, preprocess=False))
+        count = len(tp.locate(image, 5, preprocess=False,
+                              engine=self.engine))
         self.assertEqual(count, 1)
 
         image = np.ones((21, 23)).astype(np.uint8)
         image[11:13, 13:15] = 100
-        count = len(tp.locate(image, 5, preprocess=False))
+        count = len(tp.locate(image, 5, preprocess=False,
+                              engine=self.engine))
         self.assertEqual(count, 1)
 
         image = np.ones((21, 23)).astype(np.uint8)
         image[11, 13] = 100
         image[11, 14] = 100
         image[11, 15] = 100
-        count = len(tp.locate(image, 5, preprocess=False))
+        count = len(tp.locate(image, 5, preprocess=False,
+                              engine=self.engine))
         self.assertEqual(count, 1)
+
+        # This tests that two nearby peaks are merged by
+        # picking the one with the brighter neighborhood.
+        image = np.ones((21, 23)).astype(np.uint8)
+        pos = [14, 14]
+
+        draw_point(image, [11, 13], 100)
+        draw_point(image, [11, 14], 100)
+        draw_point(image, [11, 15], 100)
+        draw_point(image, [14, 13], 101)
+        draw_point(image, [14, 14], 101)
+        draw_point(image, [14, 15], 101)
+        cols = ['x', 'y']
+        actual = tp.locate(image, 5, preprocess=False,
+                           engine=self.engine)[cols]
+
+        expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
+        assert_allclose(actual, expected, atol=0.1)
+
+        # Break ties by sorting by position, simply to avoid
+        # any randomness resulting from cKDTree returning a set.
+        image = np.ones((21, 23)).astype(np.uint8)
+        pos = [14, 14]
+
+        draw_point(image, [11, 12], 100)
+        draw_point(image, [11, 13], 100)
+        draw_point(image, [11, 14], 100)
+        draw_point(image, [14, 13], 100)
+        draw_point(image, [14, 14], 100)
+        draw_point(image, [14, 15], 100)
+        cols = ['x', 'y']
+        actual = tp.locate(image, 5, preprocess=False,
+                           engine=self.engine)[cols]
+
+        expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
+        assert_allclose(actual, expected, atol=0.1)
 
     def test_one_centered_gaussian(self):
         self.check_skip()
