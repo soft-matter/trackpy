@@ -159,9 +159,8 @@ def annotate(centroids, image, circle_size=None, color=None,
     centroids : DataFrame including columns x and y
     image : image array (or string path to image file)
     circle_size : Deprecated.
-        This parameter has no effect, and raises a warning. Use
-        `plot_style={'markersize': ...}` instead.
-        It will be removed in a future version of trackpy.
+        This will be removed in a future version of trackpy.
+        Use `plot_style={'markersize': ...}` instead.
     color : single matplotlib color or a list of multiple colors
         default None
     invert : If you give a filepath as the image, specify whether to invert
@@ -185,8 +184,12 @@ def annotate(centroids, image, circle_size=None, color=None,
     import matplotlib.pyplot as plt
 
     if circle_size is not None:
-        warnings.warn("This circle_size argument is no longer used. Use "
-                      "plot_style={'markersize': ...} instead.")
+        warnings.warn("circle_size will be removed in future version of "
+                      "trackpy. Use plot_style={'markersize': ...} instead.")
+        if 'marker_size' not in plot_style:
+            plot_style['marker_size'] = np.sqrt(circle_size)  # area vs. dia.
+        else:
+            raise ValueError("passed in both 'marker_size' and 'circle_size'") 
 
     _plot_style = dict(markersize=15, markeredgewidth=2,
                        markerfacecolor='none', markeredgecolor='r',
