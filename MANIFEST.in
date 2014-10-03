@@ -1,2 +1,5 @@
 include versioneer.py
 include trackpy/_version.py
+include README.md
+include LICENCE
+include doi.png
