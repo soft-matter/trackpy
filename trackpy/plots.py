@@ -95,6 +95,9 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     if t_column is None:
         t_column = 'frame'
 
+    if len(traj) == 0:
+        raise ValueError("DataFrame of trajectories is empty.")
+
     # Axes labels
     if mpp is None:
         ax.set_xlabel('x [px]')
