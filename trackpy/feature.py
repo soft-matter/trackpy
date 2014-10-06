@@ -25,7 +25,6 @@ __all__ = ['locate', 'batch', 'percentile_threshold', 'local_maxima',
 def percentile_threshold(image, percentile):
     """Find grayscale threshold based on distribution in image."""
 
-    ndim = image.ndim
     not_black = image[np.nonzero(image)]
     if len(not_black) == 0:
         return np.nan
@@ -159,12 +158,12 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         raise ValueError("Available engines are 'python' and 'numba'")
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    if separation > 0:
+    if np.all(np.greater(separation,0)) > 0:
         mass_index = image.ndim  # i.e., index of the 'mass' column
         while True:
-            positions = results[:, :mass_index]
+            positions = results[:, :mass_index]/np.tile(separation,(results.shape[0],1))  
             mass = results[:, mass_index]
-            duplicates = cKDTree(positions, 30).query_pairs(separation)
+            duplicates = cKDTree(positions, 30).query_pairs(1)
             if len(duplicates) == 0:
                 break
             to_drop = []
@@ -179,7 +178,8 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
                     dimmer = np.argmin(mass.take(pair, 0))
                 to_drop.append(pair[dimmer])
             results = np.delete(results, to_drop, 0)
-
+        results[:, :mass_index] = results[:, :mass_index]*np.tile(separation,(results.shape[0],1))
+    
     return results
 
 
@@ -504,29 +504,35 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # Validate parameters and set defaults.
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
+    ndim = len(shape)
     
-    if type(diameter) == int: diameter = (diameter,) * len(shape)    
-    elif type(diameter) == list: diameter = tuple(diameter)
-    if len(diameter) != len(shape):
-        raise ValueError("Diameter list length differs from image dimension.")
+    def validatetuple(value, ndim):
+        if not hasattr(value, '__iter__'):
+            return (value,) * ndim
+        if len(diameter) == ndim:
+            return tuple(value)    
+        raise ValueError("List length disagrees with image dimension.")
+    
+    diameter = validatetuple(diameter, ndim)    
+    diameter = tuple([int(x) for x in diameter])
     for diam in diameter:
         if not diam & 1:
             raise ValueError("Feature diameter must be an odd number. Round up.")
-
     radius = tuple([x//2 for x in diameter])
-           
-    if separation is None: separation = tuple([x + 1 for x in diameter]) 
-    elif type(separation) == int: separation = (separation,) * len(shape)
-    elif type(separation) == list: separation = tuple(separation)
-    if len(diameter) != len(shape):
-        raise ValueError("Separation list length differs from image dimension.")
+    
+    if separation is None: 
+        separation = tuple([x + 1 for x in diameter])
+    else:
+        separation = validatetuple(separation, ndim)
+    
+    if smoothing_size is None: 
+        smoothing_size = separation 
+    else:
+        smoothing_size = validatetuple(smoothing_size, ndim)
         
-    if smoothing_size is None: smoothing_size = separation
-    elif type(smoothing_size) == int: smoothing_size = (smoothing_size,) * len(shape)
-    elif type(smoothing_size) == list: smoothing_size = tuple(smoothing_size)
-    if len(diameter) != len(shape):
-        raise ValueError("Smoothing size list length differs from image dimension.")
-
+    noise_size = validatetuple(noise_size, ndim)
+        
+         
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim

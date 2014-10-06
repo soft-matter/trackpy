@@ -13,8 +13,9 @@ __all__ = ['binary_mask', 'r_squared_mask', 'cosmask', 'sinmask',
 @memo
 def binary_mask(radius, ndim):
     "Elliptical mask in a rectangular array"
-    if type(radius) == int: radius = (radius,) * ndim
-    points = [range(-rad, rad + 1) for rad in radius]
+    if not hasattr(radius, '__iter__'):
+        radius = (radius,) * ndim
+    points = [np.arange(-rad, rad + 1) for rad in radius]
     if len(radius) > 1:
         coords = np.array(np.meshgrid(*points, indexing="ij"))
     else:
@@ -26,8 +27,9 @@ def binary_mask(radius, ndim):
 @memo
 def r_squared_mask(radius, ndim):
     "Mask with values r^2 inside radius and 0 outside"
-    if type(radius) == int: radius = (radius,) * ndim
-    points = [range(-rad, rad + 1) for rad in radius]
+    if not hasattr(radius, '__iter__'):
+        radius = (radius,) * ndim
+    points = [np.arange(-rad, rad + 1) for rad in radius]
     if len(radius) > 1:
         coords = np.array(np.meshgrid(*points, indexing="ij"))
     else:
