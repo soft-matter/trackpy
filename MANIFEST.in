@@ -3,3 +3,4 @@ include trackpy/_version.py
 include README.md
 include LICENCE
 include doi.png
+include ez_setup.py
