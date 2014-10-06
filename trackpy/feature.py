@@ -575,7 +575,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     #   - Extended particles that cannot be explored during subpixel
     #       refinement ("separation")
     #   - Invalid output of the bandpass step ("smoothing_size")
-    margin = max(radius, separation // 2 - 1, smoothing_size // 2)
+    margin = tuple([max(rad, sep // 2 - 1, sm // 2) 
+                for (rad,sep,sm) in zip(radius,separation,smoothing_size)])
     coords = local_maxima(image, radius, percentile, margin)
     count_maxima = coords.shape[0]
 
