@@ -171,15 +171,14 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
                 # Drop the dimmer one.
                 if np.equal(*mass.take(pair, 0)):
                     # Rare corner case: a tie!
-                    # Break ties by sorting by position, simply to avoid
+                    # Break ties by sorting by sum of coordinates, simply to avoid
                     # any randomness resulting from cKDTree returning a set.
-                    dimmer = np.argsort(positions.take(pair, 0))[0, 0]
+                    dimmer = np.argsort(np.sum(positions.take(pair,0),1))[0]
                 else:
                     dimmer = np.argmin(mass.take(pair, 0))
                 to_drop.append(pair[dimmer])
             results = np.delete(results, to_drop, 0)
-        results[:, :mass_index] = results[:, :mass_index]*np.tile(separation,(results.shape[0],1))
-    
+           
     return results
 
 
@@ -206,8 +205,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         coord = coords[feat]
 
         # Define the circular neighborhood of (x, y).
-        square = slices[feat]
-        neighborhood = mask*image[square]
+        rect = slices[feat]
+        neighborhood = mask*image[rect]
         cm_n = _safe_center_of_mass(neighborhood, radius)
         cm_i = cm_n - radius + coord  # image coords
         allow_moves = True
@@ -228,8 +227,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
                 upper_bound = np.array(image.shape) - 1 - radius
                 new_coord = np.clip(new_coord, radius, upper_bound).astype(int)
                 # Update slice to shifted position.
-                square = [slice(c - rad, c + rad + 1) for c,rad in zip(new_coord,radius)]
-                neighborhood = mask*image[square]
+                rect = [slice(c - rad, c + rad + 1) for c,rad in zip(new_coord,radius)]
+                neighborhood = mask*image[rect]
 
             # If we're off by less than half a pixel, interpolate.
             else:
@@ -257,13 +256,13 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim)*
                                   neighborhood)/mass[feat])
         # I only know how to measure eccentricity in 2D.
-        if ndim == 2:
-            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
-                          np.sum(neighborhood*sinmask(radius))**2)
-            ecc[feat] /= (mass[feat] - neighborhood[radius, radius] + 1e-6)
+        if ndim == 2 and radius[0] == radius[1]:
+            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius[0]))**2 +
+                          np.sum(neighborhood*sinmask(radius[0]))**2)
+            ecc[feat] /= (mass[feat] - neighborhood[radius[0], radius[0]] + 1e-6)
         else:
             ecc[feat] = np.nan
-        raw_neighborhood = mask*raw_image[square]
+        raw_neighborhood = mask*raw_image[rect]
         signal[feat] = raw_neighborhood.max()  # black_level subtracted later
 
     if not characterize:
@@ -505,33 +504,28 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
     ndim = len(shape)
-    
-    def validatetuple(value, ndim):
-        if not hasattr(value, '__iter__'):
-            return (value,) * ndim
-        if len(diameter) == ndim:
-            return tuple(value)    
-        raise ValueError("List length disagrees with image dimension.")
-    
-    diameter = validatetuple(diameter, ndim)    
+       
+    diameter = validate_tuple(diameter, ndim)    
     diameter = tuple([int(x) for x in diameter])
-    for diam in diameter:
-        if not diam & 1:
-            raise ValueError("Feature diameter must be an odd number. Round up.")
+    if not np.any([x & 1 for x in diameter]):
+        raise ValueError("Feature diameter must be an odd integer. Round up.")
     radius = tuple([x//2 for x in diameter])
     
     if separation is None: 
         separation = tuple([x + 1 for x in diameter])
     else:
-        separation = validatetuple(separation, ndim)
+        separation = validate_tuple(separation, ndim)
     
     if smoothing_size is None: 
         smoothing_size = separation 
     else:
-        smoothing_size = validatetuple(smoothing_size, ndim)
+        smoothing_size = validate_tuple(smoothing_size, ndim)
         
-    noise_size = validatetuple(noise_size, ndim)
-        
+    noise_size = validate_tuple(noise_size, ndim) 
+    
+    # Don't do characterization for rectangular pixels/voxels
+    if diameter[1:] != diameter[:-1]:
+        characterize = False
          
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
@@ -646,7 +640,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         black_level, noise = uncertainty.measure_noise(
             raw_image, diameter, threshold)
         f['signal'] -= black_level
-        ep = uncertainty.static_error(f, noise, diameter, noise_size)
+        ep = uncertainty.static_error(f, noise, diameter[0], noise_size[0])
         f = f.join(ep)
 
     # If this is a pims Frame object, it has a frame number.

@@ -6,7 +6,7 @@ import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 from scipy.ndimage.fourier import fourier_gaussian
 
-from .utils import print_update
+from .utils import print_update, validate_tuple
 
 
 # When loading module, try to use pyFFTW ("Fastest Fourier Transform in the
@@ -57,8 +57,8 @@ def bandpass(image, lshort, llong, threshold=None):
     -------
     ndarray, the bandpassed image
     """
-    if type(lshort) == int: lshort = (lshort,) * image.ndim        
-    if type(llong) == int: llong = (llong,) * image.ndim  
+    lshort = validate_tuple(lshort, image.ndim)       
+    llong = validate_tuple(lshort, image.ndim)
     if threshold is None:
         if np.issubdtype(image.dtype, np.integer):
             threshold = 1

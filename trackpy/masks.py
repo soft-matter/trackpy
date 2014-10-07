@@ -4,7 +4,7 @@ import six
 
 import numpy as np
 
-from .utils import memo
+from .utils import memo, validate_tuple
 
 __all__ = ['binary_mask', 'r_squared_mask', 'cosmask', 'sinmask',
            'theta_mask']
@@ -13,8 +13,7 @@ __all__ = ['binary_mask', 'r_squared_mask', 'cosmask', 'sinmask',
 @memo
 def binary_mask(radius, ndim):
     "Elliptical mask in a rectangular array"
-    if not hasattr(radius, '__iter__'):
-        radius = (radius,) * ndim
+    radius = validate_tuple(radius, ndim)
     points = [np.arange(-rad, rad + 1) for rad in radius]
     if len(radius) > 1:
         coords = np.array(np.meshgrid(*points, indexing="ij"))
@@ -27,8 +26,7 @@ def binary_mask(radius, ndim):
 @memo
 def r_squared_mask(radius, ndim):
     "Mask with values r^2 inside radius and 0 outside"
-    if not hasattr(radius, '__iter__'):
-        radius = (radius,) * ndim
+    radius = validate_tuple(radius, ndim)
     points = [np.arange(-rad, rad + 1) for rad in radius]
     if len(radius) > 1:
         coords = np.array(np.meshgrid(*points, indexing="ij"))
