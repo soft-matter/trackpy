@@ -158,10 +158,12 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         raise ValueError("Available engines are 'python' and 'numba'")
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    if np.all(np.greater(separation,0)) > 0:
+    if np.all(np.greater(separation,0)):
         mass_index = image.ndim  # i.e., index of the 'mass' column
         while True:
-            positions = results[:, :mass_index]/np.tile(separation,(results.shape[0],1))  
+            # Rescale positions, so that pairs are identified below a distance 
+            # of 1. Do so every iteration (room for improvement?)
+            positions = results[:, :mass_index]/list(reversed(separation))
             mass = results[:, mass_index]
             duplicates = cKDTree(positions, 30).query_pairs(1)
             if len(duplicates) == 0:
