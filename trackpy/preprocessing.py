@@ -58,16 +58,16 @@ def bandpass(image, lshort, llong, threshold=None):
     ndarray, the bandpassed image
     """
     lshort = validate_tuple(lshort, image.ndim)       
-    llong = validate_tuple(lshort, image.ndim)
+    llong = validate_tuple(llong, image.ndim)
+    if np.any([x*2 >= y for (x, y) in zip(lshort,llong)]):
+        raise ValueError("The smoothing length scale must be more" +
+                          "than twice the noise length scale.")
     if threshold is None:
         if np.issubdtype(image.dtype, np.integer):
             threshold = 1
         else:
             threshold = 1/256.
     lshortfiltered = list(lshort)
-    for i in xrange(image.ndim):
-        if 2*lshortfiltered[i] > llong[i]:
-            lshortfiltered[i] = 0
     settings = dict(mode='nearest', cval=0)
     axes = range(image.ndim)
     sizes = [x*2+1 for x in llong]
