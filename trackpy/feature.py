@@ -123,6 +123,8 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
     engine : {'python', 'numba'}
         Numba is faster if available, but it cannot do walkthrough.
     """
+    # ensure that radius is tuple of integers, for direct calls to refine()
+    radius = validate_tuple(radius, image.ndim)
     # Main loop will be performed in separate function.
     if engine == 'auto':
         if NUMBA_AVAILABLE:
@@ -142,16 +144,21 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
             raise NotImplementedError("The numba engine only supports 2D "
                                       "images. You can extend it if you feel "
                                       "like a hero.")
+        if radius[0] != radius[1]:
+            raise NotImplementedError("The numba engine does not support "
+                                  "anisotropic feature finding. "
+                                  "You can extend it if you feel "
+                                  "like a hero.")              
         if walkthrough:
             raise ValueError("walkthrough is not availabe in the numba engine")
         # Do some extra prep in pure Python that can't be done in numba.
         coords = np.array(coords, dtype=np.float_)
         shape = np.array(image.shape, dtype=np.int16)  # array, not tuple
-        mask = binary_mask(radius, image.ndim)
-        r2_mask = r_squared_mask(radius, image.ndim)
-        cmask = cosmask(radius)
-        smask = sinmask(radius)
-        results = _numba_refine(raw_image, image, int(radius), coords,
+        mask = binary_mask(radius[0], image.ndim)
+        r2_mask = r_squared_mask(radius[0], image.ndim)
+        cmask = cosmask(radius[0])
+        smask = sinmask(radius[0])
+        results = _numba_refine(raw_image, image, int(radius[0]), coords,
                                 int(max_iterations), characterize,
                                 shape, mask, r2_mask, cmask, smask)
     else:
