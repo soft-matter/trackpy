@@ -59,7 +59,7 @@ def bandpass(image, lshort, llong, threshold=None):
     """
     lshort = validate_tuple(lshort, image.ndim)       
     llong = validate_tuple(llong, image.ndim)
-    if np.any([x*2 >= y for (x, y) in zip(lshort,llong)]):
+    if np.any([x*2 >= y for (x, y) in zip(lshort, llong)]):
         raise ValueError("The smoothing length scale must be more" +
                           "than twice the noise length scale.")
     if threshold is None:
@@ -67,15 +67,13 @@ def bandpass(image, lshort, llong, threshold=None):
             threshold = 1
         else:
             threshold = 1/256.
-    lshortfiltered = list(lshort)
     settings = dict(mode='nearest', cval=0)
     axes = range(image.ndim)
     sizes = [x*2+1 for x in llong]
     boxcar = np.asarray(image) 
     for (axis,size) in zip(axes,sizes):
         boxcar = uniform_filter1d(boxcar,size,axis,**settings)
-    
-    gaussian = ifftn(fourier_gaussian(fftn(image), lshortfiltered))
+    gaussian = ifftn(fourier_gaussian(fftn(image), lshort))
     result = gaussian - boxcar
     return np.where(result > threshold, result.real, 0)
 
