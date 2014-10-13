@@ -1,6 +1,5 @@
 include MANIFEST.in
 include setup.py
-include ez_setup.py
 include versioneer.py
 include trackpy/_version.py
 include README.md

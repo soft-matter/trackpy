@@ -1,27 +1,11 @@
-# This downloads and install setuptools if it is not installed.
-from ez_setup import use_setuptools
-use_setuptools()
-
 import os
 import sys
 import warnings
-
-# try bootstrapping setuptools if it doesn't exist
-try:
-    import pkg_resources
-    try:
-        pkg_resources.require("setuptools>=0.6c5")
-    except pkg_resources.VersionConflict:
-        from ez_setup import use_setuptools
-        use_setuptools(version="0.6c5")
-    from setuptools import setup, Extension
-    _have_setuptools = True
-except ImportError:
-    # no setuptools installed
-    from numpy.distutils.core import setup
-    _have_setuptools = False
-
+import setuptools
 import versioneer
+from setuptools import setup, Extension
+
+
 versioneer.VCS = 'git'
 versioneer.versionfile_source = 'trackpy/_version.py'
 versioneer.versionfile_build = 'trackpy/_version.py'
