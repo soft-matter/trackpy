@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from abc import ABCMeta, abstractmethod, abstractproperty
+import warnings
 
 import pandas as pd
 
@@ -118,6 +119,9 @@ class PandasHDFStore(FramewiseData):
         return max(self.frames)
 
     def put(self, df):
+        if len(df) == 0:
+            warnings.warn('An empty DataFrame was passed to put(). Continuing.')
+            return
         frame_no = df[self.t_column].values[0]  # validated to be all the same
         key = code_key(frame_no)
         # Store data as tabular instead of fixed-format.
@@ -249,6 +253,9 @@ class PandasHDFStoreSingleNode(FramewiseData):
         return self._t_column
 
     def put(self, df):
+        if len(df) == 0:
+            warnings.warn('An empty DataFrame was passed to put(). Continuing.')
+            return
         self._validate(df)
         self.store.append(self.key, df, data_columns=True)
 

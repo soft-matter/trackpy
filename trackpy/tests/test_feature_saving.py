@@ -9,8 +9,9 @@ import os
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
-from pandas.util.testing import (assert_series_equal, assert_frame_equal)
-
+from pandas.util.testing import (assert_series_equal, assert_frame_equal,
+                                 assert_produces_warning)
+from pandas import DataFrame
 import trackpy as tp 
 
 
@@ -67,6 +68,10 @@ class FeatureSavingTester(object):
             assert_frame_equal(s.dump().reset_index(drop=True), 
                                self.expected.reset_index(drop=True))
             assert_frame_equal(s[0], s.get(0))
+
+            # Putting an empty df should warn
+            with assert_produces_warning(UserWarning):
+                s.put(DataFrame())
             s.close()
             os.remove(STORE_NAME)
 
