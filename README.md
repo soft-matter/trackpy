@@ -164,14 +164,28 @@ can read what you need for each format
 
 ### Updating Your Installation
 
+#### Latest Stable Release
+
 The code is under active development. To update to the latest stable release,
 run this in the command prompt:
 
     conda update -c soft-matter trackpy
 
-To use the current development version, run this:
+#### Latest Version Under Development
 
-    pip install --upgrade http://github.com/soft-matter/trackpy/zipball/master
+The `master` branch on github contains the latest tested development code.
+Changes are thoroughly tested before being merged. If you want to use the
+latest features it should be safe to rely on the master branch.
+(The primary contributors do.)
+
+You can easily install a recent build from the
+soft-matter development channel on conda
+
+    conda config --add channels soft-matter
+    conda install -c soft-matter/channel/dev trackpy
+
+If you plan to edit the code yourself, you should use git and pip as given
+above under "More Information for Advanced Python Users."
 
 Versions & Project Roadmap
 --------------------------
@@ -182,11 +196,6 @@ The original release is tagged Version 0.1.
 Although there have been major changes to the code, v0.2.x maintains complete
 reverse compatibility with v0.1 and can be used as drop-in replacement.
 We recommend all users upgrade.
-
-The `master` branch on github contains the latest tested development code.
-Changes are thoroughly tested before being merged. If you want to use the
-latest features it should be safe to rely on the master branch.
-(The primary contributors do.)
 
 Roadmap:
 
