@@ -79,25 +79,28 @@ Installation
 
 Installation is simple on Windows, OSX, and Linux, even for Python novices.
 
+#### 1. Get Scientific Python
+
 To get started with Python on any platform, download and install
 [Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with the
 common scientific Python packages built in.
 
-If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
-(One of the optional dependencies is not yet compatible with 64-bit Python.)
+#### 2. Install trackpy
 
-Open a command prompt. That's "Terminal" on a Mac, and
-"Start > Applications > Command Prompt" on Windows. Type or paste these
-lines to make certain that Anaconda will work well with trackpy:
+Open a command prompt. On Windows, you can use the "Anaconda Command Prompt"
+installed by Anaconda or Start > Applications > Command Prompt. On a Mac, look
+for Applications > Utilities > Terminal. Type these commands:
 
     conda update conda
-    conda install numpy=1.8 scipy=0.14.0 matplotlib=1.3 pandas=0.13.0 scikit-image=0.10.1 pyyaml numba=0.12.2
-    conda install pip
+    conda install -c soft-matter trackpy
+
+The above installs trackpy and all its requirements. Our tutorials also use
+the IPython notebook. To install that as well, type
+
+    conda install ipython-notebook
+
+#### 3. Try it out!
     
-Then, to install trackpy:
-
-    pip install trackpy
-
 Finally, to try it out, type
 
     ipython notebook
@@ -105,35 +108,36 @@ Finally, to try it out, type
 This will automatically open a browser tab, ready to interpret Python code.
 To get started, check out the links to tutorials at the top of this document.
 
-### For Experienced Python Users
+###  More Information for Experienced Python Users
 
-You can install any of the dependencies using pip, but we
-recommend starting with
-[Anaconda](https://store.continuum.io/cshop/anaconda/), which comes
-with several of the essential dependencies included.
-[Canopy](https://www.enthought.com/products/canopy/) is another
-distribution that makes a good starting point.
+We strongly reccomend using conda install trackpy, as described above,
+but pip is also supported.
 
 Essential Dependencies:
 
-  * [``numpy``](http://www.scipy.org/)
-  * [``scipy``](http://www.scipy.org/)
+  * Python 2.7, 3.3, or 3.4.
+  * [``setuptools``](http://pythonhosted.org/setuptools/)
+  * [``six``](http://pythonhosted.org/six/) >=1.8
+  * [``numpy``](http://www.scipy.org/) >=1.7
+  * [``scipy``](http://www.scipy.org/) >=0.12.0
   * [``matplotlib``](http://matplotlib.org/)
-  * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html)
+  * [``pandas``](http://pandas.pydata.org/pandas-docs/stable/overview.html) >=0.12.0
   * [``pyyaml``](http://pyyaml.org/)
-
 
 You will also need the image- and video-reader PIMS, which is, like trackpy
 itself, part of the github.com/soft-matter organization.
 
   * [``PIMS``](https://github.com/soft-matter/pims)
 
-You can install PIMS and trackpy using pip:
+You can install PIMS from the soft-matter binstar channel using conda:
+
+    conda install -c soft-matter pims
+
+or from PyPI using pip:
 
     pip install pims
-    pip install trackpy
 
-Or, if you plan to edit the code, you can install them manually:
+Or, if you plan to edit the code, you can install both packages manually:
 
     git clone https://github.com/soft-matter/pims
     pip install -e pims
@@ -160,8 +164,12 @@ can read what you need for each format
 
 ### Updating Your Installation
 
-The code is under active development. To update to the current development
-version, run this in the command prompt:
+The code is under active development. To update to the latest stable release,
+run this in the command prompt:
+
+    conda update -c soft-matter trackpy
+
+To use the current development version, run this:
 
     pip install --upgrade http://github.com/soft-matter/trackpy/zipball/master
 
