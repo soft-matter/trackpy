@@ -6,6 +6,7 @@ from six.moves import zip
 from itertools import tee
 from collections import Iterable
 from functools import wraps
+import warnings
 
 import numpy as np
 import pandas as pd
