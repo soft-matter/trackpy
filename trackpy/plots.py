@@ -119,7 +119,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine
         x = traj.set_index([t_column, 'particle'])['x'].unstack()
         y = traj.set_index([t_column, 'particle'])['y'].unstack()
-        color_numbers = traj[t_column].values/float(traj[t_column].max())
+
         print_update("Drawing multicolor lines takes awhile. "
                      "Come back in a minute.")
         for particle in x:
@@ -127,7 +127,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
                 [x[particle].values, y[particle].values]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             lc = LineCollection(segments, cmap=cmap)
-            lc.set_array(color_numbers)
+            lc.set_array(x.index)
             ax.add_collection(lc)
         ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
         ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
@@ -148,6 +148,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     return ax
 
 ptraj = plot_traj  # convenience alias
+
 
 @make_axes
 def annotate(centroids, image, circle_size=None, color=None,
