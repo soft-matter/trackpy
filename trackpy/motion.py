@@ -13,7 +13,7 @@ __all__ = ['msd', 'imsd', 'emsd', 'compute_drift', 'subtract_drift',
            'direction_corr', 'is_typical', 'diagonal_size']
 
 
-def msd(traj, mpp, fps, max_lagtime=100, detail=False):
+def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     """Compute the mean displacement and mean squared displacement of one
     trajectory over a range of time intervals.
 
@@ -42,7 +42,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     --------
     imsd() and emsd()
     """
-    pos = traj.set_index('frame')[['x', 'y']]
+    pos = traj.set_index('frame')[pos_columns]
     t = traj['frame']
     # Reindex with consecutive frames, placing NaNs in the gaps.
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
@@ -51,16 +51,17 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     disp = pd.concat([pos.sub(pos.shift(lt)) for lt in lagtimes],
                      keys=lagtimes, names=['lagt', 'frames'])
     results = mpp*disp.mean(level=0)
-    results.columns = ['<x>', '<y>']
-    results[['<x^2>', '<y^2>']] = mpp**2*(disp**2).mean(level=0)
+    results.columns = ['<{}>'.format(p) for p in pos_columns]
+    results[['<{}^2>'.format(p) for p in pos_columns]] = mpp**2*(disp**2).mean(level=0)
     results['msd'] = mpp**2*(disp**2).mean(level=0).sum(1) # <r^2>
     # Estimated statistically independent measurements = 2N/t
     if detail:
-        results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))
+        results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))   
     results['lagt'] = results.index.values/fps
     return results[:-1]
 
-def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
+
+def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=['x', 'y']):
     """Compute the mean squared displacement of each particle.
 
     Parameters
@@ -88,7 +89,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     # Note: Index is set by msd, so we don't need to worry
     # about conformity here.
     for pid, ptraj in traj.groupby('particle'):
-        msds.append(msd(ptraj, mpp, fps, max_lagtime, False))
+        msds.append(msd(ptraj, mpp, fps, max_lagtime, False, pos_columns))
         ids.append(pid)
     results = pd.concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes particles into columns.
@@ -98,7 +99,8 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     results.index.name = 'lag time [s]'
     return results
 
-def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
+
+def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     """Compute the ensemble mean squared displacements of many particles.
 
     Parameters
@@ -124,7 +126,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
     ids = []
     msds = []
     for pid, ptraj in traj.reset_index(drop=True).groupby('particle'):
-        msds.append(msd(ptraj, mpp, fps, max_lagtime, True))
+        msds.append(msd(ptraj, mpp, fps, max_lagtime, True, pos_columns))
         ids.append(pid)
     msds = pd.concat(msds, keys=ids, names=['particle', 'frame'])
     results = msds.mul(msds['N'], axis=0).mean(level=1) # weighted average
@@ -135,7 +137,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
         return results.set_index('lagt')['msd']
     return results
 
-def compute_drift(traj, smoothing=0):
+def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
     """Return the ensemble drift, x(t).
 
     Parameters
@@ -169,7 +171,7 @@ def compute_drift(traj, smoothing=0):
     dx = delta.groupby('frame').mean()
     if smoothing > 0:
         dx = pd.rolling_mean(dx, smoothing, min_periods=0)
-    x = dx.cumsum(0)[['x', 'y']]
+    x = dx.cumsum(0)[pos_columns]
     return x
 
 def subtract_drift(traj, drift=None):
