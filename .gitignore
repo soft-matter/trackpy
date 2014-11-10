@@ -33,6 +33,7 @@ pip-log.txt
 *~
 *.swp
 
+MANIFEST
 trackpy/version.py
 examples/.ipynb_checkpoints
 examples/feature_log*
