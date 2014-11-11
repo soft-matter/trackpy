@@ -273,10 +273,7 @@ class Point(object):
     :py:class:`~trackpy.linking.Track` objects.
 
 
-    .. note:: To be used for tracking this class must be sub-classed to
-        provide a :py:func:`distance` function.  Child classes **MUST**
-        call :py:func:`Point.__init__`. (See
-        :py:class:`~trackpy.linking.PointND` for example. )
+    .. note:: To be used for tracking this class must be sub-classed to provide a :py:meth:`distance` function.  Child classes **MUST** call :py:meth:`Point.__init__`.  (See :py:class:`~trackpy.linking.PointND` for example. )
     '''
     count = 0
 
