@@ -12,7 +12,7 @@ Installation is simple on Windows, OSX, and Linux, even for Python novices.
 """"""""""""""""""""""""
 
 To get started with Python on any platform, download and install
-`Anaconda <(https://store.continuum.io/cshop/anaconda/>`_. It comes with the
+`Anaconda <https://store.continuum.io/cshop/anaconda/>`_. It comes with the
 common scientific Python packages built in.
 
 2. Install trackpy
@@ -89,11 +89,11 @@ Essential Dependencies:
   * Python 2.7, 3.3, or 3.4.
   * `setuptools <http://pythonhosted.org/setuptools/>`__
   * `six <http://pythonhosted.org/six/>`__ >=1.8
-  * `numpy <(http://www.scipy.org/>`__ >=1.7
-  * `scipy <(http://www.scipy.org/>`__ >=0.12.0
-  * `matplotlib <(http://matplotlib.org/>`__
+  * `numpy <http://www.scipy.org/>`__ >=1.7
+  * `scipy <http://www.scipy.org/>`__ >=0.12.0
+  * `matplotlib <http://matplotlib.org/>`__
   * `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__ >=0.12.0
-  * `pyyaml <(http://pyyaml.org/>`__
+  * `pyyaml <http://pyyaml.org/>`__
 
 You will also need the image- and video-reader PIMS, which is, like trackpy
 itself, part of the github.com/soft-matter organization.
@@ -137,5 +137,5 @@ Optional Dependencies:
 
 PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format
-`here on PIMS' README <(https://github.com/soft-matter/pims>`__.
+`here on PIMS' README <https://github.com/soft-matter/pims>`__.
 
