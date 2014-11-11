@@ -18,6 +18,7 @@ __all__ = ['HashTable', 'TreeFinder', 'Point', 'PointND', 'IndexedPointND',
            'SubnetOversizeException', 'link', 'link_df', 'link_iter',
            'link_df_iter']
 
+
 class TreeFinder(object):
 
     def __init__(self, points):
@@ -34,11 +35,14 @@ class TreeFinder(object):
         """Rebuilds tree from ``points`` attribute.
 
         coord_map : function (optional)
-            Called with a list of N Point instances, returns their "effective" locations,
-            as an N x d array (or list of tuples). Used for prediction (see "predict" module).
 
-        rebuild() needs to be called after ``add_point()`` and before tree is used for
-        spatial queries again (i.e. when memory is turned on).
+            Called with a list of N Point instances, returns their
+            "effective" locations, as an N x d array (or list of tuples).
+            Used for prediction (see "predict" module).
+
+        rebuild() needs to be called after ``add_point()`` and
+        before tree is used for spatial queries again (i.e. when
+        memory is turned on).
         """
 
         if coord_map is None:
@@ -58,7 +62,23 @@ class TreeFinder(object):
 
 
 class HashTable(object):
-    "Subclassable hash table for optimizing trajectory-linking"
+    """Basic hash table for fast look up of particles in neighborhood.
+
+
+
+
+    Parameters
+    ----------
+    dims : ND tuple
+        the range of the data to be put in the hash table.
+        0<data[k]<dims[k]
+
+    box_size : float
+        big each box should be in data units.
+        The same scale is used for all dimensions
+
+
+    """
     class Out_of_hash_excpt(Exception):
         """
         :py:exc:`Exception` for indicating that a particle is outside of the
@@ -68,33 +88,37 @@ class HashTable(object):
     def __init__(self, dims, box_size):
         '''
         Sets up the hash table
-        :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
-        :param box_size: how big each box should be in data units.  The same scale is used for all dimensions
-
-        Basic hash table to fast look up of particles in the region of a given particle
 
         '''
-        self.dims = dims                  # the dimensions of the data
-        self.box_size = box_size          # the size of boxes to use in the units of the data
+        # the dimensions of the data
+        self.dims = dims
+        # the size of boxes to use in the units of the data
+        self.box_size = box_size
         self.hash_dims = np.ceil(np.array(dims) / box_size)
 
         self.hash_table = [[] for j in range(int(np.prod(self.hash_dims)))]
-        self.spat_dims = len(dims)        # how many spatial dimensions
+        # how many spatial dimensions
+        self.spat_dims = len(dims)
         self.cached_shifts = None
         self.cached_rrange = None
-        self.strides = np.cumprod(np.concatenate(([1], self.hash_dims[1:])))[::-1]
+        self.strides = np.cumprod(
+                           np.concatenate(([1], self.hash_dims[1:])))[::-1]
 
     def get_region(self, point, rrange):
         '''
-        :param point: point to find the features around
-        :param rrange: the size of the ball to search in
+        Returns all the particles within the region of maximum radius
+        rrange in data units.  This may return Points that are farther
+        than rrange.
+
+        Parameters
+        ----------
+        point : Point
+            point to find the features around
+
+        rrange: float
+            the size of the ball to search in data units.
 
 
-        Returns all the particles with in the region of maximum radius
-        rrange in data units
-
-
-        can raise :py:exc:`Out_of_hash_excpt`
         '''
         hash_size = self.hash_dims
         center = np.floor(point.pos / self.box_size)
@@ -134,15 +158,14 @@ class HashTable(object):
 
     def add_point(self, point):
         """
-        :param point: object representing the feature to add to the hash table
+        Adds the `point` to the hash table.
 
-        Adds the `point` to the hash table.  Assumes that :py:attr:`point.pos` exists and
-        is the array-like.
+        Assumes that :py:attr:`point.pos` exists and is the array-like.
 
-
-
-
-        can raise :py:exc:`~Hash_table.Out_of_hash_excpt`
+        Parameters
+        ----------
+        point : Point
+            object representing the feature to add to the hash table
 
         """
         cord = np.floor(np.asarray(point.pos) / self.box_size)
@@ -155,19 +178,24 @@ class HashTable(object):
 
 class Track(object):
     '''
-    Base class for objects to represent linked tracks.  Includes logic
-    for adding, removing features to the track.  This can be sub-classed
-    to provide additional track level computation as needed.
+    Base class for objects to represent linked tracks.
 
-    :param point: The first feature in the track if not  `None`.
-    :type point: :py:class:`~trackpy.linking.Point`
+    Includes logic for adding, removing features to the track.  This can
+    be sub-classed to provide additional track level computation as
+    needed.
+
+    Parameters
+    ----------
+    point : Point or None, optional
+        The first feature in the track
+
     '''
     count = 0
 
     def __init__(self, point=None):
         self.points = []
         # will take initiator point
-        if not point is None:
+        if point is not None:
             self.add_point(point)
 
         self.indx = Track.count           # unique id
@@ -225,10 +253,10 @@ class DummyTrack(object):
     track_id = itertools.count(0)
 
     def __init__(self, point):
-       self.id = next(DummyTrack.track_id)
-       self.indx = self.id  # redundant, but like trackpy
-       if point is not None:
-           self.add_point(point)
+        self.id = next(DummyTrack.track_id)
+        self.indx = self.id  # redundant, but like trackpy
+        if point is not None:
+            self.add_point(point)
 
     def add_point(self, point):
         point.add_to_track(self)
@@ -245,8 +273,10 @@ class Point(object):
     :py:class:`~trackpy.linking.Track` objects.
 
 
-
-    .. note:: To be used for tracking this class must be sub-classed to provide a :py:func:`distance` function.  Child classes **MUST** call :py:func:`Point.__init__`.  (See :py:class:`~trackpy.linking.PointND` for example. )
+    .. note:: To be used for tracking this class must be sub-classed to
+        provide a :py:func:`distance` function.  Child classes **MUST**
+        call :py:func:`Point.__init__`. (See
+        :py:class:`~trackpy.linking.PointND` for example. )
     '''
     count = 0
 
@@ -306,9 +336,14 @@ class PointND(Point):
     Version of :class:`Point` for tracking in flat space with
     non-periodic boundary conditions.
 
-    :param t: a time-like variable.
-    :param pos: position of feature
-    :type pos: iterable of length d
+    Parameters
+    ----------
+    t : scalar
+        a time-like variable.
+
+    pos : array-like
+        position of feature
+
 
     '''
 
@@ -335,8 +370,22 @@ class PointND(Point):
         track = " in Track %d" % self.track.indx if self.track else ""
         return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">"
 
+
 class IndexedPointND(PointND):
-    "Version of :class:`PointND` that has a sequentially assigned uunique ID."
+    """Version of :class:`PointND` that has a sequentially assigned uunique ID.
+
+
+    Parameters
+    ----------
+    t : scalar
+        a time-like variable.
+
+    pos : array-like
+        position of feature
+
+    id : int
+        external unique ID
+    """
 
     def __init__(self, t, pos, id):
         PointND.__init__(self, t, pos)  # initialize base class
@@ -397,6 +446,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     tracks = representative_points.apply(lambda x: x.track)
     return tracks
 
+
 def link_df(features, search_range, memory=0,
             neighbor_strategy='KDTree', link_strategy='auto',
             predictor=None, hash_size=None, box_size=None,
@@ -422,7 +472,9 @@ def link_df(features, search_range, memory=0,
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
     predictor : function (optional)
-        Improve performance by guessing where a particle will be in the next frame.
+        Improve performance by guessing where a particle will be in
+        the next frame.
+
         For examples of how this works, see the "predict" module.
 
     Returns
@@ -457,7 +509,7 @@ def link_df(features, search_range, memory=0,
     if t_column is None:
         t_column = 'frame'
     if hash_size is None:
-        MARGIN = 1 # avoid OutOfHashException
+        MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
 
     # Group the DataFrame by time steps and make a 'level' out of each
@@ -465,7 +517,7 @@ def link_df(features, search_range, memory=0,
     if retain_index:
         orig_index = features.index.copy()  # Save it; restore it at the end.
     features.reset_index(inplace=True, drop=True)
-    levels = (_build_level(frame, pos_columns, t_column) for frame_no, frame \
+    levels = (_build_level(frame, pos_columns, t_column) for frame_no, frame
               in features.groupby(t_column))
     labeled_levels = link_iter(
         levels, search_range, memory=memory, predictor=predictor,
@@ -501,6 +553,7 @@ def link_df(features, search_range, memory=0,
         features.reset_index(drop=True, inplace=True)
     return features
 
+
 def link_df_iter(features, search_range, memory=0,
             neighbor_strategy='KDTree', link_strategy='auto',
             hash_size=None, box_size=None, predictor=None,
@@ -512,9 +565,9 @@ def link_df_iter(features, search_range, memory=0,
     ----------
     features : iterable of DataFrames
         Each DataFrame must include any number of column(s) for position and a
-        column of frame numbers. By default, 'x' and 'y' are expected for position,
-        and 'frame' is expected for frame number. See below for options to use
-        custom column names.
+        column of frame numbers. By default, 'x' and 'y' are expected for
+        position, and 'frame' is expected for frame number. See below for
+        options to use custom column names.
     search_range : integer
         the maximum distance features can move between frames
     memory : integer
@@ -527,14 +580,16 @@ def link_df_iter(features, search_range, memory=0,
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
     predictor : function (optional)
-        Improve performance by guessing where a particle will be in the next frame.
+        Improve performance by guessing where a particle will be in the
+        next frame.
+
         For examples of how this works, see the "predict" module.
 
     Returns
     -------
     trajectories : DataFrame
         This is the input features DataFrame, now with a new column labeling
-        each particle with an ID number. This is not a copy.
+        each particle with an ID number for each frame.
 
     Other Parameters
     ----------------
@@ -571,8 +626,11 @@ def link_df_iter(features, search_range, memory=0,
     # To allow extra columns to be recovered later
     features_forlinking, features_forpost = itertools.tee(
         (frame.reset_index(drop=True) for frame in features_for_reset))
-    levels = (_build_level(frame, pos_columns, t_column) \
-                                                for frame in features_forlinking)
+    # make a generator over the frames
+    levels = (_build_level(frame, pos_columns, t_column)
+                         for frame in features_forlinking)
+
+    # make a generator of the levels post-linking
     labeled_levels = link_iter(
         levels, search_range, memory=memory, predictor=predictor,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
@@ -584,9 +642,10 @@ def link_df_iter(features, search_range, memory=0,
             labeled_levels, features_forpost, index_iter):
         features = source_features.copy()
         features['particle'] = np.nan  # placeholder
-        index = [x.id for x in  labeled_level]
+        index = [x.id for x in labeled_level]
         labels = pd.Series([x.track.id for x in labeled_level], index)
-        frame_no = next(iter(labeled_level)).t  # uses an arbitary element from the set
+        # uses an arbitary element from the set
+        frame_no = next(iter(labeled_level)).t
         if verify_integrity:
             # This checks that the labeling is sane and tries
             # to raise informatively if some unknown bug in linking
@@ -614,12 +673,14 @@ def link_df_iter(features, search_range, memory=0,
 
         yield features
 
+
 def _build_level(frame, pos_columns, t_column):
     "Return IndexPointND objects for a DataFrame of points."
     build_pt = lambda x: IndexedPointND(x[1], x[0][1].values, x[0][0])
     # iterrows() returns: (index which we use as feature id, data)
     zipped = zip(frame[pos_columns].iterrows(), frame[t_column])
     return [build_pt(pt) for pt in zipped]
+
 
 class UnknownLinkingError(Exception):
     pass
@@ -634,11 +695,16 @@ def _verify_integrity(frame_no, labels):
         raise UnknownLinkingError("Some particles were not labeled "
                                   "in Frame %d.".format(frame_no))
 
+
 def link_iter(levels, search_range, memory=0,
               neighbor_strategy='KDTree', link_strategy='auto',
               hash_size=None, box_size=None, predictor=None,
               track_cls=None, hash_generator=None):
     """Link features into trajectories, assigning a label to each trajectory.
+
+    This function is a generator which yields at each step the Point
+    objects for the current level.  These objects know what trajectory
+    they are in.
 
     Parameters
     ----------
@@ -655,13 +721,14 @@ def link_iter(levels, search_range, memory=0,
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
     predictor : function (optional)
-        Improve performance by guessing where a particle will be in the next frame.
+        Improve performance by guessing where a particle will be in the
+        next frame.
         For examples of how this works, see the "predict" module.
 
-    Yields
-    ------
-    labels : list of integers
-       labeling the features in the given level
+    Returns
+    -------
+    cur_level : iterable of Point objects
+        The labeled points at each level.
 
     Other Parameters
     ----------------
@@ -699,7 +766,8 @@ def link_iter(levels, search_range, memory=0,
     try:
         subnet_linker = linkers[link_strategy]
     except KeyError:
-        raise ValueError("link_strategy must be one of: " + ', '.join(linkers.keys()))
+        raise ValueError("link_strategy must be one of: " +
+                         ', '.join(linkers.keys()))
 
     if neighbor_strategy not in ['KDTree', 'BTree']:
         raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
@@ -726,7 +794,6 @@ def link_iter(levels, search_range, memory=0,
         # must be using a custom Track class without this method
         pass
 
-
     # Assume everything in first level starts a Track.
     track_lst = [track_cls(p) for p in prev_set]
     mem_set = set()
@@ -744,11 +811,14 @@ def link_iter(levels, search_range, memory=0,
         tmp_set = set(cur_level)  # copy used in next loop iteration
 
         # First, a bit of unfinished business:
-        # If prediction is enabled, we need to update the positions in prev_hash
-        # to where we think they'll be in the frame corresponding to cur_level.
+        #
+        # If prediction is enabled, we need to update the positions in
+        # prev_hash to where we think they'll be in the frame corresponding to
+        # cur_level.
         if predictor is not None:
-            # This only works for KDTree right now, because KDTree can store particle
-            # positions in a separate data structure from the PointND instances.
+            # This only works for KDTree right now, because KDTree can store
+            # particle positions in a separate data structure from the PointND
+            # instances.
             if not isinstance(prev_hash, TreeFinder):
                 raise NotImplementedError(
                     'Prediction works with the "KDTree" neighbor_strategy only.')
