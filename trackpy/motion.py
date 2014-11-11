@@ -8,6 +8,10 @@ from pandas import DataFrame, Series
 from scipy import interpolate
 from scipy.spatial import cKDTree
 
+__all__ = ['msd', 'imsd', 'emsd', 'compute_drift', 'subtract_drift',
+           'proximity', 'vanhove', 'relate_frames', 'velocity_corr',
+           'direction_corr', 'is_typical', 'diagonal_size']
+
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     """Compute the mean displacement and mean squared displacement of one
@@ -57,7 +61,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False):
     return results[:-1]
 
 def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
-    """Compute the mean squared displacements of particles individually.
+    """Compute the mean squared displacement of each particle.
 
     Parameters
     ----------
@@ -95,7 +99,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd'):
     return results
 
 def emsd(traj, mpp, fps, max_lagtime=100, detail=False):
-    """Compute the mean squared displacements of an ensemble of particles.
+    """Compute the ensemble mean squared displacements of many particles.
 
     Parameters
     ----------
@@ -186,21 +190,21 @@ def subtract_drift(traj, drift=None):
         drift = compute_drift(traj)
     return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
 
-def is_typical(msds, frame=23, lower=0.1, upper=0.9):
+def is_typical(msds, frame, lower=0.1, upper=0.9):
     """Examine individual particle MSDs, distinguishing outliers from those
     in the central quantile.
 
     Parameters
     ----------
-    msds : DataFrame like the output of imsd()
-        Columns correspond to particles, indexed by lagtime measured in frames.
-    frame : integer frame number
-        Compare MSDs at this lagtime. Default is 23 (1 second at 24 fps).
+    msds : DataFrame
+        This should be organized like the output of imsd().
+        Columns correspond to particles, indexed by lagtime in frames.
+    frame : integer
+        Compare MSDs at this lag interval.
     lower : float between 0 and 1, default 0.1
         Probes with MSD up to this quantile are deemed outliers.
     upper : float between 0 and 1, default 0.9
         Probes with MSD above this quantile are deemed outliers.
-
 
     Returns
     -------
@@ -218,16 +222,19 @@ def is_typical(msds, frame=23, lower=0.1, upper=0.9):
     a, b = msds.iloc[frame].quantile(lower), msds.iloc[frame].quantile(upper)
     return (msds.iloc[frame] > a) & (msds.iloc[frame] < b)
 
-def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
-    """Compute the van Hove correlation function at given lagtime (frame span).
+def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
+    """Compute the van Hove correlation (histogram of displacements).
+
+    The van Hove correlation function is simply a histogram of particle
+    displacements. It is useful for detecting physical heterogeneity
+    (or tracking errors).
 
     Parameters
     ----------
-    pos : DataFrame of x or (or!) y positions, one column per particle, indexed
-        by frame
+    pos : DataFrame 
+        x or (or!) y positions, one column per particle, indexed by frame
     lagtime : integer interval of frames
-        Compare the correlation function at this lagtime. Default is 23
-        (1 second at 24 fps).
+        Compare the correlation function at this lagtime.
     mpp : microns per pixel, DEFAULT TO 1 because it is usually fine to use
         pixels for this analysis
     ensemble : boolean, defaults False
@@ -237,7 +244,8 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
 
     Returns
     -------
-    vh : If ensemble=True, a DataFrame with each particle's van Hove correlation
+    vh : DataFrame or Series
+        If ensemble=True, a DataFrame with each particle's van Hove correlation
         function, indexed by displacement. If ensemble=False, a Series with
         the van Hove correlation function of the whole ensemble.
 
@@ -264,13 +272,14 @@ def vanhove(pos, lagtime=23, mpp=1, ensemble=False, bins=24):
     else:
         return vh
 
-def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
+def diagonal_size(single_trajectory, pos_columns=None, t_column='frame'):
     """Measure the diagonal size of a trajectory.
 
     Parameters
     ----------
     single_trajectory : DataFrame containing a single trajectory
-    pos_columns = ['x', 'y']
+    pos_columns = list 
+        names of column with position ['x', 'y']
     t_column = 'frame'
 
     Returns
@@ -285,7 +294,8 @@ def diagonal_size(single_trajectory, pos_columns=['x', 'y'], t_column='frame'):
 
     >>> many_trajectories.groupby('particle').filter(lambda x: tp.diagonal_size(x) > 5)
     """
-
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
     pos = single_trajectory.set_index(t_column)[pos_columns]
     return np.sqrt(np.sum(pos.apply(np.ptp)**2))
 
@@ -295,15 +305,39 @@ def is_localized(traj, threshold=0.4):
 def is_diffusive(traj, threshold=0.9):
     raise NotImplementedError("This function has been removed.")
 
-def relate_frames(t, frame1, frame2):
+def relate_frames(t, frame1, frame2, pos_columns=None):
+    """Find the displacement vector of all particles between two frames.
+
+    Parameters
+    ----------
+    t : DataFrame
+        trajectories
+    pos_columns = list 
+        names of column with position ['x', 'y']
+    frame1 : integer
+    frame2 : integer
+
+    Returns
+    -------
+    DataFrame
+        indexed by particle, containing:
+        x, y, etc. (corresponding to frame1)
+        x_b, y_b, etc. (corresponding to frame2)
+        dx, dy, etc.
+        dr
+        direction (only if pos_columns=['x', 'y'])
+    """
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
     a = t[t.frame == frame1]
     b = t[t.frame == frame2]
-    j = a.set_index('particle')[['x', 'y']].join(
-         b.set_index('particle')[['x', 'y']], rsuffix='_b')
-    j['dx'] = j.x_b - j.x
-    j['dy'] = j.y_b - j.y
-    j['dr'] = np.sqrt(j['dx']**2 + j['dy']**2)
-    j['direction']  = np.arctan2(j.dy, j.dx)
+    j = a.set_index('particle')[pos_columns].join(
+         b.set_index('particle')[pos_columns], rsuffix='_b')
+    for pos in pos_columns:
+        j['d' + pos] = j[pos + '_b'] - j[pos]
+    j['dr'] = np.sqrt(np.sum([j['d' + pos]**2 for pos in pos_columns], 0))
+    if pos_columns == ['x', 'y']:
+        j['direction']  = np.arctan2(j.dy, j.dx)
     return j
 
 def direction_corr(t, frame1, frame2):
@@ -311,7 +345,8 @@ def direction_corr(t, frame1, frame2):
 
     Parameters
     ----------
-    t : DataFrame containing columns particle, frame, x, and y
+    t : DataFrame
+        trajectories, containing columns particle, frame, x, and y
     frame1 : frame number
     frame2 : frame number
 
@@ -334,7 +369,8 @@ def velocity_corr(t, frame1, frame2):
 
     Parameters
     ----------
-    t : DataFrame containing columns particle, frame, x, and y
+    t : DataFrame
+        trajectories, containing columns particle, frame, x, and y
     frame1 : frame number
     frame2 : frame number
 
@@ -413,7 +449,7 @@ def min_rolling_theta_entropy(pos, window=24, bins=24):
     f = lambda x: shannon_entropy(x, bins)
     return pd.rolling_apply(direction.dropna(), window, f).min()
 
-def proximity(features, pos_columns=['x', 'y']):
+def proximity(features, pos_columns=None):
     """Find the distance to each feature's nearest neighbor.
 
     Parameters
@@ -440,8 +476,10 @@ def proximity(features, pos_columns=['x', 'y']):
     >>> particle_nos = avg_prox[avg_prox > 20].index
     >>> t_filtered = t[t['particle'].isin(particle_nos)]
     """
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
     leaf_size = max(1, int(np.round(np.log10(len(features)))))
-    tree = cKDTree(features[['x', 'y']].copy(), leaf_size)
+    tree = cKDTree(features[pos_columns].copy(), leaf_size)
     proximity = tree.query(tree.data, 2)[0][:, 1]
     result = DataFrame({'proximity': proximity})
     if 'particle' in features:
