@@ -39,4 +39,6 @@ examples/.ipynb_checkpoints
 examples/feature_log*
 doc/_build
 doc/generated
+doc/tutorial/*.rst
+doc/tutorial/*_files
 .idea
