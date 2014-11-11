@@ -120,7 +120,7 @@ html_theme = 'bootstrap'
 # documentation.
 html_theme_options = {
                       'source_link_position': "footer",
-                      'bootswatch_theme': "flatly",
+                      'bootswatch_theme': "spacelab",
                       'navbar_sidebarrel': False,
                       'bootstrap_version': "3",
                       'navbar_links': [("Tutorial", "tutorial"),
