@@ -58,12 +58,7 @@ class TreeFinder(object):
 
 
 class HashTable(object):
-    '''
-    :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
-    :param box_size: how big each box should be in data units.  The same scale is used for all dimensions
-
-    Basic hash table to fast look up of particles in the region of a given particle
-    '''
+    "Subclassable hash table for optimizing trajectory-linking"
     class Out_of_hash_excpt(Exception):
         """
         :py:exc:`Exception` for indicating that a particle is outside of the
@@ -73,6 +68,10 @@ class HashTable(object):
     def __init__(self, dims, box_size):
         '''
         Sets up the hash table
+        :param dims: the range of the data to be put in the hash table.  0<data[k]<dims[k]
+        :param box_size: how big each box should be in data units.  The same scale is used for all dimensions
+
+        Basic hash table to fast look up of particles in the region of a given particle
 
         '''
         self.dims = dims                  # the dimensions of the data
@@ -156,14 +155,12 @@ class HashTable(object):
 
 class Track(object):
     '''
-    :param point: The first feature in the track if not  `None`.
-    :type point: :py:class:`~trackpy.tracking.Point`
-
     Base class for objects to represent linked tracks.  Includes logic
     for adding, removing features to the track.  This can be sub-classed
     to provide additional track level computation as needed.
 
-
+    :param point: The first feature in the track if not  `None`.
+    :type point: :py:class:`~trackpy.linking.Point`
     '''
     count = 0
 
@@ -192,7 +189,7 @@ class Track(object):
     def add_point(self, point):
         '''
         :param point: point to add
-        :type point:  :py:class:`~trackpy.tracking.Point`
+        :type point:  :py:class:`~trackpy.linking.Point`
 
         Appends the point to this track. '''
         self.points.append(point)
@@ -201,7 +198,7 @@ class Track(object):
     def remove_point(self, point):
         '''
         :param point: point to remove from this track
-        :type point:  :py:class:`~trackpy.tracking.Point`
+        :type point:  :py:class:`~trackpy.linking.Point`
 
         removes a point from this track'''
         self.points.remove(point)
@@ -209,7 +206,7 @@ class Track(object):
 
     def last_point(self):
         '''
-        :rtype: :py:class:`~trackpy.tracking.Point`
+        :rtype: :py:class:`~trackpy.linking.Point`
 
         Returns the last point on the track'''
         return self.points[-1]
@@ -245,11 +242,11 @@ class Point(object):
     '''
     Base class for point (features) used in tracking.  This class
     contains all of the general stuff for interacting with
-    :py:class:`~trackpy.tracking.Track` objects.
+    :py:class:`~trackpy.linking.Track` objects.
 
 
 
-    .. note:: To be used for tracking this class must be sub-classed to provide a :py:func:`distance` function.  Child classes **MUST** call :py:func:`Point.__init__`.  (See :py:class:`~trackpy.tracking.PointND` for example. )
+    .. note:: To be used for tracking this class must be sub-classed to provide a :py:func:`distance` function.  Child classes **MUST** call :py:func:`Point.__init__`.  (See :py:class:`~trackpy.linking.PointND` for example. )
     '''
     count = 0
 
@@ -306,12 +303,13 @@ class Point(object):
 
 class PointND(Point):
     '''
+    Version of :class:`Point` for tracking in flat space with
+    non-periodic boundary conditions.
+
     :param t: a time-like variable.
     :param pos: position of feature
     :type pos: iterable of length d
 
-    Version of :py:class:`Point` for tracking in flat space with
-    non-periodic boundary conditions.
     '''
 
     def __init__(self, t, pos):
@@ -322,7 +320,7 @@ class PointND(Point):
     def distance(self, other_point):
         '''
         :param other_point: point to get distance to.
-        :type other_point: :py:class:`~trackpy.tracking.Point`
+        :type other_point: :py:class:`~trackpy.linking.Point`
 
         Returns the absolute distance between this point and other_point
 
@@ -338,6 +336,7 @@ class PointND(Point):
         return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">"
 
 class IndexedPointND(PointND):
+    "Version of :class:`PointND` that has a sequentially assigned uunique ID."
 
     def __init__(self, t, pos, id):
         PointND.__init__(self, t, pos)  # initialize base class
@@ -918,8 +917,8 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
 
 
 class SubnetOversizeException(Exception):
-    '''An :py:exc:`Exception` to be raised when the sub-nets are too
-    big to be efficiently linked.  If you get this then either reduce your search range
+    '''An :py:exc:`Exception` to be raised when the sub-nets are too big
+    to be efficiently linked.  If you get this then either reduce your search range
     or increase :py:attr:`sub_net_linker.MAX_SUB_NET_SIZE`'''
     pass
 

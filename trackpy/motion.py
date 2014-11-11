@@ -191,8 +191,7 @@ def subtract_drift(traj, drift=None):
     return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
 
 def is_typical(msds, frame, lower=0.1, upper=0.9):
-    """Examine individual particle MSDs, distinguishing outliers from those
-    in the central quantile.
+    """Identify which paritcles' MSDs are in the central quantile.
 
     Parameters
     ----------

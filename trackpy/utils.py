@@ -7,6 +7,7 @@ import re
 import sys
 import time
 import warnings
+import functools
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -43,6 +44,7 @@ class memo(object):
    def __init__(self, func):
       self.func = func
       self.cache = {}
+      functools.update_wrapper(self, func)
    def __call__(self, *args):
       if not isinstance(args, collections.Hashable):
          # uncacheable. a list, for instance.
@@ -177,6 +179,7 @@ except ImportError:
 
 
 def print_update(message):
+    "Print a message immediately; do not wait for current execution to finish."
     try:
         clear_output()
     except Exception:

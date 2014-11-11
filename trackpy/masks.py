@@ -12,7 +12,7 @@ __all__ = ['binary_mask', 'r_squared_mask', 'cosmask', 'sinmask',
 
 @memo
 def binary_mask(radius, ndim):
-    "circular mask in a square array"
+    "Elliptical mask in a rectangular array"
     points = np.arange(-radius, radius + 1)
     if ndim > 1:
         coords = np.array(np.meshgrid(*([points]*ndim)))
@@ -24,6 +24,7 @@ def binary_mask(radius, ndim):
 
 @memo
 def r_squared_mask(radius, ndim):
+    "Mask with values r^2 inside radius and 0 outside"
     points = np.arange(-radius, radius + 1)
     if ndim > 1:
         coords = np.array(np.meshgrid(*([points]*ndim)))
@@ -36,6 +37,7 @@ def r_squared_mask(radius, ndim):
 
 @memo
 def theta_mask(radius):
+    "Mask of values giving angular position relative to center"
     # 2D only
     tan_of_coord = lambda y, x: np.arctan2(radius - y, x - radius)
     diameter = 2*radius + 1
@@ -44,9 +46,11 @@ def theta_mask(radius):
 
 @memo
 def sinmask(radius):
+    "Sin of theta_mask"
     return np.sin(2*theta_mask(radius))
 
 
 @memo
 def cosmask(radius):
+    "Sin of theta_mask"
     return np.cos(2*theta_mask(radius))
