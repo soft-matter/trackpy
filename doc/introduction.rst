@@ -10,7 +10,7 @@ algorithm in Python.
 There are many similar projects. (See table below.)
 Our implementation is distinguished by succinct and flexible usage,
 a thorough testing framework ensuring code stability and accuracy,
-scalability, and thorough documentation. 
+scalability, and thorough documentation.
 
 Several researchers have merged their independent efforts into this code.
 We would like to see others in the community adopt it and potentially
@@ -54,8 +54,8 @@ Special Capabilities
     making possible some creative applications.
   * **Uncertainty is estimated** following a method `described in this paper <http://dx.doi.org/10.1529/biophysj.104.042457>`__ by Savin and Doyle.
   * **High-performance** components (numba acceleration and FFTW support) are used only if
-  if available. Since these can be tricky to install on some machines,
-  the code will automatically fall back on slower pure Python implementations
+    if available. Since these can be tricky to install on some machines,
+    the code will automatically fall back on slower pure Python implementations
 
 Citing Trackpy
 ^^^^^^^^^^^^^^
@@ -71,7 +71,7 @@ provides more detail and citations in various formats.
 
 Related Projects
 ^^^^^^^^^^^^^^^^
- 
+
 ============================ =============================================== =========================
 Author(s)                    Project URL                                     Language
 ============================ =============================================== =========================

@@ -45,5 +45,3 @@ the `github repository <https://github.com/soft-matter/trackpy>`_.
    </div>
    </div>
    </div>
-
-=======

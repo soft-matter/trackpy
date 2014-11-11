@@ -210,8 +210,9 @@ def is_typical(msds, frame, lower=0.1, upper=0.9):
     Series of boolean values, indexed by particle number
     True = typical particle, False = outlier particle
 
-    Example
-    -------
+    Examples
+    --------
+
     m = tp.imsd(traj, MPP, FPS)
     # Index by particle ID, slice using boolean output from is_typical(), and then
     # restore the original index, frame number.
@@ -230,7 +231,7 @@ def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
 
     Parameters
     ----------
-    pos : DataFrame 
+    pos : DataFrame
         x or (or!) y positions, one column per particle, indexed by frame
     lagtime : integer interval of frames
         Compare the correlation function at this lagtime.
@@ -248,8 +249,8 @@ def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
         function, indexed by displacement. If ensemble=False, a Series with
         the van Hove correlation function of the whole ensemble.
 
-    Example
-    -------
+    Examples
+    --------
     pos = traj.set_index(['frame', 'particle'])['x'].unstack() # particles as columns
     vh = vanhove(pos)
     """
@@ -277,7 +278,7 @@ def diagonal_size(single_trajectory, pos_columns=None, t_column='frame'):
     Parameters
     ----------
     single_trajectory : DataFrame containing a single trajectory
-    pos_columns = list 
+    pos_columns = list
         names of column with position ['x', 'y']
     t_column = 'frame'
 
@@ -311,7 +312,7 @@ def relate_frames(t, frame1, frame2, pos_columns=None):
     ----------
     t : DataFrame
         trajectories
-    pos_columns = list 
+    pos_columns = list
         names of column with position ['x', 'y']
     frame1 : integer
     frame2 : integer
@@ -463,8 +464,8 @@ def proximity(features, pos_columns=None):
         distance to each particle's nearest neighbor,
         indexed by particle if 'particle' column is present in input
 
-    Example
-    -------
+    Examples
+    --------
     Find the proximity of each particle to its nearest neighbor in every frame.
 
     >>> prox = t.groupby('frame').apply(proximity).reset_index()
