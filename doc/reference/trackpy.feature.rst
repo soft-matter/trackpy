@@ -32,10 +32,10 @@ accuracy by iteratively honing in on their center of brightness.
 These locate doesn't do exactly what you want, you can dig into the lower-
 level functions and develop something of your own.
 
-.. autofunction:: trackpy.local_maxima
-.. autofunction:: trackpy.refine
-.. autofunction:: trackpy.binary_mask
-.. autofunction:: trackpy.r_squared_mask
-.. autofunction:: trackpy.theta_mask
-.. autofunction:: trackpy.sinmask
-.. autofunction:: trackpy.cosmask
+.. autofunction:: trackpy.feature.local_maxima
+.. autofunction:: trackpy.feature.refine
+.. autofunction:: trackpy.feature.binary_mask
+.. autofunction:: trackpy.feature.r_squared_mask
+.. autofunction:: trackpy.feature.theta_mask
+.. autofunction:: trackpy.feature.sinmask
+.. autofunction:: trackpy.feature.cosmask

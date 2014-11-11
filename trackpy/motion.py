@@ -286,8 +286,8 @@ def diagonal_size(single_trajectory, pos_columns=None, t_column='frame'):
     -------
     float : length of diangonal of rectangular box containing the trajectory
 
-    Example
-    -------
+    Examples
+    --------
     >>> diagonal_size(single_trajectory)
 
     >>> many_trajectories.groupby('particle').agg(tp.diagonal_size)
