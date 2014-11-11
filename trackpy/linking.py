@@ -506,7 +506,7 @@ def link_df_iter(features, search_range, memory=0,
             hash_size=None, box_size=None, predictor=None,
             pos_columns=None, t_column=None, verify_integrity=True,
             retain_index=False):
-    """Link features into trajectories, assigning a label to each trajectory.
+    """Link features into trajectories link_df, but return results iteratively.
 
     Parameters
     ----------

@@ -433,7 +433,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
            filter_before=True, filter_after=True,
            characterize=True, engine='auto'):
-    """Locate Gaussian-like blobs of a given approximate size.
+    """Locate Gaussian-like blobs of some approximate size in an image.
 
     Preprocess the image by performing a band pass and a threshold.
     Locate all peaks of brightness, characterize the neighborhoods of the peaks
@@ -639,7 +639,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           filter_before=True, filter_after=True,
           characterize=True, engine='auto',
           output=None, meta=True):
-    """Locate Gaussian-like blobs of a given approximate size.
+    """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
     Locate all peaks of brightness, characterize the neighborhoods of the peaks
