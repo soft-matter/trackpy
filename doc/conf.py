@@ -123,8 +123,7 @@ html_theme_options = {
                       'bootswatch_theme': "spacelab",
                       'navbar_sidebarrel': False,
                       'bootstrap_version': "3",
-                      'navbar_links': [("Tutorial", "tutorial"),
-                      ("Gallery", "examples/index")],
+                      'navbar_links': [("Tutorial", "tutorial")],
                      }
 # Add any paths that contain custom themes here, relative to this directory.
 html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()

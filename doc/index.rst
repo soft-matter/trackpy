@@ -34,10 +34,11 @@ the `github repository <https://github.com/soft-matter/trackpy>`_.
    :maxdepth: 1
 
    tutorial/walkthrough
-   tutorial/on-disk
    tutorial/prediction
+   tutorial/on-disk
    tutorial/performance
    tutorial/parallel-locate
+   tutorial/custom-feature-detection
 
 .. raw:: html
 

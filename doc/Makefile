@@ -52,13 +52,10 @@ clean:
 	rm -rf tutorial/*.rst
 
 notebooks:
-
 	make -C tutorial notebooks
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
-	@echo
-	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
@@ -181,3 +178,6 @@ pseudoxml:
 	$(SPHINXBUILD) -b pseudoxml $(ALLSPHINXOPTS) $(BUILDDIR)/pseudoxml
 	@echo
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
+
+gh-pages:
+	cd .. && git checkout gh-pages && git rm -rf . && touch .nojekyll && mv doc/_build/html/* . && rm -rf doc && git add -A && git commit -a --amend -m "Makefile is force-commiting new build." && git push upstream gh-pages -f
