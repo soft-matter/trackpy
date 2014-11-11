@@ -48,6 +48,12 @@ help:
 
 clean:
 	rm -rf $(BUILDDIR)/*
+	rm -rf tutorial/*_files/
+	rm -rf tutorial/*.rst
+
+notebooks:
+
+	make -C tutorial notebooks
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
