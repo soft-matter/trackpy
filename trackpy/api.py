@@ -5,7 +5,7 @@ from .motion import *
 from .plots import *
 from .linking import *
 from .filtering import *
-from .feature import locate, batch
+from .feature import *
 from .preprocessing import bandpass
 from .framewise_data import *
 from . import utils

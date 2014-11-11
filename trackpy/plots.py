@@ -15,6 +15,10 @@ from pandas import DataFrame, Series
 from .utils import print_update
 
 
+__all__ = ['annotate', 'plot_traj', 'ptraj', 'plot_displacements',
+           'subpx_bias', 'mass_size', 'mass_ecc']
+
+
 def make_axes(func):
     """
     A decorator for plotting functions.

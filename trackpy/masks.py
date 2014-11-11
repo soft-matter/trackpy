@@ -6,6 +6,10 @@ import numpy as np
 
 from .utils import memo
 
+__all__ = ['binary_mask', 'r_squared_mask', 'cosmask', 'sinmask',
+           'theta_mask']
+
+
 @memo
 def binary_mask(radius, ndim):
     "circular mask in a square array"
