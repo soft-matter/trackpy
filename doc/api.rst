@@ -94,7 +94,7 @@ optimizations. :class:`~trackpy.framewise_data.PandasHDFStoreBig` is a good gene
     FramewiseData
 
 That last class cannot be used directly; it is meant to be subclassed
-to support other formats.
+to support other formats. See *Writing Your Own Interface* in the streaming tutoral for more.
 
 Utility functions
 -----------------
