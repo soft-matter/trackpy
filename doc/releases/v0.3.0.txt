@@ -5,6 +5,13 @@ In Development: v0.3.0 (Unreleased)
 Feature-Finding
 ~~~~~~~~~~~~~~~
 
-- Changed the way nearby local maxima are "merged," i.e., interpreted as parts of the same feature. This improved accuracy in crowded images. For some data, it may have no effect, but for others it will give significantly different (but, we think, better) results than previous versions of trackpy. :issue:`143`.
+- Changed the way nearby local maxima are "merged," i.e., interpreted as parts of the same feature. This improved accuracy in crowded images. For some data, it may have no effect, but for others it will give significantly different (but, we think, better) results than previous versions of trackpy. (:issue:`143`)
 
-- The minimum feature separation can be as small as zero. Formerly, it was constrained to be larger than the feature diameter. :issue:`139`
+- The minimum feature separation can be as small as zero. Formerly, it was constrained to be larger than the feature diameter. If ``serparation=0``, "merging" of duplicate maxima is effectively turned off. (:issue:`139`)
+
+- The percentile-based thresholding was moved into a serpate function, so it can now be called directly. That will be useful to users who want to inspect what the thresholding is doing to their images. It will also be useful for profiling. (:issue:`139`)
+
+Bug Fixes
+~~~~~~~~~
+
+- Fixed a bug in v0.2.3 and v0.2.4 that broke the ``circle_size`` parameter in ``annotate()``. (:issue:`169`, :issue:`170`)
