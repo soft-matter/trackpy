@@ -23,6 +23,7 @@ the `github repository <https://github.com/soft-matter/trackpy>`_.
    introduction
    installation
    api
+   whatsnew
 
 .. raw:: html
 

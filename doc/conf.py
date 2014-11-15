@@ -36,11 +36,15 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.coverage',
               'sphinx.ext.mathjax',
               'sphinx.ext.autosummary',
+              'sphinx.ext.extlinks',
               'plot_generator',
               'numpydoc',
               'ipython_directive',
               'ipython_console_highlighting',
              ]
+
+extlinks = {'issue': ('https://github.com/soft-matter/trackpy/issues/%s',
+                      'GH')}
 
 # Generate the API documentation when building
 autosummary_generate = True
