@@ -42,6 +42,21 @@ Motion Analysis
     is_typical
     diagonal_size
 
+Prediction Framework
+--------------------
+
+Trackpy extends the Crocker--Grier algoritm using a prediction framework, described in the prediction tutorial.
+
+.. autosummary::
+   :toctree: generated/
+
+   predict.NullPredict     
+   predict.ChannelPredict
+   predict.DriftPredict
+   predict.NearestVelocityPredict
+   predict.predictor
+   predict.instrumented
+
 Plotting Tools
 --------------
 
@@ -107,6 +122,18 @@ Utility functions
 
 Low-Level API (Advanced)
 ------------------------
+
+Switching Between Numba and Pure Python
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Trackpy implements the most intensive (read: slowest) parts of the core feature-finding and linking algorithm in pure Python (with numpy) and also in `numba <http://numba.pydata.org/>`_, which accelerates Python code. Numba can offer a major performance boost, but it is still relatively new, and it can be challenging to use. If numba is available, trackpy will use the numba implementation by default; otherwise, it will use pure Python. The following functions allow sophisticated users to manually switch between numba and pure-Python modes. This may be used, for example, to measure the performance of these two implementations on your data.
+
+.. autosummary::
+   :toctree: generated/
+
+   enable_numba
+   disable_numba
+
 
 Intermediate Steps of Feature-Finding
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
