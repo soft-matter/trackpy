@@ -1,5 +1,55 @@
+.. raw:: html
+
+    <style type="text/css">
+    .thumbnail {{
+        position: relative;
+        float: left;
+        margin: 10px;
+        width: 180px;
+        height: 200px;
+    }}
+
+    .thumbnail img {{
+        position: absolute;
+        display: inline;
+        left: 0;
+        width: 170px;
+        height: 170px;
+    }}
+
+    </style>
+
+
 Trackpy: Fast, Flexible Particle-Tracking Toolkit
 =================================================
+
+.. raw:: html
+
+    <div style="clear: both"></div>
+    <div class="container-fluid hidden-xs hidden-sm">
+      <div class="row">
+        <div class="col-md-2 thumbnail">
+          <img src="_static/interfacial-particles.png">
+        </div>
+        <div class="col-md-2 thumbnail">
+          <img src="_static/foam.png">
+        </div>
+        <div class="col-md-2 thumbnail">
+          <img src="_static/fluorescent-particles-in-cfs.png">
+        </div>
+        <div class="col-md-2 thumbnail">
+          <img src="_static/trajectories-in-water.png">
+        </div>
+        <div class="col-md-2 thumbnail">
+          <img src="_static/rearrangements-and-strain.png">
+        </div>
+        <div class="col-md-2 thumbnail">
+          <img src="_static/large-particle-in-liquid-crystal.png">
+        </div>
+      </div>
+    </div>
+    <br>
+
 
 Trackpy is a Python package providing tools for particle tracking.
 
