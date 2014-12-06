@@ -11,6 +11,7 @@ Basic Usage
 
    tutorial/walkthrough
    tutorial/prediction
+   tutorial/uncertainty
 
 Processing Large Data Sets
 --------------------------

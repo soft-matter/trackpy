@@ -86,6 +86,7 @@ the `github repository <https://github.com/soft-matter/trackpy>`_.
 
    tutorial/walkthrough
    tutorial/prediction
+   tutorial/uncertainty
    tutorial/on-disk
    tutorial/performance
    tutorial/parallel-locate
