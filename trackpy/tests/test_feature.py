@@ -27,7 +27,6 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
         raise ValueError("For stupid numpy broadcasting reasons, don't make" +
                          "the image square.")
     ndim = image.ndim
-    pos = maybe_permute_position(pos)
     coords = np.meshgrid(*np.array([np.arange(s) for s in image.shape]) - pos,
                          indexing='ij')
     if max_value is None:
@@ -46,21 +45,11 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
 
 
 def draw_point(image, pos, value):
-    image[tuple(maybe_permute_position(pos))] = value
+    image[tuple(pos)] = value
 
-
-def maybe_permute_position(pos):
-    ndim = len(pos)
-    if ndim == 2:
-        pos = np.asarray(pos)[[1, 0]]
-    elif ndim == 3:
-        pos = np.asarray(pos)[[2, 1, 0]]
-    return pos
-     
 
 def gen_random_locations(shape, count):
     np.random.seed(0)
-    shape = maybe_permute_position(shape)
     return np.array(
         [[np.random.randint(s) for s in shape] for _ in range(count)])
 
@@ -77,8 +66,8 @@ def compare(shape, count, radius, noise_level, engine):
     pos = gen_random_locations(shape, count) 
     image = draw_spots(shape, pos, radius, noise_level)
     f = tp.locate(image, 2*radius + 1, minmass=1800, engine=engine)
-    actual = f[['x', 'y']].sort(['x', 'y'])
-    expected = DataFrame(pos, columns=['x', 'y']).sort(['x', 'y']) 
+    actual = f[['y', 'x']].sort(['y', 'x'])
+    expected = DataFrame(pos, columns=['y', 'x']).sort(['y', 'x']) 
     return actual, expected
 
 
@@ -182,7 +171,7 @@ class CommonFeatureIdentificationTests(object):
         draw_point(image, [14, 13], 101)
         draw_point(image, [14, 14], 101)
         draw_point(image, [14, 15], 101)
-        cols = ['x', 'y']
+        cols = ['y', 'x']
         actual = tp.locate(image, 5, preprocess=False,
                            engine=self.engine)[cols]
 
@@ -200,7 +189,7 @@ class CommonFeatureIdentificationTests(object):
         draw_point(image, [14, 13], 100)
         draw_point(image, [14, 14], 100)
         draw_point(image, [14, 15], 100)
-        cols = ['x', 'y']
+        cols = ['y', 'x']
         actual = tp.locate(image, 5, preprocess=False,
                            engine=self.engine)[cols]
 
@@ -212,7 +201,7 @@ class CommonFeatureIdentificationTests(object):
         L = 21
         dims = (L, L + 2)  # avoid square images in tests
         pos = [7, 13]
-        cols = ['x', 'y']
+        cols = ['y', 'x']
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
@@ -226,7 +215,7 @@ class CommonFeatureIdentificationTests(object):
         L = 21
         dims = (L, L + 2, L + 4)  # avoid square images in tests
         pos = [7, 13, 9]
-        cols = ['x', 'y', 'z']
+        cols = ['z', 'y', 'x']
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
@@ -242,13 +231,13 @@ class CommonFeatureIdentificationTests(object):
         diameter = 9
         y = np.arange(20, 10*N + 1, 20)
         x = np.linspace(diameter / 2. - 2, diameter * 1.5, len(y))
-        cols = ['x', 'y']
-        expected = DataFrame(np.vstack([x, y]).T, columns=cols)
+        cols = ['y', 'x']
+        expected = DataFrame(np.vstack([y, x]).T, columns=cols)
 
         dims = (y.max() - y.min() + 5*diameter, int(4 * diameter) - 2)
         image = np.ones(dims, dtype='uint8')
-        for xpos, ypos in expected[['x', 'y']].values:
-            draw_gaussian_spot(image, [xpos, ypos], 4, max_value=100)
+        for ypos, xpos in expected[['y', 'x']].values:
+            draw_gaussian_spot(image, [ypos, xpos], 4, max_value=100)
         def locate(image, **kwargs):
             return tp.locate(image, diameter, 1, preprocess=False,
                              engine=self.engine, **kwargs)[cols]
@@ -267,7 +256,7 @@ class CommonFeatureIdentificationTests(object):
         self.check_skip()
         L = 21
         dims = (L, L + 2)  # avoid square images in tests
-        cols = ['x', 'y']
+        cols = ['y', 'x']
         PRECISION = 0.1
 
         # one bright pixel
@@ -403,7 +392,7 @@ class CommonFeatureIdentificationTests(object):
         self.check_skip()
         L = 21
         dims = (L, L + 2)  # avoid square images in tests
-        cols = ['x', 'y']
+        cols = ['y', 'x']
         PRECISION = 0.1
 
         # top 2
@@ -439,7 +428,7 @@ class CommonFeatureIdentificationTests(object):
         L = 101 
         dims = (L, L + 2)  # avoid square images in tests
         pos = [50, 55]
-        cols = ['x', 'y']
+        cols = ['y', 'x']
 
         SIZE = 2
         image = np.ones(dims, dtype='uint8')
@@ -481,7 +470,7 @@ class CommonFeatureIdentificationTests(object):
         L = 501 
         dims = (L + 2, L)  # avoid square images in tests
         pos = [50, 55]
-        cols = ['x', 'y']
+        cols = ['y', 'x']
 
         ECC = 0
         image = np.ones(dims, dtype='uint8')
@@ -513,7 +502,6 @@ class CommonFeatureIdentificationTests(object):
         L = 21
         dims = (L, L + 2)  # avoid square images in tests
         pos = [7, 13]
-        cols = ['x', 'y']
         expected = np.array([pos])
 
         image = np.ones(dims, dtype='uint8')
@@ -521,22 +509,22 @@ class CommonFeatureIdentificationTests(object):
 
         guess = np.array([[6, 13]])
         actual = tp.feature.refine(image, image, 6, guess, characterize=False,
-                                   engine=self.engine)[:, :2]
+                                   engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 12]])
         actual = tp.feature.refine(image, image, 6, guess, characterize=False,
-                                   engine=self.engine)[:, :2]
+                                   engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 14]])
         actual = tp.feature.refine(image, image, 6, guess, characterize=False,
-                                   engine=self.engine)[:, :2]
+                                   engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[6, 12]])
         actual = tp.feature.refine(image, image, 6, guess, characterize=False,
-                                   engine=self.engine)[:, :2]
+                                   engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
 
