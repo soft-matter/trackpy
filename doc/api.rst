@@ -22,7 +22,10 @@ These functions acess the core functionality of trackpy:
     link_df
     link_df_iter
 
-:func:`~trackpy.linking.link_df` and :func:`~trackpy.linking.link_df_iter` run the same underlying code, but :func:`~trackpy.linking.link_df_iter` streams through large data sets one frame at a time. See the tutorial on large data sets for more.
+:func:`~trackpy.linking.link_df` and :func:`~trackpy.linking.link_df_iter` run
+the same underlying code, but :func:`~trackpy.linking.link_df_iter` streams
+through large data sets one frame at a time. See the tutorial on large data
+sets for more.
 
 Motion Analysis
 ---------------

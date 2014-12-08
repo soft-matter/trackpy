@@ -3,9 +3,9 @@
 Introduction to Trackpy
 -----------------------
 
-Trackpy is a package for tracking blob-like particles in video and analyzing
-their trajectories. It implements and extends the widely-used Crocker--Grier
-algorithm in Python.
+Trackpy is a package for finding blob-like features in video, tracking them
+through time,  and analyzing their trajectories. It implements and extends the
+widely-used Crocker--Grier algorithm in Python.
 
 There are many similar projects. (See table below.)
 Our implementation is distinguished by succinct and flexible usage,

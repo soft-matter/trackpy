@@ -64,9 +64,6 @@ class TreeFinder(object):
 class HashTable(object):
     """Basic hash table for fast look up of particles in neighborhood.
 
-
-
-
     Parameters
     ----------
     dims : ND tuple
@@ -74,7 +71,7 @@ class HashTable(object):
         0<data[k]<dims[k]
 
     box_size : float
-        big each box should be in data units.
+        how big each box should be in data units.
         The same scale is used for all dimensions
 
 
