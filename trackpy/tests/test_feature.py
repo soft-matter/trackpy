@@ -26,13 +26,13 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
     if image.shape[:-1] == image.shape[1:]:
         raise ValueError("For stupid numpy broadcasting reasons, don't make " +
                          "the image square.")
-    if np.any((pos >= image.shape)) or np.any((pos < 0)):
-        raise ValueError("Position outside image.")
     ndim = image.ndim
     r = tp.utils.validate_tuple(r, ndim)
     rect = []
     vectors = []
     for (c, rad, lim) in zip(pos, r, image.shape):   
+        if (c >= lim) or (c < 0):
+            raise ValueError("Position outside image.")
         lower_bound = max(int(round((c - 3*rad))), 0)
         upper_bound = min(int(round((c + 3*rad + 1))), lim)
         rect.append(slice(lower_bound, upper_bound))
