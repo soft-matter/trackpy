@@ -15,3 +15,8 @@ Documentation
 [**Read the documentation**](http://soft-matter.github.io/trackpy/) for an
 introduction to the project, easy installation instructions, tutorials, the
 reference guide, and much more.
+
+If you use trackpy for published research, please
+[cite the release](http://soft-matter.github.io/trackpy/introduction.html#citing-trackpy)
+both to credit the contributors and to direct your readers to the exact
+version of trackpy they could use to reproduce your results.
