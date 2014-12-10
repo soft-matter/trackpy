@@ -12,8 +12,6 @@ What is it?
 Documentation
 -------------
 
-Online documentation is available [here](http://soft-matter.github.io/trackpy/).
-It includes an introduction to the project, tutorials and examples,
-simple installation instructions, a complete API reference, links to related
-software projects, and information about citing trackpy in research 
-publications.
+[**Read the documentation**](http://soft-matter.github.io/trackpy/) for an
+introduction to the project, easy installation instructions, tutorials, the
+reference guide, and much more.
