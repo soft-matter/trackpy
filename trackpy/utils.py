@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
+import logging
 import collections
 import functools
 import re
@@ -208,3 +209,52 @@ def make_pandas_strict():
     major, minor, micro = pd.__version__.split('.')
     if major == '0' and int(minor) >= 13:
         pd.set_option('mode.chained_assignment', 'raise')
+
+
+class IPythonStreamHandler(logging.StreamHandler):
+    "A StreamHandler for logging that clears output between entries."
+    def emit(self, s):
+        clear_output(wait=True)
+        print(s.getMessage())
+    def flush(self):
+        sys.stdout.flush()
+
+
+# Configure a logger from trackpy. Developers can attach their
+# own handlers.
+FORMAT = "%(name)s.%(funcName)s:  %(message)s"
+formatter = logging.Formatter(FORMAT)
+logger = logging.getLogger(__name__)
+
+
+# Check for IPython and use a special logger
+use_ipython_handler = False
+try:
+    import IPython
+except ImportError:
+    pass
+else:
+    if IPython.get_ipython() is not None:
+        use_ipython_handler = True
+if use_ipython_handler:
+    default_handler = IPythonStreamHandler()
+else:
+    default_handler = logging.StreamHandler(sys.stdout)
+default_handler.setLevel(logging.INFO)
+default_handler.setFormatter(formatter)
+
+
+def handle_logging():
+    "Send INFO-level log messages to stdout. Do not propagate."
+    if use_ipython_handler:
+        # Avoid double-printing messages to IPython stderr.
+        logger.propagate = False
+    logger.addHandler(default_handler)
+    logger.setLevel(logging.INFO)
+
+
+def ignore_logging():
+    "Reset to factory default logging configuration; remove trackpy's handler."
+    logger.removeHandler(default_handler)
+    logger.setLevel(logging.NOTSET)
+    logger.propagate = 1  # the default implemented by the logging module

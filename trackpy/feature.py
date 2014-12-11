@@ -10,7 +10,7 @@ from scipy.spatial import cKDTree
 from pandas import DataFrame
 
 from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
-from .utils import record_meta, print_update, validate_tuple
+from .utils import record_meta, validate_tuple
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -278,7 +278,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         for iteration in range(max_iterations):
             off_center = cm_n - radius
             if walkthrough:
-                print_update(off_center)
+                logger.info('%f', off_center)
             if np.all(np.abs(off_center) < GOOD_ENOUGH_THRESH):
                 break  # Accurate enough.
 
@@ -714,8 +714,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         else:
             frame_no = i
             features['frame'] = i  # just counting iterations
-        message = "Frame %d: %d features" % (frame_no, len(features))
-        print_update(message)
+        logger.info("Frame %d: %d features", frame_no, len(features))
         if len(features) == 0:
             continue
 

@@ -5,7 +5,7 @@ import numpy as np
 from scipy.ndimage.filters import uniform_filter1d, correlate1d
 from scipy.ndimage.fourier import fourier_gaussian
 
-from .utils import print_update, validate_tuple
+from .utils import validate_tuple
 from .masks import gaussian_kernel
 
 
@@ -88,9 +88,9 @@ else:
     def fftn(a):
         global planned
         if not planned:
-            print_update("Note: FFTW is configuring itself. This will take " +
-                         "several seconds, but subsequent calls will run " +
-                         "*much* faster.")
+            logger.warn("Note: FFTW is configuring itself. This will take " +
+                        "several seconds, but subsequent calls will run " +
+                        "*much* faster.")
             planned = True
         a = pyfftw.n_byte_align(a, a.dtype.alignment)
         return pyfftw.interfaces.numpy_fft.fftn(a).astype(np.complex128)
