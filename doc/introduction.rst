@@ -64,7 +64,7 @@ Trackpy can be cited using a DOI provided through Zenodo. To direct your
 readers to the specific version of trackpy that they can use to reproduce
 your results, cite the release of trackpy that you used for your work. The
 record pages linked below contain author lists, other details, and complete
-citations in various formats. If your citation style allows for URL,
+citations in various formats. If your citation style allows for a URL,
 please include a link to the github repository:
 `github.com/soft-matter/trackpy`.
 
