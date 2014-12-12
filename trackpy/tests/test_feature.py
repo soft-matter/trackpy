@@ -30,7 +30,7 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
     r = tp.utils.validate_tuple(r, ndim)
     rect = []
     vectors = []
-    for (c, rad, lim) in zip(pos, r, image.shape):   
+    for (c, rad, lim) in zip(pos, r, image.shape):
         if (c >= lim) or (c < 0):
             raise ValueError("Position outside image.")
         lower_bound = max(int(round((c - 3*rad))), 0)
@@ -50,8 +50,8 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
             raise ValueError("Eccentricity must be 0 if image is not 2D or " +
                              "if features are is anisotropic.")
         coords = np.asarray(coords)
-        spot = max_value*np.exp(-np.sum([coordsi**2/(ndim*ri**2) 
-                        for (coordsi, ri) in zip(coords,r)], axis=0))
+        spot = max_value*np.exp(-np.sum([ci**2/(ndim*ri**2)
+                                         for (ci, ri) in zip(coords, r)], 0))
     image[rect] += spot.astype(image.dtype)
 
 
@@ -59,11 +59,11 @@ def draw_point(image, pos, value):
     image[tuple(pos)] = value
 
 
-def gen_random_locations(shape, count, margin = 0):
-    margin = tp.utils.validate_tuple(margin, len(shape))    
+def gen_random_locations(shape, count, margin=0):
+    margin = tp.utils.validate_tuple(margin, len(shape))
     np.random.seed(0)
     return np.array(
-        [[np.random.randint(m, s - m) for (s, m) in zip(shape, margin)] 
+        [[np.random.randint(m, s - m) for (s, m) in zip(shape, margin)]
          for _ in range(count)])
 
 
@@ -76,15 +76,15 @@ def draw_spots(shape, locations, r, noise_level):
 
 
 def compare(shape, count, radius, noise_level, engine):
-    radius = tp.utils.validate_tuple(radius, len(shape)) 
+    radius = tp.utils.validate_tuple(radius, len(shape))
     # tp.locate ignores a margin of size radius, take 1 px more to be safe
     margin = tuple([r + 1 for r in radius])
     cols = ['x', 'y', 'z'][:len(shape)][::-1]
-    pos = gen_random_locations(shape, count, margin) 
+    pos = gen_random_locations(shape, count, margin)
     image = draw_spots(shape, pos, radius, noise_level)
     f = tp.locate(image, [2*r + 1 for r in radius], minmass=1800, engine=engine)
     actual = f[cols].sort(cols)
-    expected = DataFrame(pos, columns=cols).sort(cols) 
+    expected = DataFrame(pos, columns=cols).sort(cols)
     return actual, expected
 
 
@@ -250,8 +250,8 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, (3,4,4))
-        actual = tp.locate(image, (7,9,9), 1, preprocess=False,
+        draw_gaussian_spot(image, pos, (3, 4, 4))
+        actual = tp.locate(image, (7, 9, 9), 1, preprocess=False,
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
 
@@ -418,7 +418,7 @@ class CommonFeatureIdentificationTests(object):
         actual, expected = compare((200, 300), 4, 2, noise_level=2,
                                    engine=self.engine)
         assert_allclose(actual, expected, atol=0.5)
-        
+
     def test_multiple_anisotropic_3D_simple(self):
         self.skip_numba()
         actual, expected = compare((100, 120, 10), 4, (4, 4, 2), noise_level=0,
