@@ -19,6 +19,9 @@ except ImportError:
 
 from .utils import print_update
 
+__all__ = ['annotate', 'plot_traj', 'ptraj', 'plot_displacements',
+           'subpx_bias', 'mass_ecc', 'mass_size']
+
 
 __all__ = ['annotate', 'scatter', 'plot_traj', 'ptraj',
            'annotate3d', 'scatter3d', 'plot_traj3d', 'ptraj3d',

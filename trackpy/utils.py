@@ -14,6 +14,8 @@ import numpy as np
 from scipy import stats
 import yaml
 
+import trackpy
+
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
@@ -220,12 +222,8 @@ class IPythonStreamHandler(logging.StreamHandler):
         sys.stdout.flush()
 
 
-# Configure a logger from trackpy. Developers can attach their
-# own handlers.
 FORMAT = "%(name)s.%(funcName)s:  %(message)s"
 formatter = logging.Formatter(FORMAT)
-logger = logging.getLogger(__name__)
-
 
 # Check for IPython and use a special logger
 use_ipython_handler = False
@@ -248,13 +246,13 @@ def handle_logging():
     "Send INFO-level log messages to stdout. Do not propagate."
     if use_ipython_handler:
         # Avoid double-printing messages to IPython stderr.
-        logger.propagate = False
-    logger.addHandler(default_handler)
-    logger.setLevel(logging.INFO)
+        trackpy.logger.propagate = False
+    trackpy.logger.addHandler(default_handler)
+    trackpy.logger.setLevel(logging.INFO)
 
 
 def ignore_logging():
     "Reset to factory default logging configuration; remove trackpy's handler."
-    logger.removeHandler(default_handler)
-    logger.setLevel(logging.NOTSET)
-    logger.propagate = 1  # the default implemented by the logging module
+    trackpy.logger.removeHandler(default_handler)
+    trackpy.logger.setLevel(logging.NOTSET)
+    trackpy.logger.propagate = 1  # default implemented by the logging module

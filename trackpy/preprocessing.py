@@ -1,6 +1,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
+import logging
+
 import numpy as np
 from scipy.ndimage.filters import uniform_filter1d, correlate1d
 from scipy.ndimage.fourier import fourier_gaussian
@@ -75,6 +77,8 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
 # All three functions give identical results, up to small numerical errors.
 
 
+logger = logging.getLogger(__name__)
+
 try:
     import pyfftw
 except ImportError:
@@ -88,7 +92,7 @@ else:
     def fftn(a):
         global planned
         if not planned:
-            logger.warn("Note: FFTW is configuring itself. This will take " +
+            logger.info("Note: FFTW is configuring itself. This will take " +
                         "several seconds, but subsequent calls will run " +
                         "*much* faster.")
             planned = True

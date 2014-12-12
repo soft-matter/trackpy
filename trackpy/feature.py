@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import warnings
+import logging
 
 import numpy as np
 import pandas as pd
@@ -19,6 +20,8 @@ import trackpy  # to get trackpy.__version__
 from .try_numba import NUMBA_AVAILABLE
 from .feature_numba import (_numba_refine_2D, _numba_refine_2D_c,
                             _numba_refine_2D_c_a, _numba_refine_3D)
+
+logger = logging.getLogger(__name__)
 
 
 def percentile_threshold(image, percentile):

@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 from six.moves import zip, range
+import logging
 from copy import copy
 import itertools
 import functools
@@ -11,8 +12,9 @@ import numpy as np
 from scipy.spatial import cKDTree
 import pandas as pd
 
-from .utils import logger
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
+
+logger = logging.getLogger(__name__)
 
 
 class TreeFinder(object):
