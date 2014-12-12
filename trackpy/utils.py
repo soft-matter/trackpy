@@ -256,3 +256,18 @@ def ignore_logging():
     trackpy.logger.removeHandler(default_handler)
     trackpy.logger.setLevel(logging.NOTSET)
     trackpy.logger.propagate = 1  # default implemented by the logging module
+
+
+def quiet(suppress=True):
+    """Suppress trackpy information log messages.
+
+    Parameters
+    ----------
+    suppress : boolean
+        If True, set the logging level to WARN, hiding INFO-level messages.
+        If False, set level to INFO, showing informational messages.
+    """
+    if suppress:
+        trackpy.logger.setLevel(logging.WARN)
+    else:
+        trackpy.logger.setLevel(logging.INFO)
