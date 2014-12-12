@@ -8,8 +8,12 @@ import pandas as pd
 
 from .utils import print_update
 
+__all__ = ['FramewiseData', 'PandasHDFStore', 'PandasHDFStoreBig',
+           'PandasHDFStoreSingleNode']
+
 
 class FramewiseData(object):
+    "Abstract base class defining a data container with framewise access."
 
     __metaclass__ = ABCMeta
 
@@ -98,7 +102,9 @@ def decode_key(key):
 
 
 class PandasHDFStore(FramewiseData):
-    """Save each frame's data to a node in a pandas HDFStore.
+    """An interface to an HDF5 file with framewise access, using pandas.
+
+    Save each frame's data to a node in a pandas HDFStore.
 
     Any additional keyword arguments to the constructor are passed to
     pandas.HDFStore().
@@ -219,7 +225,8 @@ class PandasHDFStoreBig(PandasHDFStore):
 
 
 class PandasHDFStoreSingleNode(FramewiseData):
-    """Save all frames into one large node.
+    """An interface to an HDF5 file with framewise access,
+    using pandas, that is faster for cross-frame queries.
 
     This implementation is more complex than PandasHDFStore,
     but it simplifies (speeds up?) cross-frame queries,
