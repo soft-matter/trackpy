@@ -52,7 +52,9 @@ def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
         coords = np.asarray(coords)
         spot = max_value*np.exp(-np.sum([ci**2/(ndim*ri**2)
                                          for (ci, ri) in zip(coords, r)], 0))
+    clip = image[rect] + spot > np.iinfo(image.dtype).max
     image[rect] += spot.astype(image.dtype)
+    image[rect][clip] = np.iinfo(image.dtype).max
 
 
 def draw_point(image, pos, value):
