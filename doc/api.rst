@@ -44,6 +44,8 @@ Motion Analysis
     proximity
     is_typical
     diagonal_size
+    filter_stubs
+    filter_clusters
 
 Prediction Framework
 --------------------
