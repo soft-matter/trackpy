@@ -533,7 +533,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         separation = validate_tuple(separation, ndim)
 
     if smoothing_size is None:
-        smoothing_size = separation
+        smoothing_size = diameter
     else:
         smoothing_size = validate_tuple(smoothing_size, ndim)
 
