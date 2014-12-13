@@ -1,13 +1,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import six
 import collections
 import functools
 import re
 import sys
-import time
 import warnings
-import functools
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -37,35 +34,37 @@ def fit_powerlaw(data, plot=True, **kwargs):
 
 
 class memo(object):
-   """Decorator. Caches a function's return value each time it is called.
-   If called later with the same arguments, the cached value is returned
-   (not reevaluated).
-   http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize """
-   def __init__(self, func):
-      self.func = func
-      self.cache = {}
-      functools.update_wrapper(self, func)
-   def __call__(self, *args):
-      if not isinstance(args, collections.Hashable):
-         # uncacheable. a list, for instance.
-         warnings.warn("A memoization cache is being used on an uncacheable " +
-                       "object. Proceeding by bypassing the cache.",
-                       UserWarning)
-         return self.func(*args)
-      if args in self.cache:
-         return self.cache[args]
-      else:
-         value = self.func(*args)
-         self.cache[args] = value
-         return value
+    """Decorator. Caches a function's return value each time it is called.
+    If called later with the same arguments, the cached value is returned
+    (not reevaluated).
+    http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize """
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+        functools.update_wrapper(self, func)
+
+    def __call__(self, *args):
+        if not isinstance(args, collections.Hashable):
+            # uncacheable. a list, for instance.
+            warnings.warn("A memoization cache is being used on an uncacheable " +
+                          "object. Proceeding by bypassing the cache.",
+                          UserWarning)
+            return self.func(*args)
+        if args in self.cache:
+            return self.cache[args]
+        else:
+            value = self.func(*args)
+            self.cache[args] = value
+            return value
 # This code trips up numba. It's nice for development
 # but it shouldn't matter for users.
 #   def __repr__(self):
 #      '''Return the function's docstring.'''
 #      return self.func.__doc__
-   def __get__(self, obj, objtype):
-      '''Support instance methods.'''
-      return functools.partial(self.__call__, obj)
+
+    def __get__(self, obj, objtype):
+        '''Support instance methods.'''
+        return functools.partial(self.__call__, obj)
 
 
 def extract(pattern, string, group, convert=None):
@@ -88,15 +87,17 @@ def extract(pattern, string, group, convert=None):
 
 def timestamp(ts_string):
     "Convert a timestamp string to a datetime type."
-    if ts_string is None: return None
+    if ts_string is None:
+        return None
     return datetime.strptime(ts_string, '%Y-%m-%d %H:%M:%S')
 
 
 def time_interval(raw):
     "Convert a time interval string into a timedelta type."
-    if raw is None: return None
+    if raw is None:
+        return None
     m = re.match('([0-9][0-9]):([0-5][0-9]):([0-5][0-9])', raw)
-    h, m, s = map(int, m.group(1,2,3))
+    h, m, s = map(int, m.group(1, 2, 3))
     return timedelta(hours=h, minutes=m, seconds=s)
 
 
@@ -155,7 +156,7 @@ def timedelta_to_frame(timedeltas, fps):
     and multiplication is tricky with timedeltas.
     """
     ns = timedeltas.values
-    seconds = ns*1e-9
+    seconds = ns * 1e-9
     frame_numbers = seconds*fps
     result = pd.DataFrame(frame_numbers, dtype=np.int64,
                           index=timedeltas.index, columns=timedeltas.columns)

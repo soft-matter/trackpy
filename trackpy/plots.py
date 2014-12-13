@@ -9,8 +9,6 @@ from functools import wraps
 import warnings
 
 import numpy as np
-import pandas as pd
-from pandas import DataFrame, Series
 
 from .utils import print_update
 
@@ -31,7 +29,6 @@ def make_axes(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        import matplotlib as mpl
         import matplotlib.pyplot as plt
         if kwargs.get('ax') is None:
             kwargs['ax'] = plt.gca()
@@ -54,7 +51,6 @@ def make_axes(func):
 
 def make_fig(func):
     """See make_axes."""
-    import matplotlib as mpl
     import matplotlib.pyplot as plt
     wraps(func)
     def wrapper(*args, **kwargs):
@@ -176,7 +172,7 @@ def annotate(centroids, image, circle_size=None, color=None,
     ax : matplotlib axes object, defaults to current axes
     split_category : string, parameter to use to split the data into sections
         default None
-    split_thresh : single value or list of ints or floats to split 
+    split_thresh : single value or list of ints or floats to split
         particles into sections for plotting in multiple colors.
         List items should be ordered by increasing value.
         default None
@@ -184,7 +180,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         the `Axes.imshow(...)` command the displays the image
     plot_style : dictionary of keyword arguments passed through to
         the `Axes.plot(...)` command that marks the features
-    
+
     Returns
     ------
     axes
@@ -197,7 +193,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         if 'marker_size' not in plot_style:
             plot_style['marker_size'] = np.sqrt(circle_size)  # area vs. dia.
         else:
-            raise ValueError("passed in both 'marker_size' and 'circle_size'") 
+            raise ValueError("passed in both 'marker_size' and 'circle_size'")
 
     _plot_style = dict(markersize=15, markeredgewidth=2,
                        markerfacecolor='none', markeredgecolor='r',
@@ -244,19 +240,19 @@ def annotate(centroids, image, circle_size=None, color=None,
                              "plus 1")
         low = centroids[split_category] < split_thresh[0]
         _plot_style.update(markeredgecolor=color[0])
-        ax.plot(centroids['x'][low], centroids['y'][low], 
+        ax.plot(centroids['x'][low], centroids['y'][low],
                 **_plot_style)
 
         for c, (bot, top) in zip(color[1:-1], pairwise(split_thresh)):
             indx = ((centroids[split_category] >= bot) &
                     (centroids[split_category] < top))
             _plot_style.update(markeredgecolor=c)
-            ax.plot(centroids['x'][indx], centroids['y'][indx], 
+            ax.plot(centroids['x'][indx], centroids['y'][indx],
                     **_plot_style)
 
         high = centroids[split_category] >= split_thresh[-1]
         _plot_style.update(markeredgecolor=color[-1])
-        ax.plot(centroids['x'][high], centroids['y'][high], 
+        ax.plot(centroids['x'][high], centroids['y'][high],
                 **_plot_style)
     return ax
 
@@ -316,7 +312,7 @@ def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None,
     # Match colors of data and corresponding fits.
     [f.set_color(d.get_color()) for d, f in zip(datalines, fitlines)]
     if logx:
-        ax.set_xscale('log') # logx kwarg does not always take. Bug?
+        ax.set_xscale('log')  # logx kwarg does not always take. Bug?
 
 @make_axes
 def plot_principal_axes(img, x_bar, y_bar, cov, ax=None):
@@ -331,7 +327,7 @@ def plot_principal_axes(img, x_bar, y_bar, cov, ax=None):
     def make_lines(eigvals, eigvecs, mean, i):
         """Make lines a length of 2 stddev."""
         std = np.sqrt(eigvals[i])
-        vec = 2 * std * eigvecs[:,i] / np.hypot(*eigvecs[:,i])
+        vec = 2 * std * eigvecs[:, i] / np.hypot(*eigvecs[:, i])
         x, y = np.vstack((mean-vec, mean, mean+vec)).T
         return x, y
     mean = np.array([x_bar, y_bar])
@@ -379,7 +375,7 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
     """
     a = t[t.frame == frame1]
     b = t[t.frame == frame2]
-    j= a.set_index('particle')[['x', 'y']].join(
+    j = a.set_index('particle')[['x', 'y']].join(
         b.set_index('particle')[['x', 'y']], rsuffix='_b')
     j['dx'] = j.x_b - j.x
     j['dy'] = j.y_b - j.y

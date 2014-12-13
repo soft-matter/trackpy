@@ -1,7 +1,5 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import six
-
 import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 from scipy.ndimage.fourier import fourier_gaussian
@@ -22,13 +20,14 @@ else:
     USING_FFTW = True
     pyfftw.interfaces.cache.enable()
     planned = False
+
     def _maybe_align(a):
         global planned
         if not planned:
             print_update("Note: FFTW is configuring itself. This will take " +
                          "several seconds, but subsequent calls will run " +
                          "*much* faster.")
-            planned = True 
+            planned = True
         result = pyfftw.n_byte_align(a, a.dtype.alignment)
         return result
     fftn = lambda a: pyfftw.interfaces.numpy_fft.fftn(_maybe_align(a))

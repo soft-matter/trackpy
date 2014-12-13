@@ -1,13 +1,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import six
-
 import numpy as np
 from scipy.ndimage import morphology
 
 from .preprocessing import bandpass
 from .masks import binary_mask
 from .utils import validate_tuple
+
 
 def roi(image, diameter, threshold=None):
     """Return a mask selecting the neighborhoods of bright regions.
@@ -29,10 +28,12 @@ def roi(image, diameter, threshold=None):
     signal_mask = morphology.binary_dilation(signal_mask, structure=structure)
     return signal_mask
 
+
 def measure_noise(image, diameter, threshold):
     "Compute the standard deviation of the dark pixels outside the signal."
     signal_mask = roi(image, diameter, threshold)
     return image[~signal_mask].mean(), image[~signal_mask].std()
+
 
 def static_error(features, noise, diameter, noise_size=1):
     """Compute the uncertainty in particle position ("the static error").
@@ -64,5 +65,5 @@ def static_error(features, noise, diameter, noise_size=1):
     s = 2*((diameter//2-1)/features['size'])**2
     ep = N_S*noise_size/(2*np.pi**0.5)*s/(1-np.exp(-s))
     # ^ Savin & Doyle, Eq. 50
-    ep.name = 'ep' # so it can be joined
+    ep.name = 'ep'  # so it can be joined
     return ep
