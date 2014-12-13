@@ -94,7 +94,7 @@ def _safe_center_of_mass(x, radius):
     # center_of_mass can have divide-by-zero errors, avoided thus:
     result = np.array(ndimage.center_of_mass(x))
     if np.isnan(result).any():
-        return np.zeros_like(result) + radius
+        return np.array(radius)
     else:
         return result
 
