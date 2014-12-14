@@ -1,5 +1,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import six
 import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 from scipy.ndimage.fourier import fourier_gaussian

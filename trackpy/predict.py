@@ -4,6 +4,7 @@
 """Tools to improve tracking performance by guessing where a particle will appear next."""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import six
 from six.moves import zip
 
 from warnings import warn

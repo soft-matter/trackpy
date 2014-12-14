@@ -1,5 +1,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import six
 import numpy as np
 from .utils import memo, validate_tuple
 

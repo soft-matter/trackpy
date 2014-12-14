@@ -1,5 +1,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import six
 
 """Simple functions that eliminate spurrious trajectories
 by wrapping pandas group-by and filter capabilities."""
