@@ -459,16 +459,21 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     ----------
     image : image array (any dimensions)
     diameter : feature size in px
+        This may be a single number or a tuple giving the feature's
+        extent in each dimension, useful when the dimensions do not have
+        equal resolution (e.g. confocal microscopy). The tuple order is the
+        same as the image shape, conventionally (z, y, x) or (y, x). The
+        number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
         crucial parameter for elminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
-        Default is the feature diameter + 1.
+        Default is diameter + 1. May be a tuple, see diameter for details.
     noise_size : width of Gaussian blurring kernel, in pixels
-        Default is 1.
+        Default is 1. May be a tuple, see diameter for details.
     smoothing_size : size of boxcar smoothing, in pixels
-        Default is the same is feature separation.
+        Default is diameter. May be a tuple, see diameter for details.
     threshold : Clip bandpass result below this value.
         Default None, passed through to bandpass.
     invert : Set to True if features are darker than background. False by
@@ -683,16 +688,21 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     ----------
     frames : list (or iterable) of images
     diameter : feature size in px
+        This may be a single number or a tuple giving the feature's
+        extent in each dimension, useful when the dimensions do not have
+        equal resolution (e.g. confocal microscopy). The tuple order is the
+        same as the image shape, conventionally (z, y, x) or (y, x). The
+        number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
         crucial parameter for elminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
-        Default is the feature diameter + 1.
+        Default is diameter + 1. May be a tuple, see diameter for details.
     noise_size : width of Gaussian blurring kernel, in pixels
-        Default is 1.
+        Default is 1. May be a tuple, see diameter for details.
     smoothing_size : size of boxcar smoothing, in pixels
-        Default is the same is feature separation.
+        Default is diameter. May be a tuple, see diameter for details.
     threshold : Clip bandpass result below this value.
         Default None, passed through to bandpass.
     invert : Set to True if features are darker than background. False by
