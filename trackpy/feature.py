@@ -679,7 +679,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     engine : {'auto', 'python', 'numba'}
     output : {None, trackpy.PandasHDFStore, SomeCustomClass}
         If None, return all results as one big DataFrame. Otherwise, pass
-        results from each frame, one at a time, to the write() method
+        results from each frame, one at a time, to the put() method
         of whatever class is specified here.
     meta : filename
         By default, a YAML (plain text) log file is saved in the current
