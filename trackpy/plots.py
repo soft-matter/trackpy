@@ -285,7 +285,10 @@ def subpx_bias(f, ax=None):
     -----
     If subpixel accuracy is good, this should be flat. If it depressed in the
     middle, try using a larger value for feature diameter."""
-    f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
+    if 'z' in f:
+        f[['x','y','z']].applymap(lambda x: x % 1).hist(ax=ax)
+    else:
+        f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
     return ax
 
 @make_axes

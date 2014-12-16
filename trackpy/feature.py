@@ -12,7 +12,7 @@ from pandas import DataFrame, Series
 
 from . import uncertainty
 from .preprocessing import bandpass, scale_to_gamut
-from .utils import record_meta, print_update
+from .utils import record_meta, print_update, validate_tuple
 from .masks import *
 import trackpy  # to get trackpy.__version__
 
@@ -25,7 +25,6 @@ __all__ = ['locate', 'batch', 'percentile_threshold', 'local_maxima',
 def percentile_threshold(image, percentile):
     """Find grayscale threshold based on distribution in image."""
 
-    ndim = image.ndim
     not_black = image[np.nonzero(image)]
     if len(not_black) == 0:
         return np.nan
@@ -43,7 +42,7 @@ def local_maxima(image, radius, percentile=64, margin=None):
             A smarter value is set by locate().
     """
     if margin is None:
-        margin = int(radius)
+        margin = radius
 
     ndim = image.ndim
     # Compute a threshold based on percentile.
@@ -72,29 +71,30 @@ def local_maxima(image, radius, percentile=64, margin=None):
 
     # Return coords in as a numpy array shaped so it can be passed directly
     # to the DataFrame constructor.
-    return maxima 
+    return maxima
 
 
 def estimate_mass(image, radius, coord):
     "Compute the total brightness in the neighborhood of a local maximum."
-    square = [slice(c - radius, c + radius + 1) for c in coord]
+    square = [slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
     neighborhood = binary_mask(radius, image.ndim)*image[square]
     return np.sum(neighborhood)
 
 
 def estimate_size(image, radius, coord, estimated_mass):
     "Compute the total brightness in the neighborhood of a local maximum."
-    square = [slice(c - radius, c + radius + 1) for c in coord]
+    square = [slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
     neighborhood = binary_mask(radius, image.ndim)*image[square]
-    Rg = np.sqrt(np.sum(r_squared_mask(radius, image.ndim)*neighborhood)/
+    Rg = np.sqrt(np.sum(r_squared_mask(radius, image.ndim) * neighborhood) /
                  estimated_mass)
     return Rg
 
-# center_of_mass can have divide-by-zero errors, avoided thus:
+
 def _safe_center_of_mass(x, radius):
+    # center_of_mass can have divide-by-zero errors, avoided thus:
     result = np.array(ndimage.center_of_mass(x))
     if np.isnan(result).any():
-        return np.zeros_like(result) + radius
+        return np.array(radius)
     else:
         return result
 
@@ -124,6 +124,8 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
     engine : {'python', 'numba'}
         Numba is faster if available, but it cannot do walkthrough.
     """
+    # ensure that radius is tuple of integers, for direct calls to refine()
+    radius = validate_tuple(radius, image.ndim)
     # Main loop will be performed in separate function.
     if engine == 'auto':
         if NUMBA_AVAILABLE:
@@ -143,28 +145,35 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
             raise NotImplementedError("The numba engine only supports 2D "
                                       "images. You can extend it if you feel "
                                       "like a hero.")
+        if radius[0] != radius[1]:
+            raise NotImplementedError("The numba engine does not support "
+                                      "anisotropic feature finding. "
+                                      "You can extend it if you feel "
+                                      "like a hero.")
         if walkthrough:
             raise ValueError("walkthrough is not availabe in the numba engine")
         # Do some extra prep in pure Python that can't be done in numba.
         coords = np.array(coords, dtype=np.float_)
         shape = np.array(image.shape, dtype=np.int16)  # array, not tuple
-        mask = binary_mask(radius, image.ndim)
-        r2_mask = r_squared_mask(radius, image.ndim)
-        cmask = cosmask(radius)
-        smask = sinmask(radius)
-        results = _numba_refine(raw_image, image, int(radius), coords,
+        mask = binary_mask(radius[0], image.ndim)
+        r2_mask = r_squared_mask(radius[0], image.ndim)
+        cmask = cosmask(radius[0])
+        smask = sinmask(radius[0])
+        results = _numba_refine(raw_image, image, int(radius[0]), coords,
                                 int(max_iterations), characterize,
                                 shape, mask, r2_mask, cmask, smask)
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    if separation > 0:
+    if np.all(np.greater(separation, 0)):
         mass_index = image.ndim  # i.e., index of the 'mass' column
         while True:
-            positions = results[:, :mass_index]
+            # Rescale positions, so that pairs are identified below a distance
+            # of 1. Do so every iteration (room for improvement?)
+            positions = results[:, :mass_index]/list(reversed(separation))
             mass = results[:, mass_index]
-            duplicates = cKDTree(positions, 30).query_pairs(separation)
+            duplicates = cKDTree(positions, 30).query_pairs(1)
             if len(duplicates) == 0:
                 break
             to_drop = []
@@ -172,9 +181,9 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
                 # Drop the dimmer one.
                 if np.equal(*mass.take(pair, 0)):
                     # Rare corner case: a tie!
-                    # Break ties by sorting by position, simply to avoid
+                    # Break ties by sorting by sum of coordinates, to avoid
                     # any randomness resulting from cKDTree returning a set.
-                    dimmer = np.argsort(positions.take(pair, 0))[0, 0]
+                    dimmer = np.argsort(np.sum(positions.take(pair, 0), 1))[0]
                 else:
                     dimmer = np.argmin(mass.take(pair, 0))
                 to_drop.append(pair[dimmer])
@@ -191,7 +200,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 
     ndim = image.ndim
     mask = binary_mask(radius, ndim)
-    slices = [[slice(c - radius, c + radius + 1) for c in coord]
+    slices = [[slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
               for coord in coords]
 
     # Declare arrays that we will fill iteratively through loop.
@@ -206,8 +215,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         coord = coords[feat]
 
         # Define the circular neighborhood of (x, y).
-        square = slices[feat]
-        neighborhood = mask*image[square]
+        rect = slices[feat]
+        neighborhood = mask*image[rect]
         cm_n = _safe_center_of_mass(neighborhood, radius)
         cm_i = cm_n - radius + coord  # image coords
         allow_moves = True
@@ -228,8 +237,9 @@ def _refine(raw_image, image, radius, coords, max_iterations,
                 upper_bound = np.array(image.shape) - 1 - radius
                 new_coord = np.clip(new_coord, radius, upper_bound).astype(int)
                 # Update slice to shifted position.
-                square = [slice(c - radius, c + radius + 1) for c in new_coord]
-                neighborhood = mask*image[square]
+                rect = [slice(c - rad, c + rad + 1)
+                        for c, rad in zip(new_coord, radius)]
+                neighborhood = mask*image[rect]
 
             # If we're off by less than half a pixel, interpolate.
             else:
@@ -254,16 +264,17 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         mass[feat] = neighborhood.sum()
         if not characterize:
             continue  # short-circuit loop
-        Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim)*
-                                  neighborhood)/mass[feat])
+        Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
+                                  neighborhood) / mass[feat])
         # I only know how to measure eccentricity in 2D.
-        if ndim == 2:
-            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
-                          np.sum(neighborhood*sinmask(radius))**2)
-            ecc[feat] /= (mass[feat] - neighborhood[radius, radius] + 1e-6)
+        if ndim == 2 and radius[0] == radius[1]:
+            rad = radius[0]
+            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(rad))**2 +
+                                np.sum(neighborhood*sinmask(rad))**2)
+            ecc[feat] /= (mass[feat] - neighborhood[rad, rad] + 1e-6)
         else:
             ecc[feat] = np.nan
-        raw_neighborhood = mask*raw_image[square]
+        raw_neighborhood = mask*raw_image[rect]
         signal[feat] = raw_neighborhood.max()  # black_level subtracted later
 
     if not characterize:
@@ -272,14 +283,18 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         result = np.column_stack([final_coords, mass, Rg, ecc, signal])
     return result
 
+
 def _get_numba_refine_locals():
-    """Establish types of local variables in _numba_refine(), in a way that's safe if there's no numba."""
+    """Establish types of local variables in _numba_refine(), in a way that's 
+    safe if there's no numba."""
     try:
         from numba import double, int_
     except ImportError:
         return {}
     else:
-        return dict(square0=int_, square1=int_, square_size=int_, Rg_=double, ecc_=double)
+        return dict(square0=int_, square1=int_, square_size=int_, 
+                    Rg_=double, ecc_=double)
+
 
 @try_numba_autojit(locals=_get_numba_refine_locals())
 def _numba_refine(raw_image, image, radius, coords, max_iterations,
@@ -444,16 +459,21 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     ----------
     image : image array (any dimensions)
     diameter : feature size in px
+        This may be a single number or a tuple giving the feature's
+        extent in each dimension, useful when the dimensions do not have
+        equal resolution (e.g. confocal microscopy). The tuple order is the
+        same as the image shape, conventionally (z, y, x) or (y, x). The
+        number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
         crucial parameter for elminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
-        Default is the feature diameter + 1.
+        Default is diameter + 1. May be a tuple, see diameter for details.
     noise_size : width of Gaussian blurring kernel, in pixels
-        Default is 1.
+        Default is 1. May be a tuple, see diameter for details.
     smoothing_size : size of boxcar smoothing, in pixels
-        Default is the same is feature separation.
+        Default is diameter. May be a tuple, see diameter for details.
     threshold : Clip bandpass result below this value.
         Default None, passed through to bandpass.
     invert : Set to True if features are darker than background. False by
@@ -502,15 +522,32 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     """
 
     # Validate parameters and set defaults.
-    if not diameter & 1:
-        raise ValueError("Feature diameter must be an odd number. Round up.")
-    if separation is None:
-        separation = int(diameter) + 1
-    radius = int(diameter)//2
-    if smoothing_size is None:
-        smoothing_size = diameter
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
+    ndim = len(shape)
+
+    diameter = validate_tuple(diameter, ndim)
+    diameter = tuple([int(x) for x in diameter])
+    if not np.all([x & 1 for x in diameter]):
+        raise ValueError("Feature diameter must be an odd integer. Round up.")
+    radius = tuple([x//2 for x in diameter])
+
+    if separation is None:
+        separation = tuple([x + 1 for x in diameter])
+    else:
+        separation = validate_tuple(separation, ndim)
+
+    if smoothing_size is None:
+        smoothing_size = diameter
+    else:
+        smoothing_size = validate_tuple(smoothing_size, ndim)
+
+    noise_size = validate_tuple(noise_size, ndim)
+
+    # Don't do characterization for rectangular pixels/voxels
+    if diameter[1:] != diameter[:-1]:
+        characterize = False
+
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim
@@ -559,7 +596,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     #   - Extended particles that cannot be explored during subpixel
     #       refinement ("separation")
     #   - Invalid output of the bandpass step ("smoothing_size")
-    margin = max(radius, separation // 2 - 1, smoothing_size // 2)
+    margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
+                    zip(radius, separation, smoothing_size)])
     coords = local_maxima(image, radius, percentile, margin)
     count_maxima = coords.shape[0]
 
@@ -623,7 +661,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         black_level, noise = uncertainty.measure_noise(
             raw_image, diameter, threshold)
         f['signal'] -= black_level
-        ep = uncertainty.static_error(f, noise, diameter, noise_size)
+        ep = uncertainty.static_error(f, noise, diameter[0], noise_size[0])
         f = f.join(ep)
 
     # If this is a pims Frame object, it has a frame number.
@@ -650,16 +688,21 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     ----------
     frames : list (or iterable) of images
     diameter : feature size in px
+        This may be a single number or a tuple giving the feature's
+        extent in each dimension, useful when the dimensions do not have
+        equal resolution (e.g. confocal microscopy). The tuple order is the
+        same as the image shape, conventionally (z, y, x) or (y, x). The
+        number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
         crucial parameter for elminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
-        Default is the feature diameter + 1.
+        Default is diameter + 1. May be a tuple, see diameter for details.
     noise_size : width of Gaussian blurring kernel, in pixels
-        Default is 1.
+        Default is 1. May be a tuple, see diameter for details.
     smoothing_size : size of boxcar smoothing, in pixels
-        Default is the same is feature separation.
+        Default is diameter. May be a tuple, see diameter for details.
     threshold : Clip bandpass result below this value.
         Default None, passed through to bandpass.
     invert : Set to True if features are darker than background. False by

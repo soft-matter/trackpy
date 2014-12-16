@@ -171,6 +171,13 @@ def record_meta(meta_data, filename):
     with open(filename, 'w') as output:
         output.write(yaml.dump(meta_data, default_flow_style=False))
 
+def validate_tuple(value, ndim):
+    if not hasattr(value, '__iter__'):
+        return (value,) * ndim
+    if len(value) == ndim:
+        return tuple(value)    
+    raise ValueError("List length should have same length as image dimensions.")
+
 
 try:
     from IPython.core.display import clear_output

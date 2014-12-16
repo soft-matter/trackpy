@@ -7,8 +7,9 @@ from scipy.ndimage import morphology
 
 from .preprocessing import bandpass
 from .masks import binary_mask
+from .utils import validate_tuple
 
-def roi(image, diameter, threshold=1):
+def roi(image, diameter, threshold=None):
     """Return a mask selecting the neighborhoods of bright regions.
     See Biophysical journal 88(1) 623-638 Figure C.
 
@@ -21,8 +22,9 @@ def roi(image, diameter, threshold=1):
     -------
     boolean ndarray, True around bright regions
     """
-    signal_mask = bandpass(image, 1, diameter + 1, threshold)
-    radius = int(diameter)//2
+    diameter = validate_tuple(diameter, image.ndim)
+    signal_mask = bandpass(image, 1, tuple([d + 1 for d in diameter]), threshold)
+    radius = tuple([int(d)//2 for d in diameter])
     structure = binary_mask(radius, image.ndim)
     signal_mask = morphology.binary_dilation(signal_mask, structure=structure)
     return signal_mask
