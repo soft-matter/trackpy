@@ -609,7 +609,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=True, filter_after=True,
           characterize=True, engine='auto',
-          output=None, meta=True):
+          output=None, meta=None):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -681,9 +681,10 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         If None, return all results as one big DataFrame. Otherwise, pass
         results from each frame, one at a time, to the put() method
         of whatever class is specified here.
-    meta : filename
-        By default, a YAML (plain text) log file is saved in the current
-        directory. You can specify a different filepath set False.
+    meta : filepath_or_obj
+        If specified, information relevant to reproducing this batch is saved
+        as a YAML file, a plain-text machine- and human-readable format.
+        By default, this is None, and no file is saved.
 
     See Also
     --------
@@ -719,11 +720,11 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                      filter_before=filter_before, filter_after=filter_after)
 
     if meta:
-        if isinstance(meta, str):
-            filename = meta
+        if isinstance(meta, six.string_types):
+            with open(filepath_or_obj, 'w') as file_obj:
+                record_meta(meta_info, file_obj)
         else:
-            filename = 'feature_log_%s.yml' % timestamp
-        record_meta(meta_info, filename)
+            record_meta(meta_info, file_obj)
 
     all_features = []
     for i, image in enumerate(frames):

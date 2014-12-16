@@ -172,9 +172,8 @@ def random_walk(N):
     return np.cumsum(np.random.randn(N), 1)
 
 
-def record_meta(meta_data, filename):
-    with open(filename, 'w') as output:
-        output.write(yaml.dump(meta_data, default_flow_style=False))
+def record_meta(meta_data, file_obj):
+    file_obj.write(yaml.dump(meta_data, default_flow_style=False))
 
 def validate_tuple(value, ndim):
     if not hasattr(value, '__iter__'):
