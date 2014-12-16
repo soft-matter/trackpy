@@ -24,6 +24,9 @@ before_install:
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
   - export PATH=/home/travis/anaconda/bin:$PATH
+  # See:
+  # https://groups.google.com/a/continuum.io/forum/#!topic/conda/RSFENqovnro
+  - conda update --yes --no-deps conda
   # Learned the hard way: miniconda is not always up-to-date with conda.
   - conda update --yes conda
 
