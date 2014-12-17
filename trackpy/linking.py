@@ -3,8 +3,9 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import zip, range
 from copy import copy
-import itertools, functools
-from collections import deque, Iterable
+import itertools
+import functools
+from collections import deque
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -270,7 +271,10 @@ class Point(object):
     :py:class:`~trackpy.linking.Track` objects.
 
 
-    .. note:: To be used for tracking this class must be sub-classed to provide a :py:meth:`distance` function.  Child classes **MUST** call :py:meth:`Point.__init__`.  (See :py:class:`~trackpy.linking.PointND` for example. )
+    .. note:: To be used for tracking this class must be sub-classed to provide
+    a :py:meth:`distance` function.  Child classes **MUST** call
+    :py:meth:`Point.__init__`.  (See :py:class:`~trackpy.linking.PointND` for
+    example. )
     '''
     count = 0
 
@@ -279,11 +283,11 @@ class Point(object):
         self.uuid = Point.count         # unique id for __hash__
         Point.count += 1
 
-    ## def __eq__(self, other):
-    ##     return self.uuid == other.uuid
+    # def __eq__(self, other):
+    #     return self.uuid == other.uuid
 
-    ## def __neq__(self, other):
-    ##     return not self.__eq__(other)
+    # def __neq__(self, other):
+    #     return not self.__eq__(other)
 
     def add_to_track(self, track):
         '''
@@ -533,7 +537,7 @@ def link_df(features, search_range, memory=0,
             if len(labels) > len(features[features[t_column] == frame_no]):
                 raise UnknownLinkingError("There are more labels than "
                                           "particles to be labeled in Frame "
-                                           "%d".format(frame_no))
+                                          "%d".format(frame_no))
         features['particle'].update(labels)
 
         msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
@@ -549,10 +553,10 @@ def link_df(features, search_range, memory=0,
 
 
 def link_df_iter(features, search_range, memory=0,
-            neighbor_strategy='KDTree', link_strategy='auto',
-            hash_size=None, box_size=None, predictor=None,
-            pos_columns=None, t_column=None, verify_integrity=True,
-            retain_index=False):
+                 neighbor_strategy='KDTree', link_strategy='auto',
+                 hash_size=None, box_size=None, predictor=None,
+                 pos_columns=None, t_column=None, verify_integrity=True,
+                 retain_index=False):
     """Link features into trajectories link_df, but return results iteratively.
 
     Parameters
@@ -819,7 +823,7 @@ def link_iter(levels, search_range, memory=0,
             # Get the time of cur_level from its first particle
             t_next = list(itertools.islice(cur_level, 0, 1))[0].t
             targeted_predictor = functools.partial(predictor, t_next)
-            prev_hash.rebuild(coord_map=targeted_predictor) # Rewrite positions
+            prev_hash.rebuild(coord_map=targeted_predictor)  # Rewrite positions
 
         # Now we can process the new particles.
         # Make a Hash / Tree for the destination level.
@@ -972,7 +976,7 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
         hashpts = prev_hash.points
         cur_coords = np.array([x.pos for x in cur_level])
         dists, inds = prev_hash.kdtree.query(cur_coords, 10, distance_upper_bound=search_range)
-        nn = np.sum(np.isfinite(dists), 1) # Number of neighbors of each particle
+        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(cur_level):
             for j in range(nn[i]):
                 wp = hashpts[inds[i,j]]
@@ -1196,8 +1200,10 @@ def numba_link(s_sn, dest_size, search_radius):
     return zip(*[(src_net[j], (dcands[i] if i >= 0 else None)) \
             for j, i in enumerate(best_assignments)])
 
+
 @try_numba_autojit
-def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_sums, tmp_assignments, best_assignments):
+def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
+                          cur_sums, tmp_assignments, best_assignments):
     """Find the optimal track assigments for a subnetwork, without recursion.
 
     This is for nj source particles. All arguments are arrays with nj rows.
@@ -1215,7 +1221,7 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_
         itercount += 1
         if itercount >= 500000000:
             return -1.0
-        delta = 0 # What to do at the end
+        delta = 0  # What to do at the end
         # This is an endless loop. We go up and down levels of recursion,
         # and emulate the mechanics of nested "for" loops, using the
         # blocks of code marked "GO UP" and "GO DOWN". It's not pretty.
@@ -1231,7 +1237,7 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_
             #### GO UP
             delta = -1
         else:
-            tmp_sum = cur_sums[j] + dists2array[j,i]
+            tmp_sum = cur_sums[j] + dists2array[j, i]
             if tmp_sum > best_sum:
                 # if we are already greater than the best sum, bail. we
                 # can bail all the way out of this branch because all
@@ -1247,14 +1253,14 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_
                 # This loop looks inefficient but it's what numba wants!
                 flag = 0
                 for jtmp in range(nj):
-                    if cur_assignments[jtmp] == candsarray[j,i]:
+                    if cur_assignments[jtmp] == candsarray[j, i]:
                         if jtmp < j:
                             flag = 1
-                if flag and candsarray[j,i] >= 0:
+                if flag and candsarray[j, i] >= 0:
                     # we have already used this destination point; try the next one instead
                     delta = 0
                 else:
-                    cur_assignments[j] = candsarray[j,i]
+                    cur_assignments[j] = candsarray[j, i]
                     # OK, I guess we'll try this assignment
                     if j + 1 == nj:
                         # We have made assignments for all the particles,
@@ -1276,16 +1282,17 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments, cur_
         if delta == -1:
             if j > 0:
                 j += -1
-                tmp_assignments[j] += 1 # Try the next candidate at this higher level
+                tmp_assignments[j] += 1  # Try the next candidate at this higher level
                 continue
             else:
                 return best_sum
         elif delta == 1:
             j += 1
-            cur_sums[j] = tmp_sum # Floor for all subsequent sums
+            cur_sums[j] = tmp_sum  # Floor for all subsequent sums
             tmp_assignments[j] = 0
         else:
             tmp_assignments[j] += 1
+
 
 def _maybe_remove(s, p):
     # Begging forgiveness is faster than asking permission

@@ -1,11 +1,9 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from scipy import interpolate
 from scipy.spatial import cKDTree
 
 __all__ = ['msd', 'imsd', 'emsd', 'compute_drift', 'subtract_drift',
@@ -46,7 +44,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     t = traj['frame']
     # Reindex with consecutive frames, placing NaNs in the gaps.
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
-    max_lagtime = min(max_lagtime, len(t)) # checking to be safe
+    max_lagtime = min(max_lagtime, len(t))  # checking to be safe
     lagtimes = 1 + np.arange(max_lagtime)
     disp = pd.concat([pos.sub(pos.shift(lt)) for lt in lagtimes],
                      keys=lagtimes, names=['lagt', 'frames'])
@@ -129,13 +127,14 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, True, pos_columns))
         ids.append(pid)
     msds = pd.concat(msds, keys=ids, names=['particle', 'frame'])
-    results = msds.mul(msds['N'], axis=0).mean(level=1) # weighted average
-    results = results.div(msds['N'].mean(level=1), axis=0) # weights normalized
+    results = msds.mul(msds['N'], axis=0).mean(level=1)  # weighted average
+    results = results.div(msds['N'].mean(level=1), axis=0)  # weights normalized
     # Above, lagt is lumped in with the rest for simplicity and speed.
     # Here, rebuild it from the frame index.
     if not detail:
         return results.set_index('lagt')['msd']
     return results
+
 
 def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
     """Return the ensemble drift, x(t).
@@ -174,6 +173,7 @@ def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
     x = dx.cumsum(0)[pos_columns]
     return x
 
+
 def subtract_drift(traj, drift=None):
     """Return a copy of particle trajectores with the overall drift subtracted out.
 
@@ -191,6 +191,7 @@ def subtract_drift(traj, drift=None):
     if drift is None:
         drift = compute_drift(traj)
     return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
+
 
 def is_typical(msds, frame, lower=0.1, upper=0.9):
     """Identify which paritcles' MSDs are in the central quantile.
@@ -223,6 +224,7 @@ def is_typical(msds, frame, lower=0.1, upper=0.9):
     """
     a, b = msds.iloc[frame].quantile(lower), msds.iloc[frame].quantile(upper)
     return (msds.iloc[frame] > a) & (msds.iloc[frame] < b)
+
 
 def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
     """Compute the van Hove correlation (histogram of displacements).
@@ -259,7 +261,7 @@ def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
     # Reindex with consecutive frames, placing NaNs in the gaps.
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
     assert lagtime <= pos.index.values.max(), \
-        "There is a no data out to frame %s. " % frame
+        "There is a no data out to frame %s. " % pos.index.values.max()
     disp = mpp*pos.sub(pos.shift(lagtime))
     # Let np.histogram choose the best bins for all the data together.
     values = disp.values.flatten()
@@ -273,6 +275,7 @@ def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
         return vh.sum(1)/len(vh.columns)
     else:
         return vh
+
 
 def diagonal_size(single_trajectory, pos_columns=None, t_column='frame'):
     """Measure the diagonal size of a trajectory.
@@ -301,11 +304,14 @@ def diagonal_size(single_trajectory, pos_columns=None, t_column='frame'):
     pos = single_trajectory.set_index(t_column)[pos_columns]
     return np.sqrt(np.sum(pos.apply(np.ptp)**2))
 
+
 def is_localized(traj, threshold=0.4):
     raise NotImplementedError("This function has been removed.")
 
+
 def is_diffusive(traj, threshold=0.9):
     raise NotImplementedError("This function has been removed.")
+
 
 def relate_frames(t, frame1, frame2, pos_columns=None):
     """Find the displacement vector of all particles between two frames.
@@ -339,8 +345,9 @@ def relate_frames(t, frame1, frame2, pos_columns=None):
         j['d' + pos] = j[pos + '_b'] - j[pos]
     j['dr'] = np.sqrt(np.sum([j['d' + pos]**2 for pos in pos_columns], 0))
     if pos_columns == ['x', 'y']:
-        j['direction']  = np.arctan2(j.dy, j.dx)
+        j['direction'] = np.arctan2(j.dy, j.dx)
     return j
+
 
 def direction_corr(t, frame1, frame2):
     """Compute the cosine between every pair of particles' displacements.
@@ -364,6 +371,7 @@ def direction_corr(t, frame1, frame2):
     result = DataFrame({'r': r[upper_triangle],
                         'cos': cosine[upper_triangle]})
     return result
+
 
 def velocity_corr(t, frame1, frame2):
     """Compute the velocity correlation between
@@ -389,6 +397,7 @@ def velocity_corr(t, frame1, frame2):
     result = DataFrame({'r': r[upper_triangle],
                         'dot_product': dot_product[upper_triangle]})
     return result
+
 
 def theta_entropy(pos, bins=24, plot=True):
     """Plot the distrbution of directions and return its Shannon entropy.
@@ -417,12 +426,14 @@ def theta_entropy(pos, bins=24, plot=True):
         Series(direction).hist(bins=bins)
     return shannon_entropy(direction.dropna(), bins)
 
+
 def shannon_entropy(x, bins):
     """Compute the Shannon entropy of the distribution of x."""
     hist = np.histogram(x, bins)[0]
     hist = hist.astype('float64')/hist.sum()  # normalize probablity dist.
     entropy = -np.sum(np.nan_to_num(hist*np.log(hist)))
     return entropy
+
 
 def min_rolling_theta_entropy(pos, window=24, bins=24):
     """Compute the minimum Shannon entropy in any window.
@@ -450,6 +461,7 @@ def min_rolling_theta_entropy(pos, window=24, bins=24):
     bins = np.linspace(-np.pi, np.pi, bins + 1)
     f = lambda x: shannon_entropy(x, bins)
     return pd.rolling_apply(direction.dropna(), window, f).min()
+
 
 def proximity(features, pos_columns=None):
     """Find the distance to each feature's nearest neighbor.

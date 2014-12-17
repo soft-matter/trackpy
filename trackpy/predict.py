@@ -7,16 +7,16 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import zip
 
-from copy import copy
 from warnings import warn
 from collections import deque
-import functools, itertools
+import functools
 
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator, interp1d
 import pandas as pd
 
 from . import linking
+
 
 def predictor(predict_func):
     """Decorator to vectorize a predictor function for a single particle.
@@ -30,9 +30,11 @@ def predictor(predict_func):
         return map(targeted_p, particles)
     return Pvec
 
+
 @predictor
 def null_predict(t1, particle):
     return (particle.pos)
+
 
 class NullPredict(object):
     """Predict that particles will not move.
@@ -66,6 +68,7 @@ class NullPredict(object):
         """Predict the positions of 'particles' at time 't1'"""
         return map(lambda p: p.pos, particles)
 
+
 class _RecentVelocityPredict(NullPredict):
     def __init__(self, span=1):
         """Use the 'span'+1 most recent frames to make a velocity field."""
@@ -95,6 +98,7 @@ class _RecentVelocityPredict(NullPredict):
         # 'vels' will have same column names as 'positions'
         vels.rename(columns=lambda n: n[:-6], inplace=True)
         return dt, positions, vels
+
 
 class NearestVelocityPredict(_RecentVelocityPredict):
     """Predict a particle's position based on the most recent nearby velocity.
@@ -130,8 +134,10 @@ class NearestVelocityPredict(_RecentVelocityPredict):
             else:
                 # Sadly, the 2 most recent frames had no points in common.
                 warn('Could not generate velocity field for prediction: no tracks')
+
                 def null_interpolator(*x):
                     return np.zeros((len(x),))
+
                 self.interpolator = null_interpolator
 
     def state(self):
@@ -146,6 +152,7 @@ class NearestVelocityPredict(_RecentVelocityPredict):
         times = np.array(tlist)
         return (positions + self.interpolator(positions) *
                np.tile(t1 - times, (positions.shape[1], 1)).T)
+
 
 class DriftPredict(_RecentVelocityPredict):
     """Predict a particle's position based on the mean velocity of all particles.
@@ -173,7 +180,8 @@ class DriftPredict(_RecentVelocityPredict):
         positions = np.array(poslist)
         times = np.array(tlist)
         return (positions + self.vel *
-               np.tile(t1 - times, (positions.shape[1], 1)).T)
+                np.tile(t1 - times, (positions.shape[1], 1)).T)
+
 
 class ChannelPredict(_RecentVelocityPredict):
     """Predict a particle's position based on its spanwise coordinate in a channel.
@@ -229,7 +237,7 @@ class ChannelPredict(_RecentVelocityPredict):
 
         if self.initial_profile_guess is not None:
             ipg = np.asarray(self.initial_profile_guess)
-            prof = pd.Series(ipg[:,1], index=ipg[:,0])
+            prof = pd.Series(ipg[:, 1], index=ipg[:, 0])
             self.initial_profile_guess = None  # Don't reuse
         else:
             # Bin centers
@@ -252,16 +260,18 @@ class ChannelPredict(_RecentVelocityPredict):
             prof_interp = interp1d(prof_vels.index.values, prof_vels[self.pos_columns].values,
                                    'nearest', axis=0)
             if flow_axis_position == 0:
-                self.interpolator = lambda x: prof_interp(x[:,1])
+                self.interpolator = lambda x: prof_interp(x[:, 1])
             else:
-                self.interpolator = lambda x: prof_interp(x[:,0])
+                self.interpolator = lambda x: prof_interp(x[:, 0])
         else:
             # Not enough samples in any bin
             warn('Could not generate velocity field for prediction: '
                  'not enough tracks or bin_size too small')
             nullvel = np.zeros((len(self.pos_columns),))
+
             def null_interpolator(x):
                 return nullvel
+
             self.interpolator = null_interpolator
 
     def state(self):
@@ -276,6 +286,7 @@ class ChannelPredict(_RecentVelocityPredict):
         times = np.array(tlist)
         return (positions + self.interpolator(positions) *
                np.tile(t1 - times, (positions.shape[1], 1)).T)
+
 
 def instrumented(limit=None):
     """Decorate a predictor class and allow it to record inputs and outputs.

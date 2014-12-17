@@ -8,12 +8,12 @@ import pandas as pd
 from scipy import ndimage
 from scipy import stats
 from scipy.spatial import cKDTree
-from pandas import DataFrame, Series
+from pandas import DataFrame
 
 from . import uncertainty
 from .preprocessing import bandpass, scale_to_gamut
 from .utils import record_meta, print_update, validate_tuple
-from .masks import *
+from .masks import binary_mask, r_squared_mask, cosmask, sinmask
 import trackpy  # to get trackpy.__version__
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
@@ -285,14 +285,14 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 
 
 def _get_numba_refine_locals():
-    """Establish types of local variables in _numba_refine(), in a way that's 
+    """Establish types of local variables in _numba_refine(), in a way that's
     safe if there's no numba."""
     try:
         from numba import double, int_
     except ImportError:
         return {}
     else:
-        return dict(square0=int_, square1=int_, square_size=int_, 
+        return dict(square0=int_, square1=int_, square_size=int_,
                     Rg_=double, ecc_=double)
 
 
@@ -375,7 +375,7 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
                 square0 = new_coord[0] - radius
                 square1 = new_coord[1] - radius
                 for dim in range(2):
-                     cm_n[dim] = 0.
+                    cm_n[dim] = 0.
 
             # If we're off by less than half a pixel, interpolate.
             else:

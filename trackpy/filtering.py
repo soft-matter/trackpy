@@ -29,6 +29,7 @@ def filter_stubs(tracks, threshold=100):
     filtered = grouped.filter(lambda x: x.frame.count() >= threshold)
     return filtered.set_index('frame', drop=False)
 
+
 def filter_clusters(tracks, quantile=0.8, threshold=None):
     """Filter out trajectories with a mean particle size above a given quantile.
 
@@ -53,7 +54,7 @@ def filter_clusters(tracks, quantile=0.8, threshold=None):
     if threshold is None:
         threshold = tracks['size'].quantile(quantile)
 
-    f = lambda x: x['size'].mean() < threshold # filtering function
+    f = lambda x: x['size'].mean() < threshold  # filtering function
     grouped = tracks.reset_index(drop=True).groupby('particle')
     filtered = grouped.filter(f)
     return filtered.set_index('frame', drop=False)

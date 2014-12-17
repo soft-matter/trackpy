@@ -2,10 +2,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 
-import ast
 import sys
 import inspect
-from functools import wraps, partial
 from warnings import warn
 import logging
 
@@ -51,21 +49,21 @@ class RegisteredFunction(object):
     "Enable toggling between original function and numba-compiled one."
 
     def __init__(self, func, fallback=None, autojit_kw=None):
-       self.func = func
-       # This covers a Python 2/3 change not covered by six
-       try:
-           self.func_name = func.__name__
-       except AttributeError:
-           self.func_name = func.func_name
-       module_name = inspect.getmoduleinfo(
-           six.get_function_globals(func)['__file__']).name
-       module_name = '.'.join(['trackpy', module_name])
-       self.module_name = module_name
-       self.autojit_kw = autojit_kw
-       if fallback is not None:
-           self.ordinary = fallback
-       else:
-           self.ordinary = func
+        self.func = func
+        # This covers a Python 2/3 change not covered by six
+        try:
+            self.func_name = func.__name__
+        except AttributeError:
+            self.func_name = func.func_name
+        module_name = inspect.getmoduleinfo(
+            six.get_function_globals(func)['__file__']).name
+        module_name = '.'.join(['trackpy', module_name])
+        self.module_name = module_name
+        self.autojit_kw = autojit_kw
+        if fallback is not None:
+            self.ordinary = fallback
+        else:
+            self.ordinary = func
 
     @property
     def compiled(self):

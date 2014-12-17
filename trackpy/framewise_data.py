@@ -158,6 +158,7 @@ class PandasHDFStore(FramewiseData):
     def close(self):
         self.store.close()
 
+
 class PandasHDFStoreBig(PandasHDFStore):
     """Like PandasHDFStore, but keeps a cache of frame numbers.
 
@@ -300,14 +301,14 @@ class PandasHDFStoreSingleNode(FramewiseData):
         return frame_nos
 
     def _validate_node(self, use_tabular_copy):
-        # The HDFStore might be non-tabular, which means we cannot select a 
+        # The HDFStore might be non-tabular, which means we cannot select a
         # subset, and this whole structure will not work.
         # For convenience, this can rewrite the table into a tabular node.
         if use_tabular_copy:
             self.key = _make_tabular_copy(self.filename, self.key)
 
         pandas_type = getattr(getattr(getattr(
-            self.store._handle.root, self.key, None), '_v_attrs', None), 
+            self.store._handle.root, self.key, None), '_v_attrs', None),
             'pandas_type', None)
         if not pandas_type == 'frame_table':
             raise ValueError("This node is not tabular. Call with "
