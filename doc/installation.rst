@@ -36,7 +36,7 @@ the IPython notebook. To install that as well, type
 
 3. Try it out!
 """"""""""""""
-    
+
 Finally, to try it out, type
 
 .. code-block:: bash
@@ -75,11 +75,22 @@ soft-matter development channel on conda
     conda config --add channels soft-matter
     conda install -c soft-matter/channel/dev trackpy
 
-If you plan to edit the code yourself, you should use git and pip as 
+If you plan to edit the code yourself, you should use git and pip as
 explained below.
 
 More Information for Experienced Python Users
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Archlinux
+"""""""""
+
+Package for python 2 and python 3 are available for Archlinux on AUR:
+
+* `Python 2 <https://aur.archlinux.org/packages/python2-trackpy/>`__
+* `Python 3 <https://aur.archlinux.org/packages/python-trackpy/>`__
+
+pip
+"""
 
 We strongly recommend using conda install trackpy, as described above,
 but pip is also supported.
@@ -113,7 +124,7 @@ or from PyPI using pip:
    pip install pims
 
 Or, if you plan to edit the code, you can install both packages manually:
-  
+
 .. code-block:: bash
 
    git clone https://github.com/soft-matter/pims
@@ -126,13 +137,13 @@ Optional Dependencies:
 
   * `pyFFTW <https://github.com/hgomersall/pyFFTW>`__ to speed up the band
       pass, which is one of the slower steps in feature-finding
-  * `PyTables <http://www.pytables.org/moin>`__ for saving results in an 
+  * `PyTables <http://www.pytables.org/moin>`__ for saving results in an
       HDF5 file. This is included with Anaconda.
   * `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. This is
       included with Anaconda and Canopy. Installing it any other way is difficult;
       we recommend sticking with one of these. Note that numba v0.12.0
       (included with Anaconda 1.9.0) has a bug and will not work at all;
-      if you have this version, you should update Anaconda. We support numba 
+      if you have this version, you should update Anaconda. We support numba
       versions 0.11 and 0.12.2.
 
 PIMS has its own optional dependencies for reading various formats. You
