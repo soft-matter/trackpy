@@ -572,7 +572,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     if np.issubdtype(raw_image.dtype, np.integer):
         dtype = raw_image.dtype
     else:
-        dtype = np.int8
+        dtype = np.uint8
     image = scale_to_gamut(image, dtype)
 
     # Set up a DataFrame for the final results.
