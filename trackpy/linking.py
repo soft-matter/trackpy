@@ -459,7 +459,8 @@ def link_df(features, search_range, memory=0,
         Must include any number of column(s) for position and a column of
         frame numbers. By default, 'x' and 'y' are expected for position,
         and 'frame' is expected for frame number. See below for options to use
-        custom column names.
+        custom column names. After linking, this DataFrame will contain a
+        'particle' column.
     search_range : integer
         the maximum distance features can move between frames
     memory : integer
