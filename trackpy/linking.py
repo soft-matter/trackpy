@@ -775,6 +775,11 @@ def link_iter(levels, search_range, memory=0,
 
 class Linker(object):
     """See link_iter() for a description of parameters."""
+    # Largest subnet we will attempt to solve.
+    MAX_SUB_NET_SIZE = 30
+    # For adaptive search, subnet linking should fail much faster.
+    MAX_SUB_NET_SIZE_ADAPTIVE = 15
+
     def __init__(self, search_range, memory=0,
               neighbor_strategy='KDTree', link_strategy='auto',
               hash_size=None, box_size=None, predictor=None,
@@ -814,10 +819,13 @@ class Linker(object):
         if self.neighbor_strategy not in ['KDTree', 'BTree']:
             raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
 
-        if self.adaptive_step is not None and (1*self.adaptive_step <= 0 or
-                1*self.adaptive_step >= 1):
-            raise ValueError("adaptive_step must be None, or between 0 and 1 "
-                             "non-inclusive.")
+        if self.adaptive_step is not None:
+            if 1 * self.adaptive_step <= 0 or 1 * self.adaptive_step >= 1:
+                raise ValueError("adaptive_step must be None, or between "
+                                 "0 and 1 non-inclusive.")
+            self.max_subnet_size = self.MAX_SUB_NET_SIZE_ADAPTIVE
+        else:
+            self.max_subnet_size = self.MAX_SUB_NET_SIZE
 
     def link(self, levels):
         level_iter = iter(levels)
@@ -1007,7 +1015,8 @@ class Linker(object):
                 _s.forward_cands.append((None, search_range))
 
             try:
-                sn_spl, sn_dpl = self.subnet_linker(s_sn, len(d_sn), search_range)
+                sn_spl, sn_dpl = self.subnet_linker(s_sn, len(d_sn), search_range,
+                                                    max_size=self.max_subnet_size)
 
                 for dp in d_sn - set(sn_dpl):
                     # Unclaimed destination particle in subnet
@@ -1068,7 +1077,7 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
 class SubnetOversizeException(Exception):
     '''An :py:exc:`Exception` to be raised when the sub-nets are too big
     to be efficiently linked.  If you get this then either reduce your search range
-    or increase :py:attr:`sub_net_linker.MAX_SUB_NET_SIZE`'''
+    or increase :py:attr:`Linker.MAX_SUB_NET_SIZE`'''
     pass
 
 
@@ -1081,15 +1090,11 @@ def recursive_linker_obj(s_sn, dest_size, search_range, max_size=30):
 class SubnetLinker(object):
     """A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking"""
-
-    # TODO: This number should be more like 15 when adaptive search is enabled.
-    # In that case, it's better for subnet linking to fail faster.
-    MAX_SUB_NET_SIZE = 30
-
-    def __init__(self, s_sn, dest_size, search_range):
+    def __init__(self, s_sn, dest_size, search_range, max_size=30):
         #        print 'made sub linker'
         self.s_sn = s_sn
         self.search_range = search_range
+        self.max_size = max_size
         self.s_lst = [s for s in s_sn]
         self.s_lst.sort(key=lambda x: len(x.forward_cands))
         self.MAX = len(self.s_lst)
@@ -1101,7 +1106,7 @@ class SubnetLinker(object):
         self.d_taken = set()
         self.cur_sum = 0
 
-        if self.MAX > sub_net_linker.MAX_SUB_NET_SIZE:
+        if self.MAX > self.max_size:
             raise SubnetOversizeException("Subnetwork contains %d points"
                                           % self.MAX)
         # do the computation
@@ -1148,13 +1153,13 @@ class SubnetLinker(object):
         pass
 
 
-def nonrecursive_link(source_list, dest_size, search_range):
+def nonrecursive_link(source_list, dest_size, search_range, max_size=30):
     #    print 'non-recursive', len(source_list), dest_size
     source_list = list(source_list)
     source_list.sort(key=lambda x: len(x.forward_cands))
     MAX = len(source_list)
 
-    if MAX > sub_net_linker.MAX_SUB_NET_SIZE:
+    if MAX > max_size:
         raise SubnetOversizeException("Subnetwork contains %d points" % MAX)
 
     max_links = min(MAX, dest_size)
@@ -1237,7 +1242,7 @@ def nonrecursive_link(source_list, dest_size, search_range):
     #    print 'done'
     return source_list, best_back
 
-def numba_link(s_sn, dest_size, search_radius):
+def numba_link(s_sn, dest_size, search_radius, max_size=30):
     """Recursively find the optimal bonds for a group of particles between 2 frames.
 
     This is only invoked when there is more than one possibility within
@@ -1252,7 +1257,7 @@ def numba_link(s_sn, dest_size, search_radius):
     max_candidates = 9 # Max forward candidates we expect for any particle
     src_net = list(s_sn)
     nj = len(src_net) # j will index the source particles
-    if nj > SubnetLinker.MAX_SUB_NET_SIZE:
+    if nj > max_size:
         raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance '
                                       'on these data (sub net contains %d points)' % nj)
     # Build arrays of all destination (forward) candidates and their distances
