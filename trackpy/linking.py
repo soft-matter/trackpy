@@ -35,7 +35,7 @@ class TreeFinder(object):
     def rebuild(self, coord_map=None):
         """Rebuilds tree from ``points`` attribute.
 
-        coord_map : function (optional)
+        coord_map : function, optional
 
             Called with a list of N Point instances, returns their
             "effective" locations, as an N x d array (or list of tuples).
@@ -471,15 +471,15 @@ def link_df(features, search_range, memory=0,
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
-    predictor : function (optional)
+    predictor : function, optional
         Improve performance by guessing where a particle will be in
         the next frame.
 
         For examples of how this works, see the "predict" module.
-    adaptive_step : float (optional)
+    adaptive_step : float, optional
         If a subnet is too large, retry with a search_range reduced by this factor
         (e.g. 0.9). If None, adaptive search is disabled.
-    adaptive_limit : integer
+    adaptive_limit : integer, optional
         Maximum number of times to apply adaptive_step before giving up and
         raising a SubnetOversizeException.
 
@@ -587,15 +587,15 @@ def link_df_iter(features, search_range, memory=0,
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
-    predictor : function (optional)
+    predictor : function, optional
         Improve performance by guessing where a particle will be in the
         next frame.
 
         For examples of how this works, see the "predict" module.
-    adaptive_step : float (optional)
+    adaptive_step : float, optional
         If a subnet is too large, retry with a search_range reduced by this factor
         (e.g. 0.9). If None, adaptive search is disabled.
-    adaptive_limit : integer
+    adaptive_limit : integer, optional
         Maximum number of times to apply adaptive_step before giving up and
         raising a SubnetOversizeException.
 
@@ -734,14 +734,14 @@ def link_iter(levels, search_range, memory=0,
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
-    predictor : function (optional)
+    predictor : function, optional
         Improve performance by guessing where a particle will be in the
         next frame.
         For examples of how this works, see the "predict" module.
-    adaptive_step : float (optional)
+    adaptive_step : float, optional
         If a subnet is too large, retry with a search_range reduced by this factor
         (e.g. 0.9). If None, adaptive search is disabled.
-    adaptive_limit : integer
+    adaptive_limit : integer, optional
         Maximum number of times to apply adaptive_step before giving up and
         raising a SubnetOversizeException.
 
@@ -759,10 +759,10 @@ def link_iter(levels, search_range, memory=0,
         For 'BTree' mode only. Define the parition size to optimize
         performance. If None (default), the search_range is used, which is
         a reasonable guess for best performance.
-    track_cls : class (optional)
+    track_cls : class, optional
         for special uses, you can specify a custom class that holds
         each Track
-    hash_generator : function (optional)
+    hash_generator : function, optional
         a function that returns a HashTable, included for legacy support.
         Specifying hash_size and box_size (above) fully defined a HashTable.
     """
