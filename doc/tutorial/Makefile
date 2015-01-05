@@ -8,3 +8,5 @@ notebooks:
 	ipython nbconvert --to rst $(NOTEBOOK_DIR)/performance.ipynb
 	ipython nbconvert --to rst $(NOTEBOOK_DIR)/parallel-locate.ipynb
 	ipython nbconvert --to rst $(NOTEBOOK_DIR)/custom-feature-detection.ipynb
+	ipython nbconvert --to rst $(NOTEBOOK_DIR)/subnets.ipynb
+	ipython nbconvert --to rst $(NOTEBOOK_DIR)/adaptive-search.ipynb
