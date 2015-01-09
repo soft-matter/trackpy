@@ -925,10 +925,7 @@ class Linker(object):
                 if dp is not None:
                     del dp.back_cands
                 if sp is not None:
-                    try:
-                        del sp.forward_cands
-                    except AttributeError:
-                        pass
+                    del sp.forward_cands
 
             # set prev_hash to cur hash
             prev_hash = cur_hash
