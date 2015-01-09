@@ -813,7 +813,7 @@ class Linker(object):
         if self.neighbor_strategy not in ['KDTree', 'BTree']:
             raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
 
-        if self.adaptive_step is not None and (1*self.adaptive_step <= 0 or \
+        if self.adaptive_step is not None and (1*self.adaptive_step <= 0 or
                 1*self.adaptive_step >= 1):
             raise ValueError("adaptive_step must be None, or between 0 and 1 "
                              "non-inclusive.")
@@ -841,9 +841,8 @@ class Linker(object):
             # must be using a custom Track class without this method
             pass
 
-
         # Assume everything in first level starts a Track.
-        self.track_lst = map(self.track_cls, prev_set)
+        self.track_lst = [self.track_cls(p) for p in prev_set]
         self.mem_set = set()
 
         # Initialize memory with empty sets.
@@ -1019,12 +1018,12 @@ class Linker(object):
                 # Reduce search_range
                 new_range = search_range * self.adaptive_step
                 # Prune the candidate lists of s_sn, d_sn; then recurse.
-                pruner = lambda p: p[1] <= new_range
                 for sp in s_sn:
-                    sp.forward_cands = filter(pruner, sp.forward_cands)
+                    sp.forward_cands = [fc for fc in sp.forward_cands
+                                        if fc[1] <= new_range]
                 for dp in d_sn:
-                    dp.back_cands = filter(pruner, dp.back_cands)
-
+                    dp.back_cands = [bc for bc in dp.back_cands
+                                     if bc[1] <= new_range]
                 sn_spl, sn_dpl = self.assign_links(
                     d_sn, s_sn, new_range,
                     recursion_counter=recursion_counter + 1)
@@ -1072,14 +1071,15 @@ class SubnetOversizeException(Exception):
     pass
 
 
-def recursive_linker_obj(s_sn, dest_size, search_range):
-    snl = sub_net_linker(s_sn, dest_size, search_range)
-    return map(list, zip(*snl.best_pairs))
+def recursive_linker_obj(s_sn, dest_size, search_range, max_size=30):
+    snl = sub_net_linker(s_sn, dest_size, search_range, max_size=max_size)
+    # In Python 3, we must convert to lists to return mutable collections.
+    return [list(particles) for particles in zip(*snl.best_pairs)]
 
 
 class SubnetLinker(object):
-    '''A helper class for implementing the Crocker-Grier tracking
-    algorithm.  This class handles the recursion code for the sub-net linking'''
+    """A helper class for implementing the Crocker-Grier tracking
+    algorithm.  This class handles the recursion code for the sub-net linking"""
 
     # TODO: This number should be more like 15 when adaptive search is enabled.
     # In that case, it's better for subnet linking to fail faster.
@@ -1148,7 +1148,6 @@ class SubnetLinker(object):
 
 
 def nonrecursive_link(source_list, dest_size, search_range):
-
     #    print 'non-recursive', len(source_list), dest_size
     source_list = list(source_list)
     source_list.sort(key=lambda x: len(x.forward_cands))
@@ -1253,7 +1252,8 @@ def numba_link(s_sn, dest_size, search_radius):
     src_net = list(s_sn)
     nj = len(src_net) # j will index the source particles
     if nj > SubnetLinker.MAX_SUB_NET_SIZE:
-        raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (sub net contains %d points)' % nj)
+        raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance '
+                                      'on these data (sub net contains %d points)' % nj)
     # Build arrays of all destination (forward) candidates and their distances
     dcands = set()
     for p in src_net:
@@ -1269,7 +1269,8 @@ def numba_link(s_sn, dest_size, search_radius):
     for j, sp in enumerate(src_net):
         ncands[j] = len(sp.forward_cands)
         if ncands[j] > max_candidates:
-            raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance on these data (particle has %i forward candidates)' % ncands[j])
+            raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance '
+                                          'on these data (particle has %i forward candidates)' % ncands[j])
         candsarray[j,:ncands[j]] = [dcands_map[cand] for cand, dist in sp.forward_cands]
         distsarray[j,:ncands[j]] = [dist for cand, dist in sp.forward_cands]
     # The assignments are persistent across levels of the recursion
@@ -1279,7 +1280,7 @@ def numba_link(s_sn, dest_size, search_radius):
     cur_sums = np.zeros((nj,), dtype=np.float64)
     # In the next line, distsarray is passed in quadrature so that adding distances works.
     bestsum = _numba_subnet_norecur(ncands, candsarray, distsarray**2, cur_assignments, cur_sums,
-            tmp_assignments, best_assignments)
+                                    tmp_assignments, best_assignments)
     # Return particle objects. Account for every source particle we were given.
     # 'None' denotes a null link and will be used for the memory feature.
     return map(list, zip(*[(src_net[j], (dcands[i] if i >= 0 else None)) \
@@ -1347,7 +1348,7 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
                         # We have made assignments for all the particles,
                         # and we never exceeded the previous best_sum.
                         # This is our new optimum.
-                        #print 'hit: %f' % best_sum
+                        # print 'hit: %f' % best_sum
                         best_sum = tmp_sum
                         # This array is shared by all levels of recursion.
                         # If it's not touched again, it will be used once we
