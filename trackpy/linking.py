@@ -905,7 +905,7 @@ class Linker(object):
                 p.forward_cands.sort(key=lambda x: x[1])
 
             # Note that this modifies cur_set, prev_set, but that's OK.
-            spl, dpl = self.assign_links(cur_set, prev_set, self.search_range)
+            spl, dpl = self._assign_links(cur_set, prev_set, self.search_range)
 
             new_mem_set = set()
             for sp, dp in zip(spl, dpl):
@@ -957,7 +957,7 @@ class Linker(object):
 
             yield cur_level
 
-    def assign_links(self, dest_set, source_set, search_range,
+    def _assign_links(self, dest_set, source_set, search_range,
                      recursion_counter=0):
         """Match particles in dest_set with source_set.
 
@@ -965,9 +965,11 @@ class Linker(object):
         to pairs of source and destination particles. A 'None' value
         denotes that a match was not found.
 
-        Note that this does not actually change the state within link().
-        All actions are taken within link(), based on the recommendations
-        of assign_links().
+        The contents of dest_set and source_set will be changed, as
+        well as the forward_cands and back_cands attributes of the
+        particles. However, this does not meaningfully change the state
+        within link(). All meaningful actions are taken within link(),
+        based on the recommendations of _assign_links().
         """
         spl, dpl = [], []
         # while there are particles left to link, link
@@ -1012,6 +1014,9 @@ class Linker(object):
 
             # add in penalty for not linking
             for _s in s_sn:
+                # If we end up having to recurse for adaptive search, this final
+                # element will be dropped and re-added, because search_range is
+                # decreasing.
                 _s.forward_cands.append((None, search_range))
 
             try:
@@ -1034,7 +1039,7 @@ class Linker(object):
                 for dp in d_sn:
                     dp.back_cands = [bc for bc in dp.back_cands
                                      if bc[1] <= new_range]
-                sn_spl, sn_dpl = self.assign_links(
+                sn_spl, sn_dpl = self._assign_links(
                     d_sn, s_sn, new_range,
                     recursion_counter=recursion_counter + 1)
 
