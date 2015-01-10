@@ -7,6 +7,7 @@ from itertools import tee
 from collections import Iterable
 from functools import wraps
 import warnings
+import logging
 
 import numpy as np
 
@@ -17,16 +18,13 @@ except ImportError:
     plots_to_frame = None
     normalize = None
 
-from .utils import print_update
-
-__all__ = ['annotate', 'plot_traj', 'ptraj', 'plot_displacements',
-           'subpx_bias', 'mass_ecc', 'mass_size']
-
 
 __all__ = ['annotate', 'scatter', 'plot_traj', 'ptraj',
            'annotate3d', 'scatter3d', 'plot_traj3d', 'ptraj3d',
            'plot_displacements', 'subpx_bias', 'mass_size', 'mass_ecc',
            'plot_density_profile']
+
+logger = logging.getLogger(__name__)
 
 
 def make_axes(func):
@@ -301,8 +299,8 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
         x = traj.set_index([t_column, 'particle'])['x'].unstack()
         y = traj.set_index([t_column, 'particle'])['y'].unstack()
         color_numbers = traj[t_column].values/float(traj[t_column].max())
-        print_update("Drawing multicolor lines takes awhile. "
-                     "Come back in a minute.")
+        logger.info("Drawing multicolor lines takes awhile. "
+                    "Come back in a minute.")
         for particle in x:
             points = np.array(
                 [x[particle].values, y[particle].values]).T.reshape(-1, 1, 2)

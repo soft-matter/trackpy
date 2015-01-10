@@ -189,16 +189,6 @@ except ImportError:
     pass
 
 
-def print_update(message):
-    "Print a message immediately; do not wait for current execution to finish."
-    try:
-        clear_output()
-    except Exception:
-        pass
-    print(message)
-    sys.stdout.flush()
-
-
 def make_pandas_strict():
     """Configure Pandas to raise an exception for "chained assignments."
 
