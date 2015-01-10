@@ -116,6 +116,26 @@ optimizations. :class:`~trackpy.framewise_data.PandasHDFStoreBig` is a good gene
 That last class cannot be used directly; it is meant to be subclassed
 to support other formats. See *Writing Your Own Interface* in the streaming tutoral for more.
 
+Logging
+-------
+
+Trackpy issues log messages. This functionality is mainly used to report the
+progress of lengthy jobs, but it may be used in the future to report details of
+feature-finding and linking for debugging purposes.
+
+When trackpy is imported, it automatically calls `handle_logging()`, which sets
+the logging level and attaches a logging handler that plays nicely with
+IPython notebooks. You can override this by calling `ignore_logging()` and
+configuring the logger however you like.
+
+.. autosummary:
+    :toctree: generated/
+
+    quiet
+    handle_logging
+    ignore_logging
+`
+
 Utility functions
 -----------------
 
@@ -123,7 +143,6 @@ Utility functions
     :toctree: generated/
 
     utils.fit_powerlaw
-    utils.print_update
     strip_diagnostics
 
 Diagnostic functions
