@@ -10,10 +10,6 @@ import warnings
 
 import numpy as np
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-
-from pims.display import to_rgb, scrollable_stack
 from .utils import print_update
 
 
@@ -33,6 +29,7 @@ def make_axes(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
+        import matplotlib.pyplot as plt
         if kwargs.get('ax') is None:
             kwargs['ax'] = plt.gca()
             # Delete legend keyword so remaining ones can be passed to plot().
@@ -54,6 +51,7 @@ def make_axes(func):
 
 def make_fig(func):
     """See make_axes."""
+    import matplotlib.pyplot as plt
     wraps(func)
     def wrapper(*args, **kwargs):
         if 'fig' not in kwargs:
@@ -89,6 +87,10 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     -------
     None
     """
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import LineCollection
+
     if cmap is None:
         cmap = plt.cm.winter
     if t_column is None:
@@ -132,7 +134,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
             points = np.array(
                 [x[particle].values, y[particle].values]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
-            lc = mpl.collections.LineCollection(segments, cmap=cmap)
+            lc = LineCollection(segments, cmap=cmap)
             lc.set_array(color_numbers)
             ax.add_collection(lc)
             ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
@@ -183,6 +185,8 @@ def annotate(centroids, image, circle_size=None, color=None,
     ------
     axes
     """
+    import matplotlib.pyplot as plt
+
     if circle_size is not None:
         warnings.warn("circle_size will be removed in future version of "
                       "trackpy. Use plot_style={'markersize': ...} instead.")
@@ -260,6 +264,9 @@ def annotate3d(centroids, image, **kwargs):
     annotate for parameters. Returns either (for 2D) an axis object or (for 3D)
     a scrollable stack.
     """
+    import matplotlib.pyplot as plt
+    from pims.display import to_rgb, scrollable_stack
+
     if kwargs.get('ax') is None:
         kwargs['ax'] = plt.gca()
     # Identify whether image is multichannel, convert to rgb if necessary
@@ -333,6 +340,8 @@ def subpx_bias(f, ax=None):
 @make_axes
 def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None,
         **kwargs):
+    import matplotlib.pyplot as plt
+
     data = data.dropna()
     x, y = data.index.values.astype('float64'), data.values
     datalines = plt.plot(x, y, 'o', label=data.name, **kwargs)
@@ -378,6 +387,8 @@ def plot_principal_axes(img, x_bar, y_bar, cov, ax=None):
     ax.imshow(img)
 
 def examine_jumps(data, jumps):
+    import matplotlib.pyplot as plt
+
     fig, axes = plt.subplots(len(jumps), 1)
     for i, jump in enumerate(jumps):
         roi = data.ix[jump-10:jump+10]
