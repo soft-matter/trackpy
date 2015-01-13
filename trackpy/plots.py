@@ -187,6 +187,12 @@ def annotate(centroids, image, circle_size=None, color=None,
     """
     import matplotlib.pyplot as plt
 
+    if image.ndim != 2 and not (image.ndim == 3 and image.shape[-1] in (3, 4)):
+        raise ValueError("image has incorrect dimensions. Please input a 2D "
+                         "grayscale or RGB(A) image. For 3D image annotation, "
+                         "use annotate3d. Multichannel images can be "
+                         "converted to RGB using pims.display.to_rgb.")
+
     if circle_size is not None:
         warnings.warn("circle_size will be removed in future version of "
                       "trackpy. Use plot_style={'markersize': ...} instead.")
@@ -259,52 +265,37 @@ def annotate(centroids, image, circle_size=None, color=None,
 
 def annotate3d(centroids, image, **kwargs):
     """
-    An extension of annotate that distinguishes between 2D, 2D multichannel,
-    3D, and 3D multichannel images, just as in pims.frame.__repr_html_. See
-    annotate for parameters. Returns either (for 2D) an axis object or (for 3D)
-    a scrollable stack.
+    An extension of annotate that annotates a 3D image and returns a scrollable
+    stack for display in IPython. Parameters: see annotate.
     """
     import matplotlib.pyplot as plt
-    from pims.display import to_rgb, scrollable_stack
+    from pims.display import scrollable_stack
+
+    if image.ndim != 3 and not (image.ndim == 4 and image.shape[-1] in (3, 4)):
+        raise ValueError("image has incorrect dimensions. Please input a 3D "
+                         "grayscale or RGB(A) image. For 2D image annotation, "
+                         "use annotate. Multichannel images can be "
+                         "converted to RGB using pims.display.to_rgb.")
 
     if kwargs.get('ax') is None:
         kwargs['ax'] = plt.gca()
-    # Identify whether image is multichannel, convert to rgb if necessary
-    if image.ndim > 2 and image.shape[0] < 5:
-        try:
-            colors = image.metadata['colors']
-        except KeyError or AttributeError:
-            colors = None
-        image = to_rgb(image, colors, normalize=True)
-        has_color_channels = True
-    else:
-        has_color_channels = (3 in image.shape) or (4 in image.shape)
-    # If image is 2D, make single axis objct
-    if image.ndim == 2 or (image.ndim == 3 and has_color_channels):
-        return annotate(centroids, image, **kwargs)
-    # If Frame is 3D, display as a scrollable stack.
-    elif image.ndim == 3 or (image.ndim == 4 and has_color_channels):
-        for i, imageZ in enumerate(image):
-            centroidsZ = centroids[np.logical_and(centroids['z'] > i - 0.5,
-                                                  centroids['z'] < i + 0.5)]
-            ax = annotate(centroidsZ, imageZ, **kwargs)
-            fig = ax.get_figure()
-            fig.canvas.draw()
-            if i == 0:
-                w, h = fig.canvas.get_width_height()
-                result = np.empty((image.shape[0], h, w, 4))
-            plot_rgb = np.fromstring(fig.canvas.tostring_argb(),
-                                     dtype=np.uint8)
-            plot_rgb = plot_rgb.reshape(h, w, 4)
-            result[i] = np.roll(plot_rgb, 3, axis=2)  # argb to rgba
-            ax.cla()
-        fig.clf()
-        return scrollable_stack(result, width=w)
-    else:
-        # This exception will be caught by IPython and displayed
-        # as a FormatterWarning.
-        raise ValueError("No plot representation is available for "
-                         "{0}-dimensional Frames".format(image.ndim))
+
+    for i, imageZ in enumerate(image):
+        centroidsZ = centroids[np.logical_and(centroids['z'] > i - 0.5,
+                                              centroids['z'] < i + 0.5)]
+        ax = annotate(centroidsZ, imageZ, **kwargs)
+        fig = ax.get_figure()
+        fig.canvas.draw()
+        if i == 0:
+            w, h = fig.canvas.get_width_height()
+            result = np.empty((image.shape[0], h, w, 4))
+        plot_rgb = np.fromstring(fig.canvas.tostring_argb(),
+                                 dtype=np.uint8)
+        plot_rgb = plot_rgb.reshape(h, w, 4)
+        result[i] = np.roll(plot_rgb, 3, axis=2)  # argb to rgba
+        ax.cla()
+    fig.clf()
+    return scrollable_stack(result, width=w)
 
 
 @make_axes
