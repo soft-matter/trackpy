@@ -9,6 +9,7 @@ from functools import wraps
 import warnings
 
 import numpy as np
+from pandas import DataFrame
 
 from .utils import print_update
 
@@ -25,12 +26,15 @@ def make_axes(func):
               (Instant gratificaiton!)
     BUT:      If the uses passes axes to plotting function, write on those axes
               and return them. The user has the option to draw a more complex
-              plot in multiple steps.
+              plot in multiple steps. The axes have to be 2d or else the
+              current figure will be cleared.
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
         import matplotlib.pyplot as plt
         if kwargs.get('ax') is None:
+            if hasattr(plt.gca(), 'zaxis'):
+                plt.clf()  # clear plot when plot is 3d
             kwargs['ax'] = plt.gca()
             # Delete legend keyword so remaining ones can be passed to plot().
             try:
@@ -49,6 +53,45 @@ def make_axes(func):
             return func(*args, **kwargs)
     return wrapper
 
+
+def make_axes3d(func):
+    """
+    A decorator for plotting 3d functions.
+    NORMALLY: Direct the plotting function to the current axes, gca().
+              When it's done, make the legend and show that plot.
+              (Instant gratificaiton!)
+    BUT:      If the uses passes axes to plotting function, write on those axes
+              and return them. The user has the option to draw a more complex
+              plot in multiple steps. The axes have to be 3d or else the
+              current figure will be cleared.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+
+        if kwargs.get('ax') is None:
+            if not hasattr(plt.gca(), 'zaxis'):
+                plt.clf()  # clear plot when plot is 2d
+            kwargs['ax'] = plt.gca(projection='3d')
+            # Delete legend keyword so remaining ones can be passed to plot().
+            try:
+                legend = kwargs['legend']
+            except KeyError:
+                legend = None
+            else:
+                del kwargs['legend']
+            result = func(*args, **kwargs)
+            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or
+                    legend is False):
+                plt.legend(loc='best')
+            plt.show()
+            return result
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+
 def make_fig(func):
     """See make_axes."""
     import matplotlib.pyplot as plt
@@ -62,30 +105,158 @@ def make_fig(func):
             return func(*args, **kwargs)
     return wrapper
 
+
+def _plot(ax, coords, pos_columns, **plot_style):
+    """ This function wraps Axes.plot to make its call signature the same for
+    2D and 3D plotting. The y axis is inverted for 2D plots, but not for 3D
+    plots.
+
+    Parameters
+    ----------
+    ax : Axes object
+        The axes object on which the plot will be called
+    coords : DataFrame
+        DataFrame of coordinates that will be plotted
+    pos_columns : list of strings
+        List of column names in x, y(, z) order.
+    plot_style : dictionary
+        Keyword arguments passed through to the `Axes.plot(...)` command
+
+    Returns
+    -------
+    Axes object
+    """
+    if len(pos_columns) == 3 and type(coords[pos_columns[0]]) is DataFrame:
+        # When a single column is a DataFrame, not Series, then there are
+        # multiple lines to be plotted. In 3D, this has to be dealt with using
+        # a for loop.
+        coords = coords[pos_columns]
+        plotcount = coords.shape[0] - 1
+        for i in range(plotcount):
+            ax.plot(coords.icol(i), coords.icol(i + plotcount),
+                    zs=coords.icol(i + 2*plotcount), **plot_style)
+        return ax
+    elif len(pos_columns) == 3:
+        return ax.plot(coords[pos_columns[0]], coords[pos_columns[1]],
+                       zs=coords[pos_columns[2]], **plot_style)
+    elif len(pos_columns) == 2:
+        ax.invert_yaxis()
+        return ax.plot(coords[pos_columns[0]], coords[pos_columns[1]],
+                       **plot_style)
+
+
+def _set_labels(ax, label_format, pos_columns):
+    """This sets axes labels according to a label format and position column 
+    names. Applicable to 2D and 3D plotting.
+
+    Parameters
+    ----------
+    ax : Axes object
+        The axes object on which the plot will be called
+    label_format : string
+        Format that is compatible with ''.format (e.g.: '{} px')
+    pos_columns : list of strings
+        List of column names in x, y(, z) order.
+
+    Returns
+    -------
+    None
+    """
+    ax.set_xlabel(label_format.format(pos_columns[0]))
+    ax.set_ylabel(label_format.format(pos_columns[1]))
+    if hasattr(ax, 'set_zlabel') and len(pos_columns) > 2:
+        ax.set_zlabel(label_format.format(pos_columns[2]))
+
+@make_axes
+def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
+            plot_style={}):
+    """Scatter plot of all points of each particle.
+
+    Parameters
+    ----------
+    centroids : DataFrame
+        The DataFrame should include time and spatial coordinate columns.
+    mpp : float, optional
+        Microns per pixel. If omitted, the labels will have units of pixels.
+    cmap : colormap, optional
+        This is only used in colorby='frame' mode. Default = mpl.cm.winter
+    ax : matplotlib axes object, optional
+        Defaults to current axes
+    pos_columns : list of strings, optional
+        Dataframe column names for spatial coordinates. Default is ['x', 'y'].
+
+    Returns
+    -------
+    Axes object
+    """
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+
+    if cmap is None:
+        cmap = plt.cm.winter
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
+    if len(centroids) == 0:
+        raise ValueError("DataFrame of centroids is empty.")
+    _plot_style = dict(marker='o', linestyle='none')
+    _plot_style.update(**_normalize_kwargs(plot_style, 'line2d'))
+
+    # Axes labels
+    if mpp is None:
+        _set_labels(ax, '{} [px]', pos_columns)
+        mpp = 1.  # for computations of image extent below
+    else:
+        if mpl.rcParams['text.usetex']:
+            _set_labels(ax, r'{} [\textmu m]', pos_columns)
+        else:
+            _set_labels(ax, r'{} [\xb5m]', pos_columns)
+
+    _plot(ax, centroids, pos_columns, **_plot_style)
+    return ax
+
+
+@make_axes3d
+def scatter3d(*args, **kwargs):
+    """3D extension of plot_traj"""
+    if kwargs.get('pos_columns') is None:
+        kwargs['pos_columns'] = ['x', 'y', 'z']
+    return scatter(*args, **kwargs)
+
+scatter3d.__doc__ = scatter.__doc__
+
+
 @make_axes
 def plot_traj(traj, colorby='particle', mpp=None, label=False,
               superimpose=None, cmap=None, ax=None, t_column=None,
-              **kwargs):
+              pos_columns=None, plot_style={}, **kwargs):
     """Plot traces of trajectories for each particle.
     Optionally superimpose it on a frame from the video.
 
     Parameters
     ----------
-    traj : DataFrame including columns x and y
-    colorby : {'particle', 'frame'}
-    mpp : microns per pixel
-        If omitted, the labels will be labeled in units of pixels.
-    label : Set to True to write particle ID numbers next to trajectories.
-    superimpose : background image, default None
-    cmap : This is only used in colorby='frame' mode.
-        Default = mpl.cm.winter
-    ax : matplotlib axes object, defaults to current axes
-    t_column : DataFrame column name
-        Default is 'frame'
+    traj : DataFrame
+        The DataFrame should include time and spatial coordinate columns.
+    colorby : {'particle', 'frame'}, optional
+    mpp : float, optional
+        Microns per pixel. If omitted, the labels will have units of pixels.
+    label : boolean, optional
+        Set to True to write particle ID numbers next to trajectories.
+    superimpose : ndarray, optional
+        Background image, default None
+    cmap : colormap, optional
+        This is only used in colorby='frame' mode. Default = mpl.cm.winter
+    ax : matplotlib axes object, optional
+        Defaults to current axes
+    t_column : string, optional
+        DataFrame column name for time coordinate. Default is 'frame'.
+    pos_columns : list of strings, optional
+        Dataframe column names for spatial coordinates. Default is ['x', 'y'].
+    plot_style : dictionary
+        Keyword arguments passed through to the `Axes.plot(...)` command
 
     Returns
     -------
-    None
+    Axes object
     """
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -95,22 +266,22 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
         cmap = plt.cm.winter
     if t_column is None:
         t_column = 'frame'
-
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
     if len(traj) == 0:
         raise ValueError("DataFrame of trajectories is empty.")
+    _plot_style = dict(linewidth=1)
+    _plot_style.update(**_normalize_kwargs(plot_style, 'line2d'))
 
     # Axes labels
     if mpp is None:
-        ax.set_xlabel('x [px]')
-        ax.set_ylabel('y [px]')
+        _set_labels(ax, '{} [px]', pos_columns)
         mpp = 1.  # for computations of image extent below
     else:
         if mpl.rcParams['text.usetex']:
-            ax.set_xlabel(r'x [\textmu m]')
-            ax.set_ylabel(r'y [\textmu m]')
+            _set_labels(ax, r'{} [\textmu m]', pos_columns)
         else:
-            ax.set_xlabel('x [\xb5m]')
-            ax.set_ylabel('y [\xb5m]')
+            _set_labels(ax, r'{} [\xb5m]', pos_columns)
     # Background image
     if superimpose is not None:
         ax.imshow(superimpose, cmap=plt.cm.gray,
@@ -121,8 +292,8 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     # Trajectories
     if colorby == 'particle':
         # Unstack particles into columns.
-        unstacked = traj.set_index([t_column, 'particle']).unstack()
-        ax.plot(mpp*unstacked['x'], mpp*unstacked['y'], linewidth=1)
+        unstacked = traj.set_index([t_column, 'particle'])[pos_columns].unstack()
+        _plot(ax, mpp*unstacked, pos_columns, **_plot_style)
     if colorby == 'frame':
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine
         x = traj.set_index([t_column, 'particle'])['x'].unstack()
@@ -140,17 +311,28 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
             ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
             ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
     if label:
-        unstacked = traj.set_index([t_column, 'particle'])[['x', 'y']].unstack()
+        unstacked = traj.set_index([t_column, 'particle'])[pos_columns].unstack()
         first_frame = int(traj[t_column].min())
         coords = unstacked.fillna(method='backfill').stack().loc[first_frame]
         for particle_id, coord in coords.iterrows():
-            plt.text(coord['x'], coord['y'], "%d" % particle_id,
-                     horizontalalignment='center',
-                     verticalalignment='center')
-    ax.invert_yaxis()
+            ax.text(*coord.tolist(), s="%d" % particle_id,
+                    horizontalalignment='center',
+                    verticalalignment='center')
     return ax
 
-ptraj = plot_traj # convenience alias
+ptraj = plot_traj  # convenience alias
+
+@make_axes3d
+def plot_traj3d(*args, **kwargs):
+    """3D extension of plot_traj"""
+    if kwargs.get('pos_columns') is None:
+        kwargs['pos_columns'] = ['x', 'y', 'z']
+    if kwargs.get('colorby') == 'frame':
+        raise NotImplemented("3d trajectory plots cannot be colored by frame")
+    return plot_traj(*args, **kwargs)
+
+plot_traj3d.__doc__ = plot_traj.__doc__
+
 
 @make_axes
 def annotate(centroids, image, circle_size=None, color=None,
@@ -279,6 +461,8 @@ def annotate3d(centroids, image, **kwargs):
                          "converted to RGB using pims.display.to_rgb.")
 
     if kwargs.get('ax') is None:
+        if hasattr(plt.gca(), 'zaxis'):
+            plt.clf()  # clear plot when plot is 3d
         kwargs['ax'] = plt.gca()
 
     for i, imageZ in enumerate(image):
