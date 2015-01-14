@@ -260,6 +260,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         _plot_style.update(markeredgecolor=color[-1])
         ax.plot(centroids['x'][high], centroids['y'][high],
                 **_plot_style)
+    ax.invert_yaxis()
     return ax
 
 
