@@ -23,11 +23,11 @@ def make_axes(func):
     A decorator for plotting functions.
     NORMALLY: Direct the plotting function to the current axes, gca().
               When it's done, make the legend and show that plot.
-              (Instant gratificaiton!)
+              (Instant gratificaiton!) The axes have to be 2d or else the
+              current figure will be cleared.
     BUT:      If the uses passes axes to plotting function, write on those axes
               and return them. The user has the option to draw a more complex
-              plot in multiple steps. The axes have to be 2d or else the
-              current figure will be cleared.
+              plot in multiple steps.
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -44,7 +44,7 @@ def make_axes(func):
             else:
                 del kwargs['legend']
             result = func(*args, **kwargs)
-            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or \
+            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or
                     legend is False):
                 plt.legend(loc='best')
             plt.show()
@@ -59,11 +59,11 @@ def make_axes3d(func):
     A decorator for plotting 3d functions.
     NORMALLY: Direct the plotting function to the current axes, gca().
               When it's done, make the legend and show that plot.
-              (Instant gratificaiton!)
+              (Instant gratificaiton!) The axes have to be 3d or else the
+              current figure will be cleared.
     BUT:      If the uses passes axes to plotting function, write on those axes
               and return them. The user has the option to draw a more complex
-              plot in multiple steps. The axes have to be 3d or else the
-              current figure will be cleared.
+              plot in multiple steps.
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -126,17 +126,7 @@ def _plot(ax, coords, pos_columns, **plot_style):
     -------
     Axes object
     """
-    if len(pos_columns) == 3 and type(coords[pos_columns[0]]) is DataFrame:
-        # When a single column is a DataFrame, not Series, then there are
-        # multiple lines to be plotted. In 3D, this has to be dealt with using
-        # a for loop.
-        coords = coords[pos_columns]
-        plotcount = coords.shape[0] - 1
-        for i in range(plotcount):
-            ax.plot(coords.icol(i), coords.icol(i + plotcount),
-                    zs=coords.icol(i + 2*plotcount), **plot_style)
-        return ax
-    elif len(pos_columns) == 3:
+    if len(pos_columns) == 3:
         return ax.plot(coords[pos_columns[0]], coords[pos_columns[1]],
                        zs=coords[pos_columns[2]], **plot_style)
     elif len(pos_columns) == 2:
@@ -146,7 +136,7 @@ def _plot(ax, coords, pos_columns, **plot_style):
 
 
 def _set_labels(ax, label_format, pos_columns):
-    """This sets axes labels according to a label format and position column 
+    """This sets axes labels according to a label format and position column
     names. Applicable to 2D and 3D plotting.
 
     Parameters
@@ -217,7 +207,7 @@ def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
 
 @make_axes3d
 def scatter3d(*args, **kwargs):
-    """3D extension of plot_traj"""
+    """3D extension of scatter"""
     if kwargs.get('pos_columns') is None:
         kwargs['pos_columns'] = ['x', 'y', 'z']
     return scatter(*args, **kwargs)
@@ -292,8 +282,9 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     # Trajectories
     if colorby == 'particle':
         # Unstack particles into columns.
-        unstacked = traj.set_index([t_column, 'particle'])[pos_columns].unstack()
-        _plot(ax, mpp*unstacked, pos_columns, **_plot_style)
+        unstacked = traj.set_index(['particle', t_column])[pos_columns].unstack()
+        for i, trajectory in unstacked.iterrows():
+            _plot(ax, mpp*trajectory, pos_columns, **_plot_style)
     if colorby == 'frame':
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine
         x = traj.set_index([t_column, 'particle'])['x'].unstack()
