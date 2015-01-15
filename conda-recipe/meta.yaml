@@ -1,6 +1,6 @@
 package:
   name: trackpy
-  version: {{ environ.get('GIT_DESCRIBE_TAG', '').replace('0.2.3', '0.2.4') }}.post{{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG').replace('0.2.3', '0.2.4') }}.post{{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
 
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
@@ -31,7 +31,7 @@ requirements:
     - matplotlib
     - pims >=0.2.2
     - pyyaml
-    - numba 0.12.2
+    - numba >=0.12.2
 
 test:
   imports:
