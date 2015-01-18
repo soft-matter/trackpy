@@ -395,7 +395,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     """Link features into trajectories, assigning a label to each trajectory.
 
     This function is deprecated and lacks some recently-added options,
-    thought it is still accurate. Use link_df or link_iter.
+    though it is still accurate. Use link_df or link_iter.
 
     Parameters
     ----------
@@ -410,9 +410,10 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'BTree', 'KDTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
+        'drop' causes particles in subnetworks to go unlinked
 
     Returns
     -------
@@ -468,9 +469,10 @@ def link_df(features, search_range, memory=0,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
+        'drop' causes particles in subnetworks to go unlinked
     predictor : function, optional
         Improve performance by guessing where a particle will be in
         the next frame.
@@ -584,9 +586,10 @@ def link_df_iter(features, search_range, memory=0,
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Note that when using
         BTree, you must specify hash_size
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
+        'drop' causes particles in subnetworks to go unlinked
     predictor : function, optional
         Improve performance by guessing where a particle will be in the
         next frame.
@@ -731,9 +734,10 @@ def link_iter(levels, search_range, memory=0,
         then reppear nearby, and be considered the same particle. 0 by default.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'auto'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
+        'drop' causes particles in subnetworks to go unlinked
     predictor : function, optional
         Improve performance by guessing where a particle will be in the
         next frame.
@@ -805,7 +809,8 @@ class Linker(object):
             self.track_cls = DummyTrack  # does not store Points
 
         linkers = {'recursive': recursive_linker_obj,
-                   'nonrecursive': nonrecursive_link}
+                   'nonrecursive': nonrecursive_link,
+                   'drop': drop_link}
         if NUMBA_AVAILABLE:
             linkers['numba'] = numba_link
             linkers['auto'] = linkers['numba']
@@ -1244,6 +1249,7 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30):
     #    print 'done'
     return source_list, best_back
 
+
 def numba_link(s_sn, dest_size, search_radius, max_size=30):
     """Recursively find the optimal bonds for a group of particles between 2 frames.
 
@@ -1382,6 +1388,18 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
             tmp_assignments[j] = 0
         else:
             tmp_assignments[j] += 1
+
+
+def drop_link(source_list, dest_size, search_range, max_size=30):
+    """Handle subnets by dropping particles.
+
+    This is an alternate "link_strategy" that simply refuses to solve
+    the subnet. It ends the trajectories represented in source_list,
+    and results in a new trajectory for each destination particle."""
+    if len(source_list) > max_size:
+        raise SubnetOversizeException("Subnetwork contains %d points"
+                                      % len(source_list))
+    return [sp for sp in source_list], [None,] * len(source_list)
 
 
 def _maybe_remove(s, p):
