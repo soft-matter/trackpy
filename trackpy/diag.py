@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import sys
+from collections import OrderedDict
 
 from . import try_numba
 from . import preprocessing
@@ -34,7 +35,7 @@ def dependencies():
     """
     packages = ['six', 'numpy', 'scipy', 'matplotlib', 'pandas',
                 'scikit-image', 'pyyaml', 'pytables', 'numba', 'pyfftw']
-    result = dict()
+    result = OrderedDict()
     for package_name in packages:
         try:
             package = __import__(package_name)
