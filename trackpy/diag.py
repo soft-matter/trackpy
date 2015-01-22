@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import sys
+import importlib
 from collections import OrderedDict
 
 from . import try_numba
@@ -38,7 +39,7 @@ def dependencies():
     result = OrderedDict()
     for package_name in packages:
         try:
-            package = __import__(package_name)
+            package = importlib.import_module(package_name)
         except ImportError:
             result[package_name] = None
         else:
