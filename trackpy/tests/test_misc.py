@@ -9,3 +9,6 @@ import trackpy.diag
 class DiagTests(unittest.TestCase):
     def test_performance_report(self):
         trackpy.diag.performance_report()
+
+    def test_dependencies(self):
+        trackpy.diag.dependencies()

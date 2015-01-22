@@ -125,6 +125,15 @@ Utility functions
     utils.fit_powerlaw
     utils.print_update
 
+Diagnostic functions
+--------------------
+
+.. autosummary::
+   :toctree: generated/
+
+   diag.performance_report
+   diag.dependencies
+
 Low-Level API (Advanced)
 ------------------------
 
