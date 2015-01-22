@@ -1367,8 +1367,8 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
                         # This array is shared by all levels of recursion.
                         # If it's not touched again, it will be used once we
                         # get back to link_subnet
-                        for tmpj in range(nj):
-                            best_assignments[tmpj] = cur_assignments[tmpj]
+                        for jtmp in range(nj):
+                            best_assignments[jtmp] = cur_assignments[jtmp]
                         #### GO UP
                         delta = -1
                     else:
