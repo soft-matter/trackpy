@@ -69,6 +69,8 @@ def contracting_grid():
 
 
 class CommonTrackingTests(object):
+    do_diagnostics = False  # Don't ask for diagnostic info from linker
+
     def test_one_trivial_stepper(self):
         # One 1D stepper
         N = 5
@@ -79,6 +81,13 @@ class CommonTrackingTests(object):
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(10, 2))
         assert_frame_equal(actual_iter, expected)
+        if self.do_diagnostics:
+            assert 'diag_search_range' in self.diag.columns
+            print(self.diag.diag_search_range)
+            # Except for first frame, all particles should have been labeled
+            # with a search_range
+            assert not any(self.diag['diag_search_range'][
+                               actual_iter.frame > 0].isnull())
 
     def test_two_isolated_steppers(self):
         N = 5
@@ -283,10 +292,12 @@ class CommonTrackingTests(object):
 
     def link_df(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
+        kwargs['diagnostics'] = self.do_diagnostics
         return tp.link_df(*args, **kwargs)
 
     def link_df_iter(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
+        kwargs['diagnostics'] = self.do_diagnostics
         args = list(args)
         features = args.pop(0)
         res = pd.concat(tp.link_df_iter(
@@ -344,6 +355,17 @@ class SubnetNeededTests(CommonTrackingTests):
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
+
+        if self.do_diagnostics:
+            assert 'diag_subnet' in self.diag.columns
+            assert 'diag_subnet_size' in self.diag.columns
+            # Except for frame in which they appear, all particles should have
+            # been labeled with a search_range
+            assert not any(self.diag['diag_search_range'][
+                               actual_iter.frame > 1].isnull())
+            # The number of loop iterations is reported by the numba linker only
+            if self.linker_opts['link_strategy'] == 'numba':
+                assert 'diag_subnet_iterations' in self.diag.columns
 
     def test_two_nearby_steppers_one_gapped(self):
         N = 5
@@ -519,6 +541,32 @@ class SubnetNeededTests(CommonTrackingTests):
         assert len(tracks) == p_count, len(tracks)
 
 
+class DiagnosticsTests(CommonTrackingTests):
+    """Mixin to obtain diagnostic info from the linker.
+
+    Makes examining that info optional, so that most tests can focus on
+    correctness of tracking.
+    """
+    do_diagnostics = True
+
+    def _strip_diag(self, df):
+        """Move diagnostic columns from the returned DataFrame into a buffer.
+        """
+        base_cols = [cn for cn in df.columns if not cn.startswith('diag_')]
+        diag_cols = list(sorted(set(df.columns) - set(base_cols)))
+        self.diag = df.reindex(columns=diag_cols)
+        df = df.reindex(columns=base_cols)
+        return df
+
+    def link_df(self, *args, **kwargs):
+        return self._strip_diag(
+            super(DiagnosticsTests, self).link_df(*args, **kwargs))
+
+    def link_df_iter(self, *args, **kwargs):
+        return self._strip_diag(
+            super(DiagnosticsTests, self).link_df_iter(*args, **kwargs))
+
+
 class NumbaOnlyTests(SubnetNeededTests):
     """Tests that are unbearably slow without a fast subnet linker."""
     def test_adaptive_range(self):
@@ -575,10 +623,18 @@ class TestBTreeWithNonrecursiveLink(SubnetNeededTests, unittest.TestCase):
                                 neighbor_strategy='BTree')
 
 
+class TestBTreeWithNonrecursiveLinkDiag(DiagnosticsTests, TestBTreeWithNonrecursiveLink):
+    pass
+
+
 class TestKDTreeWithRecursiveLink(SubnetNeededTests, unittest.TestCase):
     def setUp(self):
         self.linker_opts = dict(link_strategy='recursive',
                                 neighbor_strategy='KDTree')
+
+
+class TestKDTreeWithRecursiveLinkDiag(DiagnosticsTests, TestKDTreeWithRecursiveLink):
+    pass
 
 
 class TestKDTreeWithNonrecursiveLink(SubnetNeededTests, unittest.TestCase):
@@ -592,6 +648,10 @@ class TestKDTreeWithNumbaLink(NumbaOnlyTests, unittest.TestCase):
         _skip_if_no_numba()
         self.linker_opts = dict(link_strategy='numba',
                                 neighbor_strategy='KDTree')
+
+
+class TestKDTreeWithNumbaLinkDiag(DiagnosticsTests, TestKDTreeWithNumbaLink):
+    pass
 
 
 class TestBTreeWithNumbaLink(NumbaOnlyTests, unittest.TestCase):
