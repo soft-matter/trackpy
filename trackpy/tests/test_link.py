@@ -502,15 +502,23 @@ class SubnetNeededTests(CommonTrackingTests):
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5, memory=1)
         assert_frame_equal(actual, expected)
+        if self.do_diagnostics:
+            assert 'diag_remembered' in self.diag.columns
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50), memory=1)
         assert_frame_equal(actual_iter, expected)
+        if self.do_diagnostics:
+            assert 'diag_remembered' in self.diag.columns
 
         # Sort rows by frame (normal use)
         actual = self.link_df(f.sort('frame'), 5, memory=1)
         assert_frame_equal(actual, expected)
+        if self.do_diagnostics:
+            assert 'diag_remembered' in self.diag.columns
         actual_iter = self.link_df_iter(f.sort('frame'), 5,
                                         memory=1, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
+        if self.do_diagnostics:
+            assert 'diag_remembered' in self.diag.columns
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
@@ -518,8 +526,12 @@ class SubnetNeededTests(CommonTrackingTests):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5, memory=1)
         assert_frame_equal(actual, expected)
+        if self.do_diagnostics:
+            assert 'diag_remembered' in self.diag.columns
         actual_iter = self.link_df_iter(f1, 5, memory=1, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
+        if self.do_diagnostics:
+            assert 'diag_remembered' in self.diag.columns
 
     def test_pathological_tracking(self):
         level_count = 5
