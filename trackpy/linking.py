@@ -302,7 +302,7 @@ class Point(object):
 
     def __init__(self):
         self._track = None
-        self.meta = {}
+        self.diag = {}
         self.uuid = Point.count         # unique id for __hash__
         Point.count += 1
 
@@ -401,7 +401,7 @@ class PointDiagnostics(Point):
         # is from memory, the track knows how many frames were skipped.
         memcount = track.report_memory()
         if memcount > 0:
-            self.meta['remembered'] = memcount
+            self.diag['remembered'] = memcount
 
 
 class IndexedPointND(PointND):
@@ -776,18 +776,18 @@ def _build_level(frame, pos_columns, t_column, diagnostics=False):
                     frame[pos_columns].values, frame.index))
 
 
-def _add_diagnostic_columns(features, labeled_level, prefix='diag_'):
+def _add_diagnostic_columns(features, labeled_level):
     """Copy the diagnostic information stored in each particle to the
     corresponding columns in 'features'"""
     for x in labeled_level:
-        for metakey, metaval in x.meta.items():
-            colname = prefix + metakey
+        for k, v in x.diag.items():
+            colname = 'diag_' + k
             try:
-                features[colname][x.id] = metaval
+                features[colname][x.id] = v
             except KeyError:
                 features[colname] = pd.Series(np.nan, dtype=object,
                                               index=features.index)
-                features[colname][x.id] = metaval
+                features[colname][x.id] = v
 
 
 def strip_diagnostics(tracks):
@@ -1100,7 +1100,7 @@ class Linker(object):
                 # gets redefined to create a "meta" dictionary in the particle
                 # and write to it.
                 # Alternately, each metadata write could be wrapped in a conditional.
-                p.meta['search_range'] = search_range
+                p.diag['search_range'] = search_range
                 continue  # do next dest_set particle
             if bc_c == 1:
                 # one backwards candidate
@@ -1112,7 +1112,7 @@ class Linker(object):
                     dpl.append(p)
                     spl.append(b_c_p_0)
                     source_set.discard(b_c_p_0)
-                    p.meta['search_range'] = search_range
+                    p.diag['search_range'] = search_range
                     continue  # do next dest_set particle
             # we need to generate the sub networks
             done_flg = False
@@ -1146,9 +1146,9 @@ class Linker(object):
 
                 # Record information about this invocation of the subnet linker.
                 for dp in d_sn:
-                    dp.meta['subnet'] = self.subnet_counter
-                    dp.meta['subnet_size'] = len(s_sn)
-                    dp.meta['search_range'] = search_range
+                    dp.diag['subnet'] = self.subnet_counter
+                    dp.diag['subnet_size'] = len(s_sn)
+                    dp.diag['search_range'] = search_range
                 for dp in d_sn - set(sn_dpl):
                     # Unclaimed destination particle in subnet
                     sn_spl.append(None)
@@ -1422,7 +1422,7 @@ def numba_link(s_sn, dest_size, search_radius, max_size=30):
                                     tmp_assignments, best_assignments)
     for dr in dcands:
         try:
-            dr.meta['subnet_iterations'] = loopcount
+            dr.diag['subnet_iterations'] = loopcount
         except AttributeError:
             pass  # dr is "None" -- dropped particle
     source_results = list(src_net)
