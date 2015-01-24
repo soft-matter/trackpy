@@ -776,18 +776,15 @@ def _build_level(frame, pos_columns, t_column, diagnostics=False):
                     frame[pos_columns].values, frame.index))
 
 
-def _add_diagnostic_columns(features, labeled_level):
+def _add_diagnostic_columns(features, level):
     """Copy the diagnostic information stored in each particle to the
-    corresponding columns in 'features'"""
-    for x in labeled_level:
-        for k, v in x.diag.items():
-            colname = 'diag_' + k
-            try:
-                features[colname][x.id] = v
-            except KeyError:
-                features[colname] = pd.Series(np.nan, dtype=object,
-                                              index=features.index)
-                features[colname][x.id] = v
+    corresponding columns in 'features'. Create columns as needed."""
+    diag = pd.DataFrame({x.id: x.diag for x in level}, dtype=object).T
+    diag.columns = ['diag_' + cn for cn in diag.columns]
+    for cn in diag.columns:
+        if cn not in features.columns:
+            features[cn] = pd.Series(np.nan, dtype=float, index=features.index)
+    features.update(diag)
 
 
 def strip_diagnostics(tracks):
