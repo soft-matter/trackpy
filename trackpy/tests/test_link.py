@@ -626,6 +626,10 @@ class NumbaOnlyTests(SubnetNeededTests):
         # There should be new tracks in the second frame, corresponding to the
         # middle radii.
         assert all((tr1.x.ix[only1].abs() == 4.5) | (tr1.y.ix[only1].abs() == 4.5))
+        if self.do_diagnostics:
+            # We use this opportunity to check for diagnostic data
+            # made by the numba linker only.
+            assert 'diag_subnet_iterations' in self.diag.columns
 
 
 class TestKDTreeWithDropLink(CommonTrackingTests, unittest.TestCase):
