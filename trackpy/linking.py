@@ -17,7 +17,7 @@ from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 __all__ = ['HashTable', 'TreeFinder', 'Point', 'PointND', 'IndexedPointND',
            'Track', 'TrackUnstored', 'UnknownLinkingError',
            'SubnetOversizeException', 'link', 'link_df', 'link_iter',
-           'link_df_iter']
+           'link_df_iter', 'strip_diagnostics']
 
 
 class TreeFinder(object):
@@ -490,10 +490,10 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
 
 def link_df(features, search_range, memory=0,
             neighbor_strategy='KDTree', link_strategy='auto',
-            predictor=None, hash_size=None, box_size=None,
-            adaptive_step=None, adaptive_limit=5,
-            pos_columns=None, t_column=None, verify_integrity=True,
-            diagnostics=False, retain_index=False):
+            predictor=None, adaptive_step=None, adaptive_limit=5,
+            copy_features=False, diagnostics=False, pos_columns=None,
+            t_column=None, hash_size=None, box_size=None,
+            verify_integrity=True, retain_index=False):
     """Link features into trajectories, assigning a label to each trajectory.
 
     Parameters
@@ -531,10 +531,16 @@ def link_df(features, search_range, memory=0,
     -------
     trajectories : DataFrame
         This is the input features DataFrame, now with a new column labeling
-        each particle with an ID number. This is not a copy.
+        each particle with an ID number. This is not a copy; the original
+        features DataFrame is modified.
 
     Other Parameters
     ----------------
+    copy_features : boolean
+        Leave the original features DataFrame intact (slower, uses more memory)
+    diagnostics : boolean
+        Collect details about how each particle was linked, and return as
+        columns in the output DataFrame. Implies copy=True.
     pos_columns : DataFrame column names (unlimited dimensions)
         Default is ['x', 'y']
     t_column : DataFrame column name
@@ -576,6 +582,11 @@ def link_df(features, search_range, memory=0,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
         hash_size=hash_size, box_size=box_size)
 
+    if diagnostics:
+        features = strip_diagnostics(features)
+    elif copy_features:
+        features = features.copy()
+
     # Do the tracking, and update the DataFrame after each iteration.
     features['particle'] = np.nan  # placeholder
     for level in labeled_levels:
@@ -610,10 +621,10 @@ def link_df(features, search_range, memory=0,
 
 def link_df_iter(features, search_range, memory=0,
             neighbor_strategy='KDTree', link_strategy='auto',
-            hash_size=None, box_size=None, predictor=None,
-            adaptive_step=None, adaptive_limit=5,
-            pos_columns=None, t_column=None, verify_integrity=True,
-            diagnostics=False, retain_index=False):
+            predictor=None, adaptive_step=None, adaptive_limit=5,
+            diagnostics=False, pos_columns=None,
+            t_column=None, hash_size=None, box_size=None,
+            verify_integrity=True, retain_index=False):
     """Link features into trajectories, assigning a label to each trajectory.
 
     Parameters
@@ -655,6 +666,9 @@ def link_df_iter(features, search_range, memory=0,
 
     Other Parameters
     ----------------
+    diagnostics : boolean
+        Collect details about how each particle was linked, and return as
+        columns in the output DataFrame.
     pos_columns : DataFrame column names (unlimited dimensions)
         Default is ['x', 'y']
     t_column : DataFrame column name
@@ -729,6 +743,7 @@ def link_df_iter(features, search_range, memory=0,
 
         if retain_index:
             features.index = old_index
+            # TODO: don't run index.copy() even when retain_index is false
         else:
             features.sort('particle', inplace=True)
             features.reset_index(drop=True, inplace=True)
@@ -762,14 +777,26 @@ def _build_level(frame, pos_columns, t_column, diagnostics=False):
 
 
 def _add_diagnostic_columns(features, labeled_level, prefix='diag_'):
+    """Copy the diagnostic information stored in each particle to the
+    corresponding columns in 'features'"""
     for x in labeled_level:
         for metakey, metaval in x.meta.items():
             colname = prefix + metakey
             try:
                 features[colname][x.id] = metaval
             except KeyError:
-                features[colname] = pd.Series(np.nan, dtype=object, index=features.index)
+                features[colname] = pd.Series(np.nan, dtype=object,
+                                              index=features.index)
                 features[colname][x.id] = metaval
+
+
+def strip_diagnostics(tracks):
+    """Remove diagnostic information from a tracks DataFrame.
+
+    This returns a copy of the DataFrame. Columns with names that start
+    with "diag_" are excluded."""
+    base_cols = [cn for cn in tracks.columns if not cn.startswith('diag_')]
+    return tracks.reindex(columns=base_cols)
 
 
 class UnknownLinkingError(Exception):
@@ -1114,19 +1141,14 @@ class Linker(object):
                 _s.forward_cands.append((None, search_range))
 
             try:
-                size_sn = len(d_sn)
-                sn_spl, sn_dpl = self.subnet_linker(s_sn, size_sn, search_range,
+                sn_spl, sn_dpl = self.subnet_linker(s_sn, len(d_sn), search_range,
                                                     max_size=self.max_subnet_size)
 
                 # Record information about this invocation of the subnet linker.
-                for dp in sn_dpl:
-                    try:
-                        dp.meta['subnet'] = self.subnet_counter
-                        dp.meta['subnet_size'] = size_sn
-                        dp.meta['search_range'] = search_range
-                    except AttributeError:
-                        # "None" particle
-                        pass
+                for dp in d_sn:
+                    dp.meta['subnet'] = self.subnet_counter
+                    dp.meta['subnet_size'] = len(s_sn)
+                    dp.meta['search_range'] = search_range
                 for dp in d_sn - set(sn_dpl):
                     # Unclaimed destination particle in subnet
                     sn_spl.append(None)
@@ -1398,13 +1420,13 @@ def numba_link(s_sn, dest_size, search_radius, max_size=30):
     # In the next line, distsarray is passed in quadrature so that adding distances works.
     loopcount = _numba_subnet_norecur(ncands, candsarray, distsarray**2, cur_assignments, cur_sums,
                                     tmp_assignments, best_assignments)
-    source_results = list(src_net)
-    dest_results = [dcands[i] if i >= 0 else None for i in best_assignments]
-    for dr in dest_results:
+    for dr in dcands:
         try:
             dr.meta['subnet_iterations'] = loopcount
         except AttributeError:
             pass  # dr is "None" -- dropped particle
+    source_results = list(src_net)
+    dest_results = [dcands[i] if i >= 0 else None for i in best_assignments]
     return source_results, dest_results
 
 @try_numba_autojit

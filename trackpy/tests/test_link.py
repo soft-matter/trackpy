@@ -276,7 +276,35 @@ class CommonTrackingTests(object):
     
             assert np.sum(dx) == level_count - 1
             assert np.sum(dy) == 0
-    
+
+    def test_copy(self):
+        """Check inplace/copy behavior of link_df, link_df_iter"""
+        # One 1D stepper
+        N = 5
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        f_inplace = f.copy()
+        expected = f.copy()
+        expected['particle'] = np.zeros(N)
+
+        # Should add particle column in-place
+        # UNLESS diagnostics are enabled
+        actual = self.link_df(f_inplace, 5)
+        assert_frame_equal(actual, expected)
+        if self.do_diagnostics:
+            assert 'particle' not in f_inplace.columns
+        else:
+            assert_frame_equal(actual, f_inplace)
+
+        # Should copy
+        actual = self.link_df(f, 5, copy_features=True)
+        assert_frame_equal(actual, expected)
+        assert 'particle' not in f.columns
+
+        # Should copy
+        actual_iter = self.link_df_iter(f, 5, hash_size=(10, 2))
+        assert_frame_equal(actual_iter, expected)
+        assert 'particle' not in f.columns
+
     @nose.tools.raises(tp.SubnetOversizeException)
     def test_oversize_fail(self):
         self.link_df(contracting_grid(), 1)
@@ -564,19 +592,20 @@ class DiagnosticsTests(CommonTrackingTests):
     def _strip_diag(self, df):
         """Move diagnostic columns from the returned DataFrame into a buffer.
         """
-        base_cols = [cn for cn in df.columns if not cn.startswith('diag_')]
-        diag_cols = list(sorted(set(df.columns) - set(base_cols)))
+        diag_cols = [cn for cn in df.columns if cn.startswith('diag_')]
         self.diag = df.reindex(columns=diag_cols)
-        df = df.reindex(columns=base_cols)
-        return df
+        return tp.strip_diagnostics(df)
 
     def link_df(self, *args, **kwargs):
         return self._strip_diag(
             super(DiagnosticsTests, self).link_df(*args, **kwargs))
 
     def link_df_iter(self, *args, **kwargs):
-        return self._strip_diag(
+        df = self._strip_diag(
             super(DiagnosticsTests, self).link_df_iter(*args, **kwargs))
+        # pd.concat() can mess with the column order if not all columns
+        # are present in all DataFrames. So we enforce it here.
+        return df.reindex(columns=['frame', 'x', 'y', 'particle'])
 
 
 class NumbaOnlyTests(SubnetNeededTests):
