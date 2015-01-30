@@ -674,10 +674,8 @@ def link_df_iter(features, search_range, memory=0,
 
 def _build_level(frame, pos_columns, t_column):
     "Return IndexPointND objects for a DataFrame of points."
-    build_pt = lambda x: IndexedPointND(x[1], x[0][1].values, x[0][0])
-    # iterrows() returns: (index which we use as feature id, data)
-    zipped = zip(frame[pos_columns].iterrows(), frame[t_column])
-    return [build_pt(pt) for pt in zipped]
+    return list(map(IndexedPointND, frame[t_column],
+                    frame[pos_columns].values, frame.index))
 
 
 class UnknownLinkingError(Exception):
