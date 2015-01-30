@@ -14,7 +14,7 @@ import pandas as pd
 from .utils import print_update
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
 
-__all__ = ['HashTable', 'TreeFinder', 'Point', 'PointND', 'IndexedPointND',
+__all__ = ['HashTable', 'TreeFinder', 'Point', 'PointND',
            'Track', 'TrackUnstored', 'UnknownLinkingError',
            'SubnetOversizeException', 'link', 'link_df', 'link_iter',
            'link_df_iter', 'strip_diagnostics']
@@ -364,13 +364,15 @@ class PointND(Point):
     pos : array-like
         position of feature
 
-
+    id : int, optional
+        external unique ID
     '''
 
-    def __init__(self, t, pos):
+    def __init__(self, t, pos, id=None):
         Point.__init__(self)                  # initialize base class
         self.t = t                            # time
         self.pos = np.asarray(pos)            # position in ND space
+        self.id = id
 
     def distance(self, other_point):
         '''
@@ -405,30 +407,8 @@ class PointDiagnostics(object):
         if memcount > 0:
             self.diag['remembered'] = memcount
 
-
-class IndexedPointND(PointND):
-    """Version of :class:`PointND` that has a sequentially assigned uunique ID.
-
-
-    Parameters
-    ----------
-    t : scalar
-        a time-like variable.
-
-    pos : array-like
-        position of feature
-
-    id : int
-        external unique ID
-    """
-
-    def __init__(self, t, pos, id):
-        PointND.__init__(self, t, pos)  # initialize base class
-        self.id = id  # unique ID derived from sequential index
-
-
-class IndexedPointNDDiagnostics(PointDiagnostics, IndexedPointND):
-    """Version of :class:`IndexedPointND` that collects diagnostic information
+class PointNDDiagnostics(PointDiagnostics, PointND):
+    """Version of :class:`PointND` that collects diagnostic information
     during tracking.
     """
     pass
@@ -771,9 +751,9 @@ def _build_level(frame, pos_columns, t_column, diagnostics=False):
         Whether resulting point objects should collect diagnostic information.
     """
     if diagnostics:
-        point_cls = IndexedPointNDDiagnostics
+        point_cls = PointNDDiagnostics
     else:
-        point_cls = IndexedPointND
+        point_cls = PointND
     return list(map(point_cls, frame[t_column],
                     frame[pos_columns].values, frame.index))
 
