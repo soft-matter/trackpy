@@ -302,7 +302,6 @@ class Point(object):
 
     def __init__(self):
         self._track = None
-        self.diag = {}
         self.uuid = Point.count         # unique id for __hash__
         Point.count += 1
 
@@ -392,8 +391,11 @@ class PointND(Point):
         return "<%s at %d, " % (self.__class__.__name__, self.t) + coords + track + ">"
 
 
-class PointDiagnostics(Point):
+class PointDiagnostics(object):
     """Mixin to add memory diagnostics collection to a Point object."""
+    def __init__(self, *args, **kwargs):
+        super(PointDiagnostics, self).__init__(*args, **kwargs)
+        self.diag = {}
 
     def add_to_track(self, track):
         super(PointDiagnostics, self).add_to_track(track)
@@ -896,6 +898,8 @@ class Linker(object):
         self.hash_generator = hash_generator
         self.neighbor_strategy = neighbor_strategy
 
+        self.diag = False  # Whether to save diagnostic info
+
         if self.hash_generator is None:
             if neighbor_strategy == 'BTree':
                 if hash_size is None:
@@ -936,6 +940,11 @@ class Linker(object):
         level_iter = iter(levels)
         prev_level = next(level_iter)
         prev_set = set(prev_level)
+
+        # Only save diagnostic info if it's possible. This saves
+        # 1-2% execution time and significant memory.
+        # We just check the first particle in the first level.
+        self.diag = hasattr(iter(prev_level).next(), 'diag')
 
         # Make a Hash / Tree for the first level.
         if self.neighbor_strategy == 'BTree':
@@ -1082,6 +1091,7 @@ class Linker(object):
         based on the recommendations of _assign_links().
         """
         spl, dpl = [], []
+        diag = self.diag
         # while there are particles left to link, link
         while len(dest_set) > 0:
             p = dest_set.pop()
@@ -1091,13 +1101,8 @@ class Linker(object):
                 # particle will get a new track
                 dpl.append(p)
                 spl.append(None)
-                # TODO: Instead of writing directly to a dictionary, use a function
-                # (defined somewhere.) Ordinarily, the function ignores its arguments
-                # and does nothing. When diagnostics are turned on, the function
-                # gets redefined to create a "meta" dictionary in the particle
-                # and write to it.
-                # Alternately, each metadata write could be wrapped in a conditional.
-                p.diag['search_range'] = search_range
+                if diag:
+                    p.diag['search_range'] = search_range
                 continue  # do next dest_set particle
             if bc_c == 1:
                 # one backwards candidate
@@ -1109,7 +1114,8 @@ class Linker(object):
                     dpl.append(p)
                     spl.append(b_c_p_0)
                     source_set.discard(b_c_p_0)
-                    p.diag['search_range'] = search_range
+                    if diag:
+                        p.diag['search_range'] = search_range
                     continue  # do next dest_set particle
             # we need to generate the sub networks
             done_flg = False
@@ -1139,13 +1145,15 @@ class Linker(object):
 
             try:
                 sn_spl, sn_dpl = self.subnet_linker(s_sn, len(d_sn), search_range,
-                                                    max_size=self.max_subnet_size)
+                                                    max_size=self.max_subnet_size,
+                                                    diag=diag)
 
-                # Record information about this invocation of the subnet linker.
-                for dp in d_sn:
-                    dp.diag['subnet'] = self.subnet_counter
-                    dp.diag['subnet_size'] = len(s_sn)
-                    dp.diag['search_range'] = search_range
+                if diag:
+                    # Record information about this invocation of the subnet linker.
+                    for dp in d_sn:
+                        dp.diag['subnet'] = self.subnet_counter
+                        dp.diag['subnet_size'] = len(s_sn)
+                        dp.diag['search_range'] = search_range
                 for dp in d_sn - set(sn_dpl):
                     # Unclaimed destination particle in subnet
                     sn_spl.append(None)
@@ -1210,7 +1218,7 @@ class SubnetOversizeException(Exception):
     pass
 
 
-def recursive_linker_obj(s_sn, dest_size, search_range, max_size=30):
+def recursive_linker_obj(s_sn, dest_size, search_range, max_size=30, diag=False):
     snl = sub_net_linker(s_sn, dest_size, search_range, max_size=max_size)
     # In Python 3, we must convert to lists to return mutable collections.
     return [list(particles) for particles in zip(*snl.best_pairs)]
@@ -1282,7 +1290,7 @@ class SubnetLinker(object):
         pass
 
 
-def nonrecursive_link(source_list, dest_size, search_range, max_size=30):
+def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=False):
     #    print 'non-recursive', len(source_list), dest_size
     source_list = list(source_list)
     source_list.sort(key=lambda x: len(x.forward_cands))
@@ -1372,7 +1380,7 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30):
     return source_list, best_back
 
 
-def numba_link(s_sn, dest_size, search_radius, max_size=30):
+def numba_link(s_sn, dest_size, search_radius, max_size=30, diag=False):
     """Recursively find the optimal bonds for a group of particles between 2 frames.
 
     This is only invoked when there is more than one possibility within
@@ -1417,11 +1425,12 @@ def numba_link(s_sn, dest_size, search_radius, max_size=30):
     # In the next line, distsarray is passed in quadrature so that adding distances works.
     loopcount = _numba_subnet_norecur(ncands, candsarray, distsarray**2, cur_assignments, cur_sums,
                                     tmp_assignments, best_assignments)
-    for dr in dcands:
-        try:
-            dr.diag['subnet_iterations'] = loopcount
-        except AttributeError:
-            pass  # dr is "None" -- dropped particle
+    if diag:
+        for dr in dcands:
+            try:
+                dr.diag['subnet_iterations'] = loopcount
+            except AttributeError:
+                pass  # dr is "None" -- dropped particle
     source_results = list(src_net)
     dest_results = [dcands[i] if i >= 0 else None for i in best_assignments]
     return source_results, dest_results
@@ -1517,7 +1526,7 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
             tmp_assignments[j] += 1
 
 
-def drop_link(source_list, dest_size, search_range, max_size=30):
+def drop_link(source_list, dest_size, search_range, max_size=30, diag=False):
     """Handle subnets by dropping particles.
 
     This is an alternate "link_strategy" that simply refuses to solve
