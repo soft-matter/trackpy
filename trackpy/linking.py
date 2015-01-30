@@ -1006,7 +1006,8 @@ class Linker(object):
                 # Do linking
                 if sp is not None and dp is not None:
                     sp.track.add_point(dp)
-                    _maybe_remove(self.mem_set, sp)
+                    if sp in self.mem_set:  # Very rare
+                        self.mem_set.remove(sp)
                 elif sp is None:
                     # if unclaimed destination particle, a track is born!
                     self.track_lst.append(self.track_cls(dp))
@@ -1517,13 +1518,6 @@ def drop_link(source_list, dest_size, search_range, max_size=30, diag=False):
                                       % len(source_list))
     return [sp for sp in source_list], [None,] * len(source_list)
 
-
-def _maybe_remove(s, p):
-    # Begging forgiveness is faster than asking permission
-    try:
-        s.remove(p)
-    except KeyError:
-        pass
 
 sub_net_linker = SubnetLinker  # legacy
 Hash_table = HashTable  # legacy
