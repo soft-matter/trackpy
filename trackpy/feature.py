@@ -90,13 +90,12 @@ def estimate_size(image, radius, coord, estimated_mass):
     return Rg
 
 
-def _safe_center_of_mass(x, radius):
-    # center_of_mass can have divide-by-zero errors, avoided thus:
-    result = np.array(ndimage.center_of_mass(x))
-    if np.isnan(result).any():
+def _safe_center_of_mass(x, radius, grids):
+    normalizer = x.sum()
+    if normalizer == 0:  # avoid divide-by-zero errors
         return np.array(radius)
-    else:
-        return result
+    return np.array([(x * grids[dim]).sum() / normalizer
+                    for dim in range(x.ndim)])
 
 
 def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
@@ -210,6 +209,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     Rg = np.empty(N, dtype=np.float64)
     ecc = np.empty(N, dtype=np.float64)
     signal = np.empty(N, dtype=np.float64)
+    ogrid = np.ogrid[[slice(0, i) for i in mask.shape]]  # for center of mass
+    ogrid = [g.astype(float) for g in ogrid]
 
     for feat in range(N):
         coord = coords[feat]
@@ -217,7 +218,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         # Define the circular neighborhood of (x, y).
         rect = slices[feat]
         neighborhood = mask*image[rect]
-        cm_n = _safe_center_of_mass(neighborhood, radius)
+        cm_n = _safe_center_of_mass(neighborhood, radius, ogrid)
         cm_i = cm_n - radius + coord  # image coords
         allow_moves = True
         for iteration in range(max_iterations):
@@ -250,7 +251,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
                 # Disallow any whole-pixels moves on future iterations.
                 allow_moves = False
 
-            cm_n = _safe_center_of_mass(neighborhood, radius)  # neighborhood
+            cm_n = _safe_center_of_mass(neighborhood, radius, ogrid)  # neighborhood
             cm_i = cm_n - radius + new_coord  # image coords
             coord = new_coord
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
