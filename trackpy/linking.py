@@ -924,7 +924,7 @@ class Linker(object):
         # Only save diagnostic info if it's possible. This saves
         # 1-2% execution time and significant memory.
         # We just check the first particle in the first level.
-        self.diag = hasattr(iter(prev_level).next(), 'diag')
+        self.diag = hasattr(next(iter(prev_level)), 'diag')
 
         # Make a Hash / Tree for the first level.
         if self.neighbor_strategy == 'BTree':
