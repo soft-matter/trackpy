@@ -945,7 +945,8 @@ class Linker(object):
             pass
 
         # Assume everything in first level starts a Track.
-        self.track_lst = [self.track_cls(p) for p in prev_set]
+        # Iterate over prev_level, not prev_set, because order -> track ID.
+        self.track_lst = [self.track_cls(p) for p in prev_level]
         self.mem_set = set()
 
         # Initialize memory with empty sets.
