@@ -232,6 +232,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         ax.imshow(image, **_imshow_style)
     ax.set_xlim(-0.5, image.shape[1] - 0.5)
     ax.set_ylim(-0.5, image.shape[0] - 0.5)
+    ax.invert_yaxis()
 
     if split_category is None:
         if np.size(color) > 1:
