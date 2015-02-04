@@ -1511,9 +1511,13 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
 def drop_link(source_list, dest_size, search_range, max_size=30, diag=False):
     """Handle subnets by dropping particles.
 
-    This is an alternate "link_strategy" that simply refuses to solve
-    the subnet. It ends the trajectories represented in source_list,
-    and results in a new trajectory for each destination particle."""
+    This is an alternate "link_strategy", selected by specifying 'drop',
+    that simply refuses to solve the subnet. It ends the trajectories
+    represented in source_list, and results in a new trajectory for
+    each destination particle.
+
+    One possible use is to quickly test whether a given search_range will
+    result in a SubnetOversizeException."""
     if len(source_list) > max_size:
         raise SubnetOversizeException("Subnetwork contains %d points"
                                       % len(source_list))
