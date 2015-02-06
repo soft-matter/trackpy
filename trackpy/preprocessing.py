@@ -22,26 +22,28 @@ else:
     pyfftw.interfaces.cache.enable()
     planned = False
 
-    def _maybe_align(a):
+    def fftn(a):
         global planned
         if not planned:
             print_update("Note: FFTW is configuring itself. This will take " +
                          "several seconds, but subsequent calls will run " +
                          "*much* faster.")
             planned = True
-        fft = pyfftw.n_byte_align(a, a.dtype.alignment)
+        a = pyfftw.n_byte_align(a, a.dtype.alignment)
         result = np.empty_like(a, dtype=np.complex128)
-        result[:] = fft
+        result[:] = pyfftw.interfaces.numpy_fft.fftn(a)
         return result
-    fftn = lambda a: pyfftw.interfaces.numpy_fft.fftn(_maybe_align(a))
-    ifftn = lambda a: pyfftw.interfaces.numpy_fft.ifftn(_maybe_align(a))
+
+    def ifftn(a):
+        a = pyfftw.n_byte_align(a, a.dtype.alignment)
+        return pyfftw.interfaces.numpy_fft.ifftn(a)
 
 
 def bandpass(image, lshort, llong, threshold=None):
     """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
     retaining features of intermediate scale.
-    
+
     Parmeters
     ---------
     image : ndarray
@@ -51,7 +53,7 @@ def bandpass(image, lshort, llong, threshold=None):
         give a tuple value for different sizes per dimension
         give int value for same value for all dimensions
         when 2*lshort >= llong, no noise filtering is applied
-    
+
     threshold : float or integer
         By default, 1 for integer images and 1/256. for float images.
 
@@ -59,11 +61,11 @@ def bandpass(image, lshort, llong, threshold=None):
     -------
     ndarray, the bandpassed image
     """
-    lshort = validate_tuple(lshort, image.ndim)       
+    lshort = validate_tuple(lshort, image.ndim)      
     llong = validate_tuple(llong, image.ndim)
     if np.any([x*2 >= y for (x, y) in zip(lshort, llong)]):
         raise ValueError("The smoothing length scale must be more" +
-                          "than twice the noise length scale.")
+                         "than twice the noise length scale.")
     if threshold is None:
         if np.issubdtype(image.dtype, np.integer):
             threshold = 1
@@ -72,12 +74,12 @@ def bandpass(image, lshort, llong, threshold=None):
     settings = dict(mode='nearest', cval=0)
     axes = range(image.ndim)
     sizes = [x*2+1 for x in llong]
-    boxcar = np.asarray(image) 
-    for (axis,size) in zip(axes,sizes):
-        boxcar = uniform_filter1d(boxcar,size,axis,**settings)
-    gaussian = ifftn(fourier_gaussian(fftn(image), lshort))
+    boxcar = np.asarray(image)
+    for (axis, size) in zip(axes, sizes):
+        boxcar = uniform_filter1d(boxcar, size, axis, **settings)
+    gaussian = ifftn(fourier_gaussian(fftn(image), lshort)).real
     result = gaussian - boxcar
-    return np.where(result > threshold, result.real, 0)
+    return np.where(result > threshold, result, 0)
 
 
 def scale_to_gamut(image, original_dtype):
