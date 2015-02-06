@@ -29,7 +29,9 @@ else:
                          "several seconds, but subsequent calls will run " +
                          "*much* faster.")
             planned = True
-        result = pyfftw.n_byte_align(a, a.dtype.alignment)
+        fft = pyfftw.n_byte_align(a, a.dtype.alignment)
+        result = np.empty_like(a, dtype=np.complex128)
+        result[:] = fft
         return result
     fftn = lambda a: pyfftw.interfaces.numpy_fft.fftn(_maybe_align(a))
     ifftn = lambda a: pyfftw.interfaces.numpy_fft.ifftn(_maybe_align(a))
