@@ -312,7 +312,7 @@ class CommonTrackingTests(object):
     @nose.tools.raises(tp.SubnetOversizeException)
     def test_adaptive_fail(self):
         """Check recursion limit"""
-        self.link_df(contracting_grid(), 1, adaptive_step=0.99)
+        self.link_df(contracting_grid(), 1, adaptive_stop=0.92)
 
     def link(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
@@ -612,7 +612,8 @@ class NumbaOnlyTests(SubnetNeededTests):
     """Tests that are unbearably slow without a fast subnet linker."""
     def test_adaptive_range(self):
         cg = contracting_grid()
-        tracks = self.link_df(cg, 1, adaptive_step=0.8)
+        # Allow 5 applications of the step
+        tracks = self.link_df(cg, 1, adaptive_step=0.8, adaptive_stop=0.32)
         # Transform back to origin
         tracks.x -= 100
         tracks.y -= 100
