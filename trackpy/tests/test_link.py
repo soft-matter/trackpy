@@ -83,7 +83,6 @@ class CommonTrackingTests(object):
         assert_frame_equal(actual_iter, expected)
         if self.do_diagnostics:
             assert 'diag_search_range' in self.diag.columns
-            print(self.diag.diag_search_range)
             # Except for first frame, all particles should have been labeled
             # with a search_range
             assert not any(self.diag['diag_search_range'][
@@ -659,8 +658,6 @@ class TestKDTreeWithDropLink(CommonTrackingTests, unittest.TestCase):
         without_subnet = self.link_df(f, 1.5, retain_index=True)
         assert_frame_equal(without_subnet, f_expected_without_subnet, check_dtype=False)
         with_subnet = self.link_df(f, 5, retain_index=True)
-        print(with_subnet)
-        print(f_expected_with_subnet)
         try:
             assert_frame_equal(with_subnet, f_expected_with_subnet, check_dtype=False)
         except AssertionError:

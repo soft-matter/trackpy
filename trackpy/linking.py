@@ -565,7 +565,7 @@ def link_df(features, search_range, memory=0,
         hash_size=hash_size, box_size=box_size)
 
     if diagnostics:
-        features = strip_diagnostics(features)
+        features = strip_diagnostics(features)  # Makes a copy
     elif copy_features:
         features = features.copy()
 
@@ -737,7 +737,7 @@ def link_df_iter(features, search_range, memory=0,
 
 
 def _build_level(frame, pos_columns, t_column, diagnostics=False):
-    """Return IndexPointND objects for a DataFrame of points.
+    """Return PointND objects for a DataFrame of points.
 
     Parameters
     ----------
