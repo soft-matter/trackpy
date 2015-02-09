@@ -91,6 +91,7 @@ the `github repository <https://github.com/soft-matter/trackpy>`_.
    tutorial/adaptive-search
    tutorial/on-disk
    tutorial/performance
+   tutorial/linking-diagnostics
    tutorial/parallel-locate
    tutorial/custom-feature-detection
 

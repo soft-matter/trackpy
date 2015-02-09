@@ -42,3 +42,4 @@ doc/generated
 doc/tutorial/*.rst
 doc/tutorial/*_files
 .idea
+doc/examples/index.rst

@@ -10,3 +10,4 @@ notebooks:
 	ipython nbconvert --to rst $(NOTEBOOK_DIR)/custom-feature-detection.ipynb
 	ipython nbconvert --to rst $(NOTEBOOK_DIR)/subnets.ipynb
 	ipython nbconvert --to rst $(NOTEBOOK_DIR)/adaptive-search.ipynb
+	ipython nbconvert --to rst $(NOTEBOOK_DIR)/linking-diagnostics.ipynb
