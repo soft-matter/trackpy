@@ -12,6 +12,9 @@ Basic Usage
    tutorial/walkthrough
    tutorial/prediction
    tutorial/uncertainty
+   tutorial/subnets
+   tutorial/adaptive-search
+   tutorial/linking-diagnostics
 
 Processing Large Data Sets
 --------------------------

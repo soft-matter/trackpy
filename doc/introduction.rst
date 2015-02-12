@@ -56,6 +56,8 @@ Special Capabilities
   * **High-performance** components (numba acceleration and FFTW support) are used only if
     if available. Since these can be tricky to install on some machines,
     the code will automatically fall back on slower pure Python implementations
+  * **Adaptive search** can prevent the tracking algorithm from failing
+    or becoming too slow, by automatically making adjustments when needed.
 
 Citing Trackpy
 ^^^^^^^^^^^^^^
@@ -99,7 +101,7 @@ Core Contributors
   * **Daniel Allan** feature-finding, uncertainty estimation,
     motion characterization and discrimination, plotting tools, tests
   * **Nathan Keim** alternative trajectory-linking implementations, major
-    speed-ups, prediction
+    speed-ups, prediction, adaptive search
   * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
 
 
