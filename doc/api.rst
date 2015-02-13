@@ -124,6 +124,7 @@ Utility functions
 
     utils.fit_powerlaw
     utils.print_update
+    strip_diagnostics
 
 Diagnostic functions
 --------------------
@@ -180,9 +181,8 @@ And the following classes can be subclassed to implement a customized linking pr
 
     Point
     PointND
-    IndexedPointND
     Track
-    DummyTrack
+    TrackUnstored 
     HashTable
     SubnetOversizeException
 
