@@ -1,0 +1,45 @@
+package:
+  name: trackpy
+  version: {{ environ.get('GIT_DESCRIBE_TAG').replace('0.2.3', '0.2.4') }}.post{{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
+
+build:
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
+  string: {{ environ.get('GIT_BUILD_STR', '') + '_py' + environ['PY_VER'] }}
+
+source:
+  git_url: ../
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - six
+    - pyyaml
+    - numpy
+    - pandas
+    - scipy
+    - pims
+    - matplotlib
+
+  run:
+    - python
+    - six >=1.8
+    - pyyaml
+    - numpy >=1.7
+    - pandas >=0.12.0
+    - scipy >=0.12.0
+    - matplotlib
+    - pims >=0.2.2
+    - pyyaml
+    - numba >=0.12.2
+
+test:
+  imports:
+    - tifffile
+    - pims
+    - trackpy
+
+about:
+  home: http://trackpy.readthedocs.org
+  license: 3-clause BSD License
+  summary: 'Python particle-tracking toolkit'

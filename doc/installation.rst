@@ -144,7 +144,7 @@ Optional Dependencies:
       we recommend sticking with one of these. Note that numba v0.12.0
       (included with Anaconda 1.9.0) has a bug and will not work at all;
       if you have this version, you should update Anaconda. We support numba
-      versions 0.11 and 0.12.2.
+      versions 0.11 and >=0.12.2. We currently test on 0.16.0.
 
 PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format
