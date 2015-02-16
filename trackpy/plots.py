@@ -18,7 +18,8 @@ from .utils import print_update
 
 
 __all__ = ['annotate', 'annotate3d', 'plot_traj', 'ptraj',
-           'plot_displacements', 'subpx_bias', 'mass_size', 'mass_ecc']
+           'plot_displacements', 'subpx_bias', 'mass_size', 'mass_ecc',
+           'plot_density_profile']
 
 
 def make_axes(func):
@@ -643,6 +644,77 @@ def examine_jumps(data, jumps):
     for jump in jumps:
         axes2.plot(jump, data[jump], 'ko')
     fig2.show()
+
+@make_axes  
+def plot_density_profile(f, binsize, blocks=None, mpp=None, fps=None,
+                         normed=True, t_column='frame', pos_column='z',
+                         ax=None, **kwargs):
+    """Plot a histogram showing the density profile in one direction.
+
+    Parameters
+    ----------
+    f : DataFrame
+        positions, including columns 'frame' and 'z'
+    binsize : integer
+        histogram binsize, if mpp is set, this is in in units of microns
+    blocks : integer, optional
+        number of density profiles to plot
+    mpp : number, optional
+        microns per pixel
+    fps : number, optional
+        frames per second
+    normed : boolean
+        if true, the histogram is normalized
+    t_column : string, default 'frame'
+    pos_column : string, default 'z'
+
+    """
+    import matplotlib as mpl
+    lastframe = f[t_column].max()
+
+    if blocks is None:
+        framesperblock = lastframe
+    else:
+        framesperblock = lastframe // blocks
+        if framesperblock == 0:
+            raise ValueError('Blocktime too low.')
+
+    if mpp is None:
+        ax.set_ylabel('{} [px]'.format(pos_column))
+        mpp = 1.  # for computations of image extent below
+    else:
+        if mpl.rcParams['text.usetex']:
+            ax.set_ylabel(r'{} [\textmu m]'.format(pos_column))
+        else:
+            ax.set_ylabel('{} [\xb5m]'.format(pos_column))
+
+    if normed:
+        ax.set_xlabel('N / Ntot')
+    else:
+        ax.set_xlabel('N')
+
+    if fps is None:
+        timeunit = ''
+        fps = 1.
+    else:
+        timeunit = ' s'
+
+    ts = f[t_column].values
+    zs = f[pos_column].values * mpp
+    bins = np.arange(0, np.max(zs), binsize)
+    x_coord = (bins[:-1] + bins[1:])/2
+    plotlabel = None
+
+    for first in np.arange(0, lastframe, framesperblock):
+        mask = np.logical_and(ts >= first, ts < first + framesperblock)
+        count, bins = np.histogram(zs[mask], bins=bins, normed=normed)
+        if framesperblock != lastframe:
+            plotlabel = '{0:.1f}{2} <= t < {1:.1f}{2}'.format(first / fps,
+                           (first + framesperblock) / fps, timeunit)
+        ax.plot(count * mpp, x_coord, label=plotlabel, **kwargs)
+
+    return ax
+
 
 @make_axes
 def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
