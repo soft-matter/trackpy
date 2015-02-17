@@ -30,9 +30,7 @@ else:
                          "*much* faster.")
             planned = True
         a = pyfftw.n_byte_align(a, a.dtype.alignment)
-        result = np.empty_like(a, dtype=np.complex128)
-        result[:] = pyfftw.interfaces.numpy_fft.fftn(a)
-        return result
+        return pyfftw.interfaces.numpy_fft.fftn(a).astype(np.complex128)
 
     def ifftn(a):
         a = pyfftw.n_byte_align(a, a.dtype.alignment)
