@@ -103,6 +103,7 @@ Core Contributors
   * **Nathan Keim** alternative trajectory-linking implementations, major
     speed-ups, prediction, adaptive search
   * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
+  * **Casper van der Wel** anisotropic (3D) feature-finding, 3D plotting and analyses
 
 
 Support
@@ -122,3 +123,8 @@ reached at tcaswell@gmail.com.
 This package was developed in part by Nathan C. Keim, as part of his postdoctoral
 research in Paulo Arratia's group at the University of Pennsylvania,
 Philadelphia. This work was supported by NSF-MRSEC DMR-1120901.
+
+This package was developed in part by Casper van der Wel, as part of his
+PhD thesis work in Daniela Kraft’s group at the Huygens-Kamerlingh-Onnes laboratory,
+Institute of Physics, Leiden University, The Netherlands. This work was
+supported by the Netherlands Organisation for Scientific Research (NWO/OCW). 
