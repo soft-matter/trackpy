@@ -1173,11 +1173,8 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
     if neighbor_strategy == 'BTree':
         # (Tom's code)
         for p in cur_level:
-            # get
             work_box = prev_hash.get_region(p, search_range)
             for wp in work_box:
-                # this should get changed to deal with squared values
-                # to save an eventually square root
                 d = p.distance(wp)
                 if d < search_range:
                     p.back_cands.append((wp, d))
@@ -1189,9 +1186,9 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(cur_level):
             for j in range(nn[i]):
-                wp = hashpts[inds[i,j]]
-                p.back_cands.append((wp, dists[i,j]))
-                wp.forward_cands.append((p, dists[i,j]))
+                wp = hashpts[inds[i, j]]
+                p.back_cands.append((wp, dists[i, j]))
+                wp.forward_cands.append((p, dists[i, j]))
 
 
 class SubnetOversizeException(Exception):
@@ -1363,19 +1360,19 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=Fa
     return source_list, best_back
 
 
-def numba_link(s_sn, dest_size, search_radius, max_size=30, diag=False):
+def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     """Recursively find the optimal bonds for a group of particles between 2 frames.
 
     This is only invoked when there is more than one possibility within
-    ``search_radius``.
+    ``search_range``.
 
     Note that ``dest_size`` is unused; it is determined from the contents of
     the source list.
     """
     # The basic idea: replace Point objects with integer indices into lists of Points.
-    # Then the hard part (recursion) runs quickly because it is just passing arrays.
-    # In fact, we can compile it with numba so that it runs in acceptable time.
-    max_candidates = 9 # Max forward candidates we expect for any particle
+    # Then the hard part runs quickly because it is just operating on arrays.
+    # We can compile it with numba for outstanding performance.
+    max_candidates = 9  # Max forward candidates we expect for any particle
     src_net = list(s_sn)
     nj = len(src_net) # j will index the source particles
     if nj > max_size:
@@ -1391,7 +1388,7 @@ def numba_link(s_sn, dest_size, search_radius, max_size=30, diag=False):
     # each row of the array. All other elements represent the null link option
     # (i.e. particle lost)
     candsarray = np.ones((nj, max_candidates + 1), dtype=np.int64) * -1
-    distsarray = np.ones((nj, max_candidates + 1), dtype=np.float64) * search_radius
+    distsarray = np.ones((nj, max_candidates + 1), dtype=np.float64) * search_range
     ncands = np.zeros((nj,), dtype=np.int64)
     for j, sp in enumerate(src_net):
         ncands[j] = len(sp.forward_cands)
