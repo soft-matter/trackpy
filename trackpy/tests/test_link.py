@@ -648,21 +648,12 @@ class TestKDTreeWithDropLink(CommonTrackingTests, unittest.TestCase):
         f_expected_without_subnet = f.copy()
         f_expected_without_subnet['particle'] = [0, 0, 1]
         # The linker assigns new particle IDs in arbitrary order. So
-        # comparing with expected values is tricky. One thing that helps
-        # is to not sort the result by particle ID; we use retain_index.
-        # We also accept two valid versions of the output:
-        f_expected_with_subnet = f.copy()
-        f_expected_with_subnet['particle'] = [0, 1, 2]
-        f_expected_with_subnet_alt = f.copy()  # Other possible valid output
-        f_expected_with_subnet_alt['particle'] = [0, 2, 1]
+        # comparing with expected values is tricky.
+        # We just check for the creation of 2 new trajectories.
         without_subnet = self.link_df(f, 1.5, retain_index=True)
         assert_frame_equal(without_subnet, f_expected_without_subnet, check_dtype=False)
         with_subnet = self.link_df(f, 5, retain_index=True)
-        try:
-            assert_frame_equal(with_subnet, f_expected_with_subnet, check_dtype=False)
-        except AssertionError:
-            assert_frame_equal(with_subnet, f_expected_with_subnet_alt, check_dtype=False)
-
+        assert set(with_subnet.particle) == set((0, 1, 2))
 
 
 class TestBTreeWithRecursiveLink(SubnetNeededTests, unittest.TestCase):
