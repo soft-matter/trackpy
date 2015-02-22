@@ -1424,7 +1424,8 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
 
     cur_assignments, tmp_assignments are just temporary registers of length nj.
     best_assignments is modified in place.
-    Returns the best sum.
+    Returns the number of assignments tested (at all levels). This is basically
+    proportional to time spent.
     """
     nj = candsarray.shape[0]
     tmp_sum = 0.
