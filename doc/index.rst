@@ -35,7 +35,7 @@ Trackpy: Fast, Flexible Particle-Tracking Toolkit
           <img src="_static/foam.png">
         </div>
         <div class="col-md-2 thumbnail">
-          <img src="_static/fluorescent-particles-in-cfs.png">
+          <img src="_static/tracking-sphere.png">
         </div>
         <div class="col-md-2 thumbnail">
           <img src="_static/trajectories-in-water.png">
