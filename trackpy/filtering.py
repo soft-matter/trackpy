@@ -7,14 +7,14 @@ by wrapping pandas group-by and filter capabilities."""
 
 
 def filter_stubs(tracks, threshold=100):
-    """Filter out trajectories with few points. They are often specious.
+    """Filter out trajectories with few points. They are often spurious.
 
     Parameters
     ----------
     tracks : DataFrame
         must include columns named 'frame' and 'particle'
     threshold : integer, default 100
-        minimum number of points to survive
+        minimum number of points (video frames) to survive
 
     Returns
     -------
