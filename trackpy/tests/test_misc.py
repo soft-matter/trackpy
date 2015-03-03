@@ -27,6 +27,7 @@ class APITests(unittest.TestCase):
         trackpy is deprecated as of v0.3 and will be removed in a future
         version."""
         with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('ignore')
             warnings.simplefilter('always', UserWarning)
             imseq = trackpy.ImageSequence(os.path.join(path, 'video/image_sequence/*.png'))
             assert isinstance(imseq, pims.ImageSequence)
