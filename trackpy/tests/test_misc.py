@@ -5,6 +5,7 @@ import os
 import unittest
 import warnings
 
+import pims
 import trackpy
 import trackpy.diag
 
@@ -20,7 +21,13 @@ class DiagTests(unittest.TestCase):
 
 class APITests(unittest.TestCase):
     def test_pims_deprecation(self):
-        with warnings.catch_warnings(True) as w:
-            warnings.simplefilter('always')
-            _ = trackpy.ImageSequence(os.path.join(path, 'video/image_sequence/*.png'))
+        """Using a pims class should work, but generate a warning.
+
+        The inclusion of these classes (and therefore this test) in
+        trackpy is deprecated as of v0.3 and will be removed in a future
+        version."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always', UserWarning)
+            imseq = trackpy.ImageSequence(os.path.join(path, 'video/image_sequence/*.png'))
+            assert isinstance(imseq, pims.ImageSequence)
             assert len(w) == 1
