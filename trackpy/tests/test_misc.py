@@ -32,5 +32,6 @@ class APITests(unittest.TestCase):
             assert isinstance(imseq, pims.ImageSequence)
             if len(w) != 1:
                 print('Caught warnings:')
-                print(w)
+                for wrn in w:
+                    print(wrn, wrn.message)
             assert len(w) == 1
