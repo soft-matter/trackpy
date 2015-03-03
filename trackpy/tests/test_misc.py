@@ -30,4 +30,7 @@ class APITests(unittest.TestCase):
             warnings.simplefilter('always', UserWarning)
             imseq = trackpy.ImageSequence(os.path.join(path, 'video/image_sequence/*.png'))
             assert isinstance(imseq, pims.ImageSequence)
+            if len(w) != 1:
+                print('Caught warnings:')
+                print(w)
             assert len(w) == 1
