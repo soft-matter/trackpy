@@ -1417,7 +1417,7 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     dest_results = [dcands[i] if i >= 0 else None for i in best_assignments]
     return source_results, dest_results
 
-@try_numba_autojit(nopython=True)
+@try_numba_autojit
 def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
                           cur_sums, tmp_assignments, best_assignments):
     """Find the optimal track assigments for a subnetwork, without recursion.
