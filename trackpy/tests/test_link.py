@@ -477,6 +477,21 @@ class SubnetNeededTests(CommonTrackingTests):
         actual = self.link_df_iter(f1, 5, hash_size=(2*M, 2*M))
         assert_frame_equal(actual, expected)
 
+    def test_quadrature_distances(self):
+        """A simple test to check whether the subnet linker adds
+        distances in quadrature (as in Crocker-Grier)."""
+        def subnet_test(epsilon):
+            """Returns 2 features in 2 frames, which represent a special
+            case when the subnet linker adds distances in quadrature. With
+            epsilon=0, subnet linking is degenerate. Therefore
+            linking should differ for positive and negative epsilon."""
+            return pd.DataFrame([(0, 10, 11), (0, 10, 8),
+                                 (1, 9, 10), (1, 12, 10 + epsilon)],
+                         columns=['frame', 'x', 'y'])
+        trneg = self.link_df(subnet_test(0.01), 5, retain_index=True)
+        trpos = self.link_df(subnet_test(-0.01), 5, retain_index=True)
+        assert not np.allclose(trneg.particle.values, trpos.particle.values)
+
     def test_memory(self):
         """A unit-stepping trajectory and a random walk are observed
         simultaneously. The random walk is missing from one observation."""
@@ -648,21 +663,12 @@ class TestKDTreeWithDropLink(CommonTrackingTests, unittest.TestCase):
         f_expected_without_subnet = f.copy()
         f_expected_without_subnet['particle'] = [0, 0, 1]
         # The linker assigns new particle IDs in arbitrary order. So
-        # comparing with expected values is tricky. One thing that helps
-        # is to not sort the result by particle ID; we use retain_index.
-        # We also accept two valid versions of the output:
-        f_expected_with_subnet = f.copy()
-        f_expected_with_subnet['particle'] = [0, 1, 2]
-        f_expected_with_subnet_alt = f.copy()  # Other possible valid output
-        f_expected_with_subnet_alt['particle'] = [0, 2, 1]
+        # comparing with expected values is tricky.
+        # We just check for the creation of 2 new trajectories.
         without_subnet = self.link_df(f, 1.5, retain_index=True)
         assert_frame_equal(without_subnet, f_expected_without_subnet, check_dtype=False)
         with_subnet = self.link_df(f, 5, retain_index=True)
-        try:
-            assert_frame_equal(with_subnet, f_expected_with_subnet, check_dtype=False)
-        except AssertionError:
-            assert_frame_equal(with_subnet, f_expected_with_subnet_alt, check_dtype=False)
-
+        assert set(with_subnet.particle) == set((0, 1, 2))
 
 
 class TestBTreeWithRecursiveLink(SubnetNeededTests, unittest.TestCase):

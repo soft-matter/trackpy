@@ -1173,11 +1173,8 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
     if neighbor_strategy == 'BTree':
         # (Tom's code)
         for p in cur_level:
-            # get
             work_box = prev_hash.get_region(p, search_range)
             for wp in work_box:
-                # this should get changed to deal with squared values
-                # to save an eventually square root
                 d = p.distance(wp)
                 if d < search_range:
                     p.back_cands.append((wp, d))
@@ -1189,9 +1186,9 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(cur_level):
             for j in range(nn[i]):
-                wp = hashpts[inds[i,j]]
-                p.back_cands.append((wp, dists[i,j]))
-                wp.forward_cands.append((p, dists[i,j]))
+                wp = hashpts[inds[i, j]]
+                p.back_cands.append((wp, dists[i, j]))
+                wp.forward_cands.append((p, dists[i, j]))
 
 
 class SubnetOversizeException(Exception):
@@ -1235,7 +1232,7 @@ class SubnetLinker(object):
     def do_recur(self, j):
         cur_s = self.s_lst[j]
         for cur_d, dist in cur_s.forward_cands:
-            tmp_sum = self.cur_sum + dist
+            tmp_sum = self.cur_sum + dist**2
             if tmp_sum > self.best_sum:
                 # if we are already greater than the best sum, bail we
                 # can bail all the way out of this branch because all
@@ -1258,7 +1255,8 @@ class SubnetLinker(object):
             # if we have hit the end of s_lst and made it this far, it
             # must be a better linking so save it.
             if j + 1 == self.MAX:
-                tmp_sum = self.cur_sum + self.search_range * (self.max_links - len(self.d_taken))
+                tmp_sum = self.cur_sum + self.search_range**2 * (
+                    self.max_links - len(self.d_taken))
                 if tmp_sum < self.best_sum:
                     self.best_sum = tmp_sum
                     self.best_pairs = list(self.cur_pairs)
@@ -1266,7 +1264,7 @@ class SubnetLinker(object):
                 # re curse!
                 self.do_recur(j + 1)
             # remove this step from the working
-            self.cur_sum -= dist
+            self.cur_sum -= dist**2
             if cur_d is not None:
                 self.d_taken.remove(cur_d)
             self.cur_pairs.pop()
@@ -1301,7 +1299,8 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=Fa
             # base case, no more source candidates,
             # save the current configuration if it's better than the current max
             # add penalty for not linking to particles in the destination set
-            tmp_sum = cur_sum + search_range * (max_links - len([d for d in cur_back if d is not None]))
+            tmp_sum = cur_sum + search_range**2 * (
+                max_links - len([d for d in cur_back if d is not None]))
             if tmp_sum < best_sum:
                 best_sum = cur_sum
                 best_back = list(cur_back)
@@ -1331,7 +1330,7 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=Fa
         # get the forward candidate
         cur_d, cur_dist = cand_list_list[j][k]
 
-        tmp_sum = cur_sum + cur_dist
+        tmp_sum = cur_sum + cur_dist**2
         if tmp_sum > best_sum:
             # nothing in this branch can do better than the current best
             j -= 1
@@ -1363,19 +1362,19 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=Fa
     return source_list, best_back
 
 
-def numba_link(s_sn, dest_size, search_radius, max_size=30, diag=False):
+def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     """Recursively find the optimal bonds for a group of particles between 2 frames.
 
     This is only invoked when there is more than one possibility within
-    ``search_radius``.
+    ``search_range``.
 
     Note that ``dest_size`` is unused; it is determined from the contents of
     the source list.
     """
     # The basic idea: replace Point objects with integer indices into lists of Points.
-    # Then the hard part (recursion) runs quickly because it is just passing arrays.
-    # In fact, we can compile it with numba so that it runs in acceptable time.
-    max_candidates = 9 # Max forward candidates we expect for any particle
+    # Then the hard part runs quickly because it is just operating on arrays.
+    # We can compile it with numba for outstanding performance.
+    max_candidates = 9  # Max forward candidates we expect for any particle
     src_net = list(s_sn)
     nj = len(src_net) # j will index the source particles
     if nj > max_size:
@@ -1391,7 +1390,7 @@ def numba_link(s_sn, dest_size, search_radius, max_size=30, diag=False):
     # each row of the array. All other elements represent the null link option
     # (i.e. particle lost)
     candsarray = np.ones((nj, max_candidates + 1), dtype=np.int64) * -1
-    distsarray = np.ones((nj, max_candidates + 1), dtype=np.float64) * search_radius
+    distsarray = np.ones((nj, max_candidates + 1), dtype=np.float64) * search_range
     ncands = np.zeros((nj,), dtype=np.int64)
     for j, sp in enumerate(src_net):
         ncands[j] = len(sp.forward_cands)
@@ -1427,7 +1426,8 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
 
     cur_assignments, tmp_assignments are just temporary registers of length nj.
     best_assignments is modified in place.
-    Returns the best sum.
+    Returns the number of assignments tested (at all levels). This is basically
+    proportional to time spent.
     """
     nj = candsarray.shape[0]
     tmp_sum = 0.
