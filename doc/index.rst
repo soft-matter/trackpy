@@ -60,6 +60,15 @@ Much more detail can be found in the trackpy :ref:`tutorial <tutorial>`. You can
 To check out the code, report a bug, or contribute a new feature, please visit
 the `github repository <https://github.com/soft-matter/trackpy>`_.
 
+This much-expanded documentation is a recent addition to trackpy, and
+it describes version 0.3, which is still in development, to be released in
+Spring 2015. From the release of v0.3 onward, we will be maintain
+separate documentation for each version. See the
+:doc:`installation instructions <installation>` to obtain the current stable
+release (v0.2.4) or the latest version in development. The majority of this
+documentation applies to v0.2.4 as well as v0.3, but some of the
+:doc:`newer functionality <whatsnew>` is only available in v0.3.
+
 .. raw:: html
 
    <div class="container-fluid">
