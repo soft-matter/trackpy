@@ -33,9 +33,11 @@ Bug Fixes
 
 - Fixed a bug in v0.2.3 and v0.2.4 that broke the ``circle_size`` parameter in ``annotate()``. (:issue:`169`, :issue:`170`)
 - Fixed a bug where subnetwork distances were not addded in quadrature in the python linker. (:issue:`212`). (The impact of this bug is not as large as one might expect. See issue link for details.)
-- Input images with a float datatype are internally converted to integer datatype for faster computaiton. They were converted to signed integers; now they are converted to unsigned. (:issue:`188`)
+- Input images with a float datatype are internally converted to integer datatype for faster computation. They were converted to signed integers; now they are converted to unsigned. (:issue:`188`)
+- Slow feature-finding with more recent versions of the numba package (0.16 and 0.17 specifically) is addressed.
 
 API changes
 ~~~~~~~~~~~
 
-- The plot function ``annotate()`` now displays the image with the vertical axis inverted, consistent with the ``pims`` display function and ``plot_traj()``.
+- The plot function ``annotate()`` now displays the image with the vertical axis inverted, to be consistent with the ``pims`` display function and ``plot_traj()``. (:issue:`217`)
+- Using trackpy to access pims functionality (e.g. ``trackpy.ImageSequence()``) is now deprecated; it still works but will generate a warning message. This capability will be removed from future versions of trackpy, in favor of accessing it in the pims package directly (e.g. ``pims.ImageSequence()``). (:issue:`214`)
