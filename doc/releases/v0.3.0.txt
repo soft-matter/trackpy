@@ -2,8 +2,19 @@
 In Development: v0.3.0 (Unreleased)
 -----------------------------------
 
-Feature-Finding
-~~~~~~~~~~~~~~~
+Overview
+~~~~~~~~
+
+Release v0.3.0 adds many important enhancements and fixes. Feature location is extended to anisotropic 3D (and generally N-dimensional) features. The analysis and visualization tools now give first-class status to 3D work. A powerful new "adaptive search" capability gives fine-tuned control and detailed diagnostics of the trajectory-linking process. Several performance improvements make trackpy even faster.
+
+Enhancements
+~~~~~~~~~~~~
+
+- The feature-finding functionality was formerly limited to circular features, but now trackpy can locate anisotropic N-dimensional features. Their size is specified as a tuple of odd integers instead of a single odd integer. See the new 3D tutorial for details.
+
+.. Waiting for merge: - The plotting and analysis tools, many of which were limited to 2D, have been extended to 3D.
+
+- A powerful new adaptive serach feature gives much richer control of the tracking (trajectory-linking) process, and it makes formerly intractable scenarios possible to solve in a reasonable time. See the new tutorials, "Advanced Linking: Subnetworks and search_range" and "Adaptive Search: Changing search_range on the Fly," for details.
 
 - Changed the way nearby local maxima are "merged," i.e., interpreted as parts of the same feature. This improved accuracy in crowded images. For some data, it may have no effect, but for others it will give significantly different (but, we think, better) results than previous versions of trackpy. (:issue:`143`)
 
@@ -13,12 +24,18 @@ Feature-Finding
 
 - The performance of feature-finding can now be tested in a custom way using new routines in ``artificial.py``. Users can provide a custom feature shape to test the feature-finding on their own system.
 
+- Various performance improvements make feature-finding and trajectory-linking faster than ever, in spite of the increased functionality. (:issue:`203`, :issue:`204`)
+
+- More user-friendly error messages replace cryptic errors. (:issue:`166`).
+
 Bug Fixes
 ~~~~~~~~~
 
 - Fixed a bug in v0.2.3 and v0.2.4 that broke the ``circle_size`` parameter in ``annotate()``. (:issue:`169`, :issue:`170`)
+- Fixed a bug where subnetwork distances were not addded in quadrature in the python linker. (:issue:`212`). (The impact of this bug is not as large as one might expect. See issue link for details.)
+- Input images with a float datatype are internally converted to integer datatype for faster computaiton. They were converted to signed integers; now they are converted to unsigned. (:issue:`188`)
 
 API changes
 ~~~~~~~~~~~
 
-- The plot function ``annotate()`` now displays the image with the vertical axis inverted, to be consistent with the ``pims`` display function and ``plot_traj()``.
+- The plot function ``annotate()`` now displays the image with the vertical axis inverted, consistent with the ``pims`` display function and ``plot_traj()``.
