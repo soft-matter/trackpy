@@ -706,7 +706,7 @@ def link_df_iter(features, search_range, memory=0,
             # produces a malformed labeling.
             _verify_integrity(frame_no, labels)
             # additional checks particular to link_df_iter
-            if not all(frame_no == source_features.frame.values):
+            if not all(frame_no == source_features[t_column].values):
                 raise UnknownLinkingError("The features passed for Frame %d "
                                           "do not all share the same frame "
                                           "number.".format(frame_no))
