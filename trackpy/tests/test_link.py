@@ -348,7 +348,10 @@ class TestOnce(unittest.TestCase):
 
         # smoke tests
         tp.link_df(f, 5, t_column=name, verify_integrity=True)
-        tp.link_df_iter(f, 5, t_column=name, verify_integrity=True)
+
+        f_iter = (frame for fnum, frame in f.groupby('arbitrary name'))
+        list(tp.link_df_iter(f_iter, 5, t_column=name, verify_integrity=True))
+
 
 class SubnetNeededTests(CommonTrackingTests):
     """Tests that assume a best-effort subnet linker (i.e. not "drop")."""
