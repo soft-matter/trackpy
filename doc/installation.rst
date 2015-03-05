@@ -141,10 +141,8 @@ Optional Dependencies:
       HDF5 file. This is included with Anaconda.
   * `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. This is
       included with Anaconda and Canopy. Installing it any other way is difficult;
-      we recommend sticking with one of these. Note that numba v0.12.0
-      (included with Anaconda 1.9.0) has a bug and will not work at all;
-      if you have this version, you should update Anaconda. We support numba
-      versions 0.11 and 0.12.2.
+      we recommend sticking with one of these. We support numba
+      versions >=0.13.4 (though 0.13.3 appears to work). We currently test on 0.17.
 
 PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format
