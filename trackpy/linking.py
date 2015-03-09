@@ -675,11 +675,13 @@ def link_df_iter(features, search_range, memory=0,
     # Non-destructively check the type of the first item of features
     feature_iter, feature_checktype_iter = itertools.tee(iter(features))
     try:  # If it quacks like a DataFrame...
-        next(itertools.islice(feature_checktype_iter, 1)).reset_index()
+        next(feature_checktype_iter).reset_index()
     except AttributeError:
         raise ValueError("Features data must be an iterable of DataFrames, one per "
                          "video frame. Use link_df() if you have a single DataFrame "
                          "describing multiple frames.")
+    del feature_checktype_iter  # Otherwise pipes will back up.
+
     # To allow retain_index
     features_for_reset, features_forindex = itertools.tee(feature_iter)
     index_iter = (fr.index.copy() for fr in features_forindex)
