@@ -10,8 +10,7 @@ import warnings
 
 import numpy as np
 
-from PIL import Image
-from pims import Frame
+from pims import plot_to_frame, plots_to_frame, normalize
 
 from .utils import print_update
 
@@ -19,7 +18,7 @@ from .utils import print_update
 __all__ = ['annotate', 'scatter', 'plot_traj', 'ptraj',
            'annotate3d', 'scatter3d', 'plot_traj3d', 'ptraj3d',
            'plot_displacements', 'subpx_bias', 'mass_size', 'mass_ecc',
-           'plot_density_profile', 'plot_to_frame', 'plots_to_frame']
+           'plot_density_profile']
 
 
 def make_axes(func):
@@ -160,71 +159,6 @@ def _set_labels(ax, label_format, pos_columns):
     ax.set_ylabel(label_format.format(pos_columns[1]))
     if hasattr(ax, 'set_zlabel') and len(pos_columns) > 2:
         ax.set_zlabel(label_format.format(pos_columns[2]))
-
-
-def plot_to_frame(fig, dpi, **imsave_kwargs):
-    """ Renders a matplotlib figure or axes object into a numpy array
-    containing RGBA data of the rendered image.
-
-    Parameters
-    ----------
-    fig : matplotlib Figure or Axes object
-    dpi : number, dots per inch used in figure rendering
-    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
-
-    Returns
-    -------
-    pims.Frame object containing RGBA values (dtype uint8)
-    """
-    import matplotlib as mpl
-    buffer = six.BytesIO()
-    if isinstance(fig, mpl.axes.Axes):
-        fig = fig.figure
-    fig.savefig(buffer, format='tif', dpi=dpi, **imsave_kwargs)
-    buffer.seek(0)
-    im = np.asarray(Image.open(buffer))
-    buffer.close()
-    return Frame(im)
-
-
-def plots_to_frame(figures, width=512, **imsave_kwargs):
-    """ Renders an iterable of matplotlib figures or axes objects into a
-    pims Frame object, that will be displayed as scrollable stack in IPython.
-
-    Parameters
-    ----------
-    figures : iterable of matplotlib Figure or Axes objects
-    width : integer, width in pixels
-    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
-
-    Returns
-    -------
-    pims.Frame object containing a stack of RGBA values (dtype uint8)
-    """
-    import matplotlib as mpl
-    if 'dpi' in imsave_kwargs or 'format' in imsave_kwargs:
-        raise ValueError('Do not specify dpi or format imsave kwargs.')
-    if isinstance(figures, mpl.axes.Axes) or \
-       isinstance(figures, mpl.figure.Figure):
-        raise ValueError('Use plot_to_frame for single figures, or supply '
-                         'an iterable of figures to plots_to_frame.')
-
-    # render first image to calculate the correct dpi and image size
-    size = plot_to_frame(figures[0], 100, **imsave_kwargs).shape
-    dpi = width * 100 / size[1]
-    h = width * size[0] / size[1]
-
-    frames = []
-    for n, fig in enumerate(figures):
-        im = plot_to_frame(fig, dpi, **imsave_kwargs)
-        # make the image the same size as the first image
-        if (im.shape[0] != h) or (im.shape[1] != width):
-            im = np.pad(im[:h, :width], ((0, max(0, h - im.shape[0])),
-                                         (0, max(0, width - im.shape[1])),
-                                         (0, 0)), mode=b'constant')
-        frames.append(im)
-
-    return Frame(np.array(frames))
 
 @make_axes
 def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
@@ -522,11 +456,7 @@ def annotate3d(centroids, image, **kwargs):
                          "converted to RGB using pims.display.to_rgb.")
 
     # We want to normalize on the full image and stop imshow from normalizing.
-    ptp = (image.max() - image.min()) / 255
-    # Handle edge case of a flat image.
-    if ptp == 0:
-        ptp = 255
-    normalized = ((image - image.min()) / ptp).astype(np.uint8)
+    normalized = (normalize(image) * 255).astype(np.uint8)
     imshow_style = dict(vmin=0, vmax=255)
     if '_imshow_style' in kwargs:
         kwargs['imshow_style'].update(imshow_style)
@@ -545,7 +475,7 @@ def annotate3d(centroids, image, **kwargs):
         annotate(centroidsZ, imageZ, **kwargs)
         figures.append(fig)
 
-    result = mpl_to_frame(figures, width=512, bbox_inches='tight')
+    result = plots_to_frame(figures, width=512, bbox_inches='tight')
 
     for fig in figures:
         plt.close(fig)
