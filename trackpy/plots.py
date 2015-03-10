@@ -10,7 +10,12 @@ import warnings
 
 import numpy as np
 
-from pims import plot_to_frame, plots_to_frame, normalize
+try:
+    from pims import plot_to_frame, plots_to_frame, normalize
+except ImportError:
+    plot_to_frame = None
+    plots_to_frame = None
+    normalize = None
 
 from .utils import print_update
 
@@ -446,6 +451,10 @@ def annotate3d(centroids, image, **kwargs):
     An extension of annotate that annotates a 3D image and returns a scrollable
     stack for display in IPython. Parameters: see annotate.
     """
+    if plots_to_frame is None:
+        raise ImportError('annotate3d requires pims 0.3 or later, please '
+                          'update pims')
+
     import matplotlib as mpl
     import matplotlib.pyplot as plt
 
