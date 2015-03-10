@@ -719,7 +719,8 @@ def plot_density_profile(f, binsize, blocks=None, mpp=None, fps=None,
 
 
 @make_axes
-def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
+def plot_displacements(t, frame1, frame2, scale=1, ax=None, pos_columns=None,
+                       **kwargs):
     """Plot arrows showing particles displacements between two frames.
 
     Parameters
@@ -733,6 +734,8 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
     scale : float
         scale factor, if 1 (default) then arrow end is placed at particle
         destination; if any other number arrows are rescaled
+    pos_columns : list of strings, optional
+        Dataframe column names for spatial coordinates. Default is ['x', 'y'].
 
     Other Parameters
     ----------------
@@ -740,29 +743,35 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, **kwargs):
 
     Any other keyword arguments will pass through to matplotlib's `annotate`.
     """
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
     a = t[t.frame == frame1]
     b = t[t.frame == frame2]
-    j = a.set_index('particle')[['x', 'y']].join(
-        b.set_index('particle')[['x', 'y']], rsuffix='_b')
-    j['dx'] = j.x_b - j.x
-    j['dy'] = j.y_b - j.y
-    arrow_specs = j[['x', 'y', 'dx', 'dy']].dropna()
+    j = (a.set_index('particle')[pos_columns].join(
+        b.set_index('particle')[pos_columns], rsuffix='_b'))
+    for i in pos_columns:
+        j['d' + i] = j[i + '_b'] - j[i]
+    arrow_specs = j[pos_columns + ['d' + i for i in pos_columns]].dropna()
 
     # Arrow defaults
     default_arrow_props = dict(arrowstyle='->', connectionstyle='arc3',
                                linewidth=2)
     kwargs['arrowprops'] = kwargs.get('arrowprops', default_arrow_props)
     for _, row in arrow_specs.iterrows():
-        xy = row[['x', 'y']]  # arrow start
-        xytext = xy.values + scale*row[['dx', 'dy']].values  # arrow end
+        xy = row[pos_columns]  # arrow start
+        xytext = xy.values + scale*row[['d' + i for i in pos_columns]].values
         # Use ax.annotate instead of ax.arrow because it is allows more
         # control over arrow style.
         ax.annotate("",
                     xy=xy, xycoords='data',
                     xytext=xytext, textcoords='data',
                     **kwargs)
-    ax.set_xlim(arrow_specs.x.min(), arrow_specs.x.max())
-    ax.set_ylim(arrow_specs.y.min(), arrow_specs.y.max())
+    ax.set_xlim(min(j[pos_columns[0]].min(), j[pos_columns[0] + '_b'].min()),
+                max(j[pos_columns[0]].max(), j[pos_columns[0] + '_b'].max()))
+    ax.set_ylim(min(j[pos_columns[1]].min(), j[pos_columns[1] + '_b'].min()),
+                max(j[pos_columns[1]].max(), j[pos_columns[1] + '_b'].max()))
+    _set_labels(ax, '{} [px]', pos_columns)
+
     return ax
 
 
