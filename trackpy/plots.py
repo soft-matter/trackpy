@@ -11,6 +11,9 @@ import warnings
 import numpy as np
 from pandas import DataFrame
 
+from PIL import Image
+from pims import Frame
+
 from .utils import print_update
 
 
@@ -119,8 +122,8 @@ def _plot(ax, coords, pos_columns, **plot_style):
         DataFrame of coordinates that will be plotted
     pos_columns : list of strings
         List of column names in x, y(, z) order.
-    plot_style : dictionary
-        Keyword arguments passed through to the `Axes.plot(...)` command
+    plot_style : keyword arguments
+        Keyword arguments passed through to the `Axes.plot(...)` method
 
     Returns
     -------
@@ -156,6 +159,70 @@ def _set_labels(ax, label_format, pos_columns):
     ax.set_ylabel(label_format.format(pos_columns[1]))
     if hasattr(ax, 'set_zlabel') and len(pos_columns) > 2:
         ax.set_zlabel(label_format.format(pos_columns[2]))
+
+
+def mpl_to_rgba(fig, dpi, **imsave_kwargs):
+    """ Renders a matplotlib figure or axes object into a numpy array
+    containing RGBA data of the rendered image.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure or Axes object
+    dpi : number
+    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
+
+    Returns
+    -------
+    numpy array containing 8 bit unsigned RGBA values
+    """
+    import matplotlib as mpl
+    buffer = six.BytesIO()
+    if isinstance(fig, mpl.axes.Axes):
+        fig = fig.figure
+    fig.savefig(buffer, format='tif', dpi=dpi, **imsave_kwargs)
+    buffer.seek(0)
+    im = np.asarray(Image.open(buffer))
+    buffer.close()
+    return im
+
+
+def mpl_to_frame(figures, width=512, **imsave_kwargs):
+    """ Renders an iterable of matplotlib figures or axes objects into a
+    pims Frame object, that will be displayed as scrollable stack in IPython.
+
+    Parameters
+    ----------
+    figures : iterable of matplotlib Figure or Axes objects
+    width : integer, width in pixels
+    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
+
+    Returns
+    -------
+    pims.Frame object containing a stack of RGBA values (dtype uint8)
+    """
+    import matplotlib as mpl
+    if 'dpi' in imsave_kwargs or 'format' in imsave_kwargs:
+        raise ValueError('Do not specify dpi or format imsave kwargs.')
+    if isinstance(figures, mpl.axes.Axes) or \
+       isinstance(figures, mpl.figure.Figure):
+        raise ValueError('Please supply an iterable of figures or axes objects.')
+    
+    # render first image to calculate the correct dpi and image size
+    size = mpl_to_rgba(figures[0], 100, **imsave_kwargs).shape
+    dpi = width * 100 / size[1]
+    height = width * size[0] / size[1]
+
+    frames = []
+    for n, fig in enumerate(figures):
+        im = mpl_to_rgba(fig, dpi, **imsave_kwargs)
+        # make the image the same size as the first image
+        if (im.shape[0] != height) or (im.shape[1] != width):
+            im = np.pad(im[:height, :width], ((0, max(0, height - im.shape[0])),
+                                              (0, max(0, width - im.shape[1])),
+                                              (0, 0)), mode='constant')
+        frames.append(im)
+
+    return Frame(np.array(frames))
 
 @make_axes
 def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
@@ -442,8 +509,8 @@ def annotate3d(centroids, image, **kwargs):
     An extension of annotate that annotates a 3D image and returns a scrollable
     stack for display in IPython. Parameters: see annotate.
     """
+    import matplotlib as mpl
     import matplotlib.pyplot as plt
-    from pims.display import scrollable_stack
 
     if image.ndim != 3 and not (image.ndim == 4 and image.shape[-1] in (3, 4)):
         raise ValueError("image has incorrect dimensions. Please input a 3D "
@@ -451,27 +518,36 @@ def annotate3d(centroids, image, **kwargs):
                          "use annotate. Multichannel images can be "
                          "converted to RGB using pims.display.to_rgb.")
 
-    if kwargs.get('ax') is None:
-        if hasattr(plt.gca(), 'zaxis'):
-            plt.clf()  # clear plot when plot is 3d
-        kwargs['ax'] = plt.gca()
+    # We want to normalize on the full image and stop imshow from normalizing.
+    ptp = (image.max() - image.min()) / 255
+    # Handle edge case of a flat image.
+    if ptp == 0:
+        ptp = 255
+    normalized = ((image - image.min()) / ptp).astype(np.uint8)
+    imshow_style = dict(vmin=0, vmax=255)
+    if '_imshow_style' in kwargs:
+        kwargs['imshow_style'].update(imshow_style)
+    else:
+        kwargs['imshow_style'] = imshow_style
 
-    for i, imageZ in enumerate(image):
-        centroidsZ = centroids[np.logical_and(centroids['z'] > i - 0.5,
-                                              centroids['z'] < i + 0.5)]
-        ax = annotate(centroidsZ, imageZ, **kwargs)
-        fig = ax.get_figure()
-        fig.canvas.draw()
-        if i == 0:
-            w, h = fig.canvas.get_width_height()
-            result = np.empty((image.shape[0], h, w, 4))
-        plot_rgb = np.fromstring(fig.canvas.tostring_argb(),
-                                 dtype=np.uint8)
-        plot_rgb = plot_rgb.reshape(h, w, 4)
-        result[i] = np.roll(plot_rgb, 3, axis=2)  # argb to rgba
-        ax.cla()
-    fig.clf()
-    return scrollable_stack(result, width=w)
+    # Suppress warning when >20 figures are opened
+    max_open_warning = mpl.rcParams['figure.max_open_warning']
+    mpl.rc('figure', max_open_warning=0)
+    figures = []
+    for i, imageZ in enumerate(normalized):
+        fig = plt.figure()
+        kwargs['ax'] = fig.gca()
+        centroidsZ = centroids[(centroids['z'] > i - 0.5) &
+                               (centroids['z'] < i + 0.5)]
+        annotate(centroidsZ, imageZ, **kwargs)
+        figures.append(fig)
+
+    result = mpl_to_frame(figures, bbox_inches='tight')
+
+    for fig in figures:
+        plt.close(fig)
+    mpl.rc('figure', max_open_warning=max_open_warning)
+    return result
 
 
 @make_axes
