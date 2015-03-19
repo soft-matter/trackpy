@@ -6,17 +6,20 @@ trackpy
 What is it?
 -----------
 
-**trackpy** is a Python package providing tools for particle tracking.
+**trackpy** is a Python package providing tools for 2D and 3D particle tracking.
 **[Read the walkthrough](http://soft-matter.github.io/trackpy/tutorial/walkthrough.html)** to skim or study an example project from start to finish.
 
 Documentation
 -------------
 
-[**Read the documentation**](http://soft-matter.github.io/trackpy/) for an
-introduction to the project, easy installation instructions, tutorials, the
-reference guide, and much more.
+[**Read the documentation**](http://soft-matter.github.io/trackpy/) for
+
+- an introduction
+- tutorials on the basics, 3D tracking, and much, much more
+- easy installation instructions
+- the reference guide
 
 If you use trackpy for published research, please
 [cite the release](http://soft-matter.github.io/trackpy/introduction.html#citing-trackpy)
-both to credit the contributors and to direct your readers to the exact
+both to credit the contributors, and to direct your readers to the exact
 version of trackpy they could use to reproduce your results.
