@@ -86,6 +86,7 @@ the `github repository <https://github.com/soft-matter/trackpy>`_.
 
    tutorial/walkthrough
    tutorial/prediction
+   tutorial/tracking-3d
    tutorial/uncertainty
    tutorial/subnets
    tutorial/adaptive-search
