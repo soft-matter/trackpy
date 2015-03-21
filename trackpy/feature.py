@@ -148,15 +148,28 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         if walkthrough:
             raise ValueError("walkthrough is not availabe in the numba engine")
         # Do some extra prep in pure Python that can't be done in numba.
-        coords = np.array(coords, dtype=np.float_)
+        coords = np.array(coords, dtype=np.float64)
+        N = coords.shape[0]
         shape = np.array(image.shape, dtype=np.int16)  # array, not tuple
         mask = binary_mask(radius[0], image.ndim)
         r2_mask = r_squared_mask(radius[0], image.ndim)
         cmask = cosmask(radius[0])
         smask = sinmask(radius[0])
-        results = _numba_refine(raw_image, image, int(radius[0]), coords,
+        # Allocate a results array that _numba_refine will write to
+        if characterize:
+            results_columns = 6
+        else:
+            results_columns = 3  # Position and mass only
+        results = np.empty((N, results_columns), dtype=np.float64)
+        _ = _numba_refine(np.asarray(raw_image), np.asarray(image), int(radius[0]),
+                                coords, N,
                                 int(max_iterations), characterize,
-                                shape, mask, r2_mask, cmask, smask)
+                                shape, mask, r2_mask, cmask, smask, results,
+                                np.empty(2, dtype=np.float64),  # Buffer arrays.
+                                np.empty(2, dtype=np.float64),  # See function def.
+                                np.empty(2, dtype=np.float64),
+                                np.empty(2, dtype=np.float64),
+                                np.empty(2, dtype=np.int64),)
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
 
@@ -281,48 +294,27 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     return result
 
 
-def _get_numba_refine_locals():
-    """Establish types of local variables in _numba_refine(), in a way that's
-    safe if there's no numba."""
-    try:
-        from numba import double, int_
-    except ImportError:
-        return {}
-    else:
-        return dict(square0=int_, square1=int_, square_size=int_,
-                    Rg_=double, ecc_=double)
-
-
-@try_numba_autojit(locals=_get_numba_refine_locals())
-def _numba_refine(raw_image, image, radius, coords, max_iterations,
-                  characterize, shape, mask, r2_mask, cmask, smask):
+@try_numba_autojit(nopython=False)
+def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
+                  characterize, shape, mask, r2_mask, cmask, smask, results,
+                  coord, cm_n, cm_i, off_center, new_coord):
     SHIFT_THRESH = 0.6
     GOOD_ENOUGH_THRESH = 0.01
+    # Column indices into the 'results' array
+    MASS_COL = 2
+    RG_COL = 3
+    ECC_COL = 4
+    SIGNAL_COL = 5
 
     square_size = 2*radius + 1
-
-    # Declare arrays that we will fill iteratively through loop.
-    N = coords.shape[0]
-    final_coords = np.empty_like(coords, dtype=np.float_)
-    mass = np.empty(N, dtype=np.float_)
-    Rg = np.empty(N, dtype=np.float_)
-    ecc = np.empty(N, dtype=np.float_)
-    signal = np.empty(N, dtype=np.float_)
-    coord = np.empty((2,), dtype=np.float_)
-
-    # Buffer arrays
-    cm_n = np.empty(2, dtype=np.float_)
-    cm_i = np.empty(2, dtype=np.float_)
-    off_center = np.empty(2, dtype=np.float_)
-    new_coord = np.empty((2,), dtype=np.int_)
 
     for feat in range(N):
         # Define the circular neighborhood of (x, y).
         for dim in range(2):
             coord[dim] = coords[feat, dim]
             cm_n[dim] = 0.
-        square0 = coord[0] - radius
-        square1 = coord[1] - radius
+        square0 = int(round(coord[0])) - radius
+        square1 = int(round(coord[1])) - radius
         mass_ = 0.0
         for i in range(square_size):
             for j in range(square_size):
@@ -401,8 +393,8 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
                 cm_i[dim] = cm_n[dim] - radius + new_coord[dim]
                 coord[dim] = new_coord[dim]
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        final_coords[feat, 0] = cm_i[1]
-        final_coords[feat, 1] = cm_i[0]
+        results[feat, 0] = cm_i[1]
+        results[feat, 1] = cm_i[0]
 
         # Characterize the neighborhood of our final centroid.
         mass_ = 0.
@@ -424,20 +416,14 @@ def _numba_refine(raw_image, image, radius, coords, max_iterations,
                     raw_px = raw_image[square0 + i, square1 + j]
                     if raw_px > signal_:
                         signal_ = px
-        Rg_ = np.sqrt(Rg_/mass_)
-        mass[feat] = mass_
+        results[feat, MASS_COL] = mass_
         if characterize:
-            Rg[feat] = Rg_
+            results[feat, RG_COL] = np.sqrt(Rg_/mass_)
             center_px = image[square0 + radius, square1 + radius]
-            ecc_ = np.sqrt(ecc1**2 + ecc2**2)/(mass_ - center_px + 1e-6)
-            ecc[feat] = ecc_
-            signal[feat] = signal_  # black_level subtracted later
+            results[feat, ECC_COL] = np.sqrt(ecc1**2 + ecc2**2)/(mass_ - center_px + 1e-6)
+            results[feat, SIGNAL_COL] = signal_  # black_level subtracted later
 
-    if not characterize:
-        result = np.column_stack([final_coords, mass])
-    else:
-        result = np.column_stack([final_coords, mass, Rg, ecc, signal])
-    return result
+    return 0  # Unused
 
 
 def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
