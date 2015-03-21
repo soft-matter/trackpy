@@ -51,7 +51,7 @@ Trackpy: Fast, Flexible Particle-Tracking Toolkit
     <br>
 
 
-Trackpy is a Python package providing tools for particle tracking.
+Trackpy is a Python package for particle tracking in 2D, 3D, and higher dimensions.
 
 For a brief introduction to the ideas behind the package, you can read the :ref:`introductory notes <introduction>`. Read the :doc:`walkthrough <tutorial/walkthrough>` to study an example project from start to finish.
 
