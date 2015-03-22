@@ -14,47 +14,99 @@ from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_produces_warning)
+from scipy.spatial import cKDTree
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
+from trackpy.utils import validate_tuple
 
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
-    if image.shape[:-1] == image.shape[1:]:
-        raise ValueError("For stupid numpy broadcasting reasons, don't make " +
-                         "the image square.")
-    ndim = image.ndim
-    r = tp.utils.validate_tuple(r, ndim)
-    rect = []
-    vectors = []
-    for (c, rad, lim) in zip(pos, r, image.shape):
-        if (c >= lim) or (c < 0):
-            raise ValueError("Position outside image.")
-        lower_bound = max(int(round((c - 3*rad))), 0)
-        upper_bound = min(int(round((c + 3*rad + 1))), lim)
-        rect.append(slice(lower_bound, upper_bound))
-        vectors.append(np.arange(lower_bound - c, upper_bound - c))
-    coords = np.meshgrid(*vectors, indexing='ij')
+def feat_gauss(r, rg=0.333):
+    """ Gaussian at r = 0 with max value of 1. Its radius of gyration is
+    given by rg. """
+    return np.exp((r/rg)**2 * r.ndim/-2)
+
+
+def feat_gauss_edge(r, value_at_edge=0.1):
+    """ Gaussian at r = 0 with max value of 1. Its value at r = 1 is given by
+    value_at_edge. """
+    return np.exp(np.log(value_at_edge)*r**2)
+
+
+def feat_ring(r, r_at_max, value_at_edge=0.1):
+    """ Ring feature with a gaussian profile, centered at r_at_max. Its value 
+    at r = 1 is given by value_at_edge."""
+    return np.exp(np.log(value_at_edge)*((r - r_at_max) / (1 - r_at_max))**2)
+
+
+def feat_hat(r, disc_size, value_at_edge=0.1):
+    """ Solid disc of size disc_size, with Gaussian smoothed borders. """
+    mask = r > disc_size
+    spot = (~mask).astype(r.dtype)
+    spot[mask] = feat_ring(r[mask], disc_size, value_at_edge)
+    spot[~mask] = 1
+    return spot
+
+
+def feat_step(r):
+    """ Solid disc. """
+    return r <= 1
+
+
+def draw_feature(image, position, diameter, max_value=None,
+                 feat_func=feat_gauss, ecc=None, **kwargs):
+    """ Draws a radial symmetric feature and adds it to the image at given
+    position.
+
+    Parameters
+    ----------
+    image : ndarray
+        image to draw features on
+    position : iterable
+        coordinates of feature position
+    diameter : number
+        defines the box that will be drawn on
+    max_value : number
+        maximum feature value. should be much less than the max value of the
+        image dtype, to avoid pixel wrapping at overlapping features
+    feat_func : function. Default: feat_gauss
+        function f(r) that takes an ndarray of radius values
+        and returns intensity values <= 1
+    ecc : positive number, optional
+        eccentricity of feature, defined only in 2D. Identical to setting
+        diameter to (diameter / (1 - ecc), diameter * (1 - ecc))
+    kwargs : keyword arguments are passed to feat_func
+    """
+    if len(position) != image.ndim:
+        raise ValueError("Number of position coordinates should match image"
+                         " dimensionality.")
+    diameter = validate_tuple(diameter, image.ndim)
+    if ecc is not None:
+        if len(diameter) != 2:
+            raise ValueError("Eccentricity is only defined in 2 dimensions")
+        if diameter[0] != diameter[1]:
+            raise ValueError("Diameter is already anisotropic; eccentricity is"
+                             " not defined.")
+        diameter = (diameter[0] / (1 - ecc), diameter[1] * (1 - ecc))
+    radius = tuple([(d - 1) / 2 for d in diameter])
     if max_value is None:
         max_value = np.iinfo(image.dtype).max - 3
-    if ndim == 2 and r[0] == r[1]:
-        # Special case for 2D: implement eccentricity.
-        y, x = coords
-        spot = max_value*np.exp(
-            -((x / (1 - ecc))**2 + (y * (1 - ecc))**2)/(2*r[0]**2))
-    else:
-        if ecc != 0:
-            raise ValueError("Eccentricity must be 0 if image is not 2D or " +
-                             "if features are is anisotropic.")
-        coords = np.asarray(coords)
-        spot = max_value*np.exp(-np.sum([ci**2/(ndim*ri**2)
-                                         for (ci, ri) in zip(coords, r)], 0))
-    clip = image[rect] + spot > np.iinfo(image.dtype).max
+    rect = []
+    vectors = []
+    for (c, r, lim) in zip(position, radius, image.shape):
+        if (c >= lim) or (c < 0):
+            raise ValueError("Position outside of image.")
+        lower_bound = max(int(np.floor(c - r)), 0)
+        upper_bound = min(int(np.ceil(c + r + 1)), lim)
+        rect.append(slice(lower_bound, upper_bound))
+        vectors.append(np.arange(lower_bound - c, upper_bound - c) / r)
+    coords = np.meshgrid(*vectors, indexing='ij', sparse=True)
+    r = np.sqrt(np.sum(np.array(coords)**2, axis=0))
+    spot = max_value * feat_func(r, **kwargs)
     image[rect] += spot.astype(image.dtype)
-    image[rect][clip] = np.iinfo(image.dtype).max
 
 
 def draw_point(image, pos, value):
@@ -62,29 +114,65 @@ def draw_point(image, pos, value):
 
 
 def gen_random_locations(shape, count, margin=0):
-    margin = tp.utils.validate_tuple(margin, len(shape))
+    margin = validate_tuple(margin, len(shape))
     np.random.seed(0)
-    return np.array(
-        [[np.random.randint(m, s - m) for (s, m) in zip(shape, margin)]
-         for _ in range(count)])
+    pos = [np.random.randint(round(m), round(s - m), count)
+           for (s, m) in zip(shape, margin)]
+    return np.array(pos).T
 
 
-def draw_spots(shape, locations, r, noise_level):
+def eliminate_overlapping_locations(f, separation):
+    separation = validate_tuple(separation, f.shape[1])
+    assert np.greater(separation, 0).all()
+    # Rescale positions, so that pairs are identified below a distance of 1.
+    f = f / separation
+    while True:
+        duplicates = cKDTree(f, 30).query_pairs(1)
+        if len(duplicates) == 0:
+            break
+        to_drop = []
+        for pair in duplicates:
+            to_drop.append(pair[1])
+        f = np.delete(f, to_drop, 0)
+    return f * separation
+
+
+def gen_nonoverlapping_locations(shape, count, separation, margin=0):
+    positions = gen_random_locations(shape, count, margin)
+    return eliminate_overlapping_locations(positions, separation)
+
+
+def draw_spots(shape, positions, diameter, noise_level=0, bitdepth=8,
+               feat_func=feat_gauss, **kwargs):
+    if bitdepth <= 8:
+        dtype = np.uint8
+        internaldtype = np.uint16
+    elif bitdepth <= 16:
+        dtype = np.uint16
+        internaldtype = np.uint32
+    elif bitdepth <= 32:
+        dtype = np.uint32
+        internaldtype = np.uint64
+    else:
+        raise ValueError('Bitdepth should be <= 32')
     np.random.seed(0)
-    image = np.random.randint(0, 1 + noise_level, shape).astype('uint8')
-    for x in locations:
-        draw_gaussian_spot(image, x, r)
-    return image
+    image = np.random.randint(0, noise_level + 1, shape).astype(internaldtype)
+    for pos in positions:
+        draw_feature(image, pos, diameter, max_value=2**bitdepth - 1,
+                     feat_func=feat_func, **kwargs)
+    return image.clip(0, 2**bitdepth - 1).astype(dtype)
 
 
 def compare(shape, count, radius, noise_level, engine):
     radius = tp.utils.validate_tuple(radius, len(shape))
     # tp.locate ignores a margin of size radius, take 1 px more to be safe
     margin = tuple([r + 1 for r in radius])
+    diameter = tuple([(r + 1) * 2 for r in radius])
     cols = ['x', 'y', 'z'][:len(shape)][::-1]
-    pos = gen_random_locations(shape, count, margin)
-    image = draw_spots(shape, pos, radius, noise_level)
-    f = tp.locate(image, [2*r + 1 for r in radius], minmass=1800, engine=engine)
+    pos = gen_nonoverlapping_locations(shape, count, diameter, margin)
+    image = draw_spots(shape, pos, diameter, noise_level)
+    f = tp.locate(image, [2*r + 1 for r in radius],
+                  engine=engine)
     actual = f[cols].sort(cols)
     expected = DataFrame(pos, columns=cols).sort(cols)
     return actual, expected
@@ -224,7 +312,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4)
+        draw_feature(image, pos, 27)
         actual = tp.locate(image, 9, 1, preprocess=False,
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
@@ -238,11 +326,11 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4)
+        draw_feature(image, pos, 27)
         actual = tp.locate(image, 9, 1, preprocess=False,
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
-        
+
     def test_one_centered_gaussian_3D_anisotropic(self):
         self.skip_numba()
         L = 21
@@ -252,7 +340,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, (3, 4, 4))
+        draw_feature(image, pos, (21, 27, 27))
         actual = tp.locate(image, (7, 9, 9), 1, preprocess=False,
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
@@ -270,7 +358,7 @@ class CommonFeatureIdentificationTests(object):
         dims = (y.max() - y.min() + 5*diameter, int(4 * diameter) - 2)
         image = np.ones(dims, dtype='uint8')
         for ypos, xpos in expected[['y', 'x']].values:
-            draw_gaussian_spot(image, [ypos, xpos], 4, max_value=100)
+            draw_feature(image, [ypos, xpos], 27, max_value=100)
         def locate(image, **kwargs):
             return tp.locate(image, diameter, 1, preprocess=False,
                              engine=self.engine, **kwargs)[cols]
@@ -471,36 +559,36 @@ class CommonFeatureIdentificationTests(object):
 
         SIZE = 2
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 7, 1, preprocess=False,
+        draw_feature(image, pos, (SIZE*2 + 1) * 3)
+        actual = tp.locate(image, SIZE*2 + 5, 1, preprocess=False,
                            engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
 
         SIZE = 3
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 11, 1, preprocess=False,
+        draw_feature(image, pos, (SIZE*2 + 1) * 3)
+        actual = tp.locate(image, SIZE*2 + 5, 1, preprocess=False,
                            engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
 
         SIZE = 5
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 17, 1, preprocess=False,
+        draw_feature(image, pos, (SIZE*2 + 1) * 3)
+        actual = tp.locate(image, SIZE*2 + 7, 1, preprocess=False,
                            engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
-        
+
         SIZE = 7
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 23, 1, preprocess=False,
+        draw_feature(image, pos, (SIZE*2 + 1) * 3)
+        actual = tp.locate(image, SIZE*2 + 11, 1, preprocess=False,
                            engine=self.engine)['size']
         expected = SIZE
         assert_allclose(actual, expected, rtol=0.1)
-        
+
     def test_eccentricity(self):
         # Eccentricity (elongation) is measured with good accuracy and
         # ~0.02 precision, as long as the mask is large enough to cover
@@ -513,7 +601,7 @@ class CommonFeatureIdentificationTests(object):
 
         ECC = 0
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4, ecc=ECC)
+        draw_feature(image, pos, 27, ecc=ECC)
         actual = tp.locate(image, 21, 1, preprocess=False,
                            engine=self.engine)['ecc']
         expected = ECC
@@ -521,7 +609,7 @@ class CommonFeatureIdentificationTests(object):
 
         ECC = 0.2
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4, ecc=ECC)
+        draw_feature(image, pos, 27, ecc=ECC)
         actual = tp.locate(image, 21, 1, preprocess=False,
                            engine=self.engine)['ecc']
         expected = ECC
@@ -529,7 +617,7 @@ class CommonFeatureIdentificationTests(object):
 
         ECC = 0.5
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4, ecc=ECC)
+        draw_feature(image, pos, 27, ecc=ECC)
         actual = tp.locate(image, 21, 1, preprocess=False,
                            engine=self.engine)['ecc']
         expected = ECC
@@ -544,7 +632,7 @@ class CommonFeatureIdentificationTests(object):
         expected = np.array([pos])
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 2)
+        draw_feature(image, pos, 15)
 
         guess = np.array([[6, 13]])
         actual = tp.feature.refine(image, image, 6, guess, characterize=False,
