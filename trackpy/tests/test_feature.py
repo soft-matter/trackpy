@@ -552,42 +552,34 @@ class CommonFeatureIdentificationTests(object):
         # http://www.physics.emory.edu/~weeks/idl/radius.html
 
         self.check_skip()
-        L = 101 
+        L = 101
         dims = (L, L + 2)  # avoid square images in tests
         pos = [50, 55]
-        cols = ['y', 'x']
-
-        SIZE = 2
-        image = np.ones(dims, dtype='uint8')
-        draw_feature(image, pos, (SIZE*2 + 1) * 3)
-        actual = tp.locate(image, SIZE*2 + 5, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE
-        assert_allclose(actual, expected, rtol=0.1)
 
         SIZE = 3
         image = np.ones(dims, dtype='uint8')
-        draw_feature(image, pos, (SIZE*2 + 1) * 3)
-        actual = tp.locate(image, SIZE*2 + 5, 1, preprocess=False,
+        draw_feature(image, pos, (SIZE*2 + 1) * 3, rg=0.333)
+        actual = tp.locate(image, (SIZE*2 + 1) * 3, 1, preprocess=False,
                            engine=self.engine)['size']
-        expected = SIZE
+        expected = SIZE + 0.2  # rg always turns out slightly higher
         assert_allclose(actual, expected, rtol=0.1)
 
         SIZE = 5
         image = np.ones(dims, dtype='uint8')
-        draw_feature(image, pos, (SIZE*2 + 1) * 3)
-        actual = tp.locate(image, SIZE*2 + 7, 1, preprocess=False,
+        draw_feature(image, pos, (SIZE*2 + 1) * 3, rg=0.333)
+        actual = tp.locate(image, (SIZE*2 + 1) * 3, 1, preprocess=False,
                            engine=self.engine)['size']
-        expected = SIZE
+        expected = SIZE + 0.2  # rg always turns out slightly higher
         assert_allclose(actual, expected, rtol=0.1)
 
-        SIZE = 7
+        SIZE = 8
         image = np.ones(dims, dtype='uint8')
-        draw_feature(image, pos, (SIZE*2 + 1) * 3)
-        actual = tp.locate(image, SIZE*2 + 11, 1, preprocess=False,
+        draw_feature(image, pos, (SIZE*2 + 1) * 3, rg=0.333)
+        actual = tp.locate(image, (SIZE*2 + 1) * 3, 1, preprocess=False,
                            engine=self.engine)['size']
-        expected = SIZE
+        expected = SIZE + 0.2  # rg always turns out slightly higher
         assert_allclose(actual, expected, rtol=0.1)
+
 
     def test_eccentricity(self):
         # Eccentricity (elongation) is measured with good accuracy and
