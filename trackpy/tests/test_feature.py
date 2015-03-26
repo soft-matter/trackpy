@@ -405,9 +405,12 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=PRECISION)
 
     def test_rg(self):
-        # For Gaussians with radii 2, 3, 5, and 7 px, with proportionately
-        # chosen feature (mask) sizes, the 'size' comes out to be within 10%
-        # of the true Gaussian width.
+        # To draw Gaussians with radii 2, 3, 5, and 7 px, we supply the draw
+        # function with rg=0.25. This means that the radius of gyration will be
+        # one fourth of the max radius in the draw area, which is diameter/2.
+
+        # The 'size' comes out to be within 3%, which is because of the
+        # pixelation of the Gaussian.
 
         # The IDL code has mistake in this area, documented here:
         # http://www.physics.emory.edu/~weeks/idl/radius.html
@@ -415,32 +418,13 @@ class CommonFeatureIdentificationTests(object):
         self.check_skip()
         L = 101
         dims = (L, L + 2)  # avoid square images in tests
-        pos = [50, 55]
-
-        SIZE = 3
-        image = np.ones(dims, dtype='uint8')
-        draw_feature(image, pos, (SIZE*2 + 1) * 3, rg=0.333)
-        actual = tp.locate(image, (SIZE*2 + 1) * 3, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE + 0.2  # rg always turns out slightly higher
-        assert_allclose(actual, expected, rtol=0.1)
-
-        SIZE = 5
-        image = np.ones(dims, dtype='uint8')
-        draw_feature(image, pos, (SIZE*2 + 1) * 3, rg=0.333)
-        actual = tp.locate(image, (SIZE*2 + 1) * 3, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE + 0.2  # rg always turns out slightly higher
-        assert_allclose(actual, expected, rtol=0.1)
-
-        SIZE = 8
-        image = np.ones(dims, dtype='uint8')
-        draw_feature(image, pos, (SIZE*2 + 1) * 3, rg=0.333)
-        actual = tp.locate(image, (SIZE*2 + 1) * 3, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE + 0.2  # rg always turns out slightly higher
-        assert_allclose(actual, expected, rtol=0.1)
-
+        for pos in [[50, 55], [50.2, 55], [50.5, 55]]:
+            for SIZE in [2, 3, 5, 7]:
+                image = np.zeros(dims, dtype='uint8')
+                draw_feature(image, pos, SIZE*8, rg=0.25)
+                actual = tp.locate(image, SIZE*8 - 1, 1, preprocess=False,
+                                   engine=self.engine)['size']
+                assert_allclose(actual, SIZE, rtol=0.1)
 
     def test_eccentricity(self):
         # Eccentricity (elongation) is measured with good accuracy and
