@@ -77,7 +77,7 @@ def draw_feature(image, position, diameter, max_value=None,
             raise ValueError("Diameter is already anisotropic; eccentricity is"
                              " not defined.")
         diameter = (diameter[0] / (1 - ecc), diameter[1] * (1 - ecc))
-    radius = tuple([(d - 1) / 2 for d in diameter])
+    radius = tuple([d / 2 for d in diameter])
     if max_value is None:
         max_value = np.iinfo(image.dtype).max - 3
     rect = []
