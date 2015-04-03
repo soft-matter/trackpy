@@ -11,6 +11,8 @@ Feature-Finding
 
 - The percentile-based thresholding was moved into a serpate function, so it can now be called directly. That will be useful to users who want to inspect what the thresholding is doing to their images. It will also be useful for profiling. (:issue:`139`)
 
+- The performance of feature-finding can now be tested in a custom way using new routines in ``artificial.py``. Users can provide a custom feature shape to test the feature-finding on their own system.
+
 Bug Fixes
 ~~~~~~~~~
 
