@@ -45,7 +45,8 @@ def feat_step(r):
 def draw_feature(image, position, diameter, max_value=None,
                  feat_func=feat_gauss, ecc=None, **kwargs):
     """ Draws a radial symmetric feature and adds it to the image at given
-    position.
+    position. The given function will be evaluated at each pixel coordinate,
+    no averaging or convolution is done.
 
     Parameters
     ----------
@@ -127,7 +128,7 @@ def eliminate_overlapping_locations(f, separation):
 
 def gen_nonoverlapping_locations(shape, count, separation, margin=0):
     """ Generates `count` number of positions within `shape`, that have minimum
-    distance `separatin` from each other. The number of positions returned may
+    distance `separation` from each other. The number of positions returned may
     be lower than `count`, because positions too close to each other will be
     deleted. If a `margin` is given, positions will be inside this margin.
     Margin may be tuple-valued.
@@ -138,7 +139,9 @@ def gen_nonoverlapping_locations(shape, count, separation, margin=0):
 
 def draw_spots(shape, positions, diameter, noise_level=0, bitdepth=8,
                feat_func=feat_gauss, ecc=None, **kwargs):
-    """ Generates an image with features at given positions.
+    """ Generates an image with features at given positions. A feature with
+    position x will be centered around pixel x. In other words, the origin of
+    the output image is located at the center of pixel (0, 0).
 
     Parameters
     ----------

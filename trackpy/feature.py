@@ -495,6 +495,10 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     Notes
     -----
+    Locate works with a coordinate system that has its origin at the center of
+    pixel (0, 0). In almost all cases this will be the topleft pixel: the
+    y-axis is pointing downwards.
+
     This is an implementation of the Crocker-Grier centroid-finding algorithm.
     [1]_
 
@@ -732,6 +736,10 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     -----
     This is an implementation of the Crocker-Grier centroid-finding algorithm.
     [1]_
+
+    Locate works with a coordinate system that has its origin at the center of
+    pixel (0, 0). In almost all cases this will be the topleft pixel: the
+    y-axis is pointing downwards.
 
     References
     ----------
