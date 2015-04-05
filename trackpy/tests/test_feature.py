@@ -17,74 +17,23 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
+from trackpy.artificial import (draw_feature, draw_spots, draw_point,
+                                gen_nonoverlapping_locations)
 
 
 path, _ = os.path.split(os.path.abspath(__file__))
-
-
-def draw_gaussian_spot(image, pos, r, max_value=None, ecc=0):
-    if image.shape[:-1] == image.shape[1:]:
-        raise ValueError("For stupid numpy broadcasting reasons, don't make " +
-                         "the image square.")
-    ndim = image.ndim
-    r = tp.utils.validate_tuple(r, ndim)
-    rect = []
-    vectors = []
-    for (c, rad, lim) in zip(pos, r, image.shape):
-        if (c >= lim) or (c < 0):
-            raise ValueError("Position outside image.")
-        lower_bound = max(int(round((c - 3*rad))), 0)
-        upper_bound = min(int(round((c + 3*rad + 1))), lim)
-        rect.append(slice(lower_bound, upper_bound))
-        vectors.append(np.arange(lower_bound - c, upper_bound - c))
-    coords = np.meshgrid(*vectors, indexing='ij')
-    if max_value is None:
-        max_value = np.iinfo(image.dtype).max - 3
-    if ndim == 2 and r[0] == r[1]:
-        # Special case for 2D: implement eccentricity.
-        y, x = coords
-        spot = max_value*np.exp(
-            -((x / (1 - ecc))**2 + (y * (1 - ecc))**2)/(2*r[0]**2))
-    else:
-        if ecc != 0:
-            raise ValueError("Eccentricity must be 0 if image is not 2D or " +
-                             "if features are is anisotropic.")
-        coords = np.asarray(coords)
-        spot = max_value*np.exp(-np.sum([ci**2/(ndim*ri**2)
-                                         for (ci, ri) in zip(coords, r)], 0))
-    clip = image[rect] + spot > np.iinfo(image.dtype).max
-    image[rect] += spot.astype(image.dtype)
-    image[rect][clip] = np.iinfo(image.dtype).max
-
-
-def draw_point(image, pos, value):
-    image[tuple(pos)] = value
-
-
-def gen_random_locations(shape, count, margin=0):
-    margin = tp.utils.validate_tuple(margin, len(shape))
-    np.random.seed(0)
-    return np.array(
-        [[np.random.randint(m, s - m) for (s, m) in zip(shape, margin)]
-         for _ in range(count)])
-
-
-def draw_spots(shape, locations, r, noise_level):
-    np.random.seed(0)
-    image = np.random.randint(0, 1 + noise_level, shape).astype('uint8')
-    for x in locations:
-        draw_gaussian_spot(image, x, r)
-    return image
 
 
 def compare(shape, count, radius, noise_level, engine):
     radius = tp.utils.validate_tuple(radius, len(shape))
     # tp.locate ignores a margin of size radius, take 1 px more to be safe
     margin = tuple([r + 1 for r in radius])
+    diameter = tuple([(r * 2) + 1 for r in radius])
+    draw_range = tuple([d * 3 for d in diameter])
     cols = ['x', 'y', 'z'][:len(shape)][::-1]
-    pos = gen_random_locations(shape, count, margin)
-    image = draw_spots(shape, pos, radius, noise_level)
-    f = tp.locate(image, [2*r + 1 for r in radius], minmass=1800, engine=engine)
+    pos = gen_nonoverlapping_locations(shape, count, draw_range, margin)
+    image = draw_spots(shape, pos, draw_range, noise_level)
+    f = tp.locate(image, diameter, engine=engine)
     actual = f[cols].sort(cols)
     expected = DataFrame(pos, columns=cols).sort(cols)
     return actual, expected
@@ -224,7 +173,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4)
+        draw_feature(image, pos, 27)
         actual = tp.locate(image, 9, 1, preprocess=False,
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
@@ -238,11 +187,11 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4)
+        draw_feature(image, pos, 27)
         actual = tp.locate(image, 9, 1, preprocess=False,
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
-        
+
     def test_one_centered_gaussian_3D_anisotropic(self):
         self.skip_numba()
         L = 21
@@ -252,7 +201,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, (3, 4, 4))
+        draw_feature(image, pos, (21, 27, 27))
         actual = tp.locate(image, (7, 9, 9), 1, preprocess=False,
                            engine=self.engine)[cols]
         assert_allclose(actual, expected, atol=0.1)
@@ -270,7 +219,7 @@ class CommonFeatureIdentificationTests(object):
         dims = (y.max() - y.min() + 5*diameter, int(4 * diameter) - 2)
         image = np.ones(dims, dtype='uint8')
         for ypos, xpos in expected[['y', 'x']].values:
-            draw_gaussian_spot(image, [ypos, xpos], 4, max_value=100)
+            draw_feature(image, [ypos, xpos], 27, max_value=100)
         def locate(image, **kwargs):
             return tp.locate(image, diameter, 1, preprocess=False,
                              engine=self.engine, **kwargs)[cols]
@@ -285,7 +234,7 @@ class CommonFeatureIdentificationTests(object):
         actual = locate(np.flipud(image.transpose()))
         assert len(actual)
 
-    def test_subpx_precision(self): 
+    def test_subpx_precision(self):
         self.check_skip()
         L = 21
         dims = (L, L + 2)  # avoid square images in tests
@@ -325,7 +274,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
-        pos = [7.75, 13]  # center is between pixels, biased right 
+        pos = [7.75, 13]  # center is between pixels, biased right
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 50)
         draw_point(image, pos2, 100)
@@ -345,7 +294,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
-        pos = [7, 12.75]  # center is between pixels, biased up 
+        pos = [7, 12.75]  # center is between pixels, biased up
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 50)
         draw_point(image, pos2, 100)
@@ -456,51 +405,27 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=PRECISION)
 
     def test_rg(self):
-        # For Gaussians with radii 2, 3, 5, and 7 px, with proportionately
-        # chosen feature (mask) sizes, the 'size' comes out to be within 10%
-        # of the true Gaussian width.
+        # To draw Gaussians with radii 2, 3, 5, and 7 px, we supply the draw
+        # function with rg=0.25. This means that the radius of gyration will be
+        # one fourth of the max radius in the draw area, which is diameter/2.
+
+        # The 'size' comes out to be within 3%, which is because of the
+        # pixelation of the Gaussian.
 
         # The IDL code has mistake in this area, documented here:
         # http://www.physics.emory.edu/~weeks/idl/radius.html
 
         self.check_skip()
-        L = 101 
+        L = 101
         dims = (L, L + 2)  # avoid square images in tests
-        pos = [50, 55]
-        cols = ['y', 'x']
+        for pos in [[50, 55], [50.2, 55], [50.5, 55]]:
+            for SIZE in [2, 3, 5, 7]:
+                image = np.zeros(dims, dtype='uint8')
+                draw_feature(image, pos, SIZE*8, rg=0.25)
+                actual = tp.locate(image, SIZE*8 - 1, 1, preprocess=False,
+                                   engine=self.engine)['size']
+                assert_allclose(actual, SIZE, rtol=0.1)
 
-        SIZE = 2
-        image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 7, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE
-        assert_allclose(actual, expected, rtol=0.1)
-
-        SIZE = 3
-        image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 11, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE
-        assert_allclose(actual, expected, rtol=0.1)
-
-        SIZE = 5
-        image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 17, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE
-        assert_allclose(actual, expected, rtol=0.1)
-        
-        SIZE = 7
-        image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, SIZE)
-        actual = tp.locate(image, 23, 1, preprocess=False,
-                           engine=self.engine)['size']
-        expected = SIZE
-        assert_allclose(actual, expected, rtol=0.1)
-        
     def test_eccentricity(self):
         # Eccentricity (elongation) is measured with good accuracy and
         # ~0.02 precision, as long as the mask is large enough to cover
@@ -513,7 +438,7 @@ class CommonFeatureIdentificationTests(object):
 
         ECC = 0
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4, ecc=ECC)
+        draw_feature(image, pos, 27, ecc=ECC)
         actual = tp.locate(image, 21, 1, preprocess=False,
                            engine=self.engine)['ecc']
         expected = ECC
@@ -521,7 +446,7 @@ class CommonFeatureIdentificationTests(object):
 
         ECC = 0.2
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4, ecc=ECC)
+        draw_feature(image, pos, 27, ecc=ECC)
         actual = tp.locate(image, 21, 1, preprocess=False,
                            engine=self.engine)['ecc']
         expected = ECC
@@ -529,7 +454,7 @@ class CommonFeatureIdentificationTests(object):
 
         ECC = 0.5
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 4, ecc=ECC)
+        draw_feature(image, pos, 27, ecc=ECC)
         actual = tp.locate(image, 21, 1, preprocess=False,
                            engine=self.engine)['ecc']
         expected = ECC
@@ -544,7 +469,7 @@ class CommonFeatureIdentificationTests(object):
         expected = np.array([pos])
 
         image = np.ones(dims, dtype='uint8')
-        draw_gaussian_spot(image, pos, 2)
+        draw_feature(image, pos, 15)
 
         guess = np.array([[6, 13]])
         actual = tp.feature.refine(image, image, 6, guess, characterize=False,

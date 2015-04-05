@@ -19,6 +19,7 @@ from .preprocessing import bandpass
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
 from . import utils
+from . import artificial
 from .try_numba import try_numba_autojit, enable_numba, disable_numba
 
 
