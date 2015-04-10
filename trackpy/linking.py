@@ -420,7 +420,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     ----------
     levels : iterable of iterables containing Points objects
         e.g., a list containing lists with the Points in each frame
-    search_range : integer
+    search_range : float
         the maximum distance features can move between frames
     hash_generator : a function that returns a HashTable
         only used if neighbor_strategy is set to 'BTree' (default)
