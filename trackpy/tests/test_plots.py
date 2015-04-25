@@ -6,6 +6,10 @@ import os
 import numpy as np
 import pandas as pd
 from pandas import Series, DataFrame
+
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+pd.set_option('mode.chained_assignment', 'raise')
+
 from trackpy import plots
 from trackpy.utils import suppress_plotting, fit_powerlaw
 

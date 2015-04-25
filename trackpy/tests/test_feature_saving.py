@@ -9,7 +9,11 @@ import os
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
+import pandas
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
+
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+pandas.set_option('mode.chained_assignment', 'raise')
 
 import trackpy as tp 
 

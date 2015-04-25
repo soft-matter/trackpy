@@ -9,6 +9,9 @@ import pandas as pd
 from numpy.testing import assert_allclose
 from pandas import DataFrame, Series
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+pd.set_option('mode.chained_assignment', 'raise')
+
 import trackpy as tp
 
 class TestCorrelations(unittest.TestCase):

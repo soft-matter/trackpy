@@ -8,6 +8,9 @@ import nose.tools
 import numpy as np
 import pandas
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+pandas.set_option('mode.chained_assignment', 'raise')
+
 import trackpy
 from trackpy import predict
 

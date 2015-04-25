@@ -15,6 +15,9 @@ from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_produces_warning)
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+pd.set_option('mode.chained_assignment', 'raise')
+
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point,

@@ -12,6 +12,9 @@ from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+pd.set_option('mode.chained_assignment', 'raise')
+
 import trackpy as tp 
 from trackpy.utils import suppress_plotting
 
