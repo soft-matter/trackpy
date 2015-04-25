@@ -8,11 +8,11 @@ import nose.tools
 import numpy as np
 import pandas
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-pandas.set_option('mode.chained_assignment', 'raise')
-
 import trackpy
 from trackpy import predict
+
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+trackpy.utils.make_pandas_strict()
 
 def mkframe(n=1, Nside=3):
     xg, yg = np.mgrid[:Nside,:Nside]

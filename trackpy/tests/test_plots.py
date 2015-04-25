@@ -7,11 +7,12 @@ import numpy as np
 import pandas as pd
 from pandas import Series, DataFrame
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-pd.set_option('mode.chained_assignment', 'raise')
-
+import trackpy
 from trackpy import plots
 from trackpy.utils import suppress_plotting, fit_powerlaw
+
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+trackpy.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 

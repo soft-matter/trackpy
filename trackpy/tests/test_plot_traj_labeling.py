@@ -7,12 +7,12 @@ import os
 from numpy.testing.decorators import slow
 import pandas as pd
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-pd.set_option('mode.chained_assignment', 'raise')
-
+import trackpy
 from trackpy import ptraj
 from trackpy.utils import suppress_plotting
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+trackpy.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
