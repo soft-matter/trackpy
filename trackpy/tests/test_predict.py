@@ -11,6 +11,9 @@ import pandas
 import trackpy
 from trackpy import predict
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+trackpy.utils.make_pandas_strict()
+
 def mkframe(n=1, Nside=3):
     xg, yg = np.mgrid[:Nside,:Nside]
     dx = (n - 1)

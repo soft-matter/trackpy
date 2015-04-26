@@ -195,3 +195,16 @@ def print_update(message):
         pass
     print(message)
     sys.stdout.flush()
+
+
+def make_pandas_strict():
+    """Configure Pandas to raise an exception for "chained assignments."
+
+    This is useful during tests.
+    See http://pandas.pydata.org/pandas-docs/stable/indexing.html#indexing-view-versus-copy
+
+    Does nothing for Pandas versions before 0.13.0.
+    """
+    major, minor, micro = pd.__version__.split('.')
+    if major == '0' and int(minor) >= 13:
+        pd.set_option('mode.chained_assignment', 'raise')

@@ -9,10 +9,13 @@ import os
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
+import pandas
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
 import trackpy as tp 
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+tp.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 

@@ -18,6 +18,8 @@ import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, link, Hash_table
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+tp.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')

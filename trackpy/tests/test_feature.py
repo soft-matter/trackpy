@@ -20,6 +20,8 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point,
                                 gen_nonoverlapping_locations)
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+tp.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 

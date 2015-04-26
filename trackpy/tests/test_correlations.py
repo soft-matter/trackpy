@@ -11,6 +11,9 @@ from pandas import DataFrame, Series
 
 import trackpy as tp
 
+# Catch attempts to set values on an inadvertent copy of a Pandas object.
+tp.utils.make_pandas_strict()
+
 class TestCorrelations(unittest.TestCase):
 
     def setUp(self):

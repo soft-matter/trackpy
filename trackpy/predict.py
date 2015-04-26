@@ -96,7 +96,7 @@ class _RecentVelocityPredict(NullPredict):
         positions = disps[self.pos_columns]
         vels = disps[[cn + '_disp_' for cn in self.pos_columns]] / dt
         # 'vels' will have same column names as 'positions'
-        vels.rename(columns=lambda n: n[:-6], inplace=True)
+        vels = vels.rename(columns=lambda n: n[:-6])
         return dt, positions, vels
 
 
