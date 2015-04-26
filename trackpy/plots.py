@@ -31,28 +31,25 @@ def make_axes(func):
     def wrapper(*args, **kwargs):
         import matplotlib.pyplot as plt
         if kwargs.get('ax') is None:
-            kwargs['ax'] = plt.gca()
+            ax = kwargs['ax'] = plt.gca()
             # Delete legend keyword so remaining ones can be passed to plot().
-            try:
-                legend = kwargs['legend']
-            except KeyError:
-                legend = None
-            else:
-                del kwargs['legend']
+            legend = kwargs.pop('legend', None)
             result = func(*args, **kwargs)
-            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or \
-                    legend is False):
+            if legend or ax.get_legend_handles_labels() != ([], []):
                 plt.legend(loc='best')
             plt.show()
+            ax.figure.canvas.draw()
             return result
         else:
             return func(*args, **kwargs)
     return wrapper
 
+
 def make_fig(func):
     """See make_axes."""
     import matplotlib.pyplot as plt
-    wraps(func)
+
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if 'fig' not in kwargs:
             kwargs['fig'] = plt.gcf()
@@ -61,6 +58,7 @@ def make_fig(func):
         else:
             return func(*args, **kwargs)
     return wrapper
+
 
 @make_axes
 def plot_traj(traj, colorby='particle', mpp=None, label=False,
@@ -123,11 +121,11 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
         # Unstack particles into columns.
         unstacked = traj.set_index([t_column, 'particle']).unstack()
         ax.plot(mpp*unstacked['x'], mpp*unstacked['y'], linewidth=1)
-    if colorby == 'frame':
+    elif colorby == 'frame':
         # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine
         x = traj.set_index([t_column, 'particle'])['x'].unstack()
         y = traj.set_index([t_column, 'particle'])['y'].unstack()
-        color_numbers = traj[t_column].values/float(traj[t_column].max())
+
         print_update("Drawing multicolor lines takes awhile. "
                      "Come back in a minute.")
         for particle in x:
@@ -135,10 +133,15 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
                 [x[particle].values, y[particle].values]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             lc = LineCollection(segments, cmap=cmap)
-            lc.set_array(color_numbers)
+            lc.set_array(x.index)
             ax.add_collection(lc)
-            ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
-            ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
+        ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
+        ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
+    else:
+        raise ValueError(("unknown value for colorby: {} "
+                          "must be one of {{particle, frame}}"
+                          ).format(colorby))
+
     if label:
         unstacked = traj.set_index([t_column, 'particle'])[['x', 'y']].unstack()
         first_frame = int(traj[t_column].min())
@@ -150,7 +153,8 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     ax.invert_yaxis()
     return ax
 
-ptraj = plot_traj # convenience alias
+ptraj = plot_traj  # convenience alias
+
 
 @make_axes
 def annotate(centroids, image, circle_size=None, color=None,
