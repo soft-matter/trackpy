@@ -420,7 +420,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     ----------
     levels : iterable of iterables containing Points objects
         e.g., a list containing lists with the Points in each frame
-    search_range : integer
+    search_range : float
         the maximum distance features can move between frames
     hash_generator : a function that returns a HashTable
         only used if neighbor_strategy is set to 'BTree' (default)
@@ -481,7 +481,7 @@ def link_df(features, search_range, memory=0,
         and 'frame' is expected for frame number. See below for options to use
         custom column names. After linking, this DataFrame will contain a
         'particle' column.
-    search_range : integer
+    search_range : float
         the maximum distance features can move between frames
     memory : integer
         the maximum number of frames during which a feature can vanish,
@@ -611,7 +611,7 @@ def link_df_iter(features, search_range, memory=0,
         column of frame numbers. By default, 'x' and 'y' are expected for
         position, and 'frame' is expected for frame number. See below for
         options to use custom column names.
-    search_range : integer
+    search_range : float
         the maximum distance features can move between frames
     memory : integer
         the maximum number of frames during which a feature can vanish,
@@ -802,7 +802,7 @@ def link_iter(levels, search_range, memory=0,
     ----------
     levels : iterable of iterables containing Points objects
         e.g., a list containing lists with the Points in each frame
-    search_range : integer
+    search_range : float
         the maximum distance features can move between frames
     memory : integer
         the maximum number of frames during which a feature can vanish,
