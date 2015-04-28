@@ -38,10 +38,24 @@ class BaselinePredictTests(unittest.TestCase):
         """Make sure that a prediction of no motion does not interfere
         with normal tracking.
         """
+        # link_df_iter
         pred = predict.NullPredict()
         ll = get_linked_lengths((mkframe(0), mkframe(0.25)),
                                 pred.link_df_iter, 0.45)
         assert all(ll.values == 2)
+
+        # link_df
+        pred = predict.NullPredict()
+        ll_df = pred.link_df(pandas.concat((mkframe(0), mkframe(0.25))), 0.45)
+        assert all(ll_df.groupby('particle').x.count().values == 2)
+
+        # Make sure that keyword options are handled correctly
+        # (This checks both link_df and link_df_iter)
+        features = pandas.concat((mkframe(0), mkframe(0.25)))
+        features.rename(columns=lambda n: n + '_', inplace=True)
+        pred = predict.NullPredict()
+        ll_df = pred.link_df(features, 0.45, t_column='frame_', pos_columns=['x_', 'y_'])
+        assert all(ll_df.groupby('particle').x_.count().values == 2)
 
     def test_predict_decorator(self):
         """Make sure that a prediction of no motion does not interfere

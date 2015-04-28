@@ -53,6 +53,21 @@ class NullPredict(object):
             self.observe(frame)
             yield frame
 
+    def link_df(self, *args, **kw):
+        """Wrapper for linking.link_df_iter() that causes it to use this predictor.
+
+        As with linking.link_df(), the features data is a single DataFrame.
+
+        Note that this does not wrap linking.link_df(), and does not accept the same
+        options as that function. However in most cases it is functionally equivalent.
+        """
+        args = list(args)
+        features = args.pop(0)
+        if kw.get('t_column') is None:
+            kw['t_column'] = 'frame'
+        features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
+        return pd.concat(self.link_df_iter(*([features_iter, ] + args), **kw))
+
     def observe(self, frame):
         """Examine the latest output of the linker, to update our predictions."""
         pass

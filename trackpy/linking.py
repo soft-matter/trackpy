@@ -672,7 +672,16 @@ def link_df_iter(features, search_range, memory=0,
     # Group the DataFrame by time steps and make a 'level' out of each
     # one, using the index to keep track of Points.
 
-    feature_iter = iter(features)
+    # Non-destructively check the type of the first item of features
+    feature_iter, feature_checktype_iter = itertools.tee(iter(features))
+    try:  # If it quacks like a DataFrame...
+        next(feature_checktype_iter).reset_index()
+    except AttributeError:
+        raise ValueError("Features data must be an iterable of DataFrames, one per "
+                         "video frame. Use link_df() if you have a single DataFrame "
+                         "describing multiple frames.")
+    del feature_checktype_iter  # Otherwise pipes will back up.
+
     # To allow retain_index
     features_for_reset, features_forindex = itertools.tee(feature_iter)
     index_iter = (fr.index.copy() for fr in features_forindex)
@@ -706,7 +715,7 @@ def link_df_iter(features, search_range, memory=0,
             # produces a malformed labeling.
             _verify_integrity(frame_no, labels)
             # additional checks particular to link_df_iter
-            if not all(frame_no == source_features.frame.values):
+            if not all(frame_no == source_features[t_column].values):
                 raise UnknownLinkingError("The features passed for Frame %d "
                                           "do not all share the same frame "
                                           "number.".format(frame_no))
