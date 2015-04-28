@@ -37,7 +37,7 @@ else:
         return pyfftw.interfaces.numpy_fft.ifftn(a)
 
 
-def bandpass(image, lshort, llong, threshold=None):
+def bandpass(image, lshort, llong, threshold=None, analyze_background=False):
     """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
     retaining features of intermediate scale.
@@ -59,7 +59,7 @@ def bandpass(image, lshort, llong, threshold=None):
     -------
     ndarray, the bandpassed image
     """
-    lshort = validate_tuple(lshort, image.ndim)      
+    lshort = validate_tuple(lshort, image.ndim)
     llong = validate_tuple(llong, image.ndim)
     if np.any([x*2 >= y for (x, y) in zip(lshort, llong)]):
         raise ValueError("The smoothing length scale must be more" +
@@ -77,10 +77,16 @@ def bandpass(image, lshort, llong, threshold=None):
         boxcar = uniform_filter1d(boxcar, size, axis, **settings)
     gaussian = ifftn(fourier_gaussian(fftn(image), lshort)).real
     result = gaussian - boxcar
-    return np.where(result > threshold, result, 0)
+    signal = result > threshold
+    if not analyze_background:
+        return np.where(signal, result, 0)
+    background = image[~signal]
+    return np.where(signal, result, 0), background.mean(), background.std()
 
 
-def scale_to_gamut(image, original_dtype):
-    max_value = np.iinfo(original_dtype).max
-    scaled = (max_value/image.max()*image.clip(min=0.))
-    return scaled.astype(original_dtype)
+def scale_to_gamut(image, original_dtype, return_scale_factor=False):
+    scale_factor = np.iinfo(original_dtype).max / image.max()
+    scaled = (scale_factor * image.clip(min=0.)).astype(original_dtype)
+    if return_scale_factor:
+        return scaled, scale_factor
+    return scaled

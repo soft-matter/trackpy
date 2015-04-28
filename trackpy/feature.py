@@ -9,10 +9,11 @@ from scipy import ndimage
 from scipy.spatial import cKDTree
 from pandas import DataFrame
 
-from . import uncertainty
 from .preprocessing import bandpass, scale_to_gamut
 from .utils import record_meta, print_update, validate_tuple
-from .masks import binary_mask, r_squared_mask, cosmask, sinmask
+from .masks import (binary_mask, r_squared_mask, x_squared_masks,
+                    cosmask, sinmask)
+from .uncertainty import static_error
 import trackpy  # to get trackpy.__version__
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
@@ -214,10 +215,15 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     # Declare arrays that we will fill iteratively through loop.
     N = coords.shape[0]
     final_coords = np.empty_like(coords, dtype=np.float64)
-    mass = np.empty(N, dtype=np.float64)
-    Rg = np.empty(N, dtype=np.float64)
-    ecc = np.empty(N, dtype=np.float64)
-    signal = np.empty(N, dtype=np.float64)
+    raw_mass = np.empty(N, dtype=np.float64)
+    if characterize:
+        if radius[1:] == radius[:-1]:
+            Rg = np.empty(N, dtype=np.float64)
+        else:
+            Rg = np.empty((N, len(radius)), dtype=np.float64)
+        ecc = np.empty(N, dtype=np.float64)
+        signal = np.empty(N, dtype=np.float64)
+
     ogrid = np.ogrid[[slice(0, i) for i in mask.shape]]  # for center of mass
     ogrid = [g.astype(float) for g in ogrid]
 
@@ -271,27 +277,32 @@ def _refine(raw_image, image, radius, coords, max_iterations,
             plt.imshow(neighborhood)
 
         # Characterize the neighborhood of our final centroid.
-        mass[feat] = neighborhood.sum()
+        raw_neighborhood = mask*raw_image[rect]
+        raw_mass[feat] = raw_neighborhood.sum()  # based on raw image
         if not characterize:
             continue  # short-circuit loop
-        Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
-                                  neighborhood) / mass[feat])
+        mass = neighborhood.sum()
+        if radius[1:] == radius[:-1]:
+            Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
+                                      neighborhood) / mass)
+        else:
+            Rg[feat] = np.sqrt(np.sum(x_squared_masks(radius, ndim) *
+                                      neighborhood,
+                                      axis=tuple(range(1, ndim + 1))) /
+                               mass)[::-1]  # change order yx -> xy
         # I only know how to measure eccentricity in 2D.
-        if ndim == 2 and radius[0] == radius[1]:
-            rad = radius[0]
-            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(rad))**2 +
-                                np.sum(neighborhood*sinmask(rad))**2)
-            ecc[feat] /= (mass[feat] - neighborhood[rad, rad] + 1e-6)
+        if ndim == 2:
+            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
+                                np.sum(neighborhood*sinmask(radius))**2)
+            ecc[feat] /= (mass - neighborhood[radius] + 1e-6)
         else:
             ecc[feat] = np.nan
-        raw_neighborhood = mask*raw_image[rect]
-        signal[feat] = raw_neighborhood.max()  # black_level subtracted later
+        signal[feat] = neighborhood.max()  # based on bandpassed image
 
     if not characterize:
-        result = np.column_stack([final_coords, mass])
+        return np.column_stack([final_coords, raw_mass])
     else:
-        result = np.column_stack([final_coords, mass, Rg, ecc, signal])
-    return result
+        return np.column_stack([final_coords, raw_mass, Rg, ecc, signal])
 
 
 @try_numba_autojit(nopython=False)
@@ -471,7 +482,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     DataFrame([x, y, mass, size, ecc, signal])
         where mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (1 is circular).
+        and ecc is its eccentricity (0 is circular).
 
     Other Parameters
     ----------------
@@ -531,10 +542,6 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     noise_size = validate_tuple(noise_size, ndim)
 
-    # Don't do characterization for rectangular pixels/voxels
-    if diameter[1:] != diameter[:-1]:
-        characterize = False
-
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim
@@ -552,15 +559,16 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
                 # To avoid degrading performance, assume gamut is zero to one.
                 # Have you ever encountered an image of unnormalized floats?
                 raw_image = 1 - raw_image
-        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
+        image, black_level, noise = bandpass(raw_image, noise_size,
+                                             smoothing_size, threshold, True)
     else:
         image = raw_image.copy()
     # Coerce the image into integer type. Rescale to fill dynamic range.
     if np.issubdtype(raw_image.dtype, np.integer):
         dtype = raw_image.dtype
     else:
-        dtype = np.uint8
-    image = scale_to_gamut(image, dtype)
+        dtype = np.uint16
+    image, scale_factor = scale_to_gamut(image, dtype, True)
 
     # Set up a DataFrame for the final results.
     if image.ndim < 4:
@@ -569,11 +577,18 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
     char_columns = ['mass']
     if characterize:
-        char_columns += ['size', 'ecc', 'signal']
+        if radius[1:] == radius[:-1]:
+            char_columns += ['size']
+        else:
+            char_columns += ['size_' + cc for cc in coord_columns]
+        char_columns += ['ecc', 'signal']
     columns = coord_columns + char_columns
     # The 'ep' column is joined on at the end, so we need this...
     if characterize:
-        all_columns = columns + ['ep']
+        if radius[1:] == radius[:-1] and noise_size[1:] == noise_size[:-1]:
+            all_columns = columns + ['ep']
+        else:
+            all_columns = columns + ['ep_' + cc for cc in coord_columns]
     else:
         all_columns = columns
 
@@ -617,12 +632,15 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     # Filter again, using final ("exact") mass -- and size, if set.
     MASS_COLUMN_INDEX = image.ndim
-    SIZE_COLUMN_INDEX = image.ndim + 1
+    if radius[1:] == radius[:-1]:
+        SIZE_COLUMN_INDEX = image.ndim + 1
+    else:
+        SIZE_COLUMN_INDEX = range(image.ndim + 1, image.ndim + image.ndim + 1)
     exact_mass = refined_coords[:, MASS_COLUMN_INDEX]
     if filter_after:
         condition = exact_mass > minmass
         if maxsize is not None:
-            exact_size = refined_coords[:, SIZE_COLUMN_INDEX]
+            exact_size = np.sqrt(np.sum(refined_coords[:, SIZE_COLUMN_INDEX]**2))
             condition &= exact_size < maxsize
         refined_coords = refined_coords[condition]
         exact_mass = exact_mass[condition]  # used below by topn
@@ -645,10 +663,15 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
     if characterize:
-        black_level, noise = uncertainty.measure_noise(
-            raw_image, diameter, threshold)
-        f['signal'] -= black_level
-        ep = uncertainty.static_error(f, noise, diameter[0], noise_size[0])
+        # signal value has to be corrected due to the rescaling
+        # mass was obtained from raw image; size and ecc are scale-independent
+        f['signal'] /= scale_factor
+        if not preprocess:
+            # black_level and noise have not been determined, do it here
+            _, black_level, noise = bandpass(raw_image, noise_size,
+                                             smoothing_size, threshold, True)
+        ep = static_error(f, black_level, noise, radius, noise_size,
+                          coord_columns)
         f = f.join(ep)
 
     # If this is a pims Frame object, it has a frame number.
@@ -704,7 +727,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     DataFrame([x, y, mass, size, ecc, signal])
         where mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (1 is circular).
+        and ecc is its eccentricity (0 is circular).
 
     Other Parameters
     ----------------
