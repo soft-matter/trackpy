@@ -215,6 +215,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     # Declare arrays that we will fill iteratively through loop.
     N = coords.shape[0]
     final_coords = np.empty_like(coords, dtype=np.float64)
+    mass = np.empty(N, dtype=np.float64)
     raw_mass = np.empty(N, dtype=np.float64)
     if characterize:
         if radius[1:] == radius[:-1]:
@@ -277,32 +278,32 @@ def _refine(raw_image, image, radius, coords, max_iterations,
             plt.imshow(neighborhood)
 
         # Characterize the neighborhood of our final centroid.
-        raw_neighborhood = mask*raw_image[rect]
-        raw_mass[feat] = raw_neighborhood.sum()  # based on raw image
+        mass[feat] = neighborhood.sum()
         if not characterize:
             continue  # short-circuit loop
-        mass = neighborhood.sum()
         if radius[1:] == radius[:-1]:
             Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
-                                      neighborhood) / mass)
+                                      neighborhood) / mass[feat])
         else:
             Rg[feat] = np.sqrt(np.sum(x_squared_masks(radius, ndim) *
                                       neighborhood,
                                       axis=tuple(range(1, ndim + 1))) /
-                               mass)[::-1]  # change order yx -> xy
+                               mass[feat])[::-1]  # change order yx -> xy
         # I only know how to measure eccentricity in 2D.
         if ndim == 2:
             ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
                                 np.sum(neighborhood*sinmask(radius))**2)
-            ecc[feat] /= (mass - neighborhood[radius] + 1e-6)
+            ecc[feat] /= (mass[feat] - neighborhood[radius] + 1e-6)
         else:
             ecc[feat] = np.nan
         signal[feat] = neighborhood.max()  # based on bandpassed image
+        raw_neighborhood = mask*raw_image[rect]
+        raw_mass[feat] = raw_neighborhood.sum()  # based on raw image
 
     if not characterize:
-        return np.column_stack([final_coords, raw_mass])
+        return np.column_stack([final_coords, mass])
     else:
-        return np.column_stack([final_coords, raw_mass, Rg, ecc, signal])
+        return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
 
 
 @try_numba_autojit(nopython=False)
@@ -581,7 +582,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
             char_columns += ['size']
         else:
             char_columns += ['size_' + cc for cc in coord_columns]
-        char_columns += ['ecc', 'signal']
+        char_columns += ['ecc', 'signal', 'raw_mass']
     columns = coord_columns + char_columns
     # The 'ep' column is joined on at the end, so we need this...
     if characterize:
@@ -666,6 +667,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         # signal value has to be corrected due to the rescaling
         # mass was obtained from raw image; size and ecc are scale-independent
         f['signal'] /= scale_factor
+        f['mass'] /= scale_factor
         if not preprocess:
             # black_level and noise have not been determined, do it here
             _, black_level, noise = bandpass(raw_image, noise_size,
