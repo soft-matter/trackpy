@@ -158,7 +158,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         smask = sinmask(radius[0])
         # Allocate a results array that _numba_refine will write to
         if characterize:
-            results_columns = 6
+            results_columns = 7
         else:
             results_columns = 3  # Position and mass only
         results = np.empty((N, results_columns), dtype=np.float64)
@@ -317,6 +317,7 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
     RG_COL = 3
     ECC_COL = 4
     SIGNAL_COL = 5
+    RAW_MASS_COL = 6
 
     square_size = 2*radius + 1
 
@@ -410,6 +411,7 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
 
         # Characterize the neighborhood of our final centroid.
         mass_ = 0.
+        raw_mass_ = 0.
         Rg_ = 0.
         ecc1 = 0.
         ecc2 = 0.
@@ -425,15 +427,16 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
                     Rg_ += r2_mask[i, j]*px
                     ecc1 += cmask[i, j]*px
                     ecc2 += smask[i, j]*px
-                    raw_px = raw_image[square0 + i, square1 + j]
-                    if raw_px > signal_:
+                    raw_mass_ += raw_image[square0 + i, square1 + j]
+                    if px > signal_:
                         signal_ = px
         results[feat, MASS_COL] = mass_
         if characterize:
             results[feat, RG_COL] = np.sqrt(Rg_/mass_)
             center_px = image[square0 + radius, square1 + radius]
-            results[feat, ECC_COL] = np.sqrt(ecc1**2 + ecc2**2)/(mass_ - center_px + 1e-6)
-            results[feat, SIGNAL_COL] = signal_  # black_level subtracted later
+            results[feat, ECC_COL] = np.sqrt(ecc1**2 + ecc2**2) / (mass_ - center_px + 1e-6)
+            results[feat, SIGNAL_COL] = signal_
+            results[feat, RAW_MASS_COL] = raw_mass_
 
     return 0  # Unused
 
