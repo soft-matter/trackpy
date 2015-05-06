@@ -579,22 +579,22 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         coord_columns = ['x', 'y', 'z'][:image.ndim]
     else:
         coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
-    char_columns = ['mass']
+    MASS_COLUMN_INDEX = len(coord_columns)
+    columns = coord_columns + ['mass']
     if characterize:
         if radius[1:] == radius[:-1]:
-            char_columns += ['size']
+            SIZE_COLUMN_INDEX = len(columns)
+            columns += ['size']
         else:
-            char_columns += ['size_' + cc for cc in coord_columns]
-        char_columns += ['ecc', 'signal', 'raw_mass']
-    columns = coord_columns + char_columns
-    # The 'ep' column is joined on at the end, so we need this...
-    if characterize:
+            SIZE_COLUMN_INDEX = range(len(columns),
+                                      len(columns) + len(coord_columns))
+            columns += ['size_' + cc for cc in coord_columns]
+        SIGNAL_COLUMN_INDEX = len(columns) + 1
+        columns += ['ecc', 'signal', 'raw_mass']
         if radius[1:] == radius[:-1] and noise_size[1:] == noise_size[:-1]:
-            all_columns = columns + ['ep']
+            columns += ['ep']
         else:
-            all_columns = columns + ['ep_' + cc for cc in coord_columns]
-    else:
-        all_columns = columns
+            columns += ['ep_' + cc for cc in coord_columns]
 
     # Find local maxima.
     # Define zone of exclusion at edges of image, avoiding
@@ -608,7 +608,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:
-        return DataFrame(columns=all_columns)
+        return DataFrame(columns=columns)
 
     # Proactively filter based on estimated mass/size before
     # refining positions.
@@ -628,18 +628,16 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     if count_qualified == 0:
         warnings.warn("No maxima survived mass- and size-based prefiltering.")
-        return DataFrame(columns=all_columns)
+        return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine(raw_image, image, radius, coords, separation,
                             max_iterations, engine, characterize)
+    refined_coords[:, MASS_COLUMN_INDEX] /= scale_factor
+    if characterize:
+        refined_coords[:, SIGNAL_COLUMN_INDEX] /= scale_factor
 
     # Filter again, using final ("exact") mass -- and size, if set.
-    MASS_COLUMN_INDEX = image.ndim
-    if radius[1:] == radius[:-1]:
-        SIZE_COLUMN_INDEX = image.ndim + 1
-    else:
-        SIZE_COLUMN_INDEX = range(image.ndim + 1, image.ndim + image.ndim + 1)
     exact_mass = refined_coords[:, MASS_COLUMN_INDEX]
     if filter_after:
         condition = exact_mass > minmass
@@ -652,7 +650,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     if count_qualified == 0:
         warnings.warn("No maxima survived mass- and size-based filtering.")
-        return DataFrame(columns=all_columns)
+        return DataFrame(columns=columns)
 
     if topn is not None and count_qualified > topn:
         if topn == 1:
@@ -662,22 +660,19 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         else:
             refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
 
-    f = DataFrame(refined_coords, columns=columns)
-
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
     if characterize:
         # signal value has to be corrected due to the rescaling
         # mass was obtained from raw image; size and ecc are scale-independent
-        f['signal'] /= scale_factor
-        f['mass'] /= scale_factor
         if not preprocess:
             # black_level and noise have not been determined, do it here
             _, black_level, noise = bandpass(raw_image, noise_size,
                                              smoothing_size, threshold, True)
-        ep = static_error(f, black_level, noise, radius, noise_size,
-                          coord_columns)
-        f = f.join(ep)
+        ep = static_error(refined_coords[:, MASS_COLUMN_INDEX], black_level,
+                          noise, radius, noise_size)
+
+    f = DataFrame(np.column_stack([refined_coords, ep]), columns=columns)
 
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.

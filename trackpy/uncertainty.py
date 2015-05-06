@@ -36,18 +36,16 @@ def measure_noise(image, diameter, threshold):
     return image[~signal_mask].mean(), image[~signal_mask].std()
 
 
-def static_error(features, black_level, noise, radius, noise_size=1,
-                 coord_columns=None):
+def static_error(mass, black_level, noise, radius, noise_size=1):
     """Compute the uncertainty in particle position ("the static error").
 
     Parameters
     ----------
-    features : DataFrame of features (or trajectories) including mass
-    black_level : Series of black level measurements, indexed by frame
-    noise : Series of noise measurements, indexed by frame
+    mass : ndarray of feature masses
+    black_level : number, average background pixel value
+    noise : number, standard deviation of the noise
     radius : tuple of feature radius used to locate centroids
     noise_size : noise correlation length, may be tuple-valued (?)
-    coord_columns : names of the coordinates, only used for anisotropic errors
 
     Returns
     -------
@@ -76,25 +74,11 @@ def static_error(features, black_level, noise, radius, noise_size=1,
     N = N_binary_mask(radius, len(radius))
     coord_moments = root_sum_x_squared(radius, len(radius))
     # If this is just one frame black_level is a scalar.
-    if np.isscalar(black_level):
-        mass = features['mass'] - N * black_level
-    else:
-        mass = features['mass'] - \
-            N * features.join(black_level, on='frame')['black_level']
-    if np.isscalar(noise):
-        N_S = noise / mass
-    else:
-        N_S = features.join(noise, on='frame')['noise'] / mass
+    mass_corr = mass - N * black_level
+    N_S = noise / mass_corr
     if (radius[1:] == radius[:-1]) and (noise_size[1:] == noise_size[:-1]):
         ep = N_S * noise_size[0] * coord_moments[0]
-        ep.name = 'ep'  # so it can be joined
-        return ep
     else:
-        eps = []
-        if coord_columns is None:
-            coord_columns = [str(i) for i in range(len(radius))]
-        for (size, rss, col) in zip(noise_size, coord_moments, coord_columns):
-            ep = N_S * size * rss
-            ep.name = 'ep_{}'.format(col)  # so it can be joined
-            eps.append(ep)
-        return eps
+        coord_moments = np.array(noise_size) * np.array(coord_moments)
+        ep = N_S[:, np.newaxis] * coord_moments[np.newaxis, :]
+    return ep
