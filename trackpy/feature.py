@@ -9,11 +9,11 @@ from scipy import ndimage
 from scipy.spatial import cKDTree
 from pandas import DataFrame
 
-from .preprocessing import bandpass, scale_to_gamut
+from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
 from .utils import record_meta, print_update, validate_tuple
 from .masks import (binary_mask, r_squared_mask, x_squared_masks,
                     cosmask, sinmask)
-from .uncertainty import static_error
+from .uncertainty import static_error, measure_noise
 import trackpy  # to get trackpy.__version__
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
@@ -563,8 +563,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
                 # To avoid degrading performance, assume gamut is zero to one.
                 # Have you ever encountered an image of unnormalized floats?
                 raw_image = 1 - raw_image
-        image, black_level, noise = bandpass(raw_image, noise_size,
-                                             smoothing_size, threshold, True)
+        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
     else:
         image = raw_image.copy()
     # Coerce the image into integer type. Rescale to fill dynamic range.
@@ -572,7 +571,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         dtype = raw_image.dtype
     else:
         dtype = np.uint16
-    image, scale_factor = scale_to_gamut(image, dtype, True)
+    scale_factor = scalefactor_to_gamut(image, dtype)
+    image = scale_to_gamut(image, dtype, scale_factor)
 
     # Set up a DataFrame for the final results.
     if image.ndim < 4:
@@ -665,10 +665,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     if characterize:
         # signal value has to be corrected due to the rescaling
         # mass was obtained from raw image; size and ecc are scale-independent
-        if not preprocess:
-            # black_level and noise have not been determined, do it here
-            _, black_level, noise = bandpass(raw_image, noise_size,
-                                             smoothing_size, threshold, True)
+        black_level, noise = measure_noise(raw_image, diameter, threshold)
         ep = static_error(refined_coords[:, MASS_COLUMN_INDEX], black_level,
                           noise, radius, noise_size)
 

@@ -37,11 +37,27 @@ else:
         return pyfftw.interfaces.numpy_fft.ifftn(a)
 
 
-def bandpass(image, lshort, llong, threshold=None, analyze_background=False):
+def bandpass_raw(image, lshort, llong):
+    lshort = validate_tuple(lshort, image.ndim)
+    llong = validate_tuple(llong, image.ndim)
+    if np.any([x*2 >= y for (x, y) in zip(lshort, llong)]):
+        raise ValueError("The smoothing length scale must be more" +
+                         "than twice the noise length scale.")
+    # Perform a rolling average (boxcar) with kernel size = 2*llong + 1
+    boxcar = np.asarray(image)
+    for (axis, size) in enumerate(llong):
+        boxcar = uniform_filter1d(boxcar, size*2+1, axis, mode='nearest',
+                                  cval=0)
+    # Perform a gaussian filter
+    gaussian = ifftn(fourier_gaussian(fftn(image), lshort)).real
+
+    return gaussian - boxcar
+
+
+def bandpass(image, lshort, llong, threshold=None):
     """Convolve with a Gaussian to remove short-wavelength noise,
     and subtract out long-wavelength variations,
     retaining features of intermediate scale.
-
     Parmeters
     ---------
     image : ndarray
@@ -51,42 +67,67 @@ def bandpass(image, lshort, llong, threshold=None, analyze_background=False):
         give a tuple value for different sizes per dimension
         give int value for same value for all dimensions
         when 2*lshort >= llong, no noise filtering is applied
-
     threshold : float or integer
         By default, 1 for integer images and 1/256. for float images.
-
     Returns
     -------
     ndarray, the bandpassed image
     """
-    lshort = validate_tuple(lshort, image.ndim)
-    llong = validate_tuple(llong, image.ndim)
-    if np.any([x*2 >= y for (x, y) in zip(lshort, llong)]):
-        raise ValueError("The smoothing length scale must be more" +
-                         "than twice the noise length scale.")
+    result = bandpass_raw(image, lshort, llong)
+
     if threshold is None:
         if np.issubdtype(image.dtype, np.integer):
             threshold = 1
         else:
             threshold = 1/256.
-    settings = dict(mode='nearest', cval=0)
-    axes = range(image.ndim)
-    sizes = [x*2+1 for x in llong]
-    boxcar = np.asarray(image)
-    for (axis, size) in zip(axes, sizes):
-        boxcar = uniform_filter1d(boxcar, size, axis, **settings)
-    gaussian = ifftn(fourier_gaussian(fftn(image), lshort)).real
-    result = gaussian - boxcar
-    signal = result > threshold
-    if not analyze_background:
-        return np.where(signal, result, 0)
-    background = image[~signal]
-    return np.where(signal, result, 0), background.mean(), background.std()
+
+    return np.where(result > threshold, result, 0)
 
 
-def scale_to_gamut(image, original_dtype, return_scale_factor=False):
-    scale_factor = np.iinfo(original_dtype).max / image.max()
+def bandpass_detailed(image, lshort, llong, threshold=None):
+    """Convolve with a Gaussian to remove short-wavelength noise,
+    and subtract out long-wavelength variations,
+    retaining features of intermediate scale.
+    Parmeters
+    ---------
+    image : ndarray
+    lshort : small-scale cutoff (noise)
+    llong : large-scale cutoff
+    for both lshort and llong:
+        give a tuple value for different sizes per dimension
+        give int value for same value for all dimensions
+        when 2*lshort >= llong, no noise filtering is applied
+    threshold : float or integer
+        By default, 1 for integer images and 1/256. for float images.
+    Returns
+    -------
+    ndarray, the bandpassed image
+    black_level, average background level
+    noise_size, standard deviation of background
+    """
+    result = bandpass_raw(image, lshort, llong)
+    if threshold is None:
+        if np.issubdtype(image.dtype, np.integer):
+            threshold = 1
+        else:
+            threshold = 1/256.
+
+    roi = result > threshold
+    processed_image = np.where(roi, result, 0)
+
+    # Analyze the background
+    background_image = image[~roi]
+    black_level = background_image.mean()
+    noise_size = background_image.std()
+    return processed_image, black_level, noise_size
+
+
+def scalefactor_to_gamut(image, original_dtype):
+    return np.iinfo(original_dtype).max / image.max()
+
+
+def scale_to_gamut(image, original_dtype, scale_factor=None):
+    if scale_factor is None:
+        scale_factor = scalefactor_to_gamut(image, original_dtype)
     scaled = (scale_factor * image.clip(min=0.)).astype(original_dtype)
-    if return_scale_factor:
-        return scaled, scale_factor
     return scaled
