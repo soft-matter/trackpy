@@ -616,7 +616,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         approx_mass = np.empty(count_maxima)  # initialize to avoid appending
         for i in range(count_maxima):
             approx_mass[i] = estimate_mass(image, radius, coords[i])
-        condition = approx_mass > minmass
+        condition = approx_mass > minmass * scale_factor
         if maxsize is not None:
             approx_size = np.empty(count_maxima)
             for i in range(count_maxima):
