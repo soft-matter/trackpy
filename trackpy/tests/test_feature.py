@@ -88,7 +88,7 @@ class CommonFeatureIdentificationTests(object):
         black_image = np.ones((21, 23)).astype(np.uint8)
         draw_point(black_image, [11, 13], 10)
         with assert_produces_warning(UserWarning):
-            f = tp.locate(black_image, 5, minmass=1000,
+            f = tp.locate(black_image, 5, minmass=200,
                           engine=self.engine, preprocess=False)
 
     def test_warn_color_image(self):
@@ -406,7 +406,48 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame([pos1], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
-    def test_rg(self):
+    def test_mass(self):
+        # The mass calculated from the processed image should be independent
+        # of added noise. Its absolute value is untested.
+
+        # The mass calculated from the raw image should equal
+        # noiseless mass + noise_size/2 * Npx_in_mask.
+        self.check_skip()
+        ndim = 2
+        radius = 6
+        N = 20
+        shape = (128, 127)
+
+        # Calculate the expected mass from a single spot using the set masksize
+        center = (radius*2,) * ndim
+        spot = draw_spots((radius*4,) * ndim, [center], radius*3, bitdepth=12)
+        rect = [slice(c - radius, c + radius + 1) for c in center]
+        mask = tp.masks.binary_mask(radius, 2)
+        Npx = mask.sum()
+        EXPECTED_MASS = (spot[rect] * mask).sum()
+
+        # Generate feature locations and make the image
+        expected = gen_nonoverlapping_locations(shape, N, radius*3, radius+2)
+        expected = expected + np.random.random(expected.shape)
+        N = expected.shape[0]
+        image = draw_spots(shape, expected, radius*3, bitdepth=12)
+
+        # analyze the image without noise
+        f = tp.locate(image, radius*2+1, engine=self.engine, topn=N)
+        PROCESSED_MASS = f['mass'].mean()
+        assert_allclose(f['raw_mass'].mean(), EXPECTED_MASS, rtol=0.01)
+
+        for n, noise in enumerate(np.arange(0.05, 0.8, 0.05)):
+            noise_level = int((2**12 - 1) * noise)
+            image_noisy = image + np.array(np.random.randint(0, noise_level,
+                                                             image.shape),
+                                           dtype=image.dtype)
+            f = tp.locate(image_noisy, radius*2+1, engine=self.engine, topn=N)
+            assert_allclose(f['mass'].mean(), PROCESSED_MASS, rtol=0.1)
+            assert_allclose(f['raw_mass'].mean(),
+                            EXPECTED_MASS + Npx*noise_level/2, rtol=0.1)
+
+    def test_size(self):
         # To draw Gaussians with radii 2, 3, 5, and 7 px, we supply the draw
         # function with rg=0.25. This means that the radius of gyration will be
         # one fourth of the max radius in the draw area, which is diameter/2.
@@ -427,6 +468,25 @@ class CommonFeatureIdentificationTests(object):
                 actual = tp.locate(image, SIZE*8 - 1, 1, preprocess=False,
                                    engine=self.engine)['size']
                 assert_allclose(actual, SIZE, rtol=0.1)
+
+    def test_size_anisotropic(self):
+        # The separate columns 'size_x' and 'size_y' reflect the radii of
+        # gyration in the two separate directions. rg**2 = size_x**2+size_y**2
+        # so for comparison we need a factor of sqrt(2)
+
+        self.skip_numba()
+        L = 101
+        SIZE = 5
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = [50, 55]
+        EXPECTED = SIZE/np.sqrt(2)
+        for ar in [1.1, 1.5, 2]:
+            image = np.zeros(dims, dtype='uint8')
+            draw_feature(image, pos, [int(SIZE*8*ar), SIZE*8], rg=0.25)
+            f = tp.locate(image, [int(SIZE*4*ar) * 2 - 1, SIZE*8 - 1], 1,
+                          preprocess=False, engine=self.engine)
+            assert_allclose(f['size_x'], EXPECTED, rtol=0.1)
+            assert_allclose(f['size_y'], EXPECTED*ar, rtol=0.1)
 
     def test_eccentricity(self):
         # Eccentricity (elongation) is measured with good accuracy and

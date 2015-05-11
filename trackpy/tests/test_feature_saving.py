@@ -13,6 +13,7 @@ import pandas
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
 import trackpy as tp 
+from pims import ImageSequence
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -45,9 +46,9 @@ class FeatureSavingTester(object):
 
     def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
-        self.v = tp.ImageSequence(os.path.join(directory, '*.png'))
-        self.PARAMS = (11, 3000)
-        self.expected = tp.batch(self.v[[0, 1]], *self.PARAMS,
+        self.v = ImageSequence(os.path.join(directory, '*.png'))
+        self.PARAMS = (11, 200)
+        self.expected = tp.batch(self.v[[0, 1]], diameter=11, minmass=200,
                                  engine='python', meta=False)
 
     def test_storage(self):
