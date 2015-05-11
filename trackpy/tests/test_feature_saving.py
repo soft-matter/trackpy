@@ -43,13 +43,14 @@ def _skip_if_no_pytables():
 
 
 class FeatureSavingTester(object):
-
     def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
         self.v = ImageSequence(os.path.join(directory, '*.png'))
-        self.PARAMS = (11, 200)
-        self.expected = tp.batch(self.v[[0, 1]], diameter=11, minmass=200,
-                                 engine='python', meta=False)
+        # mass depends on pixel dtype, which differs per reader
+        minmass = self.v[0].max() * 2
+        self.PARAMS = {'diameter': 11, 'minmass': minmass, 'invert': True}
+        self.expected = tp.batch(self.v[[0, 1]], engine='python', meta=False,
+                                 **self.PARAMS)
 
     def test_storage(self):
         STORE_NAME = 'temp_for_testing_{0}.h5'.format(_random_hash())
@@ -60,8 +61,8 @@ class FeatureSavingTester(object):
         except IOError:
             nose.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
-            tp.batch(self.v[[0, 1]], *self.PARAMS,
-                     output=s, engine='python', meta=False)
+            tp.batch(self.v[[0, 1]], output=s, engine='python', meta=False,
+                     **self.PARAMS)
             self.assertEqual(len(s), 2)
             self.assertEqual(s.max_frame, 1)
             count_total_dumped = s.dump()['frame'].nunique()
