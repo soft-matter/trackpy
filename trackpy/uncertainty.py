@@ -9,7 +9,7 @@ from .masks import binary_mask, N_binary_mask, root_sum_x_squared
 from .utils import validate_tuple
 
 
-def roi(image, diameter, threshold=None):
+def roi(image, diameter, threshold=None, image_bandpassed=None):
     """Return a mask selecting the neighborhoods of bright regions.
     See Biophysical journal 88(1) 623-638 Figure C.
 
@@ -17,22 +17,26 @@ def roi(image, diameter, threshold=None):
     ----------
     image : ndarray
     diameter : feature size used for centroid identification
+    threshold : number, optional
+    image_bandpassed : ndarray, optional
 
     Returns
     -------
     boolean ndarray, True around bright regions
     """
     diameter = validate_tuple(diameter, image.ndim)
-    signal_mask = bandpass(image, 1, tuple([d + 1 for d in diameter]), threshold)
-    radius = tuple([int(d)//2 for d in diameter])
-    structure = binary_mask(radius, image.ndim)
-    signal_mask = morphology.binary_dilation(signal_mask, structure=structure)
+    if image_bandpassed is None:
+        image_bandpassed = bandpass(image, 1, tuple([d + 1 for d in diameter]),
+                                    threshold)
+    structure = binary_mask(tuple([int(d)//2 for d in diameter]), image.ndim)
+    signal_mask = morphology.binary_dilation(image_bandpassed,
+                                             structure=structure)
     return signal_mask
 
 
-def measure_noise(image, diameter, threshold):
+def measure_noise(image, diameter, threshold, image_bandpassed=None):
     "Compute the standard deviation of the dark pixels outside the signal."
-    signal_mask = roi(image, diameter, threshold)
+    signal_mask = roi(image, diameter, threshold, image_bandpassed)
     return image[~signal_mask].mean(), image[~signal_mask].std()
 
 

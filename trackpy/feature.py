@@ -633,6 +633,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine(raw_image, image, radius, coords, separation,
                             max_iterations, engine, characterize)
+    # mass and signal values has to be corrected due to the rescaling
+    # raw_mass was obtained from raw image; size and ecc are scale-independent
     refined_coords[:, MASS_COLUMN_INDEX] /= scale_factor
     if characterize:
         refined_coords[:, SIGNAL_COLUMN_INDEX] /= scale_factor
@@ -663,9 +665,11 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
     if characterize:
-        # signal value has to be corrected due to the rescaling
-        # mass was obtained from raw image; size and ecc are scale-independent
-        black_level, noise = measure_noise(raw_image, diameter, threshold)
+        if preprocess:  # reuse processed image to increase performance
+            black_level, noise = measure_noise(raw_image, diameter,
+                                               threshold, image)
+        else:
+            black_level, noise = measure_noise(raw_image, diameter, threshold)
         ep = static_error(refined_coords[:, MASS_COLUMN_INDEX], black_level,
                           noise, radius, noise_size)
 
