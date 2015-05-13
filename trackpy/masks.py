@@ -66,7 +66,17 @@ def root_sum_x_squared(radius, ndim):
 
 @memo
 def theta_mask(radius):
-    "Mask of values giving angular position relative to center"
+    """Mask of values giving angular position relative to center. The angle is
+    defined according to ISO standards in which the angle is measured counter-
+    clockwise from the x axis, measured in a normal coordinate system with y-
+    axis pointing up and x axis pointing right.
+
+    In other words: for increasing angle, the coordinate moves counterclockwise
+    around the feature center starting on the right side.
+
+    However, in most images, the y-axis will point down so that the coordinate
+    will appear to move clockwise around the feature center.
+    """
     # 2D only
     radius = validate_tuple(radius, 2)
     tan_of_coord = lambda y, x: np.arctan2(y - radius[0], x - radius[1])
