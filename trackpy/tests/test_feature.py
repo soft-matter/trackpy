@@ -406,6 +406,46 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame([pos1], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
+    def test_minmass_maxsize(self):
+        # Test the mass- and sizebased filtering here on 4 different features.
+        self.check_skip()
+        L = 64
+        dims = (L, L + 2)
+        cols = ['y', 'x']
+        PRECISION = 1  # we are not testing for subpx precision here
+
+        image = np.zeros(dims, dtype=np.uint8)
+        pos1 = np.array([15, 20])
+        pos2 = np.array([40, 40])
+        pos3 = np.array([25, 45])
+        pos4 = np.array([35, 15])
+
+        draw_feature(image, pos1, 15)
+        draw_feature(image, pos2, 30)
+        draw_feature(image, pos3, 5)
+        draw_feature(image, pos4, 20)
+
+        # filter on mass
+        actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
+                           minmass=6500)[cols]
+        actual = actual.sort(cols)
+        expected = DataFrame([pos2, pos4], columns=cols).sort(cols)
+        assert_allclose(actual, expected, atol=PRECISION)
+
+        # filter on size
+        actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
+                           maxsize=3.0)[cols]
+        actual = actual.sort(cols)
+        expected = DataFrame([pos1, pos3], columns=cols).sort(cols)
+        assert_allclose(actual, expected, atol=PRECISION)
+
+        # filter on both mass and size
+        actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
+                           minmass=600, maxsize=4.0)[cols]
+        actual = actual.sort(cols)
+        expected = DataFrame([pos1, pos4], columns=cols).sort(cols)
+        assert_allclose(actual, expected, atol=PRECISION)
+
     def test_mass(self):
         # The mass calculated from the processed image should be independent
         # of added noise. Its absolute value is untested.
@@ -520,6 +560,32 @@ class CommonFeatureIdentificationTests(object):
         expected = ECC
         assert_allclose(actual, expected, atol=0.1)
 
+    def test_noise_estimation(self):
+        # Test wether the estimation of background noise indeed agrees with
+        # features on an artificial uniform distribution.
+
+        # A threshold is necessary to estimate the noise_level correctly. Here
+        # this is put to noise_level / 4.
+        radius = 7
+        N = 200
+        shape = (512, 512)
+        noise_expectation = np.array([1/2., np.sqrt(1/12.)])  # average, stdev
+
+        # Generate feature locations and make the image
+        expected = gen_nonoverlapping_locations(shape, N, radius*5, radius+2)
+        expected = expected + np.random.random(expected.shape)
+        N = expected.shape[0]
+        image = draw_spots(shape, expected, radius*3, bitdepth=12)
+
+        for n, noise in enumerate(np.arange(0.05, 0.8, 0.05)):
+            noise_level = int((2**12 - 1) * noise)
+            image_noisy = image + np.array(np.random.randint(0, noise_level,
+                                                             image.shape),
+                                           dtype=image.dtype)
+            actual_noise = tp.uncertainty.measure_noise(image_noisy, radius*2+1,
+                                                        threshold=noise_level/4)
+            assert_allclose(actual_noise, noise_expectation * noise_level,
+                            rtol=0.01)
 
     def test_whole_pixel_shifts(self):
         self.check_skip()
