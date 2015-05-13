@@ -208,6 +208,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     GOOD_ENOUGH_THRESH = 0.005
 
     ndim = image.ndim
+    anisotropic = radius[1:] != radius[:-1]
     mask = binary_mask(radius, ndim)
     slices = [[slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
               for coord in coords]
@@ -218,7 +219,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     mass = np.empty(N, dtype=np.float64)
     raw_mass = np.empty(N, dtype=np.float64)
     if characterize:
-        if radius[1:] == radius[:-1]:
+        if not anisotropic:
             Rg = np.empty(N, dtype=np.float64)
         else:
             Rg = np.empty((N, len(radius)), dtype=np.float64)
@@ -281,13 +282,13 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         mass[feat] = neighborhood.sum()
         if not characterize:
             continue  # short-circuit loop
-        if radius[1:] == radius[:-1]:
+        if not anisotropic:
             Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
                                       neighborhood) / mass[feat])
         else:
-            Rg[feat] = np.sqrt(np.sum(x_squared_masks(radius, ndim) *
-                                      neighborhood,
-                                      axis=tuple(range(1, ndim + 1))) /
+            Rg[feat] = np.sqrt(ndim * np.sum(x_squared_masks(radius, ndim) *
+                                             neighborhood,
+                                             axis=tuple(range(1, ndim + 1))) /
                                mass[feat])[::-1]  # change order yx -> xy
         # I only know how to measure eccentricity in 2D.
         if ndim == 2:
@@ -534,6 +535,11 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         raise ValueError("Feature diameter must be an odd integer. Round up.")
     radius = tuple([x//2 for x in diameter])
 
+    anisotropic = radius[1:] != radius[:-1]
+    if anisotropic and maxsize is not None:
+        raise ValueError("Filtering by size is not available for anisotropic "
+                         "features.")
+
     if separation is None:
         separation = tuple([x + 1 for x in diameter])
     else:
@@ -582,7 +588,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     MASS_COLUMN_INDEX = len(coord_columns)
     columns = coord_columns + ['mass']
     if characterize:
-        if radius[1:] == radius[:-1]:
+        if not anisotropic:
             SIZE_COLUMN_INDEX = len(columns)
             columns += ['size']
         else:
@@ -591,7 +597,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
             columns += ['size_' + cc for cc in coord_columns]
         SIGNAL_COLUMN_INDEX = len(columns) + 1
         columns += ['ecc', 'signal', 'raw_mass']
-        if radius[1:] == radius[:-1] and noise_size[1:] == noise_size[:-1]:
+        if not anisotropic and noise_size[1:] == noise_size[:-1]:
             columns += ['ep']
         else:
             columns += ['ep_' + cc for cc in coord_columns]
@@ -635,16 +641,16 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
                             max_iterations, engine, characterize)
     # mass and signal values has to be corrected due to the rescaling
     # raw_mass was obtained from raw image; size and ecc are scale-independent
-    refined_coords[:, MASS_COLUMN_INDEX] /= scale_factor
+    refined_coords[:, MASS_COLUMN_INDEX] *= 1. / scale_factor
     if characterize:
-        refined_coords[:, SIGNAL_COLUMN_INDEX] /= scale_factor
+        refined_coords[:, SIGNAL_COLUMN_INDEX] *= 1. / scale_factor
 
     # Filter again, using final ("exact") mass -- and size, if set.
     exact_mass = refined_coords[:, MASS_COLUMN_INDEX]
     if filter_after:
         condition = exact_mass > minmass
         if maxsize is not None:
-            exact_size = np.sqrt(np.sum(refined_coords[:, SIZE_COLUMN_INDEX]**2))
+            exact_size = refined_coords[:, SIZE_COLUMN_INDEX]
             condition &= exact_size < maxsize
         refined_coords = refined_coords[condition]
         exact_mass = exact_mass[condition]  # used below by topn

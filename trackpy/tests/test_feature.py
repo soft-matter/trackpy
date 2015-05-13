@@ -471,22 +471,20 @@ class CommonFeatureIdentificationTests(object):
 
     def test_size_anisotropic(self):
         # The separate columns 'size_x' and 'size_y' reflect the radii of
-        # gyration in the two separate directions. rg**2 = size_x**2+size_y**2
-        # so for comparison we need a factor of sqrt(2)
+        # gyration in the two separate directions.
 
         self.skip_numba()
         L = 101
         SIZE = 5
         dims = (L, L + 2)  # avoid square images in tests
         pos = [50, 55]
-        EXPECTED = SIZE/np.sqrt(2)
         for ar in [1.1, 1.5, 2]:
             image = np.zeros(dims, dtype='uint8')
             draw_feature(image, pos, [int(SIZE*8*ar), SIZE*8], rg=0.25)
             f = tp.locate(image, [int(SIZE*4*ar) * 2 - 1, SIZE*8 - 1], 1,
                           preprocess=False, engine=self.engine)
-            assert_allclose(f['size_x'], EXPECTED, rtol=0.1)
-            assert_allclose(f['size_y'], EXPECTED*ar, rtol=0.1)
+            assert_allclose(f['size_x'], SIZE, rtol=0.1)
+            assert_allclose(f['size_y'], SIZE*ar, rtol=0.1)
 
     def test_eccentricity(self):
         # Eccentricity (elongation) is measured with good accuracy and
