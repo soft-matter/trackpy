@@ -69,7 +69,7 @@ def theta_mask(radius):
     "Mask of values giving angular position relative to center"
     # 2D only
     radius = validate_tuple(radius, 2)
-    tan_of_coord = lambda y, x: np.arctan2(radius[0] - y, x - radius[1])
+    tan_of_coord = lambda y, x: np.arctan2(y - radius[0], x - radius[1])
     return np.fromfunction(tan_of_coord, [r * 2 + 1 for r in radius])
 
 
