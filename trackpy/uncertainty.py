@@ -40,23 +40,23 @@ def measure_noise(image, diameter, threshold, image_bandpassed=None):
     return image[~signal_mask].mean(), image[~signal_mask].std()
 
 
-def static_error(mass, black_level, noise, radius, noise_size=1):
+def static_error(mass, noise, radius, ndim=2, noise_size=1):
     """Compute the uncertainty in particle position ("the static error").
 
     Parameters
     ----------
-    mass : ndarray of feature masses
-    black_level : number, average background pixel value
+    mass : ndarray of feature masses, already background corrected
     noise : number, standard deviation of the noise
-    radius : tuple of feature radius used to locate centroids
-    noise_size : noise correlation length, may be tuple-valued (?)
+    radius : number or tuple, feature radius used to locate centroids
+    ndim : number of image dimensions, default 2
+    noise_size : noise correlation length, may be tuple-valued
 
     Returns
     -------
-    Series of static error estimates, indexed like the trajectories.
-    When either radius or noise_size are anisotropic, a list of ndim Series is
-    returned, one for each dimension. The order of this list is equal to the
-    order of coord_columns and the reverse of radius and noise_size.
+    1D or 2D array of static error estimates, indexed like the trajectories.
+    When either radius or noise_size are anisotropic, a the returned array has
+    ndim columns, one for each dimension. The order of these columns are equal
+    to the order dimensions in radius and noise_size.
 
     Note
     ----
@@ -71,18 +71,16 @@ def static_error(mass, black_level, noise, radius, noise_size=1):
 
     In addition, the sum of squared coordinates is calculated by taking the
     discrete sum instead of taking the continuous limit and integrating. This
-    makes it easier to implement anisotropic and n-dimensional masks.
+    makes it possible to generalize this analysis to anisotropic masks.
     """
-    noise_size = validate_tuple(noise_size, len(radius))[::-1]
-    radius = radius[::-1]
-    N = N_binary_mask(radius, len(radius))
-    coord_moments = root_sum_x_squared(radius, len(radius))
-    # If this is just one frame black_level is a scalar.
-    mass_corr = mass - N * black_level
-    N_S = noise / mass_corr
-    if (radius[1:] == radius[:-1]) and (noise_size[1:] == noise_size[:-1]):
-        ep = N_S * noise_size[0] * coord_moments[0]
+    noise_size = validate_tuple(noise_size, ndim)
+    radius = validate_tuple(radius, ndim)
+    coord_moments = root_sum_x_squared(radius, ndim)
+    isotropic = (np.all(radius[1:] == radius[:-1]) and
+                 np.all(noise_size[1:] == noise_size[:-1]))
+    if isotropic:
+        ep = noise * noise_size[0] * coord_moments[0] / mass
     else:
-        coord_moments = np.array(noise_size) * np.array(coord_moments)
-        ep = N_S[:, np.newaxis] * coord_moments[np.newaxis, :]
+        noise_moments = noise * np.array(noise_size) * np.array(coord_moments)
+        ep = noise_moments[np.newaxis, :] / mass[:, np.newaxis]
     return ep

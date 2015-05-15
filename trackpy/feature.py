@@ -11,8 +11,8 @@ from pandas import DataFrame
 
 from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
 from .utils import record_meta, print_update, validate_tuple
-from .masks import (binary_mask, r_squared_mask, x_squared_masks,
-                    cosmask, sinmask)
+from .masks import (binary_mask, N_binary_mask, r_squared_mask,
+                    x_squared_masks, cosmask, sinmask)
 from .uncertainty import static_error, measure_noise
 import trackpy  # to get trackpy.__version__
 
@@ -208,7 +208,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     GOOD_ENOUGH_THRESH = 0.005
 
     ndim = image.ndim
-    anisotropic = radius[1:] != radius[:-1]
+    isotropic = np.all(radius[1:] == radius[:-1])
     mask = binary_mask(radius, ndim)
     slices = [[slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
               for coord in coords]
@@ -219,7 +219,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     mass = np.empty(N, dtype=np.float64)
     raw_mass = np.empty(N, dtype=np.float64)
     if characterize:
-        if not anisotropic:
+        if isotropic:
             Rg = np.empty(N, dtype=np.float64)
         else:
             Rg = np.empty((N, len(radius)), dtype=np.float64)
@@ -282,7 +282,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         mass[feat] = neighborhood.sum()
         if not characterize:
             continue  # short-circuit loop
-        if not anisotropic:
+        if isotropic:
             Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
                                       neighborhood) / mass[feat])
         else:
@@ -535,8 +535,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         raise ValueError("Feature diameter must be an odd integer. Round up.")
     radius = tuple([x//2 for x in diameter])
 
-    anisotropic = radius[1:] != radius[:-1]
-    if anisotropic and maxsize is not None:
+    isotropic = np.all(radius[1:] == radius[:-1])
+    if (not isotropic) and (maxsize is not None):
         raise ValueError("Filtering by size is not available for anisotropic "
                          "features.")
 
@@ -576,7 +576,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     if np.issubdtype(raw_image.dtype, np.integer):
         dtype = raw_image.dtype
     else:
-        dtype = np.uint16
+        dtype = np.uint8
     scale_factor = scalefactor_to_gamut(image, dtype)
     image = scale_to_gamut(image, dtype, scale_factor)
 
@@ -588,7 +588,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     MASS_COLUMN_INDEX = len(coord_columns)
     columns = coord_columns + ['mass']
     if characterize:
-        if not anisotropic:
+        if isotropic:
             SIZE_COLUMN_INDEX = len(columns)
             columns += ['size']
         else:
@@ -597,7 +597,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
             columns += ['size_' + cc for cc in coord_columns]
         SIGNAL_COLUMN_INDEX = len(columns) + 1
         columns += ['ecc', 'signal', 'raw_mass']
-        if not anisotropic and noise_size[1:] == noise_size[:-1]:
+        if isotropic and np.all(noise_size[1:] == noise_size[:-1]):
             columns += ['ep']
         else:
             columns += ['ep_' + cc for cc in coord_columns]
@@ -676,8 +676,9 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
                                                threshold, image)
         else:
             black_level, noise = measure_noise(raw_image, diameter, threshold)
-        ep = static_error(refined_coords[:, MASS_COLUMN_INDEX], black_level,
-                          noise, radius, noise_size)
+        Npx = N_binary_mask(radius, ndim)
+        mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
+        ep = static_error(mass, noise, radius[::-1], ndim, noise_size[::-1])
 
     f = DataFrame(np.column_stack([refined_coords, ep]), columns=columns)
 
