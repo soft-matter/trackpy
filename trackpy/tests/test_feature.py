@@ -382,7 +382,7 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_anisotropic_3D_simple(self):
-        self.check_skip()
+        self.skip_numba()
         actual, expected = compare((100, 120, 10), 4, (4, 4, 2), noise_level=0,
                                    engine=self.engine)
         assert_allclose(actual, expected, atol=0.5)

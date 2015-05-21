@@ -148,21 +148,26 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         N = coords.shape[0]
         mask = binary_mask(radius, image.ndim)
         r2_mask = r_squared_mask(radius, image.ndim)[mask]
+        x2_masks = x_squared_masks(radius, image.ndim)
+        y2_mask = image.ndim * x2_masks[0][mask]
+        x2_mask = image.ndim * x2_masks[1][mask]
         cmask = cosmask(radius)[mask]
         smask = sinmask(radius)[mask]
         mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), dtype=np.int16)
         # Allocate a results array that _numba_refine will write to
-        if characterize:
+        if not characterize:
+            results_columns = 3
+        elif radius[0] == radius[1]:
             results_columns = 7
         else:
-            results_columns = 3  # Position and mass only
+            results_columns = 8
         results = np.empty((N, results_columns), dtype=np.float64)
         _numba_refine(np.asarray(raw_image), np.asarray(image),
                       radius[0], radius[1], coords, N,
                       int(max_iterations), characterize,
                       image.shape[0], image.shape[1],
                       mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
-                      r2_mask, cmask, smask, results)
+                      r2_mask, y2_mask, x2_mask, cmask, smask, results)
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
 
@@ -300,17 +305,24 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 
 
 @try_numba_autojit(nopython=False)
-def _numba_refine(raw_image, image, radiusY, radiusX, coords, N,
-                  max_iterations, characterize, shapeY, shapeX, maskY, maskX,
-                  N_mask, r2_mask, cmask, smask, results):
+def _numba_refine(raw_image, image, radiusY, radiusX, coords, N, max_iterations,
+                  characterize, shapeY, shapeX, maskY, maskX, N_mask, r2_mask, 
+                  y2_mask, x2_mask, cmask, smask, results):
     SHIFT_THRESH = 0.6
     GOOD_ENOUGH_THRESH = 0.01
     # Column indices into the 'results' array
     MASS_COL = 2
-    RG_COL = 3
-    ECC_COL = 4
-    SIGNAL_COL = 5
-    RAW_MASS_COL = 6
+    if radiusX == radiusY:
+        RG_COL = 3
+        ECC_COL = 4
+        SIGNAL_COL = 5
+        RAW_MASS_COL = 6
+    else:
+        RGX_COL = 3
+        RGY_COL = 4
+        ECC_COL = 5
+        SIGNAL_COL = 6
+        RAW_MASS_COL = 7
 
     upper_boundY = shapeY - radiusY - 1
     upper_boundX = shapeX - radiusX - 1
@@ -414,11 +426,18 @@ def _numba_refine(raw_image, image, radiusY, radiusX, coords, N,
         mass_ = 0.
         raw_mass_ = 0.
         Rg_ = 0.
+        RgY = 0.
+        RgX = 0.
         ecc1 = 0.
         ecc2 = 0.
         signal_ = 0.
 
-        if characterize:
+        if not characterize:
+            for i in range(N_mask):
+                px = image[squareY + maskY[i],
+                           squareX + maskX[i]]
+                mass_ += px
+        elif radiusX == radiusY:
             for i in range(N_mask):
                 px = image[squareY + maskY[i],
                            squareX + maskX[i]]
@@ -431,14 +450,26 @@ def _numba_refine(raw_image, image, radiusY, radiusX, coords, N,
                                        squareX + maskX[i]]
                 if px > signal_:
                     signal_ = px
+            results[feat, RG_COL] = np.sqrt(Rg_/mass_)
         else:
             for i in range(N_mask):
                 px = image[squareY + maskY[i],
                            squareX + maskX[i]]
                 mass_ += px
+
+                RgY += y2_mask[i]*px
+                RgX += x2_mask[i]*px
+                ecc1 += cmask[i]*px
+                ecc2 += smask[i]*px
+                raw_mass_ += raw_image[squareY + maskY[i],
+                                       squareX + maskX[i]]
+                if px > signal_:
+                    signal_ = px
+            results[feat, RGY_COL] = np.sqrt(RgY/mass_)
+            results[feat, RGX_COL] = np.sqrt(RgX/mass_)
+
         results[feat, MASS_COL] = mass_
         if characterize:
-            results[feat, RG_COL] = np.sqrt(Rg_/mass_)
             center_px = image[squareY + radiusY, squareX + radiusX]
             results[feat, ECC_COL] = np.sqrt(ecc1**2 + ecc2**2) / (mass_ - center_px + 1e-6)
             results[feat, SIGNAL_COL] = signal_
