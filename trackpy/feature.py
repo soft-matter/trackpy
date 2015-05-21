@@ -16,7 +16,9 @@ from .masks import (binary_mask, N_binary_mask, r_squared_mask,
 from .uncertainty import _static_error, measure_noise
 import trackpy  # to get trackpy.__version__
 
-from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
+from .try_numba import NUMBA_AVAILABLE
+from .feature_numba import (_numba_refine_2D, _numba_refine_2D_c,
+                            _numba_refine_2D_c_a)
 
 
 def percentile_threshold(image, percentile):
@@ -147,27 +149,39 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         coords = np.array(coords, dtype=np.float64)
         N = coords.shape[0]
         mask = binary_mask(radius, image.ndim)
-        r2_mask = r_squared_mask(radius, image.ndim)[mask]
-        x2_masks = x_squared_masks(radius, image.ndim)
-        y2_mask = image.ndim * x2_masks[0][mask]
-        x2_mask = image.ndim * x2_masks[1][mask]
-        cmask = cosmask(radius)[mask]
-        smask = sinmask(radius)[mask]
         mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), dtype=np.int16)
-        # Allocate a results array that _numba_refine will write to
         if not characterize:
-            results_columns = 3
+            results = np.empty((N, 3), dtype=np.float64)
+            _numba_refine_2D(np.asarray(raw_image), np.asarray(image),
+                             radius[0], radius[1], coords, N,
+                             int(max_iterations),
+                             image.shape[0], image.shape[1],
+                             mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
+                             results)
         elif radius[0] == radius[1]:
-            results_columns = 7
+            results = np.empty((N, 7), dtype=np.float64)
+            r2_mask = r_squared_mask(radius, image.ndim)[mask]
+            cmask = cosmask(radius)[mask]
+            smask = sinmask(radius)[mask]
+            _numba_refine_2D_c(np.asarray(raw_image), np.asarray(image),
+                               radius[0], radius[1], coords, N,
+                               int(max_iterations),
+                               image.shape[0], image.shape[1],
+                               mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
+                               r2_mask, cmask, smask, results)
         else:
-            results_columns = 8
-        results = np.empty((N, results_columns), dtype=np.float64)
-        _numba_refine(np.asarray(raw_image), np.asarray(image),
-                      radius[0], radius[1], coords, N,
-                      int(max_iterations), characterize,
-                      image.shape[0], image.shape[1],
-                      mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
-                      r2_mask, y2_mask, x2_mask, cmask, smask, results)
+            results = np.empty((N, 8), dtype=np.float64)
+            x2_masks = x_squared_masks(radius, image.ndim)
+            y2_mask = image.ndim * x2_masks[0][mask]
+            x2_mask = image.ndim * x2_masks[1][mask]
+            cmask = cosmask(radius)[mask]
+            smask = sinmask(radius)[mask]
+            _numba_refine_2D_c_a(np.asarray(raw_image), np.asarray(image),
+                                 radius[0], radius[1], coords, N,
+                                 int(max_iterations),
+                                 image.shape[0], image.shape[1],
+                                 mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
+                                 y2_mask, x2_mask, cmask, smask, results)
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
 
@@ -302,180 +316,6 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         return np.column_stack([final_coords, mass])
     else:
         return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
-
-
-@try_numba_autojit(nopython=False)
-def _numba_refine(raw_image, image, radiusY, radiusX, coords, N, max_iterations,
-                  characterize, shapeY, shapeX, maskY, maskX, N_mask, r2_mask, 
-                  y2_mask, x2_mask, cmask, smask, results):
-    SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.01
-    # Column indices into the 'results' array
-    MASS_COL = 2
-    if radiusX == radiusY:
-        RG_COL = 3
-        ECC_COL = 4
-        SIGNAL_COL = 5
-        RAW_MASS_COL = 6
-    else:
-        RGX_COL = 3
-        RGY_COL = 4
-        ECC_COL = 5
-        SIGNAL_COL = 6
-        RAW_MASS_COL = 7
-
-    upper_boundY = shapeY - radiusY - 1
-    upper_boundX = shapeX - radiusX - 1
-
-    for feat in range(N):
-        # Define the circular neighborhood of (x, y).
-        coordY = coords[feat, 0]
-        coordX = coords[feat, 1]
-        cm_nY = 0.
-        cm_nX = 0.
-        squareY = int(round(coordY)) - radiusY
-        squareX = int(round(coordX)) - radiusX
-        mass_ = 0.0
-        for i in range(N_mask):
-            px = image[squareY + maskY[i],
-                       squareX + maskX[i]]
-            cm_nY += px*maskY[i]
-            cm_nX += px*maskX[i]
-            mass_ += px
-
-        cm_nY /= mass_
-        cm_nX /= mass_
-        cm_iY = cm_nY - radiusY + coordY
-        cm_iX = cm_nX - radiusX + coordX
-        allow_moves = True
-        for iteration in range(max_iterations):
-            off_centerY = cm_nY - radiusY
-            off_centerX = cm_nX - radiusX
-            if (abs(off_centerY) < GOOD_ENOUGH_THRESH and
-                abs(off_centerX) < GOOD_ENOUGH_THRESH):
-                break  # Go to next feature
-
-            # If we're off by more than half a pixel in any direction, move.
-            do_move = False
-            if allow_moves and (abs(off_centerY) > SHIFT_THRESH or
-                                abs(off_centerX) > SHIFT_THRESH):
-                do_move = True
-
-            if do_move:
-                # In here, coord is an integer.
-                new_coordY = int(round(coordY))
-                new_coordX = int(round(coordX))
-                oc = off_centerY
-                if oc > SHIFT_THRESH:
-                    new_coordY += 1
-                elif oc < - SHIFT_THRESH:
-                    new_coordY -= 1
-                oc = off_centerX
-                if oc > SHIFT_THRESH:
-                    new_coordX += 1
-                elif oc < - SHIFT_THRESH:
-                    new_coordX -= 1
-                # Don't move outside the image!
-                if new_coordY < radiusY:
-                    new_coordY = radiusY
-                if new_coordX < radiusX:
-                    new_coordX = radiusX
-                if new_coordY > upper_boundY:
-                    new_coordY = upper_boundY  
-                if new_coordX > upper_boundX:
-                    new_coordX = upper_boundX
-                # Update slice to shifted position.
-                squareY = new_coordY - radiusY
-                squareX = new_coordX - radiusX
-                cm_nY = 0.
-                cm_nX = 0.
-
-            # If we're off by less than half a pixel, interpolate.
-            else:
-                break
-                # TODO Implement this for numba.
-                # Remember to zero cm_n somewhere in here.
-                # Here, coord is a float. We are off the grid.
-                # neighborhood = ndimage.shift(neighborhood, -off_center,
-                #                              order=2, mode='constant', cval=0)
-                # new_coord = np.float_(coord) + off_center
-                # Disallow any whole-pixels moves on future iterations.
-                # allow_moves = False
-
-            # cm_n was re-zeroed above in an unrelated loop
-            mass_ = 0.
-            for i in range(N_mask):
-                px = image[squareY + maskY[i],
-                           squareX + maskX[i]]
-                cm_nY += px*maskY[i]
-                cm_nX += px*maskX[i]
-                mass_ += px
-
-            cm_nY /= mass_
-            cm_nX /= mass_
-            cm_iY = cm_nY - radiusY + new_coordY
-            cm_iX = cm_nX - radiusX + new_coordX
-            coordY = new_coordY
-            coordX = new_coordX
-
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
-        results[feat, 1] = cm_iY
-
-        # Characterize the neighborhood of our final centroid.
-        mass_ = 0.
-        raw_mass_ = 0.
-        Rg_ = 0.
-        RgY = 0.
-        RgX = 0.
-        ecc1 = 0.
-        ecc2 = 0.
-        signal_ = 0.
-
-        if not characterize:
-            for i in range(N_mask):
-                px = image[squareY + maskY[i],
-                           squareX + maskX[i]]
-                mass_ += px
-        elif radiusX == radiusY:
-            for i in range(N_mask):
-                px = image[squareY + maskY[i],
-                           squareX + maskX[i]]
-                mass_ += px
-
-                Rg_ += r2_mask[i]*px
-                ecc1 += cmask[i]*px
-                ecc2 += smask[i]*px
-                raw_mass_ += raw_image[squareY + maskY[i],
-                                       squareX + maskX[i]]
-                if px > signal_:
-                    signal_ = px
-            results[feat, RG_COL] = np.sqrt(Rg_/mass_)
-        else:
-            for i in range(N_mask):
-                px = image[squareY + maskY[i],
-                           squareX + maskX[i]]
-                mass_ += px
-
-                RgY += y2_mask[i]*px
-                RgX += x2_mask[i]*px
-                ecc1 += cmask[i]*px
-                ecc2 += smask[i]*px
-                raw_mass_ += raw_image[squareY + maskY[i],
-                                       squareX + maskX[i]]
-                if px > signal_:
-                    signal_ = px
-            results[feat, RGY_COL] = np.sqrt(RgY/mass_)
-            results[feat, RGX_COL] = np.sqrt(RgX/mass_)
-
-        results[feat, MASS_COL] = mass_
-        if characterize:
-            center_px = image[squareY + radiusY, squareX + radiusX]
-            results[feat, ECC_COL] = np.sqrt(ecc1**2 + ecc2**2) / (mass_ - center_px + 1e-6)
-            results[feat, SIGNAL_COL] = signal_
-            results[feat, RAW_MASS_COL] = raw_mass_
-
-    return 0  # Unused
 
 
 def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
