@@ -679,8 +679,9 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         Npx = N_binary_mask(radius, ndim)
         mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
         ep = _static_error(mass, noise, radius[::-1], noise_size[::-1])
+        refined_coords = np.column_stack([refined_coords, ep])
 
-    f = DataFrame(np.column_stack([refined_coords, ep]), columns=columns)
+    f = DataFrame(refined_coords, columns=columns)
 
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.
