@@ -126,7 +126,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
     radius = validate_tuple(radius, image.ndim)
     # Main loop will be performed in separate function.
     if engine == 'auto':
-        if NUMBA_AVAILABLE:
+        if NUMBA_AVAILABLE and image.ndim in [2, 3]:
             engine = 'numba'
         else:
             engine = 'python'
