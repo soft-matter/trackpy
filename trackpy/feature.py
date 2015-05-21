@@ -18,7 +18,7 @@ import trackpy  # to get trackpy.__version__
 
 from .try_numba import NUMBA_AVAILABLE
 from .feature_numba import (_numba_refine_2D, _numba_refine_2D_c,
-                            _numba_refine_2D_c_a)
+                            _numba_refine_2D_c_a, _numba_refine_3D)
 
 
 def percentile_threshold(image, percentile):
@@ -139,8 +139,8 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
             warnings.warn("numba could not be imported. Without it, the "
                           "'numba' engine runs very slow. Use the 'python' "
                           "engine or install numba.", UserWarning)
-        if image.ndim != 2:
-            raise NotImplementedError("The numba engine only supports 2D "
+        if image.ndim not in [2, 3]:
+            raise NotImplementedError("The numba engine only supports 2D or 3D "
                                       "images. You can extend it if you feel "
                                       "like a hero.")
         if walkthrough:
@@ -149,8 +149,30 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         coords = np.array(coords, dtype=np.float64)
         N = coords.shape[0]
         mask = binary_mask(radius, image.ndim)
-        mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), dtype=np.int16)
-        if not characterize:
+        if image.ndim == 3:
+            if characterize:
+                if np.all(radius[1:] == radius[:-1]):
+                    results_columns = 8
+                else:
+                    results_columns = 10
+            else:
+                results_columns = 4
+            r2_mask = r_squared_mask(radius, image.ndim)[mask]
+            x2_masks = x_squared_masks(radius, image.ndim)
+            z2_mask = image.ndim * x2_masks[0][mask]
+            y2_mask = image.ndim * x2_masks[1][mask]
+            x2_mask = image.ndim * x2_masks[2][mask]
+            results = np.empty((N, results_columns), dtype=np.float64)
+            maskZ, maskY, maskX = np.asarray(np.asarray(mask.nonzero()),
+                                             dtype=np.int16)
+            _numba_refine_3D(np.asarray(raw_image), np.asarray(image),
+                             radius[0], radius[1], radius[2], coords, N,
+                             int(max_iterations), characterize,
+                             image.shape[0], image.shape[1], image.shape[2],
+                             maskZ, maskY, maskX, maskX.shape[0],
+                             r2_mask, z2_mask, y2_mask, x2_mask, results)
+        elif not characterize:
+            mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), dtype=np.int16)
             results = np.empty((N, 3), dtype=np.float64)
             _numba_refine_2D(np.asarray(raw_image), np.asarray(image),
                              radius[0], radius[1], coords, N,
@@ -159,6 +181,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
                              mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
                              results)
         elif radius[0] == radius[1]:
+            mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), dtype=np.int16)
             results = np.empty((N, 7), dtype=np.float64)
             r2_mask = r_squared_mask(radius, image.ndim)[mask]
             cmask = cosmask(radius)[mask]
@@ -170,6 +193,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
                                mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
                                r2_mask, cmask, smask, results)
         else:
+            mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), dtype=np.int16)
             results = np.empty((N, 8), dtype=np.float64)
             x2_masks = x_squared_masks(radius, image.ndim)
             y2_mask = image.ndim * x2_masks[0][mask]
