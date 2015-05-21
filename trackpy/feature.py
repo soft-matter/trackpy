@@ -153,24 +153,26 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         N = coords.shape[0]
         shape = np.array(image.shape, dtype=np.int16)  # array, not tuple
         mask = binary_mask(radius[0], image.ndim)
-        r2_mask = r_squared_mask(radius[0], image.ndim)
-        cmask = cosmask(radius[0])
-        smask = sinmask(radius[0])
+        r2_mask = r_squared_mask(radius[0], image.ndim)[mask]
+        cmask = cosmask(radius[0])[mask]
+        smask = sinmask(radius[0])[mask]
+        mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), dtype=np.int16)
+        N_mask_coords = len(mask_coordsY)
         # Allocate a results array that _numba_refine will write to
         if characterize:
             results_columns = 7
         else:
             results_columns = 3  # Position and mass only
         results = np.empty((N, results_columns), dtype=np.float64)
-        _ = _numba_refine(np.asarray(raw_image), np.asarray(image), int(radius[0]),
-                                coords, N,
-                                int(max_iterations), characterize,
-                                shape, mask, r2_mask, cmask, smask, results,
-                                np.empty(2, dtype=np.float64),  # Buffer arrays.
-                                np.empty(2, dtype=np.float64),  # See function def.
-                                np.empty(2, dtype=np.float64),
-                                np.empty(2, dtype=np.float64),
-                                np.empty(2, dtype=np.int64),)
+        _numba_refine(np.asarray(raw_image), np.asarray(image), int(radius[0]),
+                      coords, N, int(max_iterations), characterize, shape,
+                      mask_coordsY, mask_coordsX, N_mask_coords, r2_mask,
+                      cmask, smask, results,
+                      np.empty(2, dtype=np.float64),  # Buffer arrays.
+                      np.empty(2, dtype=np.float64),  # See function def.
+                      np.empty(2, dtype=np.float64),
+                      np.empty(2, dtype=np.float64),
+                      np.empty(2, dtype=np.int64))
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
 
@@ -309,7 +311,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 
 @try_numba_autojit(nopython=False)
 def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
-                  characterize, shape, mask, r2_mask, cmask, smask, results,
+                  characterize, shape, maskY, maskX, N_mask, r2_mask, cmask,
+                  smask, results,
                   coord, cm_n, cm_i, off_center, new_coord):
     SHIFT_THRESH = 0.6
     GOOD_ENOUGH_THRESH = 0.01
@@ -320,8 +323,6 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
     SIGNAL_COL = 5
     RAW_MASS_COL = 6
 
-    square_size = 2*radius + 1
-
     for feat in range(N):
         # Define the circular neighborhood of (x, y).
         for dim in range(2):
@@ -330,13 +331,12 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
         square0 = int(round(coord[0])) - radius
         square1 = int(round(coord[1])) - radius
         mass_ = 0.0
-        for i in range(square_size):
-            for j in range(square_size):
-                if mask[i, j] != 0:
-                    px = image[square0 + i, square1 + j]
-                    cm_n[0] += px*i
-                    cm_n[1] += px*j
-                    mass_ += px
+        for i in range(N_mask):
+            px = image[square0 + maskY[i],
+                       square1 + maskX[i]]
+            cm_n[0] += px*maskY[i]
+            cm_n[1] += px*maskX[i]
+            mass_ += px
 
         for dim in range(2):
             cm_n[dim] /= mass_
@@ -394,13 +394,12 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
 
             # cm_n was re-zeroed above in an unrelated loop
             mass_ = 0.
-            for i in range(square_size):
-                for j in range(square_size):
-                    if mask[i, j] != 0:
-                        px = image[square0 + i, square1 + j]
-                        cm_n[0] += px*i
-                        cm_n[1] += px*j
-                        mass_ += px
+            for i in range(N_mask):
+                px = image[square0 + maskY[i],
+                           square1 + maskX[i]]
+                cm_n[0] += px*maskY[i]
+                cm_n[1] += px*maskX[i]
+                mass_ += px
 
             for dim in range(2):
                 cm_n[dim] /= mass_
@@ -417,20 +416,22 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
         ecc1 = 0.
         ecc2 = 0.
         signal_ = 0.
-        for i in range(square_size):
-            for j in range(square_size):
-                if mask[i, j] != 0:
-                    px = image[square0 + i, square1 + j]
-                    mass_ += px
-                    # Will short-circuiting if characterize=False slow it down?
-                    if not characterize:
-                        continue
-                    Rg_ += r2_mask[i, j]*px
-                    ecc1 += cmask[i, j]*px
-                    ecc2 += smask[i, j]*px
-                    raw_mass_ += raw_image[square0 + i, square1 + j]
-                    if px > signal_:
-                        signal_ = px
+        for i in range(N_mask):
+            px = image[square0 + maskY[i],
+                       square1 + maskX[i]]
+            mass_ += px
+
+            # Will short-circuiting if characterize=False slow it down?
+            if not characterize:
+                continue
+            Rg_ += r2_mask[i]*px
+            ecc1 += cmask[i]*px
+            ecc2 += smask[i]*px
+            raw_mass_ += raw_image[square0 + maskY[i],
+                                   square1 + maskX[i]]
+            if px > signal_:
+                signal_ = px
+
         results[feat, MASS_COL] = mass_
         if characterize:
             results[feat, RG_COL] = np.sqrt(Rg_/mass_)
