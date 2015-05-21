@@ -382,7 +382,7 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_anisotropic_3D_simple(self):
-        self.skip_numba()
+        self.check_skip()
         actual, expected = compare((100, 120, 10), 4, (4, 4, 2), noise_level=0,
                                    engine=self.engine)
         assert_allclose(actual, expected, atol=0.5)
@@ -522,7 +522,7 @@ class CommonFeatureIdentificationTests(object):
         # The separate columns 'size_x' and 'size_y' reflect the radii of
         # gyration in the two separate directions.
 
-        self.skip_numba()
+        self.check_skip()
         L = 101
         SIZE = 5
         dims = (L, L + 2)  # avoid square images in tests
@@ -622,7 +622,7 @@ class CommonFeatureIdentificationTests(object):
         # smallest mask size should be lowest; their ratio is equal to the
         # mask aspect ratio.
 
-        self.skip_numba()
+        self.check_skip()
         L = 101
         SIZE = 5
         dims = (L, L + 2)  # avoid square images in tests
