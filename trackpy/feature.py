@@ -362,12 +362,12 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
                 if oc > SHIFT_THRESH:
                     new_coordY += 1
                 elif oc < - SHIFT_THRESH:
-                    new_coordY += -1
+                    new_coordY -= 1
                 oc = off_centerX
                 if oc > SHIFT_THRESH:
                     new_coordX += 1
                 elif oc < - SHIFT_THRESH:
-                    new_coordX += -1
+                    new_coordX -= 1
                 # Don't move outside the image!
                 if new_coordY < radius:
                     new_coordY = radius
@@ -423,21 +423,25 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
         ecc2 = 0.
         signal_ = 0.
 
-        for i in range(N_mask):
-            px = image[squareY + maskY[i],
-                       squareX + maskX[i]]
-            mass_ += px
+        if characterize:
+            for i in range(N_mask):
+                px = image[squareY + maskY[i],
+                           squareX + maskX[i]]
+                mass_ += px
 
-            # Will short-circuiting if characterize=False slow it down?
-            if not characterize:
-                continue
-            Rg_ += r2_mask[i]*px
-            ecc1 += cmask[i]*px
-            ecc2 += smask[i]*px
-            raw_mass_ += raw_image[squareY + maskY[i],
-                                   squareX + maskX[i]]
-            if px > signal_:
-                signal_ = px
+                Rg_ += r2_mask[i]*px
+                ecc1 += cmask[i]*px
+                ecc2 += smask[i]*px
+                raw_mass_ += raw_image[squareY + maskY[i],
+                                       squareX + maskX[i]]
+                if px > signal_:
+                    signal_ = px
+        else:
+            for i in range(N_mask):
+                px = image[squareY + maskY[i],
+                           squareX + maskX[i]]
+                mass_ += px
+
         results[feat, MASS_COL] = mass_
         if characterize:
             results[feat, RG_COL] = np.sqrt(Rg_/mass_)
