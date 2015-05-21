@@ -57,14 +57,6 @@ def x_squared_masks(radius, ndim):
 
 
 @memo
-def root_sum_x_squared(radius, ndim):
-    "Returns the root of the sum of all x^2 inside the mask for each dim."
-    masks = x_squared_masks(radius, ndim)
-    r2 = np.sum(masks, axis=tuple(range(1, ndim + 1)))  # each ax except first
-    return np.sqrt(r2)
-
-
-@memo
 def theta_mask(radius):
     """Mask of values giving angular position relative to center. The angle is
     defined according to ISO standards in which the angle is measured counter-

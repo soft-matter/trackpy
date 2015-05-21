@@ -13,7 +13,7 @@ from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
 from .utils import record_meta, print_update, validate_tuple
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
-from .uncertainty import static_error, measure_noise
+from .uncertainty import _static_error, measure_noise
 import trackpy  # to get trackpy.__version__
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
@@ -678,7 +678,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
             black_level, noise = measure_noise(raw_image, diameter, threshold)
         Npx = N_binary_mask(radius, ndim)
         mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
-        ep = static_error(mass, noise, radius[::-1], ndim, noise_size[::-1])
+        ep = _static_error(mass, noise, radius[::-1], noise_size[::-1])
 
     f = DataFrame(np.column_stack([refined_coords, ep]), columns=columns)
 
