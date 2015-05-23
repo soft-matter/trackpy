@@ -10,13 +10,19 @@ Release v0.3.0 adds many important enhancements and fixes. Feature location is e
 Enhancements
 ~~~~~~~~~~~~
 
-- The feature-finding functionality was formerly limited to circular features, but now trackpy can locate anisotropic N-dimensional features. Their size is specified as a tuple of odd integers instead of a single odd integer. See the new 3D tutorial for details.
+- The feature-finding functionality was formerly limited to circular features, but now trackpy can locate anisotropic N-dimensional features. Their size is specified as a tuple of odd integers instead of a single odd integer. See the new 3D tutorial for details. (:issue:`239`)
 
-.. Waiting for merge: - The plotting and analysis tools, many of which were limited to 2D, have been extended to 3D.
+- The plotting and analysis tools, many of which were limited to 2D, have been extended to 3D.
 
-- A powerful new adaptive serach feature gives much richer control of the tracking (trajectory-linking) process, and it makes formerly intractable scenarios possible to solve in a reasonable time. See the new tutorials, "Advanced Linking: Subnetworks and search_range" and "Adaptive Search: Changing search_range on the Fly," for details.
+- The numba engine for fast feature-finding has been extented to handle 3D images. (:issue:`242`)
 
-- Changed the way nearby local maxima are "merged," i.e., interpreted as parts of the same feature. This improved accuracy in crowded images. For some data, it may have no effect, but for others it will give significantly different (but, we think, better) results than previous versions of trackpy. (:issue:`143`)
+- A powerful new adaptive search feature gives much richer control of the tracking (trajectory-linking) process, and it makes formerly intractable scenarios possible to solve in a reasonable time. See the new tutorials, "Advanced Linking: Subnetworks and search_range" and "Adaptive Search: Changing search_range on the Fly," for details.
+
+- Uncertainty estimation is more accurate. See the docstring of ``trackpy.uncertainty.static_error`` for details. (:issue:`239`)
+
+- The linking functions can now collect data about how each particle was linked. See the tutorial "Obtaining Diagnostic Information from Linking."
+
+- Nearby local maxima are "merged" -- i.e., interpreted as parts of the same feature -- in a more robust way. This improves accuracy in crowded images. For some data, it may have no effect, but for others it will give significantly different (but, we think, better) results than previous versions of trackpy. (:issue:`143`)
 
 - The minimum feature separation can be as small as zero. Formerly, it was constrained to be larger than the feature diameter. If ``serparation=0``, "merging" of duplicate maxima is effectively turned off. (:issue:`139`)
 
