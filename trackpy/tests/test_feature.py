@@ -10,7 +10,8 @@ import nose
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from numpy.testing import assert_almost_equal, assert_allclose
+from numpy.testing import (assert_almost_equal, assert_allclose,
+                           assert_array_less)
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_produces_warning)
@@ -19,6 +20,8 @@ import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point,
                                 gen_nonoverlapping_locations)
+                                
+from scipy.spatial import KDTree
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -39,6 +42,12 @@ def compare(shape, count, radius, noise_level, engine):
     actual = f[cols].sort(cols)
     expected = DataFrame(pos, columns=cols).sort(cols)
     return actual, expected
+
+
+def sort_positions(actual, expected):
+    tree = KDTree(actual)
+    deviations, argsort = tree.query([expected])
+    return deviations, actual[argsort][0]
 
 
 class CommonFeatureIdentificationTests(object):
@@ -88,7 +97,7 @@ class CommonFeatureIdentificationTests(object):
         black_image = np.ones((21, 23)).astype(np.uint8)
         draw_point(black_image, [11, 13], 10)
         with assert_produces_warning(UserWarning):
-            f = tp.locate(black_image, 5, minmass=1000,
+            f = tp.locate(black_image, 5, minmass=200,
                           engine=self.engine, preprocess=False)
 
     def test_warn_color_image(self):
@@ -406,7 +415,88 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame([pos1], columns=cols).sort(['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
-    def test_rg(self):
+    def test_minmass_maxsize(self):
+        # Test the mass- and sizebased filtering here on 4 different features.
+        self.check_skip()
+        L = 64
+        dims = (L, L + 2)
+        cols = ['y', 'x']
+        PRECISION = 1  # we are not testing for subpx precision here
+
+        image = np.zeros(dims, dtype=np.uint8)
+        pos1 = np.array([15, 20])
+        pos2 = np.array([40, 40])
+        pos3 = np.array([25, 45])
+        pos4 = np.array([35, 15])
+
+        draw_feature(image, pos1, 15)
+        draw_feature(image, pos2, 30)
+        draw_feature(image, pos3, 5)
+        draw_feature(image, pos4, 20)
+
+        # filter on mass
+        actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
+                           minmass=6500)[cols]
+        actual = actual.sort(cols)
+        expected = DataFrame([pos2, pos4], columns=cols).sort(cols)
+        assert_allclose(actual, expected, atol=PRECISION)
+
+        # filter on size
+        actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
+                           maxsize=3.0)[cols]
+        actual = actual.sort(cols)
+        expected = DataFrame([pos1, pos3], columns=cols).sort(cols)
+        assert_allclose(actual, expected, atol=PRECISION)
+
+        # filter on both mass and size
+        actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
+                           minmass=600, maxsize=4.0)[cols]
+        actual = actual.sort(cols)
+        expected = DataFrame([pos1, pos4], columns=cols).sort(cols)
+        assert_allclose(actual, expected, atol=PRECISION)
+
+    def test_mass(self):
+        # The mass calculated from the processed image should be independent
+        # of added noise. Its absolute value is untested.
+
+        # The mass calculated from the raw image should equal
+        # noiseless mass + noise_size/2 * Npx_in_mask.
+        self.check_skip()
+        ndim = 2
+        radius = 6
+        N = 20
+        shape = (128, 127)
+
+        # Calculate the expected mass from a single spot using the set masksize
+        center = (radius*2,) * ndim
+        spot = draw_spots((radius*4,) * ndim, [center], radius*3, bitdepth=12)
+        rect = [slice(c - radius, c + radius + 1) for c in center]
+        mask = tp.masks.binary_mask(radius, 2)
+        Npx = mask.sum()
+        EXPECTED_MASS = (spot[rect] * mask).sum()
+
+        # Generate feature locations and make the image
+        expected = gen_nonoverlapping_locations(shape, N, radius*3, radius+2)
+        expected = expected + np.random.random(expected.shape)
+        N = expected.shape[0]
+        image = draw_spots(shape, expected, radius*3, bitdepth=12)
+
+        # analyze the image without noise
+        f = tp.locate(image, radius*2+1, engine=self.engine, topn=N)
+        PROCESSED_MASS = f['mass'].mean()
+        assert_allclose(f['raw_mass'].mean(), EXPECTED_MASS, rtol=0.01)
+
+        for n, noise in enumerate(np.arange(0.05, 0.8, 0.05)):
+            noise_level = int((2**12 - 1) * noise)
+            image_noisy = image + np.array(np.random.randint(0, noise_level,
+                                                             image.shape),
+                                           dtype=image.dtype)
+            f = tp.locate(image_noisy, radius*2+1, engine=self.engine, topn=N)
+            assert_allclose(f['mass'].mean(), PROCESSED_MASS, rtol=0.1)
+            assert_allclose(f['raw_mass'].mean(),
+                            EXPECTED_MASS + Npx*noise_level/2, rtol=0.1)
+
+    def test_size(self):
         # To draw Gaussians with radii 2, 3, 5, and 7 px, we supply the draw
         # function with rg=0.25. This means that the radius of gyration will be
         # one fourth of the max radius in the draw area, which is diameter/2.
@@ -427,6 +517,23 @@ class CommonFeatureIdentificationTests(object):
                 actual = tp.locate(image, SIZE*8 - 1, 1, preprocess=False,
                                    engine=self.engine)['size']
                 assert_allclose(actual, SIZE, rtol=0.1)
+
+    def test_size_anisotropic(self):
+        # The separate columns 'size_x' and 'size_y' reflect the radii of
+        # gyration in the two separate directions.
+
+        self.skip_numba()
+        L = 101
+        SIZE = 5
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = [50, 55]
+        for ar in [1.1, 1.5, 2]:
+            image = np.zeros(dims, dtype='uint8')
+            draw_feature(image, pos, [int(SIZE*8*ar), SIZE*8], rg=0.25)
+            f = tp.locate(image, [int(SIZE*4*ar) * 2 - 1, SIZE*8 - 1], 1,
+                          preprocess=False, engine=self.engine)
+            assert_allclose(f['size_x'], SIZE, rtol=0.1)
+            assert_allclose(f['size_y'], SIZE*ar, rtol=0.1)
 
     def test_eccentricity(self):
         # Eccentricity (elongation) is measured with good accuracy and
@@ -462,6 +569,73 @@ class CommonFeatureIdentificationTests(object):
         expected = ECC
         assert_allclose(actual, expected, atol=0.1)
 
+    def test_ep(self):
+        # Test wether the estimated static error equals the rms deviation from
+        # the expected values. Next to the feature mass, the static error is
+        # calculated from the estimated image background level and variance.
+        # This estimate is also tested here.
+
+        # A threshold is necessary to identify the background array so that
+        # background average and standard deviation can be estimated within 1%
+        # accuracy.
+
+        # The (absolute) tolerance for ep in this test is 0.05 pixels.
+        # Parameters are tweaked so that there is no deviation due to a too
+        # small mask size. Signal/noise ratios upto 50% are tested.
+        self.check_skip()
+        draw_diameter = 21
+        locate_diameter = 15
+        N = 200
+        shape = (512, 513)
+        noise_expectation = np.array([1/2., np.sqrt(1/12.)])  # average, stdev
+
+        # Generate feature locations and make the image
+        expected = gen_nonoverlapping_locations(shape, N, draw_diameter,
+                                                locate_diameter)
+        expected = expected + np.random.random(expected.shape)
+        N = expected.shape[0]
+        image = draw_spots(shape, expected, draw_diameter, bitdepth=12)
+
+        for n, noise in enumerate([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]):
+            noise_level = int((2**12 - 1) * noise)
+            image_noisy = image + np.array(np.random.randint(0, noise_level,
+                                                             image.shape),
+                                           dtype=image.dtype)
+
+            f = tp.locate(image_noisy, locate_diameter, engine=self.engine,
+                          topn=N, threshold=noise_level/4)
+
+            _, actual = sort_positions(f[['y', 'x']].values, expected)
+            rms_dev = np.sqrt(np.mean(np.sum((actual-expected)**2, 1)))
+            assert_allclose(rms_dev, f['ep'].mean(), atol=0.05)
+
+            # Additionally test the measured noise
+            actual_noise = tp.uncertainty.measure_noise(image_noisy,
+                                                        locate_diameter,
+                                                        noise_level/4)
+            assert_allclose(actual_noise, noise_expectation * noise_level,
+                            rtol=0.01, atol=1)
+
+    def test_ep_anisotropic(self):
+        # The separate columns 'ep_x' and 'ep_y' reflect the static errors
+        # in the two separate directions. The error in the direction with the
+        # smallest mask size should be lowest; their ratio is equal to the
+        # mask aspect ratio.
+
+        self.skip_numba()
+        L = 101
+        SIZE = 5
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = [50, 55]
+        noise = 0.2
+        for ar in [1.1, 1.5, 2]:  # sizeY / sizeX
+            image = np.random.randint(0, int(noise*255), dims).astype('uint8')
+            draw_feature(image, pos, [int(SIZE*8*ar), SIZE*8],
+                         max_value=int((1-noise)*255))
+            f = tp.locate(image, [int(SIZE*4*ar) * 2 - 1, SIZE*8 - 1],
+                          threshold=int(noise*64), topn=1,
+                          engine=self.engine).loc[0]
+            assert_allclose(f['ep_y'] / f['ep_x'], ar, rtol=0.1)
 
     def test_whole_pixel_shifts(self):
         self.check_skip()

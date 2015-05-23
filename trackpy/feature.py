@@ -9,10 +9,11 @@ from scipy import ndimage
 from scipy.spatial import cKDTree
 from pandas import DataFrame
 
-from . import uncertainty
-from .preprocessing import bandpass, scale_to_gamut
+from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
 from .utils import record_meta, print_update, validate_tuple
-from .masks import binary_mask, r_squared_mask, cosmask, sinmask
+from .masks import (binary_mask, N_binary_mask, r_squared_mask,
+                    x_squared_masks, cosmask, sinmask)
+from .uncertainty import _static_error, measure_noise
 import trackpy  # to get trackpy.__version__
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
@@ -157,7 +158,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         smask = sinmask(radius[0])
         # Allocate a results array that _numba_refine will write to
         if characterize:
-            results_columns = 6
+            results_columns = 7
         else:
             results_columns = 3  # Position and mass only
         results = np.empty((N, results_columns), dtype=np.float64)
@@ -207,6 +208,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     GOOD_ENOUGH_THRESH = 0.005
 
     ndim = image.ndim
+    isotropic = np.all(radius[1:] == radius[:-1])
     mask = binary_mask(radius, ndim)
     slices = [[slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
               for coord in coords]
@@ -215,9 +217,15 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     N = coords.shape[0]
     final_coords = np.empty_like(coords, dtype=np.float64)
     mass = np.empty(N, dtype=np.float64)
-    Rg = np.empty(N, dtype=np.float64)
-    ecc = np.empty(N, dtype=np.float64)
-    signal = np.empty(N, dtype=np.float64)
+    raw_mass = np.empty(N, dtype=np.float64)
+    if characterize:
+        if isotropic:
+            Rg = np.empty(N, dtype=np.float64)
+        else:
+            Rg = np.empty((N, len(radius)), dtype=np.float64)
+        ecc = np.empty(N, dtype=np.float64)
+        signal = np.empty(N, dtype=np.float64)
+
     ogrid = np.ogrid[[slice(0, i) for i in mask.shape]]  # for center of mass
     ogrid = [g.astype(float) for g in ogrid]
 
@@ -274,24 +282,29 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         mass[feat] = neighborhood.sum()
         if not characterize:
             continue  # short-circuit loop
-        Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
-                                  neighborhood) / mass[feat])
+        if isotropic:
+            Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
+                                      neighborhood) / mass[feat])
+        else:
+            Rg[feat] = np.sqrt(ndim * np.sum(x_squared_masks(radius, ndim) *
+                                             neighborhood,
+                                             axis=tuple(range(1, ndim + 1))) /
+                               mass[feat])[::-1]  # change order yx -> xy
         # I only know how to measure eccentricity in 2D.
-        if ndim == 2 and radius[0] == radius[1]:
-            rad = radius[0]
-            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(rad))**2 +
-                                np.sum(neighborhood*sinmask(rad))**2)
-            ecc[feat] /= (mass[feat] - neighborhood[rad, rad] + 1e-6)
+        if ndim == 2:
+            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
+                                np.sum(neighborhood*sinmask(radius))**2)
+            ecc[feat] /= (mass[feat] - neighborhood[radius] + 1e-6)
         else:
             ecc[feat] = np.nan
+        signal[feat] = neighborhood.max()  # based on bandpassed image
         raw_neighborhood = mask*raw_image[rect]
-        signal[feat] = raw_neighborhood.max()  # black_level subtracted later
+        raw_mass[feat] = raw_neighborhood.sum()  # based on raw image
 
     if not characterize:
-        result = np.column_stack([final_coords, mass])
+        return np.column_stack([final_coords, mass])
     else:
-        result = np.column_stack([final_coords, mass, Rg, ecc, signal])
-    return result
+        return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
 
 
 @try_numba_autojit(nopython=False)
@@ -305,6 +318,7 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
     RG_COL = 3
     ECC_COL = 4
     SIGNAL_COL = 5
+    RAW_MASS_COL = 6
 
     square_size = 2*radius + 1
 
@@ -398,6 +412,7 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
 
         # Characterize the neighborhood of our final centroid.
         mass_ = 0.
+        raw_mass_ = 0.
         Rg_ = 0.
         ecc1 = 0.
         ecc2 = 0.
@@ -413,15 +428,16 @@ def _numba_refine(raw_image, image, radius, coords, N, max_iterations,
                     Rg_ += r2_mask[i, j]*px
                     ecc1 += cmask[i, j]*px
                     ecc2 += smask[i, j]*px
-                    raw_px = raw_image[square0 + i, square1 + j]
-                    if raw_px > signal_:
+                    raw_mass_ += raw_image[square0 + i, square1 + j]
+                    if px > signal_:
                         signal_ = px
         results[feat, MASS_COL] = mass_
         if characterize:
             results[feat, RG_COL] = np.sqrt(Rg_/mass_)
             center_px = image[square0 + radius, square1 + radius]
-            results[feat, ECC_COL] = np.sqrt(ecc1**2 + ecc2**2)/(mass_ - center_px + 1e-6)
-            results[feat, SIGNAL_COL] = signal_  # black_level subtracted later
+            results[feat, ECC_COL] = np.sqrt(ecc1**2 + ecc2**2) / (mass_ - center_px + 1e-6)
+            results[feat, SIGNAL_COL] = signal_
+            results[feat, RAW_MASS_COL] = raw_mass_
 
     return 0  # Unused
 
@@ -471,7 +487,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     DataFrame([x, y, mass, size, ecc, signal])
         where mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (1 is circular).
+        and ecc is its eccentricity (0 is circular).
 
     Other Parameters
     ----------------
@@ -519,6 +535,11 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         raise ValueError("Feature diameter must be an odd integer. Round up.")
     radius = tuple([x//2 for x in diameter])
 
+    isotropic = np.all(radius[1:] == radius[:-1])
+    if (not isotropic) and (maxsize is not None):
+        raise ValueError("Filtering by size is not available for anisotropic "
+                         "features.")
+
     if separation is None:
         separation = tuple([x + 1 for x in diameter])
     else:
@@ -530,10 +551,6 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         smoothing_size = validate_tuple(smoothing_size, ndim)
 
     noise_size = validate_tuple(noise_size, ndim)
-
-    # Don't do characterization for rectangular pixels/voxels
-    if diameter[1:] != diameter[:-1]:
-        characterize = False
 
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
@@ -560,22 +577,30 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         dtype = raw_image.dtype
     else:
         dtype = np.uint8
-    image = scale_to_gamut(image, dtype)
+    scale_factor = scalefactor_to_gamut(image, dtype)
+    image = scale_to_gamut(image, dtype, scale_factor)
 
     # Set up a DataFrame for the final results.
     if image.ndim < 4:
         coord_columns = ['x', 'y', 'z'][:image.ndim]
     else:
         coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
-    char_columns = ['mass']
+    MASS_COLUMN_INDEX = len(coord_columns)
+    columns = coord_columns + ['mass']
     if characterize:
-        char_columns += ['size', 'ecc', 'signal']
-    columns = coord_columns + char_columns
-    # The 'ep' column is joined on at the end, so we need this...
-    if characterize:
-        all_columns = columns + ['ep']
-    else:
-        all_columns = columns
+        if isotropic:
+            SIZE_COLUMN_INDEX = len(columns)
+            columns += ['size']
+        else:
+            SIZE_COLUMN_INDEX = range(len(columns),
+                                      len(columns) + len(coord_columns))
+            columns += ['size_' + cc for cc in coord_columns]
+        SIGNAL_COLUMN_INDEX = len(columns) + 1
+        columns += ['ecc', 'signal', 'raw_mass']
+        if isotropic and np.all(noise_size[1:] == noise_size[:-1]):
+            columns += ['ep']
+        else:
+            columns += ['ep_' + cc for cc in coord_columns]
 
     # Find local maxima.
     # Define zone of exclusion at edges of image, avoiding
@@ -589,7 +614,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:
-        return DataFrame(columns=all_columns)
+        return DataFrame(columns=columns)
 
     # Proactively filter based on estimated mass/size before
     # refining positions.
@@ -597,7 +622,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         approx_mass = np.empty(count_maxima)  # initialize to avoid appending
         for i in range(count_maxima):
             approx_mass[i] = estimate_mass(image, radius, coords[i])
-        condition = approx_mass > minmass
+        condition = approx_mass > minmass * scale_factor
         if maxsize is not None:
             approx_size = np.empty(count_maxima)
             for i in range(count_maxima):
@@ -609,15 +634,18 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     if count_qualified == 0:
         warnings.warn("No maxima survived mass- and size-based prefiltering.")
-        return DataFrame(columns=all_columns)
+        return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine(raw_image, image, radius, coords, separation,
                             max_iterations, engine, characterize)
+    # mass and signal values has to be corrected due to the rescaling
+    # raw_mass was obtained from raw image; size and ecc are scale-independent
+    refined_coords[:, MASS_COLUMN_INDEX] *= 1. / scale_factor
+    if characterize:
+        refined_coords[:, SIGNAL_COLUMN_INDEX] *= 1. / scale_factor
 
     # Filter again, using final ("exact") mass -- and size, if set.
-    MASS_COLUMN_INDEX = image.ndim
-    SIZE_COLUMN_INDEX = image.ndim + 1
     exact_mass = refined_coords[:, MASS_COLUMN_INDEX]
     if filter_after:
         condition = exact_mass > minmass
@@ -630,7 +658,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     if count_qualified == 0:
         warnings.warn("No maxima survived mass- and size-based filtering.")
-        return DataFrame(columns=all_columns)
+        return DataFrame(columns=columns)
 
     if topn is not None and count_qualified > topn:
         if topn == 1:
@@ -640,16 +668,20 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         else:
             refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
 
-    f = DataFrame(refined_coords, columns=columns)
-
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
     if characterize:
-        black_level, noise = uncertainty.measure_noise(
-            raw_image, diameter, threshold)
-        f['signal'] -= black_level
-        ep = uncertainty.static_error(f, noise, diameter[0], noise_size[0])
-        f = f.join(ep)
+        if preprocess:  # reuse processed image to increase performance
+            black_level, noise = measure_noise(raw_image, diameter,
+                                               threshold, image)
+        else:
+            black_level, noise = measure_noise(raw_image, diameter, threshold)
+        Npx = N_binary_mask(radius, ndim)
+        mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
+        ep = _static_error(mass, noise, radius[::-1], noise_size[::-1])
+        refined_coords = np.column_stack([refined_coords, ep])
+
+    f = DataFrame(refined_coords, columns=columns)
 
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.
@@ -704,7 +736,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     DataFrame([x, y, mass, size, ecc, signal])
         where mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (1 is circular).
+        and ecc is its eccentricity (0 is circular).
 
     Other Parameters
     ----------------
