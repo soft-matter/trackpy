@@ -35,8 +35,6 @@ requirements:
 
 test:
   imports:
-    - tifffile
-    - pims
     - trackpy
 
 about:
