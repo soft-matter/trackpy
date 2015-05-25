@@ -21,7 +21,7 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point,
                                 gen_nonoverlapping_locations)
                                 
-from scipy.spatial import KDTree
+from scipy.spatial import cKDTree
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -45,7 +45,7 @@ def compare(shape, count, radius, noise_level, engine):
 
 
 def sort_positions(actual, expected):
-    tree = KDTree(actual)
+    tree = cKDTree(actual)
     deviations, argsort = tree.query([expected])
     return deviations, actual[argsort][0]
 
@@ -86,7 +86,7 @@ class CommonFeatureIdentificationTests(object):
             f = tp.locate(black_image, 5, engine=self.engine)
 
     def test_maxima_in_margin_3D(self):
-        self.skip_numba()
+        self.check_skip()
         black_image = np.ones((21, 23, 25)).astype(np.uint8)
         draw_point(black_image, [1, 1, 1], 100)
         with assert_produces_warning(UserWarning):
@@ -190,7 +190,7 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=0.1)
 
     def test_one_centered_gaussian_3D(self):
-        self.skip_numba()
+        self.check_skip()
         L = 21
         dims = (L, L + 2, L + 4)  # avoid square images in tests
         pos = [7, 13, 9]
@@ -204,7 +204,7 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=0.1)
 
     def test_one_centered_gaussian_3D_anisotropic(self):
-        self.skip_numba()
+        self.check_skip()
         L = 21
         dims = (L, L + 2, L + 4)  # avoid square images in tests
         pos = [7, 13, 9]
@@ -382,7 +382,7 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_anisotropic_3D_simple(self):
-        self.skip_numba()
+        self.check_skip()
         actual, expected = compare((100, 120, 10), 4, (4, 4, 2), noise_level=0,
                                    engine=self.engine)
         assert_allclose(actual, expected, atol=0.5)
@@ -522,7 +522,7 @@ class CommonFeatureIdentificationTests(object):
         # The separate columns 'size_x' and 'size_y' reflect the radii of
         # gyration in the two separate directions.
 
-        self.skip_numba()
+        self.check_skip()
         L = 101
         SIZE = 5
         dims = (L, L + 2)  # avoid square images in tests
@@ -622,7 +622,7 @@ class CommonFeatureIdentificationTests(object):
         # smallest mask size should be lowest; their ratio is equal to the
         # mask aspect ratio.
 
-        self.skip_numba()
+        self.check_skip()
         L = 101
         SIZE = 5
         dims = (L, L + 2)  # avoid square images in tests
