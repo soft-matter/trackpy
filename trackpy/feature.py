@@ -346,7 +346,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
 
 
-def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
+def locate(image, diameter, minmass=100., maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
            filter_before=True, filter_after=True,
@@ -360,7 +360,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     Parameters
     ----------
-    raw_image : array
+    image : array
          any N-dimensional image
     diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
