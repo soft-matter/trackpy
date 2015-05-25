@@ -5,7 +5,7 @@ import numpy as np
 from .try_numba import try_numba_autojit
 
 
-@try_numba_autojit(nopython=False)
+@try_numba_autojit(nopython=True)
 def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
                      max_iterations, shapeY, shapeX, maskY, maskX, N_mask,
                      results):
@@ -123,7 +123,7 @@ def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
 
     return 0  # Unused
 
-@try_numba_autojit(nopython=False)
+@try_numba_autojit(nopython=True)
 def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
                       max_iterations, shapeY, shapeX, maskY,
                       maskX, N_mask, r2_mask, cmask, smask, results):
@@ -264,7 +264,7 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
     return 0  # Unused
     
 
-@try_numba_autojit(nopython=False)
+@try_numba_autojit(nopython=True)
 def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
                         max_iterations, shapeY, shapeX, maskY,
                         maskX, N_mask, y2_mask, x2_mask, cmask, smask,
@@ -410,7 +410,7 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
     return 0  # Unused
 
 
-@try_numba_autojit(nopython=False)
+@try_numba_autojit(nopython=True)
 def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
                      max_iterations, characterize, shapeZ, shapeY, shapeX,
                      maskZ, maskY, maskX, N_mask, r2_mask, z2_mask, y2_mask,
