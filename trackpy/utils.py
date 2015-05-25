@@ -244,7 +244,7 @@ def ignore_logging():
     "Reset to factory default logging configuration; remove trackpy's handler."
     trackpy.logger.removeHandler(default_handler)
     trackpy.logger.setLevel(logging.NOTSET)
-    trackpy.logger.propagate = 1  # default implemented by the logging module
+    trackpy.logger.propagate = True
 
 
 def quiet(suppress=True):

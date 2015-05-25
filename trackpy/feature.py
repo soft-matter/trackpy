@@ -280,8 +280,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         allow_moves = True
         for iteration in range(max_iterations):
             off_center = cm_n - radius
-            if walkthrough:
-                logger.info('%f', off_center)
+            logger.debug('off_center: %f', off_center)
             if np.all(np.abs(off_center) < GOOD_ENOUGH_THRESH):
                 break  # Accurate enough.
 
@@ -363,33 +362,33 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     ----------
     raw_image : array
          any N-dimensional image
-    diameter : number or tuple
+    diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : number
+    minmass : float
         The minimum integrate brightness.
         Default is 100, but a good value is often much higher. This is a
         crucial parameter for elminating spurious features.
-    maxsize : number
+    maxsize : float
         maximum radius-of-gyration of brightness, default None
-    separation : number
+    separation : float or tuple
         Minimum separtion between features.
         Default is diameter + 1. May be a tuple, see diameter for details.
-    noise_size : number
+    noise_size : float or tuple
         Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
-    smoothing_size : number
+    smoothing_size : float or tuple
         Size of boxcar smoothing, in pixels
         Default is diameter. May be a tuple, see diameter for details.
-    threshold : number
+    threshold : float
         Clip bandpass result below this value.
         Default, None, defers to default settings of the bandpass function.
     invert : boolean
         Set to True if features are darker than background. False by default.
-    percentile : number
+    percentile : float
         Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurious peaks.
     topn : integer
@@ -414,7 +413,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         based on their estimated mass and size before refining position.
         True by default for performance.
     filter_after : boolean
-        Use final characterizations of mass and size to elminate spurious
+        Use final characterizations of mass and size to eliminate spurious
         features. True by default.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
@@ -619,35 +618,34 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     Parameters
     ----------
-    raw_image : array
-         any N-dimensional image
-    diameter : number or tuple
+    frames : list (or iterable) of images
+    diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : number
+    minmass : float
         The minimum integrate brightness.
         Default is 100, but a good value is often much higher. This is a
         crucial parameter for elminating spurious features.
-    maxsize : number
+    maxsize : float
         maximum radius-of-gyration of brightness, default None
-    separation : number
+    separation : float or tuple
         Minimum separtion between features.
         Default is diameter + 1. May be a tuple, see diameter for details.
-    noise_size : number
+    noise_size : float or tuple
         Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
-    smoothing_size : number
+    smoothing_size : float or tuple
         Size of boxcar smoothing, in pixels
         Default is diameter. May be a tuple, see diameter for details.
-    threshold : number
+    threshold : float
         Clip bandpass result below this value.
         Default, None, defers to default settings of the bandpass function.
     invert : boolean
         Set to True if features are darker than background. False by default.
-    percentile : number
+    percentile : float
         Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurious peaks.
     topn : integer
@@ -681,7 +679,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         If None, return all results as one big DataFrame. Otherwise, pass
         results from each frame, one at a time, to the put() method
         of whatever class is specified here.
-    meta : filepath_or_obj
+    meta : filepath or file object, optional
         If specified, information relevant to reproducing this batch is saved
         as a YAML file, a plain-text machine- and human-readable format.
         By default, this is None, and no file is saved.
@@ -721,10 +719,11 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     if meta:
         if isinstance(meta, six.string_types):
-            with open(filepath_or_obj, 'w') as file_obj:
+            with open(meta, 'w') as file_obj:
                 record_meta(meta_info, file_obj)
         else:
-            record_meta(meta_info, file_obj)
+            # Interpret meta to be a file handle.
+            record_meta(meta_info, meta)
 
     all_features = []
     for i, image in enumerate(frames):
