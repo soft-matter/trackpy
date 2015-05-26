@@ -2,10 +2,11 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import numpy as np
-from scipy.ndimage.filters import uniform_filter1d, gaussian_filter
+from scipy.ndimage.filters import uniform_filter1d, correlate1d
 from scipy.ndimage.fourier import fourier_gaussian
 
 from .utils import print_update, validate_tuple
+from .masks import gaussian_kernel
 
 
 def bandpass(image, lshort, llong, threshold=None, truncate=4):
@@ -49,14 +50,16 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
             threshold = 1
         else:
             threshold = 1/256.
-    settings = dict(mode='nearest', cval=0)
-    axes = range(image.ndim)
-    sizes = [x*2+1 for x in llong]
-    boxcar = np.asarray(image)
-    for (axis, size) in zip(axes, sizes):
-        boxcar = uniform_filter1d(boxcar, size, axis, **settings)
-    gaussian = gaussian_filter(image, lshort, truncate=truncate, **settings)
-    result = gaussian - boxcar
+    boxcar = image.copy()
+    result = np.array(image, dtype=np.float)
+    for axis, (sigma, smoothing) in enumerate(zip(lshort, llong)):
+        if smoothing > 1:
+            uniform_filter1d(boxcar, 2*smoothing+1, axis, output=boxcar,
+                             mode='nearest', cval=0)
+        if sigma > 0:
+            correlate1d(result, gaussian_kernel(sigma, truncate), axis,
+                        output=result, mode='constant', cval=0.0)
+    result -= boxcar
     return np.where(result > threshold, result, 0)
 
 
