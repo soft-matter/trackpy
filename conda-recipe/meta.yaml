@@ -1,6 +1,6 @@
 package:
   name: trackpy
-  version: {{ environ.get('GIT_DESCRIBE_TAG').replace('0.2.4', '0.3.0-pre') }}.post{{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}.post{{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
 
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
@@ -27,6 +27,7 @@ requirements:
     - pyyaml
     - numpy >=1.7
     - pandas >=0.12.0
+    - numexpr  # required for pandas DataFrame.query, used in examples
     - scipy >=0.12.0
     - matplotlib
     - pims >=0.2.2
@@ -35,8 +36,6 @@ requirements:
 
 test:
   imports:
-    - tifffile
-    - pims
     - trackpy
 
 about:
