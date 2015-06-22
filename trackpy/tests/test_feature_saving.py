@@ -4,14 +4,14 @@ import six
 import functools
 import unittest
 import nose
+import warnings
 import os
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 import pandas
-from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_produces_warning)
+from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
 import trackpy as tp 
 from pims import ImageSequence
@@ -75,8 +75,11 @@ class FeatureSavingTester(object):
             assert_frame_equal(s[0], s.get(0))
 
             # Putting an empty df should warn
-            with assert_produces_warning(UserWarning):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('ignore')
+                warnings.simplefilter('always', UserWarning)
                 s.put(pandas.DataFrame())
+                assert len(w) == 1
             s.close()
             os.remove(STORE_NAME)
 
