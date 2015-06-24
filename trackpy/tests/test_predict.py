@@ -128,12 +128,16 @@ class VelocityPredictTests(object):
         """Minimally test predictor instrumentation."""
         pred = self.instrumented_predict_class()
         Nside = Nside_oversize
-        ll = get_linked_lengths((self.mkframe(0, Nside), self.mkframe(0.25, Nside),
-                                 self.mkframe(0.75, Nside)),
-                                pred.link_df_iter, 0.45)
+        frames = (self.mkframe(0, Nside), self.mkframe(0.25, Nside),
+                  self.mkframe(0.75, Nside))
+        ll = get_linked_lengths(frames, pred.link_df_iter, 0.45)
         assert all(ll.values == 3)
         diags = pred.dump()
         assert len(diags) == 2
+        for i, d in enumerate(diags):
+            assert d['t1'] == frames[i+1].frame.iloc[0]
+            assert 'state' in d
+            assert np.all(d['particledf']['x_act'] == frames[i+1].x)
 
 
 class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
