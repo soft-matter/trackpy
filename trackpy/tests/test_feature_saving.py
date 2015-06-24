@@ -4,6 +4,7 @@ import six
 import functools
 import unittest
 import nose
+import warnings
 import os
 
 import numpy as np
@@ -72,6 +73,13 @@ class FeatureSavingTester(object):
             assert_frame_equal(s.dump().reset_index(drop=True), 
                                self.expected.reset_index(drop=True))
             assert_frame_equal(s[0], s.get(0))
+
+            # Putting an empty df should warn
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('ignore')
+                warnings.simplefilter('always', UserWarning)
+                s.put(pandas.DataFrame())
+                assert len(w) == 1
             s.close()
             os.remove(STORE_NAME)
 
