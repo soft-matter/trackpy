@@ -570,7 +570,7 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=0.1)
 
     def test_ep(self):
-        # Test wether the estimated static error equals the rms deviation from
+        # Test whether the estimated static error equals the rms deviation from
         # the expected values. Next to the feature mass, the static error is
         # calculated from the estimated image background level and variance.
         # This estimate is also tested here.
@@ -581,7 +581,7 @@ class CommonFeatureIdentificationTests(object):
 
         # The (absolute) tolerance for ep in this test is 0.05 pixels.
         # Parameters are tweaked so that there is no deviation due to a too
-        # small mask size. Signal/noise ratios upto 50% are tested.
+        # small mask size. Signal/noise ratios up to 50% are tested.
         self.check_skip()
         draw_diameter = 21
         locate_diameter = 15
@@ -666,6 +666,29 @@ class CommonFeatureIdentificationTests(object):
         actual = tp.feature.refine(image, image, 6, guess, characterize=False,
                                    engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
+
+    def test_uncertainty_failure(self):
+        """When the uncertainty ("ep") calculation results in a nonsense negative
+        value, it should return NaN instead.
+        """
+        self.check_skip()
+        L = 21
+        dims = (L, L + 2)  # avoid square images in tests
+        pos = np.array([7, 13])
+        cols = ['x', 'y']
+        expected = DataFrame(pos[::-1].reshape(1, -1), columns=cols)
+
+        image = 100*np.ones(dims, dtype='uint8')
+        # For a feature to have a negative uncertainty, its integrated mass
+        # must be less than if it were not there at all (replaced
+        # with the average background intensity). So our feature will be a
+        # small bright spot surrounded by a dark annulus.
+        draw_feature(image, pos, 6, max_value=-100)
+        draw_feature(image, pos, 4, max_value=200)
+        
+        actual = tp.locate(image, 9, 1, preprocess=False, engine=self.engine)
+        assert np.allclose(actual[['x', 'y']], expected[['x', 'y']])
+        assert np.isnan(np.asscalar(actual.ep))
 
 
 class TestFeatureIdentificationWithVanillaNumpy(
