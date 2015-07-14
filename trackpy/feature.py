@@ -724,6 +724,10 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             output.put(features)
 
     if output is None:
-        return pd.concat(all_features).reset_index(drop=True)
+        if len(all_features) > 0:
+            return pd.concat(all_features).reset_index(drop=True)
+        else:  # return empty DataFrame
+            warnings.warn("No maxima found in any frame.")
+            return pd.DataFrame(columns=list(features.columns) + ['frame'])
     else:
         return output
