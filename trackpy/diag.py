@@ -18,11 +18,6 @@ def performance_report():
     else:
         print("SLOW: numba was not found")
 
-    if preprocessing.USING_FFTW:
-        print("FAST: Using pyfftw for image preprocessing.")
-    else:
-        print("SLOW: pyfftw not found (slower image preprocessing).")
-
 
 def dependencies():
     """
