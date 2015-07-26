@@ -352,7 +352,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     Preprocess the image by performing a band pass and a threshold.
     Locate all peaks of brightness, characterize the neighborhoods of the peaks
-    and take only those with given total brightnesss ("mass"). Finally,
+    and take only those with given total brightness ("mass"). Finally,
     refine the positions of each peak.
 
     Parameters
@@ -366,7 +366,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        crucial parameter for eliminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
         Default is diameter + 1. May be a tuple, see diameter for details.
@@ -601,7 +601,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     Preprocess the image by performing a band pass and a threshold.
     Locate all peaks of brightness, characterize the neighborhoods of the peaks
-    and take only those with given total brightnesss ("mass"). Finally,
+    and take only those with given total brightness ("mass"). Finally,
     refine the positions of each peak.
 
     Parameters
@@ -615,7 +615,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        crucial parameter for eliminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
         Default is diameter + 1. May be a tuple, see diameter for details.
@@ -649,7 +649,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         based on their estimated mass and size before refining position.
         True by default for performance.
     filter_after : boolean
-        Use final characterizations of mass and size to elminate spurious
+        Use final characterizations of mass and size to eliminate spurious
         features. True by default.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
