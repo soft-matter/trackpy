@@ -953,7 +953,8 @@ class Linker(object):
 
         # Assume everything in first level starts a Track.
         # Iterate over prev_level, not prev_set, because order -> track ID.
-        self.track_lst = [self.track_cls(p) for p in prev_level]
+        for p in prev_level:
+            self.track_cls(p)
         self.mem_set = set()
 
         # Initialize memory with empty sets.
@@ -1018,7 +1019,7 @@ class Linker(object):
                         self.mem_set.remove(sp)
                 elif sp is None:
                     # if unclaimed destination particle, a track is born!
-                    self.track_lst.append(self.track_cls(dp))
+                    self.track_cls(dp)
                 elif dp is None:
                     # add the unmatched source particles to the new
                     # memory set
