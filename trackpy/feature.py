@@ -221,16 +221,18 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
             if len(duplicates) == 0:
                 break
             to_drop = []
-            for pair in duplicates:
+            for p0, p1 in duplicates:
                 # Drop the dimmer one.
-                if np.equal(*mass.take(pair, 0)):
+                m0, m1 = mass[p0], mass[p1]
+                if m0 < m1:
+                    to_drop.append(p0)
+                elif m0 > m1:
+                    to_drop.append(p1)
+                else:
                     # Rare corner case: a tie!
                     # Break ties by sorting by sum of coordinates, to avoid
                     # any randomness resulting from cKDTree returning a set.
-                    dimmer = np.argsort(np.sum(positions.take(pair, 0), 1))[0]
-                else:
-                    dimmer = np.argmin(mass.take(pair, 0))
-                to_drop.append(pair[dimmer])
+                    to_drop.append([p0, p1][np.argmin(np.sum(positions.take([p0, p1], 0), 1))])
             results = np.delete(results, to_drop, 0)
 
     return results
@@ -351,7 +353,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     Preprocess the image by performing a band pass and a threshold.
     Locate all peaks of brightness, characterize the neighborhoods of the peaks
-    and take only those with given total brightnesss ("mass"). Finally,
+    and take only those with given total brightness ("mass"). Finally,
     refine the positions of each peak.
 
     Parameters
@@ -365,7 +367,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        crucial parameter for eliminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
         Default is diameter + 1. May be a tuple, see diameter for details.
@@ -600,7 +602,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     Preprocess the image by performing a band pass and a threshold.
     Locate all peaks of brightness, characterize the neighborhoods of the peaks
-    and take only those with given total brightnesss ("mass"). Finally,
+    and take only those with given total brightness ("mass"). Finally,
     refine the positions of each peak.
 
     Parameters
@@ -614,7 +616,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         number(s) must be odd integers. When in doubt, round up.
     minmass : minimum integrated brightness
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        crucial parameter for eliminating spurious features.
     maxsize : maximum radius-of-gyration of brightness, default None
     separation : feature separation, in pixels
         Default is diameter + 1. May be a tuple, see diameter for details.
@@ -648,7 +650,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         based on their estimated mass and size before refining position.
         True by default for performance.
     filter_after : boolean
-        Use final characterizations of mass and size to elminate spurious
+        Use final characterizations of mass and size to eliminate spurious
         features. True by default.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.

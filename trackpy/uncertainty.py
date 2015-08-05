@@ -112,7 +112,7 @@ def static_error(features, noise, diameter, noise_size=1, ndim=2):
         temp = features.join(noise, on='frame')
         ep = _static_error(temp['mass'], temp['noise'], radius, noise_size)
 
-    ep = ep.where(ep > 0, np.nan)
+    ep[ep < 0] = np.nan
 
     if ep.ndim == 1:
         ep.name = 'ep'
