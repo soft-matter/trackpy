@@ -610,9 +610,8 @@ class CommonFeatureIdentificationTests(object):
             assert_allclose(rms_dev, f['ep'].mean(), atol=0.05)
 
             # Additionally test the measured noise
-            actual_noise = tp.uncertainty.measure_noise(image_noisy,
-                                                        locate_diameter,
-                                                        noise_level/4)
+            actual_noise = tp.uncertainty.measure_noise(image, image_noisy,
+                                                        locate_diameter // 2)
             assert_allclose(actual_noise, noise_expectation * noise_level,
                             rtol=0.01, atol=1)
 

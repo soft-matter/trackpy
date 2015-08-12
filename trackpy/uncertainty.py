@@ -5,40 +5,32 @@ import numpy as np
 from scipy.ndimage import morphology
 from pandas import DataFrame
 
-from .preprocessing import bandpass
 from .masks import binary_mask, x_squared_masks
 from .utils import memo, validate_tuple
 
 
-def roi(image, diameter, threshold=None, image_bandpassed=None):
-    """Return a mask selecting the neighborhoods of bright regions.
+def measure_noise(image_bp, image_raw, radius):
+    """Compute the mean and standard deviation of the dark pixels outside the
+    signal. The bandpassed image is used to identify background regions. The
+    raw image is used to characterize the background.
     See Biophysical journal 88(1) 623-638 Figure C.
 
     Parameters
     ----------
-    image : ndarray
-    diameter : feature size used for centroid identification
-    threshold : number, optional
-    image_bandpassed : ndarray, optional
+    image_bp : ndarray
+        preprocessed (bandpassed) image
+    image_raw : ndarray
+        raw image
+    radius : number or tuple of numbers
+        feature radius used for centroid identification
 
     Returns
     -------
-    boolean ndarray, True around bright regions
+    background mean, background standard deviation
     """
-    diameter = validate_tuple(diameter, image.ndim)
-    if image_bandpassed is None:
-        image_bandpassed = bandpass(image, 1, tuple([d + 1 for d in diameter]),
-                                    threshold)
-    structure = binary_mask(tuple([int(d)//2 for d in diameter]), image.ndim)
-    signal_mask = morphology.binary_dilation(image_bandpassed,
-                                             structure=structure)
-    return signal_mask
-
-
-def measure_noise(image, diameter, threshold, image_bandpassed=None):
-    "Compute the standard deviation of the dark pixels outside the signal."
-    signal_mask = roi(image, diameter, threshold, image_bandpassed)
-    return image[~signal_mask].mean(), image[~signal_mask].std()
+    structure = binary_mask(radius, image_bp.ndim)
+    signal_mask = morphology.binary_dilation(image_bp, structure=structure)
+    return image_raw[~signal_mask].mean(), image_raw[~signal_mask].std()
 
 
 @memo
