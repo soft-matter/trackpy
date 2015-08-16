@@ -399,7 +399,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     filter_before : boolean
         Use minmass (and maxsize, if set) to eliminate spurious features
         based on their estimated mass and size before refining position.
-        True by default for performance.
+        Default (None) defers to trackpy, to optimize for performance.
     filter_after : boolean
         Use final characterizations of mass and size to eliminate spurious
         features. True by default.
@@ -430,6 +430,9 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
     ndim = len(shape)
+    if filter_before is None:
+        # TODO smarter perf optimization, see GH issue #141
+        filter_before = False
 
     diameter = validate_tuple(diameter, ndim)
     diameter = tuple([int(x) for x in diameter])
@@ -594,7 +597,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=None, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
-          filter_before=True, filter_after=True,
+          filter_before=None, filter_after=True,
           characterize=True, engine='auto',
           output=None, meta=True):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
@@ -647,7 +650,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     filter_before : boolean
         Use minmass (and maxsize, if set) to eliminate spurious features
         based on their estimated mass and size before refining position.
-        True by default for performance.
+        Default (None) defers to trackpy, to optimize for performance.
     filter_after : boolean
         Use final characterizations of mass and size to eliminate spurious
         features. True by default.
