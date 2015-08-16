@@ -573,11 +573,10 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
     if characterize:
-        if preprocess:  # reuse processed image to increase performance
-            black_level, noise = measure_noise(raw_image, diameter,
-                                               threshold, image)
-        else:
-            black_level, noise = measure_noise(raw_image, diameter, threshold)
+        if preprocess:  # identify background regions from the processed image
+            black_level, noise = measure_noise(image, raw_image, radius)
+        else:  # identify background regions from the provided image
+            black_level, noise = measure_noise(raw_image, raw_image, radius)
         Npx = N_binary_mask(radius, ndim)
         mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
         ep = _static_error(mass, noise, radius[::-1], noise_size[::-1])

@@ -85,3 +85,12 @@ def sinmask(radius):
 def cosmask(radius):
     "Sin of theta_mask"
     return np.cos(2*theta_mask(radius))
+
+
+@memo
+def gaussian_kernel(sigma, truncate=4.0):
+    "1D discretized gaussian"
+    lw = int(truncate * sigma + 0.5)
+    x = np.arange(-lw, lw+1)
+    result = np.exp(x**2/(-2*sigma**2))
+    return result / np.sum(result)
