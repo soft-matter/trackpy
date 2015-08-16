@@ -1,16 +1,7 @@
 import os
-import sys
-import warnings
-import setuptools
 import versioneer
-from setuptools import setup, Extension
+from setuptools import setup
 
-
-versioneer.VCS = 'git'
-versioneer.versionfile_source = 'trackpy/_version.py'
-versioneer.versionfile_build = 'trackpy/_version.py'
-versioneer.tag_prefix = 'v'
-versioneer.parentdir_prefix = '.'
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
