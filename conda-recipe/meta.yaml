@@ -31,7 +31,6 @@ requirements:
     - scipy >=0.12.0
     - matplotlib
     - pims >=0.2.2
-    - pyyaml
     - numba >=0.13.4
 
 test:
