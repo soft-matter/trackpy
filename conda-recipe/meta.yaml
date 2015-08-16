@@ -20,6 +20,8 @@ requirements:
     - scipy
     - pims
     - matplotlib
+    - mock  # patching https://github.com/matplotlib/matplotlib/pull/4188
+    - nose # patching https://github.com/matplotlib/matplotlib/pull/4188
 
   run:
     - python
