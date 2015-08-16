@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
+import logging
 import collections
 import functools
 import re
@@ -12,6 +13,8 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import yaml
+
+import trackpy
 
 
 def fit_powerlaw(data, plot=True, **kwargs):
@@ -169,9 +172,8 @@ def random_walk(N):
     return np.cumsum(np.random.randn(N), 1)
 
 
-def record_meta(meta_data, filename):
-    with open(filename, 'w') as output:
-        output.write(yaml.dump(meta_data, default_flow_style=False))
+def record_meta(meta_data, file_obj):
+    file_obj.write(yaml.dump(meta_data, default_flow_style=False))
 
 def validate_tuple(value, ndim):
     if not hasattr(value, '__iter__'):
@@ -187,16 +189,6 @@ except ImportError:
     pass
 
 
-def print_update(message):
-    "Print a message immediately; do not wait for current execution to finish."
-    try:
-        clear_output()
-    except Exception:
-        pass
-    print(message)
-    sys.stdout.flush()
-
-
 def make_pandas_strict():
     """Configure Pandas to raise an exception for "chained assignments."
 
@@ -208,3 +200,63 @@ def make_pandas_strict():
     major, minor, micro = pd.__version__.split('.')
     if major == '0' and int(minor) >= 13:
         pd.set_option('mode.chained_assignment', 'raise')
+
+
+class IPythonStreamHandler(logging.StreamHandler):
+    "A StreamHandler for logging that clears output between entries."
+    def emit(self, s):
+        clear_output(wait=True)
+        print(s.getMessage())
+    def flush(self):
+        sys.stdout.flush()
+
+
+FORMAT = "%(name)s.%(funcName)s:  %(message)s"
+formatter = logging.Formatter(FORMAT)
+
+# Check for IPython and use a special logger
+use_ipython_handler = False
+try:
+    import IPython
+except ImportError:
+    pass
+else:
+    if IPython.get_ipython() is not None:
+        use_ipython_handler = True
+if use_ipython_handler:
+    default_handler = IPythonStreamHandler()
+else:
+    default_handler = logging.StreamHandler(sys.stdout)
+default_handler.setLevel(logging.INFO)
+default_handler.setFormatter(formatter)
+
+
+def handle_logging():
+    "Send INFO-level log messages to stdout. Do not propagate."
+    if use_ipython_handler:
+        # Avoid double-printing messages to IPython stderr.
+        trackpy.logger.propagate = False
+    trackpy.logger.addHandler(default_handler)
+    trackpy.logger.setLevel(logging.INFO)
+
+
+def ignore_logging():
+    "Reset to factory default logging configuration; remove trackpy's handler."
+    trackpy.logger.removeHandler(default_handler)
+    trackpy.logger.setLevel(logging.NOTSET)
+    trackpy.logger.propagate = True
+
+
+def quiet(suppress=True):
+    """Suppress trackpy information log messages.
+
+    Parameters
+    ----------
+    suppress : boolean
+        If True, set the logging level to WARN, hiding INFO-level messages.
+        If False, set level to INFO, showing informational messages.
+    """
+    if suppress:
+        trackpy.logger.setLevel(logging.WARN)
+    else:
+        trackpy.logger.setLevel(logging.INFO)

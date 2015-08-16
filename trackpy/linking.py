@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 from six.moves import zip, range
+import logging
 from copy import copy
 import itertools
 import functools
@@ -11,8 +12,9 @@ import numpy as np
 from scipy.spatial import cKDTree
 import pandas as pd
 
-from .utils import print_update
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
+
+logger = logging.getLogger(__name__)
 
 
 class TreeFinder(object):
@@ -584,8 +586,7 @@ def link_df(features, search_range, memory=0,
         if diagnostics:
             _add_diagnostic_columns(features, level)
 
-        msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
-        print_update(msg)
+        logger.info("Frame %d: %d trajectories present", frame_no, len(labels))
 
     if retain_index:
         features.index = orig_index
@@ -734,8 +735,7 @@ def link_df_iter(features, search_range, memory=0,
             features.sort('particle', inplace=True)
             features.reset_index(drop=True, inplace=True)
 
-        msg = "Frame %d: %d trajectories present" % (frame_no, len(labels))
-        print_update(msg)
+        logger.info("Frame %d: %d trajectories present", frame_no, len(labels))
 
         yield features
 

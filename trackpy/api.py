@@ -20,6 +20,7 @@ from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
 from . import utils
 from . import artificial
+from .utils import handle_logging, ignore_logging, quiet
 from .try_numba import try_numba_autojit, enable_numba, disable_numba
 
 

@@ -1,13 +1,14 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
+import logging
 import os
 from abc import ABCMeta, abstractmethod, abstractproperty
 import warnings
 
 import pandas as pd
 
-from .utils import print_update
+logger = logging.getLogger(__name__)
 
 
 class FramewiseData(object):
@@ -323,6 +324,6 @@ def _make_tabular_copy(store, key):
     """Copy the contents nontabular node in a pandas HDFStore
     into a tabular node"""
     tabular_key = key + '/tabular'
-    print_update("Making a tabular copy of %s at %s" % (key, tabular_key))
+    logger.info("Making a tabular copy of %s at %s", (key, tabular_key))
     store.append(tabular_key, store.get(key), data_columns=True)
     return tabular_key

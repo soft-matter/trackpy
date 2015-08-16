@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import warnings
+import logging
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,7 @@ from scipy.spatial import cKDTree
 from pandas import DataFrame
 
 from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
-from .utils import record_meta, print_update, validate_tuple
+from .utils import record_meta, validate_tuple
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -19,6 +20,8 @@ import trackpy  # to get trackpy.__version__
 from .try_numba import NUMBA_AVAILABLE
 from .feature_numba import (_numba_refine_2D, _numba_refine_2D_c,
                             _numba_refine_2D_c_a, _numba_refine_3D)
+
+logger = logging.getLogger(__name__)
 
 
 def percentile_threshold(image, percentile):
@@ -277,8 +280,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         allow_moves = True
         for iteration in range(max_iterations):
             off_center = cm_n - radius
-            if walkthrough:
-                print_update(off_center)
+            logger.debug('off_center: %f', off_center)
             if np.all(np.abs(off_center) < GOOD_ENOUGH_THRESH):
                 break  # Accurate enough.
 
@@ -358,30 +360,39 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     Parameters
     ----------
-    image : image array (any dimensions)
-    diameter : feature size in px
+    image : array
+         any N-dimensional image
+    diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : minimum integrated brightness
+    minmass : float
+        The minimum integrate brightness.
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for eliminating spurious features.
-    maxsize : maximum radius-of-gyration of brightness, default None
-    separation : feature separation, in pixels
+        crucial parameter for elminating spurious features.
+    maxsize : float
+        maximum radius-of-gyration of brightness, default None
+    separation : float or tuple
+        Minimum separtion between features.
         Default is diameter + 1. May be a tuple, see diameter for details.
-    noise_size : width of Gaussian blurring kernel, in pixels
+    noise_size : float or tuple
+        Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
-    smoothing_size : size of boxcar smoothing, in pixels
+    smoothing_size : float or tuple
+        Size of boxcar smoothing, in pixels
         Default is diameter. May be a tuple, see diameter for details.
-    threshold : Clip bandpass result below this value.
-        Default None, passed through to bandpass.
-    invert : Set to True if features are darker than background. False by
-        default.
-    percentile : Features must have a peak brighter than pixels in this
+    threshold : float
+        Clip bandpass result below this value.
+        Default, None, defers to default settings of the bandpass function.
+    invert : boolean
+        Set to True if features are darker than background. False by default.
+    percentile : float
+        Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurious peaks.
-    topn : Return only the N brightest features above minmass.
+    topn : integer
+        Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
 
     Returns
@@ -393,7 +404,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     Other Parameters
     ----------------
-    preprocess : Set to False to turn out bandpass preprocessing.
+    preprocess : boolean
+        Set to False to turn off bandpass preprocessing.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
@@ -596,7 +608,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=True, filter_after=True,
           characterize=True, engine='auto',
-          output=None, meta=True):
+          output=None, meta=None):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -607,29 +619,37 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     Parameters
     ----------
     frames : list (or iterable) of images
-    diameter : feature size in px
+    diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : minimum integrated brightness
+    minmass : float
+        The minimum integrate brightness.
         Default is 100, but a good value is often much higher. This is a
-        crucial parameter for eliminating spurious features.
-    maxsize : maximum radius-of-gyration of brightness, default None
-    separation : feature separation, in pixels
+        crucial parameter for elminating spurious features.
+    maxsize : float
+        maximum radius-of-gyration of brightness, default None
+    separation : float or tuple
+        Minimum separtion between features.
         Default is diameter + 1. May be a tuple, see diameter for details.
-    noise_size : width of Gaussian blurring kernel, in pixels
+    noise_size : float or tuple
+        Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
-    smoothing_size : size of boxcar smoothing, in pixels
+    smoothing_size : float or tuple
+        Size of boxcar smoothing, in pixels
         Default is diameter. May be a tuple, see diameter for details.
-    threshold : Clip bandpass result below this value.
-        Default None, passed through to bandpass.
-    invert : Set to True if features are darker than background. False by
-        default.
-    percentile : Features must have a peak brighter than pixels in this
+    threshold : float
+        Clip bandpass result below this value.
+        Default, None, defers to default settings of the bandpass function.
+    invert : boolean
+        Set to True if features are darker than background. False by default.
+    percentile : float
+        Features must have a peak brighter than pixels in this
         percentile. This helps eliminate spurious peaks.
-    topn : Return only the N brightest features above minmass.
+    topn : integer
+        Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
 
     Returns
@@ -641,7 +661,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     Other Parameters
     ----------------
-    preprocess : Set to False to turn off bandpass preprocessing.
+    preprocess : boolean
+        Set to False to turn off bandpass preprocessing.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
@@ -656,10 +677,12 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     engine : {'auto', 'python', 'numba'}
     output : {None, trackpy.PandasHDFStore, SomeCustomClass}
         If None, return all results as one big DataFrame. Otherwise, pass
-        results from each frame, one at a time, to the write() method
+        results from each frame, one at a time, to the put() method
         of whatever class is specified here.
-    meta : By default, a YAML (plain text) log file is saved in the current
-        directory. You can specify a different filepath set False.
+    meta : filepath or file object, optional
+        If specified, information relevant to reproducing this batch is saved
+        as a YAML file, a plain-text machine- and human-readable format.
+        By default, this is None, and no file is saved.
 
     See Also
     --------
@@ -695,11 +718,12 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                      filter_before=filter_before, filter_after=filter_after)
 
     if meta:
-        if isinstance(meta, str):
-            filename = meta
+        if isinstance(meta, six.string_types):
+            with open(meta, 'w') as file_obj:
+                record_meta(meta_info, file_obj)
         else:
-            filename = 'feature_log_%s.yml' % timestamp
-        record_meta(meta_info, filename)
+            # Interpret meta to be a file handle.
+            record_meta(meta_info, meta)
 
     all_features = []
     for i, image in enumerate(frames):
@@ -714,8 +738,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         else:
             frame_no = i
             features['frame'] = i  # just counting iterations
-        message = "Frame %d: %d features" % (frame_no, len(features))
-        print_update(message)
+        logger.info("Frame %d: %d features", frame_no, len(features))
         if len(features) == 0:
             continue
 
