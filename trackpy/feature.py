@@ -472,6 +472,8 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         warnings.warn("I am interpreting the image as {0}-dimensional. "
                       "If it is actually a {1}-dimensional color image, "
                       "convert it to grayscale first.".format(dim, dim-1))
+
+    # Determine `image`: the image to find the local maxima on
     if preprocess:
         if invert:
             # It is tempting to do this in place, but if it is called multiple
@@ -484,15 +486,22 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
                 # Have you ever encountered an image of unnormalized floats?
                 raw_image = 1 - raw_image
         image = bandpass(raw_image, noise_size, smoothing_size, threshold)
+
+        # Coerce the image into integer type. Rescale to fill dynamic range.
+        if np.issubdtype(raw_image.dtype, np.integer):
+            dtype = raw_image.dtype
+        else:
+            dtype = np.uint8
+        scale_factor = scalefactor_to_gamut(image, dtype)
+        image = scale_to_gamut(image, dtype, scale_factor)
+    elif np.issubdtype(raw_image.dtype, np.integer):
+        # Do nothing when image is already of integer type
+        scale_factor = 1.
+        image = raw_image
     else:
-        image = raw_image.copy()
-    # Coerce the image into integer type. Rescale to fill dynamic range.
-    if np.issubdtype(raw_image.dtype, np.integer):
-        dtype = raw_image.dtype
-    else:
-        dtype = np.uint8
-    scale_factor = scalefactor_to_gamut(image, dtype)
-    image = scale_to_gamut(image, dtype, scale_factor)
+        # Coerce the image into uint8 type. Rescale to fill dynamic range.
+        scale_factor = scalefactor_to_gamut(raw_image, np.uint8)
+        image = scale_to_gamut(raw_image, np.uint8, scale_factor)
 
     # Set up a DataFrame for the final results.
     if image.ndim < 4:
