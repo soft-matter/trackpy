@@ -596,7 +596,7 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
                            squareX + maskX[i]]
                 mass_ += px
 
-                RgZ += y2_mask[i]*px
+                RgZ += z2_mask[i]*px
                 RgY += y2_mask[i]*px
                 RgX += x2_mask[i]*px
 
