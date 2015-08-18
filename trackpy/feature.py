@@ -597,7 +597,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         if preprocess:  # identify background regions from the processed image
             black_level, noise = measure_noise(image, raw_image, radius)
         else:  # identify background regions from the provided image
-            black_level, noise = measure_noise(raw_image, raw_image, radius)
+            black_level, noise = measure_noise(image, raw_image, radius)
         Npx = N_binary_mask(radius, ndim)
         mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
         ep = _static_error(mass, noise, radius[::-1], noise_size[::-1])
