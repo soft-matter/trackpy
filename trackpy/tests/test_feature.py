@@ -276,7 +276,7 @@ class CommonFeatureIdentificationTests(object):
         # two neighboring pixels of unequal brightness
         pos1 = np.array([7, 13])
         pos2 = np.array([8, 13])
-        pos = [7.25, 13]  # center is between pixels, biased left
+        pos = [7.33, 13]  # center is between pixels, biased left
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 100)
         draw_point(image, pos2, 50)
@@ -285,7 +285,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
-        pos = [7.75, 13]  # center is between pixels, biased right
+        pos = [7.67, 13]  # center is between pixels, biased right
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 50)
         draw_point(image, pos2, 100)
@@ -296,7 +296,7 @@ class CommonFeatureIdentificationTests(object):
 
         pos1 = np.array([7, 12])
         pos2 = np.array([7, 13])
-        pos = [7, 12.25]  # center is between pixels, biased down
+        pos = [7, 12.33]  # center is between pixels, biased up
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 100)
         draw_point(image, pos2, 50)
@@ -305,7 +305,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
-        pos = [7, 12.75]  # center is between pixels, biased up
+        pos = [7, 12.67]  # center is between pixels, biased down
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 50)
         draw_point(image, pos2, 100)
@@ -315,11 +315,11 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual, expected, atol=PRECISION)
 
         # four neighboring pixels of unequal brightness
-        pos1 = np.array([7, 13])
-        pos2 = np.array([8, 13])
+        pos1 = np.array([7, 12])
+        pos2 = np.array([8, 12])
         pos3 = np.array([7, 13])
         pos4 = np.array([8, 13])
-        pos = [7.25, 13]  # center is between pixels, biased left
+        pos = [7.33, 12.5]  # center is between pixels, biased left
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 100)
         draw_point(image, pos2, 50)
@@ -330,7 +330,7 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
-        pos = [7.75, 13]  # center is between pixels, biased right 
+        pos = [7.67, 12.5]  # center is between pixels, biased right
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 50)
         draw_point(image, pos2, 100)
@@ -341,23 +341,23 @@ class CommonFeatureIdentificationTests(object):
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
-        pos1 = np.array([7, 12])
-        pos2 = np.array([7, 13])
-        pos3 = np.array([7, 12])
-        pos4 = np.array([7, 13])
-        pos = [7, 12.25]  # center is between pixels, biased down
+        pos = [7.5, 12.33]  # center is between pixels, biased up
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 100)
-        draw_point(image, pos2, 50)
+        draw_point(image, pos2, 100)
+        draw_point(image, pos3, 50)
+        draw_point(image, pos4, 50)
         actual = tp.locate(image, 5, 1, preprocess=False,
                            engine=self.engine)[cols]
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
-        pos = [7, 12.75]  # center is between pixels, biased up 
+        pos = [7.5, 12.67]  # center is between pixels, biased down
         image = np.ones(dims, dtype='uint8')
         draw_point(image, pos1, 50)
-        draw_point(image, pos2, 100)
+        draw_point(image, pos2, 50)
+        draw_point(image, pos3, 100)
+        draw_point(image, pos4, 100)
         actual = tp.locate(image, 5, 1, preprocess=False,
                            engine=self.engine)[cols]
         expected = DataFrame(np.asarray(pos).reshape(1, -1), columns=cols)
