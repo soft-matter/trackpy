@@ -10,7 +10,7 @@ def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
                      max_iterations, shapeY, shapeX, maskY, maskX, N_mask,
                      results):
     SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.01
+    GOOD_ENOUGH_THRESH = 0.005
     # Column indices into the 'results' array
     MASS_COL = 2
 
