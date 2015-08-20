@@ -1,4 +1,5 @@
 from __future__ import division
+import nose
 from numpy.testing.utils import assert_allclose
 from trackpy.preprocessing import *
 from trackpy.artificial import gen_nonoverlapping_locations, draw_spots
