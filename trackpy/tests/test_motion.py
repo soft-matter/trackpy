@@ -136,6 +136,8 @@ class TestMSD(unittest.TestCase):
         N = 10
         actual = tp.emsd(self.dead_still, 1, 1)
         expected = Series(np.zeros(N)).iloc[1:].astype('float64')
+        expected.index.name = 'lagt'
+        expected.name = 'msd'
         assert_series_equal(actual, expected)
 
     def test_linear_emsd(self):
