@@ -7,10 +7,8 @@ from .try_numba import try_numba_autojit
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
-                     max_iterations, shapeY, shapeX, maskY, maskX, N_mask,
-                     results):
-    SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.005
+                     max_iterations, shift_thresh, break_thresh,
+                     shapeY, shapeX, maskY, maskX, N_mask, results):
     # Column indices into the 'results' array
     MASS_COL = 2
 
@@ -41,14 +39,14 @@ def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
         for iteration in range(max_iterations):
             off_centerY = cm_nY - radiusY
             off_centerX = cm_nX - radiusX
-            if (abs(off_centerY) < GOOD_ENOUGH_THRESH and
-                abs(off_centerX) < GOOD_ENOUGH_THRESH):
+            if (abs(off_centerY) < break_thresh and
+                abs(off_centerX) < break_thresh):
                 break  # Go to next feature
 
             # If we're off by more than half a pixel in any direction, move.
             do_move = False
-            if allow_moves and (abs(off_centerY) > SHIFT_THRESH or
-                                abs(off_centerX) > SHIFT_THRESH):
+            if allow_moves and (abs(off_centerY) > shift_thresh or
+                                abs(off_centerX) > shift_thresh):
                 do_move = True
 
             if do_move:
@@ -56,14 +54,14 @@ def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
                 new_coordY = int(round(coordY))
                 new_coordX = int(round(coordX))
                 oc = off_centerY
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordY += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordY -= 1
                 oc = off_centerX
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordX += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordX -= 1
                 # Don't move outside the image!
                 if new_coordY < radiusY:
@@ -125,10 +123,9 @@ def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
-                      max_iterations, shapeY, shapeX, maskY,
+                      max_iterations, shift_thresh, break_thresh,
+                      shapeY, shapeX, maskY,
                       maskX, N_mask, r2_mask, cmask, smask, results):
-    SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.01
     # Column indices into the 'results' array
     MASS_COL = 2
     RG_COL = 3
@@ -163,14 +160,14 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
         for iteration in range(max_iterations):
             off_centerY = cm_nY - radiusY
             off_centerX = cm_nX - radiusX
-            if (abs(off_centerY) < GOOD_ENOUGH_THRESH and
-                abs(off_centerX) < GOOD_ENOUGH_THRESH):
+            if (abs(off_centerY) < break_thresh and
+                abs(off_centerX) < break_thresh):
                 break  # Go to next feature
 
             # If we're off by more than half a pixel in any direction, move.
             do_move = False
-            if allow_moves and (abs(off_centerY) > SHIFT_THRESH or
-                                abs(off_centerX) > SHIFT_THRESH):
+            if allow_moves and (abs(off_centerY) > shift_thresh or
+                                abs(off_centerX) > shift_thresh):
                 do_move = True
 
             if do_move:
@@ -178,14 +175,14 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
                 new_coordY = int(round(coordY))
                 new_coordX = int(round(coordX))
                 oc = off_centerY
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordY += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordY -= 1
                 oc = off_centerX
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordX += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordX -= 1
                 # Don't move outside the image!
                 if new_coordY < radiusY:
@@ -266,11 +263,10 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
-                        max_iterations, shapeY, shapeX, maskY,
+                        max_iterations, shift_thresh, break_thresh,
+                        shapeY, shapeX, maskY,
                         maskX, N_mask, y2_mask, x2_mask, cmask, smask,
                         results):
-    SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.01
     # Column indices into the 'results' array
     MASS_COL = 2
     RGX_COL = 3
@@ -306,14 +302,14 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
         for iteration in range(max_iterations):
             off_centerY = cm_nY - radiusY
             off_centerX = cm_nX - radiusX
-            if (abs(off_centerY) < GOOD_ENOUGH_THRESH and
-                abs(off_centerX) < GOOD_ENOUGH_THRESH):
+            if (abs(off_centerY) < break_thresh and
+                abs(off_centerX) < break_thresh):
                 break  # Go to next feature
 
             # If we're off by more than half a pixel in any direction, move.
             do_move = False
-            if allow_moves and (abs(off_centerY) > SHIFT_THRESH or
-                                abs(off_centerX) > SHIFT_THRESH):
+            if allow_moves and (abs(off_centerY) > shift_thresh or
+                                abs(off_centerX) > shift_thresh):
                 do_move = True
 
             if do_move:
@@ -321,14 +317,14 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
                 new_coordY = int(round(coordY))
                 new_coordX = int(round(coordX))
                 oc = off_centerY
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordY += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordY -= 1
                 oc = off_centerX
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordX += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordX -= 1
                 # Don't move outside the image!
                 if new_coordY < radiusY:
@@ -412,11 +408,10 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
-                     max_iterations, characterize, shapeZ, shapeY, shapeX,
+                     max_iterations, shift_thresh, break_thresh,
+                     characterize, shapeZ, shapeY, shapeX,
                      maskZ, maskY, maskX, N_mask, r2_mask, z2_mask, y2_mask,
                      x2_mask, results):
-    SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.01
     # Column indices into the 'results' array
     MASS_COL = 3
     isotropic = (radiusX == radiusY and radiusX == radiusZ)
@@ -469,16 +464,16 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
             off_centerZ = cm_nZ - radiusZ
             off_centerY = cm_nY - radiusY
             off_centerX = cm_nX - radiusX
-            if (abs(off_centerZ) < GOOD_ENOUGH_THRESH and
-                abs(off_centerY) < GOOD_ENOUGH_THRESH and
-                abs(off_centerX) < GOOD_ENOUGH_THRESH):
+            if (abs(off_centerZ) < break_thresh and
+                abs(off_centerY) < break_thresh and
+                abs(off_centerX) < break_thresh):
                 break  # Go to next feature
 
             # If we're off by more than half a pixel in any direction, move.
             do_move = False
-            if allow_moves and (abs(off_centerZ) > SHIFT_THRESH or
-                                abs(off_centerY) > SHIFT_THRESH or
-                                abs(off_centerX) > SHIFT_THRESH):
+            if allow_moves and (abs(off_centerZ) > shift_thresh or
+                                abs(off_centerY) > shift_thresh or
+                                abs(off_centerX) > shift_thresh):
                 do_move = True
 
             if do_move:
@@ -487,19 +482,19 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
                 new_coordY = int(round(coordY))
                 new_coordX = int(round(coordX))
                 oc = off_centerZ
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordZ += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordZ -= 1
                 oc = off_centerY
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordY += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordY -= 1
                 oc = off_centerX
-                if oc > SHIFT_THRESH:
+                if oc > shift_thresh:
                     new_coordX += 1
-                elif oc < - SHIFT_THRESH:
+                elif oc < - shift_thresh:
                     new_coordX -= 1
                 # Don't move outside the image!
                 if new_coordZ < radiusZ:
