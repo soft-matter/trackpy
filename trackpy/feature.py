@@ -117,6 +117,9 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         processed image, used for locating center of mass
     coord : array
         estimated position
+    separation : float or tuple
+        Minimum separtion between features.
+        Default is 0. May be a tuple, see diameter for details.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     engine : {'python', 'numba'}
