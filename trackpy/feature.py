@@ -101,7 +101,8 @@ def _safe_center_of_mass(x, radius, grids):
 
 
 def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
-           engine='auto', characterize=True, walkthrough=False):
+           engine='auto', shift_thresh=0.6, break_thresh=0.005,
+           characterize=True, walkthrough=False):
     """Find the center of mass of a bright feature starting from an estimate.
 
     Characterize the neighborhood of a local maximum, and iteratively
@@ -116,17 +117,30 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         processed image, used for locating center of mass
     coord : array
         estimated position
+    separation : float or tuple
+        Minimum separtion between features.
+        Default is 0. May be a tuple, see diameter for details.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
+    engine : {'python', 'numba'}
+        Numba is faster if available, but it cannot do walkthrough.
+    shift_thresh : float, optional
+        Default 0.6 (unit is pixels).
+        If the brightness centroid is more than this far off the mask center,
+        shift mask to neighboring pixel. The new mask will be used for any
+        remaining iterations.
+    break_thresh : float, optional
+        Default: 0.005 (unit is pixels).
+        When the subpixel refinement along all dimensions is less than this
+        number, declare victory and stop refinement.
     characterize : boolean, True by default
         Compute and return mass, size, eccentricity, signal.
     walkthrough : boolean, False by default
         Print the offset on each loop and display final neighborhood image.
-    engine : {'python', 'numba'}
-        Numba is faster if available, but it cannot do walkthrough.
     """
     # ensure that radius is tuple of integers, for direct calls to refine()
     radius = validate_tuple(radius, image.ndim)
+    separation = validate_tuple(separation, image.ndim)
     # Main loop will be performed in separate function.
     if engine == 'auto':
         if NUMBA_AVAILABLE and image.ndim in [2, 3]:
@@ -136,7 +150,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
     if engine == 'python':
         coords = np.array(coords)  # a copy, will not modify in place
         results = _refine(raw_image, image, radius, coords, max_iterations,
-                          characterize, walkthrough)
+                          shift_thresh, break_thresh, characterize, walkthrough)
     elif engine == 'numba':
         if not NUMBA_AVAILABLE:
             warnings.warn("numba could not be imported. Without it, the "
@@ -170,7 +184,8 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
                                              dtype=np.int16)
             _numba_refine_3D(np.asarray(raw_image), np.asarray(image),
                              radius[0], radius[1], radius[2], coords, N,
-                             int(max_iterations), characterize,
+                             int(max_iterations), shift_thresh, break_thresh,
+                             characterize,
                              image.shape[0], image.shape[1], image.shape[2],
                              maskZ, maskY, maskX, maskX.shape[0],
                              r2_mask, z2_mask, y2_mask, x2_mask, results)
@@ -179,7 +194,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
             results = np.empty((N, 3), dtype=np.float64)
             _numba_refine_2D(np.asarray(raw_image), np.asarray(image),
                              radius[0], radius[1], coords, N,
-                             int(max_iterations),
+                             int(max_iterations), shift_thresh, break_thresh,
                              image.shape[0], image.shape[1],
                              mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
                              results)
@@ -191,7 +206,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
             smask = sinmask(radius)[mask]
             _numba_refine_2D_c(np.asarray(raw_image), np.asarray(image),
                                radius[0], radius[1], coords, N,
-                               int(max_iterations),
+                               int(max_iterations), shift_thresh, break_thresh,
                                image.shape[0], image.shape[1],
                                mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
                                r2_mask, cmask, smask, results)
@@ -205,8 +220,8 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
             smask = sinmask(radius)[mask]
             _numba_refine_2D_c_a(np.asarray(raw_image), np.asarray(image),
                                  radius[0], radius[1], coords, N,
-                                 int(max_iterations),
-                                 image.shape[0], image.shape[1],
+                                 int(max_iterations), shift_thresh,
+                                 break_thresh, image.shape[0], image.shape[1],
                                  mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
                                  y2_mask, x2_mask, cmask, smask, results)
     else:
@@ -243,9 +258,7 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
 
 # (This is pure Python. A numba variant follows below.)
 def _refine(raw_image, image, radius, coords, max_iterations,
-            characterize, walkthrough):
-    SHIFT_THRESH = 0.6
-    GOOD_ENOUGH_THRESH = 0.005
+            shift_thresh, break_thresh, characterize, walkthrough):
 
     ndim = image.ndim
     isotropic = np.all(radius[1:] == radius[:-1])
@@ -281,15 +294,15 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         for iteration in range(max_iterations):
             off_center = cm_n - radius
             logger.debug('off_center: %f', off_center)
-            if np.all(np.abs(off_center) < GOOD_ENOUGH_THRESH):
+            if np.all(np.abs(off_center) < break_thresh):
                 break  # Accurate enough.
 
             # If we're off by more than half a pixel in any direction, move.
-            elif np.any(np.abs(off_center) > SHIFT_THRESH) & allow_moves:
+            elif np.any(np.abs(off_center) > shift_thresh) & allow_moves:
                 # In here, coord is an integer.
                 new_coord = coord
-                new_coord[off_center > SHIFT_THRESH] += 1
-                new_coord[off_center < -SHIFT_THRESH] -= 1
+                new_coord[off_center > shift_thresh] += 1
+                new_coord[off_center < -shift_thresh] -= 1
                 # Don't move outside the image!
                 upper_bound = np.array(image.shape) - 1 - radius
                 new_coord = np.clip(new_coord, radius, upper_bound).astype(int)
