@@ -34,6 +34,7 @@ requirements:
     - matplotlib
     - pims >=0.2.2
     - numba >=0.13.4
+    - pytables
 
 test:
   imports:
