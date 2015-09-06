@@ -33,7 +33,9 @@ def percentile_threshold(image, percentile):
     return np.percentile(not_black, percentile)
 
 
-def minmass_version_change(raw_image, old_minmass, preprocess=True):
+def minmass_version_change(raw_image, old_minmass, preprocess=True,
+                           invert=False, noise_size=1, smoothing_size=None,
+                           threshold=None):
     """From trackpy version 0.3.0, the mass calculation is changed. Before
     version 0.3.0 the mass was calculated from a rescaled image: first the
     image was bandpassed, then converted to integers. The rescaling was done
@@ -55,18 +57,27 @@ def minmass_version_change(raw_image, old_minmass, preprocess=True):
     -------
     New minmass
     """
+    if preprocess and smoothing_size is None:
+        raise ValueError('Please specify the smoothing size. By default, this '
+                         'equals diameter.')
+
     if np.issubdtype(raw_image.dtype, np.integer):
         dtype = raw_image.dtype
+        if invert:
+            raw_image = raw_image ^ np.iinfo(dtype).max
     else:
         dtype = np.uint8
+        if invert:
+            raw_image = 1 - raw_image
 
-    scale_factor = scalefactor_to_gamut(raw_image, dtype)
-
-    # in general the preprocessing reduces the max image intensity
     if preprocess:
-        scale_factor *= 0.8
+        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
+    else:
+        image = raw_image
 
-    return old_minmass * scale_factor   
+    scale_factor = scalefactor_to_gamut(image, dtype)
+
+    return int(old_minmass / scale_factor)
 
 
 def local_maxima(image, radius, percentile=64, margin=None):
