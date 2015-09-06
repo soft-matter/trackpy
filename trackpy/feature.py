@@ -37,22 +37,27 @@ def minmass_version_change(raw_image, old_minmass, preprocess=True,
                            invert=False, noise_size=1, smoothing_size=None,
                            threshold=None):
     """From trackpy version 0.3.0, the mass calculation is changed. Before
-    version 0.3.0 the mass was calculated from a rescaled image: first the
-    image was bandpassed, then converted to integers. The rescaling was done
-    to use the full resolution of the integer dtype.
+    version 0.3.0 the mass was calculated from a rescaled image. From version
+    0.3.0, this rescaling is compensated at the end so that the mass reflects
+    the actual intensities in the image.
 
-    From version 0.3.0, this rescaling is compensated at the end so that the
-    mass reflect the actual intensities in the image.
-    
     This function calculates the scalefactor between the old and new mass
-    and applies it to calculate the new minmass from the old minmass
-    
+    and applies it to calculate the new minmass filter value.
+
     Parameters
     ----------
     raw_image : ndarray
     old_minmass : number
-    preprocess : boolean
-    
+    preprocess : boolean, optional
+        Defaults to True
+    invert : boolean, optional
+        Defaults to False
+    noise_size : number, optional
+        Defaults to 1
+    smoothing_size : number, optional
+        Required when preprocessing. In locate, it equals diameter by default.
+    threshold : number, optional
+
     Returns
     -------
     New minmass
