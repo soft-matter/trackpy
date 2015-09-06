@@ -482,12 +482,25 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
 
     noise_size = validate_tuple(noise_size, ndim)
 
-    # Check whether the image looks suspiciously like a color image.
-    if 3 in shape or 4 in shape:
-        dim = raw_image.ndim
-        warnings.warn("I am interpreting the image as {0}-dimensional. "
-                      "If it is actually a {1}-dimensional color image, "
-                      "convert it to grayscale first.".format(dim, dim-1))
+    # Define zone of exclusion at edges of image, avoiding
+    #   - Features with incomplete image data ("radius")
+    #   - Extended particles that cannot be explored during subpixel
+    #       refinement ("separation")
+    #   - Invalid output of the bandpass step ("smoothing_size")
+    margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
+                    zip(radius, separation, smoothing_size)])
+
+    # Check whether the margins are not covering the complete image
+    if np.any([s <= 2*m for (s, m) in zip(shape, margin)]):
+        # Check whether the image looks suspiciously like a multichannel image.
+        if np.any([s <= 4 for s in shape]) and (ndim > 2):
+            raise ValueError('One of the image dimensions is very small. '
+                             'Please make sure that you are not using an RGB '
+                             'or other multichannel (color) image.')
+        else:
+            raise ValueError('The feature finding margins are larger than the '
+                             'image shape. Please use smaller radius, '
+                             'separation or smoothing_size.')
 
     # Determine `image`: the image to find the local maxima on
     if preprocess:
@@ -542,13 +555,6 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
             columns += ['ep_' + cc for cc in coord_columns]
 
     # Find local maxima.
-    # Define zone of exclusion at edges of image, avoiding
-    #   - Features with incomplete image data ("radius")
-    #   - Extended particles that cannot be explored during subpixel
-    #       refinement ("separation")
-    #   - Invalid output of the bandpass step ("smoothing_size")
-    margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
-                    zip(radius, separation, smoothing_size)])
     coords = local_maxima(image, radius, percentile, margin)
     count_maxima = coords.shape[0]
 
