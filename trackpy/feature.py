@@ -411,7 +411,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
 
 
-def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
+def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
            filter_before=True, filter_after=True,
@@ -434,9 +434,10 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
     minmass : float
-        The minimum integrate brightness.
-        Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        The minimum integrated brightness.
+        Default is 100 for integer images and 1 for float images, but a good
+        value is often much higher. This is a crucial parameter for eliminating
+        spurious features.
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -540,6 +541,12 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         warnings.warn("I am interpreting the image as {0}-dimensional. "
                       "If it is actually a {1}-dimensional color image, "
                       "convert it to grayscale first.".format(dim, dim-1))
+
+    if minmass is None:
+        if np.issubdtype(raw_image.dtype, np.integer):
+            minmass = 100
+        else:
+            minmass = 1.
 
     # Determine `image`: the image to find the local maxima on
     if preprocess:
