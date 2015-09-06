@@ -14,7 +14,7 @@ from numpy.testing import (assert_almost_equal, assert_allclose,
                            assert_array_less)
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_produces_warning, assert_equal)
+                                 assert_produces_warning)
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
@@ -70,7 +70,7 @@ class OldMinmass(unittest.TestCase):
         new_minmass = tp.minmass_version_change(im, old_minmass,
                                                 smoothing_size=self.tp_diameter)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
-        assert_equal(len(f), self.N)
+        assert len(f) == self.N
 
     def test_oldmass_12bit(self):
         old_minmass = 2800000
@@ -80,7 +80,7 @@ class OldMinmass(unittest.TestCase):
         new_minmass = tp.minmass_version_change(im, old_minmass,
                                                 smoothing_size=self.tp_diameter)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
-        assert_equal(len(f), self.N)
+        assert len(f) == self.N
 
     def test_oldmass_16bit(self):
         old_minmass = 2800000
@@ -90,7 +90,7 @@ class OldMinmass(unittest.TestCase):
         new_minmass = tp.minmass_version_change(im, old_minmass,
                                                 smoothing_size=self.tp_diameter)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
-        assert_equal(len(f), self.N)
+        assert len(f) == self.N
 
     def test_oldmass_float(self):
         old_minmass = 5500
@@ -101,7 +101,7 @@ class OldMinmass(unittest.TestCase):
         new_minmass = tp.minmass_version_change(im, old_minmass,
                                                 smoothing_size=self.tp_diameter)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
-        assert_equal(len(f), self.N)
+        assert len(f) == self.N
         
     def test_oldmass_invert(self):
         old_minmass = 2800000
@@ -112,7 +112,7 @@ class OldMinmass(unittest.TestCase):
         new_minmass = tp.minmass_version_change(im, old_minmass, invert=True,
                                                 smoothing_size=self.tp_diameter)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass, invert=True)
-        assert_equal(len(f), self.N)
+        assert len(f) == self.N
 
 
 class CommonFeatureIdentificationTests(object):
