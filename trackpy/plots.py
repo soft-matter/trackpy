@@ -169,7 +169,7 @@ def _set_labels(ax, label_format, pos_columns):
 @make_axes
 def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
             plot_style={}):
-    """Scatter plot of all points of each particle.
+    """Scatter plot of all particles.
 
     Parameters
     ----------
@@ -187,6 +187,10 @@ def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
     Returns
     -------
     Axes object
+    
+    See Also
+    --------
+    scatter3d : the 3D equivalent of `scatter`
     """
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -216,12 +220,32 @@ def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
 
 @make_axes3d
 def scatter3d(*args, **kwargs):
-    """3D extension of scatter"""
+    """The 3D equivalent of `scatter`.
+
+    Parameters
+    ----------
+    centroids : DataFrame
+        The DataFrame should include time and spatial coordinate columns.
+    mpp : float, optional
+        Microns per pixel. If omitted, the labels will have units of pixels.
+    cmap : colormap, optional
+        This is only used in colorby='frame' mode. Default = mpl.cm.winter
+    ax : matplotlib axes object, optional
+        Defaults to current axes
+    pos_columns : list of strings, optional
+        Dataframe column names for spatial coords. Default is ['x', 'y', 'z'].
+
+    Returns
+    -------
+    Axes object
+    
+    See Also
+    --------
+    scatter3d : the 3D equivalent of `scatter`
+    """
     if kwargs.get('pos_columns') is None:
         kwargs['pos_columns'] = ['x', 'y', 'z']
     return scatter(*args, **kwargs)
-
-scatter3d.__doc__ = scatter.__doc__
 
 
 @make_axes
@@ -256,6 +280,10 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     Returns
     -------
     Axes object
+    
+    See Also
+    --------
+    plot_traj3d : the 3D equivalent of `plot_traj`
     """
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -324,16 +352,44 @@ ptraj = plot_traj  # convenience alias
 
 @make_axes3d
 def plot_traj3d(*args, **kwargs):
-    """3D extension of plot_traj"""
+    """The 3D equivalent of `plot_traj`.
+    
+    Parameters
+    ----------
+    traj : DataFrame
+        The DataFrame should include time and spatial coordinate columns.
+    mpp : float, optional
+        Microns per pixel. If omitted, the labels will have units of pixels.
+    label : boolean, optional
+        Set to True to write particle ID numbers next to trajectories.
+    superimpose : ndarray, optional
+        Background image, default None
+    cmap : colormap, optional
+        This is only used in colorby='frame' mode. Default = mpl.cm.winter
+    ax : matplotlib axes object, optional
+        Defaults to current axes
+    t_column : string, optional
+        DataFrame column name for time coordinate. Default is 'frame'.
+    pos_columns : list of strings, optional
+        Dataframe column names for spatial coords. Default is ['x', 'y', 'z'].
+    plot_style : dictionary
+        Keyword arguments passed through to the `Axes.plot(...)` command
+
+    Returns
+    -------
+    Axes object
+
+    See Also
+    --------
+    plot_traj : plot 2D trajectories"""
+
     if kwargs.get('pos_columns') is None:
         kwargs['pos_columns'] = ['x', 'y', 'z']
     if kwargs.get('colorby') == 'frame':
         raise NotImplemented("3d trajectory plots cannot be colored by frame")
     return plot_traj(*args, **kwargs)
 
-plot_traj3d.__doc__ = plot_traj.__doc__
 ptraj3d = plot_traj3d
-
 
 @make_axes
 def annotate(centroids, image, circle_size=None, color=None,
@@ -366,7 +422,11 @@ def annotate(centroids, image, circle_size=None, color=None,
 
     Returns
     ------
-    axes
+    Axes object
+    
+    See Also
+    --------
+    annotate3d : The 3D equivalent that returns a scrollable stack.
     """
     import matplotlib.pyplot as plt
 
@@ -448,9 +508,39 @@ def annotate(centroids, image, circle_size=None, color=None,
 
 
 def annotate3d(centroids, image, **kwargs):
-    """
-    An extension of annotate that annotates a 3D image and returns a scrollable
-    stack for display in IPython. Parameters: see annotate.
+    """Annotates a 3D image and returns a scrollable stack for display in
+    IPython.
+    
+    Parameters
+    ----------
+    centroids : DataFrame including columns x and y
+    image : image array (or string path to image file)
+    circle_size : Deprecated.
+        This will be removed in a future version of trackpy.
+        Use `plot_style={'markersize': ...}` instead.
+    color : single matplotlib color or a list of multiple colors
+        default None
+    invert : If you give a filepath as the image, specify whether to invert
+        black and white. Default True.
+    ax : matplotlib axes object, defaults to current axes
+    split_category : string, parameter to use to split the data into sections
+        default None
+    split_thresh : single value or list of ints or floats to split
+        particles into sections for plotting in multiple colors.
+        List items should be ordered by increasing value.
+        default None
+    imshow_style : dictionary of keyword arguments passed through to
+        the `Axes.imshow(...)` command the displays the image
+    plot_style : dictionary of keyword arguments passed through to
+        the `Axes.plot(...)` command that marks the features
+
+    Returns
+    -------
+    pims.Frame object containing a three-dimensional RGBA image
+
+    See Also
+    --------
+    annotate : annotation of 2D images
     """
     if plots_to_frame is None:
         raise ImportError('annotate3d requires pims 0.3 or later, please '
@@ -609,7 +699,10 @@ def plot_density_profile(f, binsize, blocks=None, mpp=None, fps=None,
         if true, the histogram is normalized
     t_column : string, default 'frame'
     pos_column : string, default 'z'
-
+    
+    Returns
+    -------
+    Axes object
     """
     import matplotlib as mpl
     lastframe = f[t_column].max()

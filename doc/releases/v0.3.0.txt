@@ -10,15 +10,17 @@ Release v0.3.0 adds many important enhancements and fixes. Feature location is e
 Enhancements
 ~~~~~~~~~~~~
 
-- The feature-finding functionality was formerly limited to circular features, but now trackpy can locate anisotropic N-dimensional features. Their size is specified as a tuple of odd integers instead of a single odd integer. See the new 3D tutorial for details. (:issue:`239`)
+- The feature-finding functionality was formerly limited to circular features, but now trackpy can locate anisotropic N-dimensional features. Their size is specified as a tuple of odd integers instead of a single odd integer. See the new 3D tutorial for details. (:issue:`162`, :issue:`239`)
 
-- The plotting and analysis tools, many of which were limited to 2D, have been extended to 3D.
+- The plotting and analysis tools, many of which were limited to 2D, have been extended to 3D. (:issue:`196`)
 
 - The numba engine for fast feature-finding has been extented to handle 3D images. (:issue:`242`)
 
+- Feature finding returns a new column ``raw_mass`` that is the sum of intensities inside the unprocessed image. For anisotropic feature detection, size and static errors are returned per dimension: ``size_x`` etc. and ``ep_x`` etc. (:issue:`239`)
+
 - A powerful new adaptive search feature gives much richer control of the tracking (trajectory-linking) process, and it makes formerly intractable scenarios possible to solve in a reasonable time. See the new tutorials, "Advanced Linking: Subnetworks and search_range" and "Adaptive Search: Changing search_range on the Fly," for details.
 
-- Uncertainty estimation is more accurate. See the docstring of ``trackpy.uncertainty.static_error`` for details. (:issue:`239`)
+- Uncertainty estimation is more accurate. See the docstring of ``trackpy.uncertainty.static_error`` for details. (:issue:`239`, :issue:`259`)
 
 - The linking functions can now collect data about how each particle was linked. See the tutorial "Obtaining Diagnostic Information from Linking."
 
