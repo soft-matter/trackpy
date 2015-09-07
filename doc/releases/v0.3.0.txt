@@ -26,7 +26,7 @@ Enhancements
 
 - The minimum feature separation can be as small as zero. Formerly, it was constrained to be larger than the feature diameter. If ``serparation=0``, "merging" of duplicate maxima is effectively turned off. (:issue:`139`)
 
-- The percentile-based thresholding was moved into a serpate function, so it can now be called directly. That will be useful to users who want to inspect what the thresholding is doing to their images. It will also be useful for profiling. (:issue:`139`)
+- The percentile-based thresholding was moved into a separate function, so it can now be called directly. That will be useful to users who want to inspect what the thresholding is doing to their images. It will also be useful for profiling. (:issue:`139`)
 
 - The performance of feature-finding can now be tested in a custom way using new routines in ``artificial.py``. Users can provide a custom feature shape to test the feature-finding on their own system.
 
@@ -39,7 +39,7 @@ Bug Fixes
 
 - Fixed a bug in v0.2.3 and v0.2.4 that broke the ``circle_size`` parameter in ``annotate()``. (:issue:`169`, :issue:`170`)
 - Fixed a bug where subnetwork distances were not addded in quadrature in the python linker. (:issue:`212`). (The impact of this bug is not as large as one might expect. See issue link for details.)
-- Input images with a float datatype are internally converted to integer datatype for faster computation. They were converted to signed integers; now they are converted to unsigned. (:issue:`188`)
+- Input images with a float datatype are internally converted to integer datatype for faster computation. They were converted to signed integers; now they are converted to unsigned. (:issue:`188`). When preprocessing is turned off, integer images are not converted at all (:issue:`264`).
 - Slow feature-finding with more recent versions of the numba package (0.16 and 0.17 specifically) is addressed.
 
 API changes
@@ -48,3 +48,4 @@ API changes
 - The plot function ``annotate()`` now displays the image with the vertical axis inverted, to be consistent with the ``pims`` display function and ``plot_traj()``. (:issue:`217`)
 - Using trackpy to access pims functionality (e.g. ``trackpy.ImageSequence()``) is now deprecated; it still works but will generate a warning message. This capability will be removed from future versions of trackpy, in favor of accessing it in the pims package directly (e.g. ``pims.ImageSequence()``). (:issue:`214`)
 - When trackpy estimates the error in a feature's position (returned as the ``ep`` column), the procedure can fail and result in a nonsense value. This will now result in the value of ``ep`` being NaN (not a number); previous versions of trackpy returned a negative value in this situation. To restore the previous behavior, you can replace these values with negative numbers by using the Pandas ``fillna()`` method. (:issue:`113`)
+- The mass calculation is changed. Before v0.3 the mass was calculated from a rescaled image. From this version, this rescaling is compensated at the end so that the mass reflects the actual intensities in the image. ``minmass_version_change()`` can calculate the different ``minmass`` value to use (:issue:`239`)

@@ -143,6 +143,7 @@ Utility functions
 .. autosummary::
     :toctree: generated/
 
+    minmass_version_change
     utils.fit_powerlaw
     strip_diagnostics
 

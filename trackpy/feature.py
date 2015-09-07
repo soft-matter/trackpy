@@ -36,7 +36,9 @@ def percentile_threshold(image, percentile):
 def minmass_version_change(raw_image, old_minmass, preprocess=True,
                            invert=False, noise_size=1, smoothing_size=None,
                            threshold=None):
-    """From trackpy version 0.3.0, the mass calculation is changed. Before
+    """Convert minmass value from v0.2.4 to v0.3.
+
+    From trackpy version 0.3.0, the mass calculation is changed. Before
     version 0.3.0 the mass was calculated from a rescaled image. From version
     0.3.0, this rescaling is compensated at the end so that the mass reflects
     the actual intensities in the image.
@@ -438,6 +440,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         Default is 100 for integer images and 1 for float images, but a good
         value is often much higher. This is a crucial parameter for eliminating
         spurious features.
+        .. warning:: The mass value is changed since v0.3.0
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -488,6 +491,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     See Also
     --------
     batch : performs location on many images in batch
+    minmass_version_change : to convert minmass from v0.2.4 to v0.3.0
 
     Notes
     -----
@@ -710,9 +714,11 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
     minmass : float
-        The minimum integrate brightness.
-        Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        The minimum integrated brightness.
+        Default is 100 for integer images and 1 for float images, but a good
+        value is often much higher. This is a crucial parameter for eliminating
+        spurious features.
+        .. warning:: The mass value was changed since v0.3.0
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -771,6 +777,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     See Also
     --------
     locate : performs location on a single image
+    minmass_version_change : to convert minmass from v0.2.4 to v0.3.0
 
     Notes
     -----
