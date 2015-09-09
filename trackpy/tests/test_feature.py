@@ -14,7 +14,7 @@ from numpy.testing import (assert_almost_equal, assert_allclose,
                            assert_array_less)
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_produces_warning, assertRaises)
+                                 assert_produces_warning)
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
@@ -105,24 +105,24 @@ class CommonFeatureIdentificationTests(object):
 
         # RGB-like
         image = np.random.randint(0, 100, (21, 23, 3)).astype(np.uint8)
-        with assertRaises(ValueError):
+        with self.assertRaises(ValueError):
             tp.locate(image, 5)
 
         # RGBA-like
         image = np.random.randint(0, 100, (21, 23, 4)).astype(np.uint8)
-        with assertRaises(ValueError):
+        with self.assertRaises(ValueError):
             tp.locate(image, 5)
 
         # multichannel-like
         image = np.random.randint(0, 100, (2, 21, 23)).astype(np.uint8)
-        with assertRaises(ValueError):
+        with self.assertRaises(ValueError):
             tp.locate(image, 5)
 
     def test_exception_too_small(self):
         self.check_skip()
 
         image = np.random.randint(0, 100, (10, 50)).astype(np.uint8)
-        with assertRaises(ValueError):
+        with self.assertRaises(ValueError):
             tp.locate(image, 11)
 
     def test_flat_peak(self):
