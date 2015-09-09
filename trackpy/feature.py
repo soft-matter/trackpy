@@ -33,6 +33,60 @@ def percentile_threshold(image, percentile):
     return np.percentile(not_black, percentile)
 
 
+def minmass_version_change(raw_image, old_minmass, preprocess=True,
+                           invert=False, noise_size=1, smoothing_size=None,
+                           threshold=None):
+    """Convert minmass value from v0.2.4 to v0.3.
+
+    From trackpy version 0.3.0, the mass calculation is changed. Before
+    version 0.3.0 the mass was calculated from a rescaled image. From version
+    0.3.0, this rescaling is compensated at the end so that the mass reflects
+    the actual intensities in the image.
+
+    This function calculates the scalefactor between the old and new mass
+    and applies it to calculate the new minmass filter value.
+
+    Parameters
+    ----------
+    raw_image : ndarray
+    old_minmass : number
+    preprocess : boolean, optional
+        Defaults to True
+    invert : boolean, optional
+        Defaults to False
+    noise_size : number, optional
+        Defaults to 1
+    smoothing_size : number, optional
+        Required when preprocessing. In locate, it equals diameter by default.
+    threshold : number, optional
+
+    Returns
+    -------
+    New minmass
+    """
+    if preprocess and smoothing_size is None:
+        raise ValueError('Please specify the smoothing size. By default, this '
+                         'equals diameter.')
+
+    if np.issubdtype(raw_image.dtype, np.integer):
+        dtype = raw_image.dtype
+        if invert:
+            raw_image = raw_image ^ np.iinfo(dtype).max
+    else:
+        dtype = np.uint8
+        if invert:
+            raw_image = 1 - raw_image
+
+    if preprocess:
+        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
+    else:
+        image = raw_image
+
+    scale_factor = scalefactor_to_gamut(image, dtype)
+
+    return int(old_minmass / scale_factor)
+
+
 def local_maxima(image, radius, percentile=64, margin=None):
     """Find local maxima whose brightness is above a given percentile.
 
@@ -359,7 +413,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
 
 
-def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
+def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
            filter_before=True, filter_after=True,
@@ -382,9 +436,11 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
     minmass : float
-        The minimum integrate brightness.
-        Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        The minimum integrated brightness.
+        Default is 100 for integer images and 1 for float images, but a good
+        value is often much higher. This is a crucial parameter for eliminating
+        spurious features.
+        .. warning:: The mass value is changed since v0.3.0
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -435,6 +491,7 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
     See Also
     --------
     batch : performs location on many images in batch
+    minmass_version_change : to convert minmass from v0.2.4 to v0.3.0
 
     Notes
     -----
@@ -488,6 +545,12 @@ def locate(raw_image, diameter, minmass=100., maxsize=None, separation=None,
         warnings.warn("I am interpreting the image as {0}-dimensional. "
                       "If it is actually a {1}-dimensional color image, "
                       "convert it to grayscale first.".format(dim, dim-1))
+
+    if minmass is None:
+        if np.issubdtype(raw_image.dtype, np.integer):
+            minmass = 100
+        else:
+            minmass = 1.
 
     # Determine `image`: the image to find the local maxima on
     if preprocess:
@@ -651,9 +714,11 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
     minmass : float
-        The minimum integrate brightness.
-        Default is 100, but a good value is often much higher. This is a
-        crucial parameter for elminating spurious features.
+        The minimum integrated brightness.
+        Default is 100 for integer images and 1 for float images, but a good
+        value is often much higher. This is a crucial parameter for eliminating
+        spurious features.
+        .. warning:: The mass value was changed since v0.3.0
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -712,6 +777,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     See Also
     --------
     locate : performs location on a single image
+    minmass_version_change : to convert minmass from v0.2.4 to v0.3.0
 
     Notes
     -----
