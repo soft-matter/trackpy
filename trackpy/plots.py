@@ -509,8 +509,7 @@ def mass_size(f, ax=None):
     ax.set_ylabel('size')
     return ax
 
-@make_axes
-def subpx_bias(f, ax=None):
+def subpx_bias(f, pos_columns=None):
     """Histogram the fractional part of the x and y position.
 
     Notes
@@ -518,10 +517,11 @@ def subpx_bias(f, ax=None):
     If subpixel accuracy is good, this should be flat. If it depressed in the
     middle, try using a larger value for feature diameter."""
     if 'z' in f:
-        f[['x','y','z']].applymap(lambda x: x % 1).hist(ax=ax)
+        pos_columns = ['x', 'y', 'z']
     else:
-        f[['x', 'y']].applymap(lambda x: x % 1).hist(ax=ax)
-    return ax
+        pos_columns = ['x', 'y']
+    axlist = f[pos_columns].applymap(lambda x: x % 1).hist()
+    return axlist
 
 @make_axes
 def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None,

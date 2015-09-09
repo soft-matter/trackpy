@@ -41,6 +41,7 @@ Bug Fixes
 - Fixed a bug where subnetwork distances were not addded in quadrature in the python linker. (:issue:`212`). (The impact of this bug is not as large as one might expect. See issue link for details.)
 - Input images with a float datatype are internally converted to integer datatype for faster computation. They were converted to signed integers; now they are converted to unsigned. (:issue:`188`)
 - Slow feature-finding with more recent versions of the numba package (0.16 and 0.17 specifically) is addressed.
+- The ``ax`` argument of ``subpx_bias`` is removed because the figure is cleared anyway by ``subpx_bias``.
 
 API changes
 ~~~~~~~~~~~
