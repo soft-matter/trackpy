@@ -635,7 +635,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     count_qualified = coords.shape[0]
 
     if count_qualified == 0:
-        warnings.warn("No maxima survived mass- and size-based prefiltering.")
+        warnings.warn("No maxima survived mass- and size-based prefiltering. "
+                      "Be advised that the mass computation was changed from "
+                      "version 0.2.4 to 0.3.0. See the documentation and the "
+                      "convenience function minmass_version_change.")
         return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
@@ -659,7 +662,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     count_qualified = refined_coords.shape[0]
 
     if count_qualified == 0:
-        warnings.warn("No maxima survived mass- and size-based filtering.")
+        warnings.warn("No maxima survived mass- and size-based filtering. "
+                      "Be advised that the mass computation was changed from "
+                      "version 0.2.4 to 0.3.0. See the documentation and the "
+                      "convenience function minmass_version_change.")
         return DataFrame(columns=columns)
 
     if topn is not None and count_qualified > topn:
