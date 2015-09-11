@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import zip, range
 import logging
+from warnings import warn
 from copy import copy
 import itertools
 import functools
@@ -546,6 +547,10 @@ def link_df(features, search_range, memory=0,
     if hash_size is None:
         MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
+    if features.is_copy is not None and not copy_features:
+        warn('The features DataFrame is a view, so it is not writeable. '
+             'The results will be outputted to a copy.')
+        copy_features = True
 
     # Group the DataFrame by time steps and make a 'level' out of each
     # one, using the index to keep track of Points.
