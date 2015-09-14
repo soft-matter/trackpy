@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from copy import deepcopy
+from distutils.version import StrictVersion
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_almost_equal)
+                                 assert_almost_equal, assert_produces_warning)
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
@@ -288,13 +289,20 @@ class CommonTrackingTests(object):
         expected['particle'] = np.zeros(N)
 
         # Should add particle column in-place
-        # UNLESS diagnostics are enabled
+        # UNLESS diagnostics are enabled (or input dataframe is not writeable)
         actual = self.link_df(f_inplace, 5)
         assert_frame_equal(actual, expected)
         if self.do_diagnostics:
             assert 'particle' not in f_inplace.columns
         else:
             assert_frame_equal(actual, f_inplace)
+
+        # When DataFrame is actually a view, link_df should produce a warning
+        # and then copy the DataFrame. This only happens for pandas >= 0.16.
+        if StrictVersion(pd.__version__) >= StrictVersion('0.16.0'):
+            with assert_produces_warning(UserWarning):
+                actual = self.link_df(f[f['frame'] > 0], 5)
+            assert 'particle' not in f.columns
 
         # Should copy
         actual = self.link_df(f, 5, copy_features=True)
