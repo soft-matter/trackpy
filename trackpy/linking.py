@@ -551,7 +551,7 @@ def link_df(features, search_range, memory=0,
     # Check if DataFrame is writeable.
     # I don't know how to do this for pandas < 0.16.
     if (StrictVersion(pd.__version__) >= StrictVersion('0.16.0') and
-        features.is_copy is not None and not copy_features):
+            features.is_copy is not None and not copy_features):
         warn('The features DataFrame is a view, so it is not writeable. '
              'The results will be output to a copy. Use copy_features='
              'True to prevent this warning message.')
