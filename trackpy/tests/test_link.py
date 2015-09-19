@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from copy import deepcopy
-from distutils.version import StrictVersion
 
 import numpy as np
 import pandas as pd
@@ -18,6 +17,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, link, Hash_table
+from trackpy.utils import is_pandas_recent
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -299,7 +299,7 @@ class CommonTrackingTests(object):
 
         # When DataFrame is actually a view, link_df should produce a warning
         # and then copy the DataFrame. This only happens for pandas >= 0.16.
-        if StrictVersion(pd.__version__) >= StrictVersion('0.16.0'):
+        if is_pandas_recent:
             with assert_produces_warning(UserWarning):
                 actual = self.link_df(f[f['frame'] > 0], 5)
             assert 'particle' not in f.columns

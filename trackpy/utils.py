@@ -8,6 +8,7 @@ import re
 import sys
 import warnings
 from datetime import datetime, timedelta
+from distutils.version import StrictVersion
 
 import pandas as pd
 import numpy as np
@@ -15,6 +16,14 @@ from scipy import stats
 import yaml
 
 import trackpy
+
+# Set is_pandas_recent for use elsewhere.
+# Pandas >= 0.16.0 lets us check if a DataFrame is a view.
+try:
+    is_pandas_recent = (StrictVersion(pd.__version__) >=
+                        StrictVersion('0.16.0'))
+except ValueError:  # Probably a release candidate
+    is_pandas_recent = True
 
 
 def fit_powerlaw(data, plot=True, **kwargs):

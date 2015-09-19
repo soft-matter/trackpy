@@ -8,13 +8,13 @@ from copy import copy
 import itertools
 import functools
 from collections import deque
-from distutils.version import StrictVersion
 
 import numpy as np
 from scipy.spatial import cKDTree
 import pandas as pd
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
+from .utils import is_pandas_recent
 
 logger = logging.getLogger(__name__)
 
@@ -548,10 +548,11 @@ def link_df(features, search_range, memory=0,
     if hash_size is None:
         MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
+
     # Check if DataFrame is writeable.
     # I don't know how to do this for pandas < 0.16.
-    if (StrictVersion(pd.__version__) >= StrictVersion('0.16.0') and
-            features.is_copy is not None and not copy_features):
+    if (is_pandas_recent and features.is_copy is not None and
+            not copy_features):
         warn('The features DataFrame is a view, so it is not writeable. '
              'The results will be output to a copy. Use copy_features='
              'True to prevent this warning message.')
