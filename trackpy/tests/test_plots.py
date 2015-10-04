@@ -66,20 +66,20 @@ class TestPlots(unittest.TestCase):
         # Too many colors
         bad_call = lambda: plots.annotate(
             f, frame, split_category='mass', split_thresh=15, color=['r', 'g', 'b'])
-        self.assertRaises(bad_call)
+        self.assertRaises(ValueError, bad_call)
 
         # Not enough colors
         bad_call = lambda: plots.annotate(
             f, frame, split_category='mass', split_thresh=15, color=['r'])
-        self.assertRaises(bad_call)
+        self.assertRaises(ValueError, bad_call)
         bad_call = lambda: plots.annotate(
             f, frame, split_category='mass', split_thresh=15, color='r')
-        self.assertRaises(bad_call)
+        self.assertRaises(ValueError, bad_call)
 
         # Nonexistent column name for split_category
         bad_call = lambda: plots.annotate(
             f, frame, split_category='not a column', split_thresh=15, color='r')
-        self.assertRaises(bad_call)
+        self.assertRaises(ValueError, bad_call)
 
     def test_fit_powerlaw(self):
         # smoke test
