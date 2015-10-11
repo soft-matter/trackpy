@@ -27,6 +27,9 @@ class TreeFinder(object):
         self.points = copy(points)
         self.rebuild()
 
+    def __len__(self):
+        return len(self.points)
+
     def add_point(self, pt):
         self.points.append(pt)
         self._clean = False
@@ -49,8 +52,9 @@ class TreeFinder(object):
             coord_map = functools.partial(map, lambda x: x.pos)
         coords = np.asarray(list(coord_map(self.points)))
         if len(self.points) == 0:
-            raise ValueError('Frame (aka level) contains zero points')
-        self._kdtree = cKDTree(coords, 15)
+            self._kdtree = None
+        else:
+            self._kdtree = cKDTree(coords, 15)
         # This could be tuned
         self._clean = True
 
@@ -100,6 +104,7 @@ class HashTable(object):
         self.cached_rrange = None
         self.strides = np.cumprod(
                            np.concatenate(([1], self.hash_dims[1:])))[::-1]
+        self._len = 0
 
     def get_region(self, point, rrange):
         '''
@@ -171,6 +176,10 @@ class HashTable(object):
             raise Hash_table.Out_of_hash_excpt("cord out of range")
         indx = int(sum(cord * self.strides))
         self.hash_table[indx].append(point)
+        self._len += 1
+
+    def __len__(self):
+        return self._len
 
 
 class TrackUnstored(object):
@@ -563,9 +572,7 @@ def link_df(features, search_range, memory=0,
     if retain_index:
         orig_index = features.index.copy()  # Save it; restore it at the end.
     features.reset_index(inplace=True, drop=True)
-    levels = (_build_level(frame, pos_columns, t_column,
-                           diagnostics=diagnostics) for frame_no, frame
-              in features.groupby(t_column))
+    levels = _gen_levels_df(features, pos_columns, t_column, diagnostics)
     labeled_levels = link_iter(
         levels, search_range, memory=memory, predictor=predictor,
         adaptive_stop=adaptive_stop, adaptive_step=adaptive_step,
@@ -580,6 +587,8 @@ def link_df(features, search_range, memory=0,
     # Do the tracking, and update the DataFrame after each iteration.
     features['particle'] = np.nan  # placeholder
     for level in labeled_levels:
+        if len(level) == 0:
+            continue
         index = [x.id for x in level]
         labels = pd.Series([x.track.id for x in level], index)
         frame_no = next(iter(level)).t  # uses an arbitary element from the set
@@ -701,8 +710,8 @@ def link_df_iter(features, search_range, memory=0,
     features_forlinking, features_forpost = itertools.tee(
         (frame.reset_index(drop=True) for frame in features_for_reset))
     # make a generator over the frames
-    levels = (_build_level(frame, pos_columns, t_column, diagnostics=diagnostics)
-                         for frame in features_forlinking)
+    levels = _gen_levels_df_iter(features_forlinking, pos_columns, t_column,
+                                 diagnostics=diagnostics)
 
     # make a generator of the levels post-linking
     labeled_levels = link_iter(
@@ -715,6 +724,8 @@ def link_df_iter(features, search_range, memory=0,
     # the original index.
     for labeled_level, source_features, old_index in zip(
             labeled_levels, features_forpost, index_iter):
+        if len(labeled_level) == 0:
+            continue
         features = source_features.copy()
         features['particle'] = np.nan  # placeholder
         index = [x.id for x in labeled_level]
@@ -751,13 +762,13 @@ def link_df_iter(features, search_range, memory=0,
         yield features
 
 
-def _build_level(frame, pos_columns, t_column, diagnostics=False):
-    """Return PointND objects for a DataFrame of points.
+def _gen_levels_df_iter(df_iter, pos_columns, t_column, diagnostics=False):
+    """Return a generator of PointND objects for an iterable of DataFrames.
 
     Parameters
     ----------
-    frame : DataFrame
-        Unlinked points data.
+    df_iter : DataFrame
+        Iterable of DataFrame objects
     pos_columns : list
         Names of position columns in "frame"
     t_column : string
@@ -765,12 +776,61 @@ def _build_level(frame, pos_columns, t_column, diagnostics=False):
     diagnostics : boolean, optional
         Whether resulting point objects should collect diagnostic information.
     """
+    expected = None
     if diagnostics:
         point_cls = PointNDDiagnostics
     else:
         point_cls = PointND
-    return list(map(point_cls, frame[t_column],
-                    frame[pos_columns].values, frame.index))
+
+    for frame in df_iter:
+        frame_no = frame['frame'].unique()
+        if len(frame_no) > 1:
+            raise ValueError('DataFrame consists of more than one framenumber')
+        frame_no = frame_no[0]
+
+        if expected is None:
+            expected = frame_no
+
+        while expected < frame_no:
+            expected += 1
+            yield []
+
+        expected += 1
+        yield list(map(point_cls, frame[t_column],
+                   frame[pos_columns].values, frame.index))
+
+
+def _gen_levels_df(df, pos_columns, t_column, diagnostics=False):
+    """Return a generator of PointND objects for a DataFrame of points.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Unlinked points data for all frames.
+    pos_columns : list
+        Names of position columns in "frame"
+    t_column : string
+        Name of time column in "frame"
+    diagnostics : boolean, optional
+        Whether resulting point objects should collect diagnostic information.
+    """
+    expected = None
+    if diagnostics:
+        point_cls = PointNDDiagnostics
+    else:
+        point_cls = PointND
+
+    for frame_no, frame in df.groupby(t_column):
+        if expected is None:
+            expected = frame_no
+
+        while expected < frame_no:
+            expected += 1
+            yield []
+
+        expected += 1
+        yield list(map(point_cls, frame[t_column],
+                   frame[pos_columns].values, frame.index))
 
 
 def _add_diagnostic_columns(features, level):
@@ -1009,8 +1069,9 @@ class Linker(object):
                 p.forward_cands = []
 
             # Sort out what can go to what.
-            assign_candidates(cur_level, prev_hash, self.search_range,
-                              self.neighbor_strategy)
+            if len(cur_level) > 0 and len(prev_hash) > 0:
+                assign_candidates(cur_level, prev_hash, self.search_range,
+                                  self.neighbor_strategy)
 
             # sort the candidate lists by distance
             for p in cur_set:

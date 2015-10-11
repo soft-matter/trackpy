@@ -209,19 +209,19 @@ class CommonTrackingTests(object):
         assert_frame_equal(actual, expected)
 
     def test_blank_frame_no_memory(self):
+        # Using link_df, the particle will be given a new ID after the gap.
+        # link_df_iter will assume that the iterable
         # One 1D stepper
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                       'frame': [0, 1, 2, 4, 5]})
         expected = f.copy()
-        expected['particle'] = np.zeros(N)
+        expected['particle'] = np.array([0, 0, 0, 1, 1], dtype=np.float64)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(10, 10))
         assert_frame_equal(actual, expected)
-        # This doesn't error, but we might wish it would
-        # give the particle a new ID after the gap. It just
-        # ignores the missing frame.
+
 
     def test_real_data_that_causes_duplicate_bug(self):
         filename = 'reproduce_duplicate_track_assignment.df'
