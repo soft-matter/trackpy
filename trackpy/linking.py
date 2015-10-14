@@ -710,8 +710,8 @@ def link_df_iter(features, search_range, memory=0,
     features_forlinking, features_forpost = itertools.tee(
         (frame.reset_index(drop=True) for frame in features_for_reset))
     # make a generator over the frames
-    levels = _gen_levels_df_iter(features_forlinking, pos_columns, t_column,
-                                 diagnostics=diagnostics)
+    levels = (_build_level(frame, pos_columns, t_column, diagnostics=diagnostics)
+                         for frame in features_forlinking)
 
     # make a generator of the levels post-linking
     labeled_levels = link_iter(
@@ -724,8 +724,6 @@ def link_df_iter(features, search_range, memory=0,
     # the original index.
     for labeled_level, source_features, old_index in zip(
             labeled_levels, features_forpost, index_iter):
-        if len(labeled_level) == 0:
-            continue
         features = source_features.copy()
         features['particle'] = np.nan  # placeholder
         index = [x.id for x in labeled_level]
@@ -762,13 +760,13 @@ def link_df_iter(features, search_range, memory=0,
         yield features
 
 
-def _gen_levels_df_iter(df_iter, pos_columns, t_column, diagnostics=False):
-    """Return a generator of PointND objects for an iterable of DataFrames.
+def _build_level(frame, pos_columns, t_column, diagnostics=False):
+    """Return PointND objects for a DataFrame of points.
 
     Parameters
     ----------
-    df_iter : DataFrame
-        Iterable of DataFrame objects
+    frame : DataFrame
+        Unlinked points data.
     pos_columns : list
         Names of position columns in "frame"
     t_column : string
@@ -776,32 +774,19 @@ def _gen_levels_df_iter(df_iter, pos_columns, t_column, diagnostics=False):
     diagnostics : boolean, optional
         Whether resulting point objects should collect diagnostic information.
     """
-    expected = None
     if diagnostics:
         point_cls = PointNDDiagnostics
     else:
         point_cls = PointND
-
-    for frame in df_iter:
-        frame_no = frame['frame'].unique()
-        if len(frame_no) > 1:
-            raise ValueError('DataFrame consists of more than one framenumber')
-        frame_no = frame_no[0]
-
-        if expected is None:
-            expected = frame_no
-
-        while expected < frame_no:
-            expected += 1
-            yield []
-
-        expected += 1
-        yield list(map(point_cls, frame[t_column],
-                   frame[pos_columns].values, frame.index))
+    return list(map(point_cls, frame[t_column],
+                    frame[pos_columns].values, frame.index))
 
 
 def _gen_levels_df(df, pos_columns, t_column, diagnostics=False):
     """Return a generator of PointND objects for a DataFrame of points.
+
+    The DataFrame is assumed to contain integer framenumbers. For a missing
+    frame number, an empty list is returned.
 
     Parameters
     ----------
@@ -814,23 +799,18 @@ def _gen_levels_df(df, pos_columns, t_column, diagnostics=False):
     diagnostics : boolean, optional
         Whether resulting point objects should collect diagnostic information.
     """
-    expected = None
-    if diagnostics:
-        point_cls = PointNDDiagnostics
-    else:
-        point_cls = PointND
+    grouped = iter(df.groupby(t_column))
+    cur_frame, frame = next(grouped)
+    cur_frame += 1
+    yield _build_level(frame, pos_columns, t_column, diagnostics)
 
-    for frame_no, frame in df.groupby(t_column):
-        if expected is None:
-            expected = frame_no
-
-        while expected < frame_no:
-            expected += 1
+    for frame_no, frame in grouped:
+        while cur_frame < frame_no:
+            cur_frame += 1
             yield []
 
-        expected += 1
-        yield list(map(point_cls, frame[t_column],
-                   frame[pos_columns].values, frame.index))
+        cur_frame += 1
+        yield _build_level(frame, pos_columns, t_column, diagnostics)
 
 
 def _add_diagnostic_columns(features, level):
