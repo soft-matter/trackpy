@@ -801,7 +801,7 @@ def _gen_levels_df(df, pos_columns, t_column, diagnostics=False):
     """
     grouped = iter(df.groupby(t_column))
     cur_frame, frame = next(grouped)
-    cur_frame += 1
+    cur_frame += 1.5  # set counter to 1.5 for issues with e.g. 1.000001
     yield _build_level(frame, pos_columns, t_column, diagnostics)
 
     for frame_no, frame in grouped:
