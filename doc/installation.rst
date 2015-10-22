@@ -135,8 +135,6 @@ Or, if you plan to edit the code, you can install both packages manually:
 
 Optional Dependencies:
 
-  * `pyFFTW <https://github.com/hgomersall/pyFFTW>`__ to speed up the band
-      pass, which is one of the slower steps in feature-finding
   * `PyTables <http://www.pytables.org/moin>`__ for saving results in an
       HDF5 file. This is included with Anaconda.
   * `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. This is
