@@ -20,7 +20,7 @@ import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point,
                                 gen_nonoverlapping_locations)
-                                
+
 from scipy.spatial import cKDTree
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
@@ -39,8 +39,8 @@ def compare(shape, count, radius, noise_level, engine):
     pos = gen_nonoverlapping_locations(shape, count, draw_range, margin)
     image = draw_spots(shape, pos, draw_range, noise_level)
     f = tp.locate(image, diameter, engine=engine)
-    actual = f[cols].sort(cols)
-    expected = DataFrame(pos, columns=cols).sort(cols)
+    actual = f[cols].sort_values(by=cols)
+    expected = DataFrame(pos, columns=cols).sort_values(by=cols)
     return actual, expected
 
 
@@ -53,7 +53,7 @@ def sort_positions(actual, expected):
 class OldMinmass(unittest.TestCase):
     def check_skip(self):
         pass
-    
+
     def setUp(self):
         self.shape = (128, 128)
         self.pos = gen_nonoverlapping_locations(self.shape, 10, separation=20,
@@ -61,7 +61,7 @@ class OldMinmass(unittest.TestCase):
         self.N = len(self.pos)
         self.draw_diameter = 25
         self.tp_diameter = 15
-    
+
     def test_oldmass_8bit(self):
         old_minmass = 11000
         im = draw_spots(self.shape, self.pos, self.draw_diameter, bitdepth=8,
@@ -102,7 +102,7 @@ class OldMinmass(unittest.TestCase):
                                                 smoothing_size=self.tp_diameter)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
-        
+
     def test_oldmass_invert(self):
         old_minmass = 2800000
         im = draw_spots(self.shape, self.pos, self.draw_diameter, bitdepth=12,
@@ -469,15 +469,15 @@ class CommonFeatureIdentificationTests(object):
         draw_point(image, pos3, 80)
         actual = tp.locate(image, 5, 1, topn=2, preprocess=False,
                            engine=self.engine)[cols]
-        actual = actual.sort(['x', 'y'])  # sort for reliable comparison
-        expected = DataFrame([pos1, pos2], columns=cols).sort(['x', 'y'])
+        actual = actual.sort_values(by=['x', 'y'])  # sort for reliable comparison
+        expected = DataFrame([pos1, pos2], columns=cols).sort_values(by=['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
         # top 1
         actual = tp.locate(image, 5, 1, topn=1, preprocess=False,
                            engine=self.engine)[cols]
-        actual = actual.sort(['x', 'y'])  # sort for reliable comparison
-        expected = DataFrame([pos1], columns=cols).sort(['x', 'y'])
+        actual = actual.sort_values(by=['x', 'y'])  # sort for reliable comparison
+        expected = DataFrame([pos1], columns=cols).sort_values(by=['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
     def test_minmass_maxsize(self):
@@ -502,22 +502,22 @@ class CommonFeatureIdentificationTests(object):
         # filter on mass
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
                            minmass=6500)[cols]
-        actual = actual.sort(cols)
-        expected = DataFrame([pos2, pos4], columns=cols).sort(cols)
+        actual = actual.sort_values(by=cols)
+        expected = DataFrame([pos2, pos4], columns=cols).sort_values(by=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
                            maxsize=3.0)[cols]
-        actual = actual.sort(cols)
-        expected = DataFrame([pos1, pos3], columns=cols).sort(cols)
+        actual = actual.sort_values(by=cols)
+        expected = DataFrame([pos1, pos3], columns=cols).sort_values(by=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on both mass and size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
                            minmass=600, maxsize=4.0)[cols]
-        actual = actual.sort(cols)
-        expected = DataFrame([pos1, pos4], columns=cols).sort(cols)
+        actual = actual.sort_values(by=cols)
+        expected = DataFrame([pos1, pos4], columns=cols).sort_values(by=cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
     def test_mass(self):
@@ -605,7 +605,7 @@ class CommonFeatureIdentificationTests(object):
         # ~0.02 precision, as long as the mask is large enough to cover
         # the whole object.
         self.check_skip()
-        L = 501 
+        L = 501
         dims = (L + 2, L)  # avoid square images in tests
         pos = [50, 55]
         cols = ['y', 'x']
@@ -749,7 +749,7 @@ class CommonFeatureIdentificationTests(object):
         # small bright spot surrounded by a dark annulus.
         draw_feature(image, pos, 6, max_value=-100)
         draw_feature(image, pos, 4, max_value=200)
-        
+
         actual = tp.locate(image, 9, 1, preprocess=False, engine=self.engine)
         assert np.allclose(actual[['x', 'y']], expected[['x', 'y']])
         assert np.isnan(np.asscalar(actual.ep))
