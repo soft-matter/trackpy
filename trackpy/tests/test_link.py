@@ -33,7 +33,7 @@ np.random.seed(0)
 random_x = np.random.randn(5).cumsum()
 random_x -= random_x.min()  # All x > 0
 max_disp = np.diff(random_x).max()
-random_walk_legacy = lambda: [[PointND(t, (x, 5))] 
+random_walk_legacy = lambda: [[PointND(t, (x, 5))]
                               for t, x in enumerate(random_x)]
 
 
@@ -101,16 +101,16 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(f.sort_values(by='frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(f.sort_values(by='frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -125,17 +125,17 @@ class CommonTrackingTests(object):
     def test_two_isolated_steppers_one_gapped(self):
         N = 5
         Y = 25
-        # Begin second feature one frame later than the first, 
+        # Begin second feature one frame later than the first,
         # so the particle labeling (0, 1) is established and not arbitrary.
-        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
+        a = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                       'frame': np.arange(N)})
         a = a.drop(3).reset_index(drop=True)
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1),
                       'frame': np.arange(1, N)})
         f = pd.concat([a, b])
         expected = f.copy()
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
@@ -145,9 +145,9 @@ class CommonTrackingTests(object):
         # not knowable from the first frame alone.
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(f.sort_values(by='frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(f.sort_values(by='frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -170,7 +170,7 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(2*M, Y + 2*M))
@@ -181,15 +181,15 @@ class CommonTrackingTests(object):
         initial_positions = [(100, 100), (200, 100), (100, 200), (200, 200)]
         import itertools
         c = itertools.count()
-        def walk(x, y): 
+        def walk(x, y):
             i = next(c)
-            return DataFrame({'x': x + random_walk(N - i), 
+            return DataFrame({'x': x + random_walk(N - i),
                               'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
         f = pd.concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(200 + M, 200 + M))
@@ -199,7 +199,7 @@ class CommonTrackingTests(object):
         # One 1D stepper
         N = 5
         FIRST_FRAME = 3
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                       'frame': FIRST_FRAME + np.arange(N)})
         expected = f.copy()
         expected['particle'] = np.zeros(N)
@@ -253,7 +253,7 @@ class CommonTrackingTests(object):
             assert len(t2) == 1
             assert len(t1[0].points) == len(unit_steps())
             assert len(t2[0].points) == len(random_walk_legacy())
-    
+
     def test_easy_tracking(self):
         level_count = 5
         p_count = 16
@@ -268,14 +268,14 @@ class CommonTrackingTests(object):
         hash_generator = lambda: Hash_table((level_count + 1,
                                             p_count * 2 + 1), .5)
         tracks = self.link(levels, 1.5, hash_generator)
-    
+
         assert len(tracks) == p_count
-    
+
         for t in tracks:
             x, y = zip(*[p.pos for p in t])
             dx = np.diff(x)
             dy = np.diff(y)
-    
+
             assert np.sum(dx) == level_count - 1
             assert np.sum(dy) == 0
 
@@ -339,7 +339,7 @@ class CommonTrackingTests(object):
         features = args.pop(0)
         res = pd.concat(tp.link_df_iter(
             (df for fr, df in features.groupby('frame')), *args, **kwargs))
-        return res.sort(['particle', 'frame']).reset_index(drop=True)
+        return res.sort_values(by=['particle', 'frame']).reset_index(drop=True)
 
 
 class TestOnce(unittest.TestCase):
@@ -381,16 +381,16 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(f.sort_values(by='frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(f.sort_values(by='frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -424,7 +424,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
@@ -432,9 +432,9 @@ class SubnetNeededTests(CommonTrackingTests):
         assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(f.sort_values(by='frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(f.sort_values(by='frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -461,7 +461,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M + Y))
@@ -481,7 +481,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M))
@@ -559,7 +559,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        expected.sort_values(by=['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5, memory=1)
         assert_frame_equal(actual, expected)
@@ -571,11 +571,11 @@ class SubnetNeededTests(CommonTrackingTests):
             assert 'diag_remembered' in self.diag.columns
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5, memory=1)
+        actual = self.link_df(f.sort_values(by='frame'), 5, memory=1)
         assert_frame_equal(actual, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
-        actual_iter = self.link_df_iter(f.sort('frame'), 5,
+        actual_iter = self.link_df_iter(f.sort_values(by='frame'), 5,
                                         memory=1, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
         if self.do_diagnostics:

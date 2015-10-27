@@ -12,7 +12,7 @@ from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
 
-import trackpy as tp 
+import trackpy as tp
 from trackpy.utils import suppress_plotting
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
@@ -23,7 +23,7 @@ def random_walk(N):
 
 def conformity(df):
     "Organize toy data to look like real data."
-    return df.set_index('frame', drop=False).sort(['frame', 'particle']). \
+    return df.set_index('frame', drop=False).sort_values(by=['frame', 'particle']). \
         astype('float64')
 
 class TestDrift(unittest.TestCase):
@@ -31,23 +31,23 @@ class TestDrift(unittest.TestCase):
     def setUp(self):
         N = 10
         Y = 1
-        a = DataFrame({'x': np.zeros(N), 'y': np.zeros(N), 
+        a = DataFrame({'x': np.zeros(N), 'y': np.zeros(N),
                       'frame': np.arange(N), 'particle': np.zeros(N)})
-        b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1), 
+        b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
 
         P = 1000 # particles
         A = 0.00001 # step amplitude
         np.random.seed(0)
-        particles = [DataFrame({'x': A*random_walk(N), 
-            'y': A*random_walk(N), 
+        particles = [DataFrame({'x': A*random_walk(N),
+            'y': A*random_walk(N),
             'frame': np.arange(N), 'particle': i}) for i in range(P)]
         self.many_walks = conformity(pd.concat(particles))
 
-        a = DataFrame({'x': np.arange(N), 'y': np.zeros(N), 
+        a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
                       'frame': np.arange(N), 'particle': np.zeros(N)})
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1), 
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pd.concat([a, b]))
 
@@ -78,7 +78,7 @@ class TestDrift(unittest.TestCase):
 
     def test_subtract_zero_drift(self):
         N = 10
-        drift = DataFrame(np.zeros((N - 1, 2)), 
+        drift = DataFrame(np.zeros((N - 1, 2)),
                           index=np.arange(1, N)).astype('float64')
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
@@ -91,9 +91,9 @@ class TestDrift(unittest.TestCase):
 
     def test_subtract_constant_drift(self):
         N = 10
-        # Add a constant drift here, and then use subtract_drift to 
+        # Add a constant drift here, and then use subtract_drift to
         # subtract it.
-        drift = DataFrame(np.outer(np.arange(N - 1), [1, 1]), 
+        drift = DataFrame(np.outer(np.arange(N - 1), [1, 1]),
                           index=np.arange(1, N))
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
@@ -155,7 +155,7 @@ class TestMSD(unittest.TestCase):
         assert_series_equal(np.round(actual), expected)
 
 class TestSpecial(unittest.TestCase):
-    
+
     def setUp(self):
         N = 10
         Y = 1
