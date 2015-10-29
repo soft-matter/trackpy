@@ -3,8 +3,17 @@ import versioneer
 from setuptools import setup
 
 
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+try:
+    descr = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
+except IOError:
+    descr = ''
+
+try:
+    from pypandoc import convert
+    descr = convert(descr, 'rst', format='md')
+except ImportError:
+    pass
+
 
 # In some cases, the numpy include path is not present by default.
 # Let's try to obtain it.
@@ -27,7 +36,7 @@ setup_parameters = dict(
 	                    'pandas>=0.12', 'pims',
                         'pyyaml', 'matplotlib'],
     packages = ['trackpy'],
-    long_description = read('README.md'),
+    long_description = descr,
 )
 
 setup(**setup_parameters)
