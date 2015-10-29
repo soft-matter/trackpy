@@ -97,19 +97,19 @@ but pip is also supported.
 
 Essential Dependencies:
 
-  * Python 2.7, 3.3, or 3.4.
-  * `setuptools <http://pythonhosted.org/setuptools/>`__
-  * `six <http://pythonhosted.org/six/>`__ >=1.8
-  * `numpy <http://www.scipy.org/>`__ >=1.7
-  * `scipy <http://www.scipy.org/>`__ >=0.12.0
-  * `matplotlib <http://matplotlib.org/>`__
-  * `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__ >=0.12.0
-  * `pyyaml <http://pyyaml.org/>`__
+* Python 2.7, 3.3, or 3.4.
+* `setuptools <http://pythonhosted.org/setuptools/>`__
+* `six <http://pythonhosted.org/six/>`__ >=1.8
+* `numpy <http://www.scipy.org/>`__ >=1.7
+* `scipy <http://www.scipy.org/>`__ >=0.12.0
+* `matplotlib <http://matplotlib.org/>`__
+* `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__ >=0.12.0
+* `pyyaml <http://pyyaml.org/>`__
 
 You will also need the image- and video-reader PIMS, which is, like trackpy
 itself, part of the github.com/soft-matter organization.
 
-  * `PIMS <https://github.com/soft-matter/pims>`__
+* `PIMS <https://github.com/soft-matter/pims>`__
 
 You can install PIMS from the soft-matter binstar channel using conda:
 
@@ -135,14 +135,12 @@ Or, if you plan to edit the code, you can install both packages manually:
 
 Optional Dependencies:
 
-  * `pyFFTW <https://github.com/hgomersall/pyFFTW>`__ to speed up the band
-      pass, which is one of the slower steps in feature-finding
-  * `PyTables <http://www.pytables.org/moin>`__ for saving results in an
-      HDF5 file. This is included with Anaconda.
-  * `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. This is
-      included with Anaconda and Canopy. Installing it any other way is difficult;
-      we recommend sticking with one of these. We support numba
-      versions >=0.13.4 (though 0.13.3 appears to work). We currently test on 0.17.
+* `PyTables <http://www.pytables.org/moin>`__ for saving results in an HDF5 file. 
+      This is included with Anaconda.
+* `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. 
+      This is included with Anaconda and Canopy. Installing it any other way is
+      difficult; we recommend sticking with one of these. We support numba versions
+      >=0.13.4 (though 0.13.3 appears to work). We currently test on 0.17.
 
 PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format
