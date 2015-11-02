@@ -1,6 +1,6 @@
 
-In Development: v0.3.0 (Unreleased)
------------------------------------
+v0.3.0
+------
 
 Overview
 ~~~~~~~~
@@ -16,7 +16,9 @@ Enhancements
 
 - The numba engine for fast feature-finding has been extented to handle 3D images. (:issue:`242`)
 
-- Feature finding returns a new column ``raw_mass`` that is the sum of intensities inside the unprocessed image. For anisotropic feature detection, size and static errors are returned per dimension: ``size_x`` etc. and ``ep_x`` etc. (:issue:`239`)
+- A new method of calculating feature ``mass`` compensates for bit depth and the details of preprocessing. This means that masses are more consistent under changes in image brightness or format. However, to obtain results comparable to those from older trackpy versions, you may have to adjust your ``minmass`` parameter (and other parts of your code that use the mass). The new ``minmass_version_change`` function lets you convert old values of ``minmass`` to the new standard (:issue:`239`).
+
+- Feature finding returns a new column ``raw_mass`` that is the sum of intensities inside the unprocessed image. For anisotropic feature detection, size and static errors are returned per dimension: ``size_x`` etc. and ``ep_x`` etc. (:issue:`239`).
 
 - A powerful new adaptive search feature gives much richer control of the tracking (trajectory-linking) process, and it makes formerly intractable scenarios possible to solve in a reasonable time. See the new tutorials, "Advanced Linking: Subnetworks and search_range" and "Adaptive Search: Changing search_range on the Fly," for details.
 
@@ -42,6 +44,8 @@ Bug Fixes
 - Fixed a bug in v0.2.3 and v0.2.4 that broke the ``circle_size`` parameter in ``annotate()``. (:issue:`169`, :issue:`170`)
 - Fixed a bug where subnetwork distances were not addded in quadrature in the python linker. (:issue:`212`). (The impact of this bug is not as large as one might expect. See issue link for details.)
 - Input images with a float datatype are internally converted to integer datatype for faster computation. They were converted to signed integers; now they are converted to unsigned. (:issue:`188`). When preprocessing is turned off, integer images are not converted at all (:issue:`264`).
+- Fixed a memory leak when a track is ended (:issue:`256`).
+- Added a warning about slow feature-finding when linking from a Pandas view (:issue:`#281`).
 - Slow feature-finding with more recent versions of the numba package (0.16 and 0.17 specifically) is addressed.
 - The ``ax`` argument of ``subpx_bias`` is removed because the figure is cleared anyway by ``subpx_bias``.
 
