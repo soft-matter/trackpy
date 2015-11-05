@@ -566,6 +566,14 @@ def annotate3d(centroids, image, **kwargs):
     # Suppress warning when >20 figures are opened
     max_open_warning = mpl.rcParams['figure.max_open_warning']
     mpl.rc('figure', max_open_warning=0)
+
+    # Turn off interactive mode
+    if plt.isinteractive():
+        plt.ioff()
+        was_interactive = True
+    else:
+        was_interactive = False
+
     figures = []
     for i, imageZ in enumerate(normalized):
         fig = plt.figure()
@@ -575,11 +583,12 @@ def annotate3d(centroids, image, **kwargs):
         annotate(centroidsZ, imageZ, **kwargs)
         figures.append(fig)
 
-    result = plots_to_frame(figures, width=512, bbox_inches='tight')
+    result = plots_to_frame(figures, width=512, close_fig=True,
+                            bbox_inches='tight')
 
-    for fig in figures:
-        plt.close(fig)
     mpl.rc('figure', max_open_warning=max_open_warning)
+    if was_interactive:
+        plt.ion()
     return result
 
 
