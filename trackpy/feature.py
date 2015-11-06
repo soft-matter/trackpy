@@ -642,8 +642,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine(raw_image, image, radius, coords, separation,
-                            max_iterations, engine, characterize)
+    refined_coords = refine(raw_image, image, radius, coords,
+                            separation=separation, max_iterations=max_iterations,
+                            engine=engine, characterize=characterize)
     # mass and signal values has to be corrected due to the rescaling
     # raw_mass was obtained from raw image; size and ecc are scale-independent
     refined_coords[:, MASS_COLUMN_INDEX] *= 1. / scale_factor
