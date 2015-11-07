@@ -563,32 +563,31 @@ def annotate3d(centroids, image, **kwargs):
     else:
         kwargs['imshow_style'] = imshow_style
 
-    # Suppress warning when >20 figures are opened
     max_open_warning = mpl.rcParams['figure.max_open_warning']
-    mpl.rc('figure', max_open_warning=0)
-
-    # Turn off interactive mode
-    if plt.isinteractive():
+    was_interactive = plt.isinteractive()
+    try:
+        # Suppress warning when many figures are opened
+        mpl.rc('figure', max_open_warning=0)
+        # Turn off interactive mode (else the closed plots leave emtpy space)
         plt.ioff()
-        was_interactive = True
-    else:
-        was_interactive = False
 
-    figures = []
-    for i, imageZ in enumerate(normalized):
-        fig = plt.figure()
-        kwargs['ax'] = fig.gca()
-        centroidsZ = centroids[(centroids['z'] > i - 0.5) &
-                               (centroids['z'] < i + 0.5)]
-        annotate(centroidsZ, imageZ, **kwargs)
-        figures.append(fig)
+        figures = [None] * len(normalized)
+        for i, imageZ in enumerate(normalized):
+            fig = plt.figure()
+            kwargs['ax'] = fig.gca()
+            centroidsZ = centroids[(centroids['z'] > i - 0.5) &
+                                   (centroids['z'] < i + 0.5)]
+            annotate(centroidsZ, imageZ, **kwargs)
+            figures[i] = fig
 
-    result = plots_to_frame(figures, width=512, close_fig=True,
-                            bbox_inches='tight')
+        result = plots_to_frame(figures, width=512, close_fig=True,
+                                bbox_inches='tight')
+    finally:
+        # put matplotlib back in original state
+        if was_interactive:
+            plt.ion()
+        mpl.rc('figure', max_open_warning=max_open_warning)
 
-    mpl.rc('figure', max_open_warning=max_open_warning)
-    if was_interactive:
-        plt.ion()
     return result
 
 
