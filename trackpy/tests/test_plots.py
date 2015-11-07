@@ -81,6 +81,25 @@ class TestPlots(unittest.TestCase):
             f, frame, split_category='not a column', split_thresh=15, color='r')
         self.assertRaises(ValueError, bad_call)
 
+        # 3D image
+        bad_call = lambda: plots.annotate(f, frame[np.newaxis, :, :])
+        self.assertRaises(ValueError, bad_call)
+
+    def test_annotate3d(self):
+        suppress_plotting()
+        f = DataFrame({'x': [0, 1], 'y': [0, 1], 'z': [0, 1], 'frame': [0, 0],
+                      'mass': [10, 20]})
+        frame = np.random.randint(0, 255, (5, 5, 5))
+
+        plots.annotate3d(f, frame)
+        plots.annotate3d(f, frame, color='r')
+
+        # 2D image
+        bad_call = lambda: plots.annotate3d(f, frame[0])
+        self.assertRaises(ValueError, bad_call)
+
+        # Rest of the functionality is covered by annotate tests
+
     def test_fit_powerlaw(self):
         # smoke test
         suppress_plotting()
