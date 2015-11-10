@@ -14,7 +14,7 @@ from scipy.spatial import cKDTree
 import pandas as pd
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
-from .utils import is_pandas_recent
+from .utils import is_pandas_since_016, pandas_sort
 
 logger = logging.getLogger(__name__)
 
@@ -551,7 +551,7 @@ def link_df(features, search_range, memory=0,
 
     # Check if DataFrame is writeable.
     # I don't know how to do this for pandas < 0.16.
-    if (is_pandas_recent and features.is_copy is not None and
+    if (is_pandas_since_016 and features.is_copy is not None and
             not copy_features):
         warn('The features DataFrame is a view, so it is not writeable. '
              'The results will be output to a copy. Use copy_features='
@@ -603,7 +603,7 @@ def link_df(features, search_range, memory=0,
         features.index = orig_index
         # And don't bother to sort -- user must be doing something special.
     else:
-        features.sort(['particle', t_column], inplace=True)
+        pandas_sort(features, ['particle', t_column], inplace=True)
         features.reset_index(drop=True, inplace=True)
     return features
 
@@ -743,7 +743,7 @@ def link_df_iter(features, search_range, memory=0,
             features.index = old_index
             # TODO: don't run index.copy() even when retain_index is false
         else:
-            features.sort('particle', inplace=True)
+            pandas_sort(features, 'particle', inplace=True)
             features.reset_index(drop=True, inplace=True)
 
         logger.info("Frame %d: %d trajectories present", frame_no, len(labels))

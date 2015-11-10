@@ -18,7 +18,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, link, Hash_table
-from trackpy.utils import is_pandas_recent
+from trackpy.utils import is_pandas_since_016
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -300,7 +300,7 @@ class CommonTrackingTests(object):
 
         # When DataFrame is actually a view, link_df should produce a warning
         # and then copy the DataFrame. This only happens for pandas >= 0.16.
-        if is_pandas_recent:
+        if is_pandas_since_016:
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter('ignore')
                 warnings.simplefilter('always', UserWarning)

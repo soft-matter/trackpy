@@ -8,7 +8,7 @@ import re
 import sys
 import warnings
 from datetime import datetime, timedelta
-from distutils.version import StrictVersion
+from distutils.version import LooseVersion
 
 import pandas as pd
 import numpy as np
@@ -17,13 +17,19 @@ import yaml
 
 import trackpy
 
-# Set is_pandas_recent for use elsewhere.
+# Set is_pandas_since_016 for use elsewhere.
 # Pandas >= 0.16.0 lets us check if a DataFrame is a view.
 try:
-    is_pandas_recent = (StrictVersion(pd.__version__) >=
-                        StrictVersion('0.16.0'))
-except ValueError:  # Probably a release candidate
-    is_pandas_recent = True
+    is_pandas_since_016 = (LooseVersion(pd.__version__) >=
+                           LooseVersion('0.16.0'))
+except ValueError:  # Probably a development version
+    is_pandas_since_016 = True
+
+try:
+    is_pandas_since_017 = (LooseVersion(pd.__version__) >=
+                           LooseVersion('0.17.0'))
+except ValueError:  # Probably a development version
+    is_pandas_since_017 = True
 
 
 def fit_powerlaw(data, plot=True, **kwargs):
@@ -188,7 +194,7 @@ def validate_tuple(value, ndim):
     if not hasattr(value, '__iter__'):
         return (value,) * ndim
     if len(value) == ndim:
-        return tuple(value)    
+        return tuple(value)
     raise ValueError("List length should have same length as image dimensions.")
 
 
@@ -269,3 +275,16 @@ def quiet(suppress=True):
         trackpy.logger.setLevel(logging.WARN)
     else:
         trackpy.logger.setLevel(logging.INFO)
+
+def _pandas_sort_pre_017(df, by, *args, **kwargs):
+    """Use sort() to sort a DataFrame"""
+    return df.sort(*args, columns=by, **kwargs)
+
+def _pandas_sort_post_017(df, by, *args, **kwargs):
+    """Use sort_values() to sort a DataFrame"""
+    return df.sort_values(*args, by=by, **kwargs)
+
+if is_pandas_since_017:
+    pandas_sort = _pandas_sort_post_017
+else:
+    pandas_sort = _pandas_sort_pre_017
