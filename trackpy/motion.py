@@ -49,7 +49,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     results['msd'] = mpp**2*(disp**2).mean(level=0).sum(1) # <r^2>
     # Estimated statistically independent measurements = 2N/t
     if detail:
-        results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))   
+        results['N'] = 2*disp.iloc[:,0].count(level=0).div(Series(lagtimes))
     results['lagt'] = results.index.values/fps
     return results[:-1]
 
