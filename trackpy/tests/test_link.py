@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from copy import deepcopy
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -300,8 +301,11 @@ class CommonTrackingTests(object):
         # When DataFrame is actually a view, link_df should produce a warning
         # and then copy the DataFrame. This only happens for pandas >= 0.16.
         if is_pandas_recent:
-            with assert_produces_warning(UserWarning):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('ignore')
+                warnings.simplefilter('always', UserWarning)
                 actual = self.link_df(f[f['frame'] > 0], 5)
+                assert len(w) == 1
             assert 'particle' not in f.columns
 
         # Should copy
