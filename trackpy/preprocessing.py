@@ -21,8 +21,8 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
     is the fastest way known to the authors of performing a bandpass in
     Python.
 
-    Parmeters
-    ---------
+    Parameters
+    ----------
     image : ndarray
     lshort : small-scale cutoff (noise)
     llong : large-scale cutoff
@@ -114,8 +114,8 @@ def legacy_bandpass(image, lshort, llong, threshold=None):
     In benchmarks using typical inputs, it was found to be slower than the
     ``bandpass`` function in this module.
 
-    Parmeters
-    ---------
+    Parameters
+    ----------
     image : ndarray
     lshort : small-scale cutoff (noise)
     llong : large-scale cutoff
@@ -172,8 +172,8 @@ def legacy_bandpass_fftw(image, lshort, llong, threshold=None):
     In benchmarks using typical inputs, it was found to be slower than the
     ``bandpass`` function in this module.
 
-    Parmeters
-    ---------
+    Parameters
+    ----------
     image : ndarray
     lshort : small-scale cutoff (noise)
     llong : large-scale cutoff
