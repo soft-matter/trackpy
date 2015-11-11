@@ -14,7 +14,7 @@ matrix:
     - python: "3.4"
       env: DEPS="numpy=1.9 scipy=0.16 matplotlib=1.4 pillow<3 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw"
     - python: "3.5"
-      env: DEPS="numpy scipy matplotlib pillow<3 pandas=0.17 scikit-image pyyaml pytables"
+      env: DEPS="numpy scipy matplotlib pillow<3 pandas=0.17 scikit-image pyyaml pytables numba"
 
 install:
   # See:
