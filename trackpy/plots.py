@@ -312,7 +312,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     # Background image
     if superimpose is not None:
         ax.imshow(superimpose, cmap=plt.cm.gray,
-                  origin='lower', interpolation='none',
+                  origin='lower', interpolation='nearest',
                   vmin=kwargs.get('vmin'), vmax=kwargs.get('vmax'))
         ax.set_xlim(-0.5 * mpp, (superimpose.shape[1] - 0.5) * mpp)
         ax.set_ylim(-0.5 * mpp, (superimpose.shape[0] - 0.5) * mpp)
@@ -448,7 +448,7 @@ def annotate(centroids, image, circle_size=None, color=None,
                        markerfacecolor='none', markeredgecolor='r',
                        marker='o', linestyle='none')
     _plot_style.update(**_normalize_kwargs(plot_style, 'line2d'))
-    _imshow_style = dict(origin='lower', interpolation='none',
+    _imshow_style = dict(origin='lower', interpolation='nearest',
                          cmap=plt.cm.gray)
     _imshow_style.update(imshow_style)
 
