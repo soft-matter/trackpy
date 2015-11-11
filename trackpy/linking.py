@@ -507,16 +507,6 @@ def link_df(features, search_range, memory=0,
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-
-    Returns
-    -------
-    trajectories : DataFrame
-        This is the input features DataFrame, now with a new column labeling
-        each particle with an ID number. This is not a copy; the original
-        features DataFrame is modified.
-
-    Other Parameters
-    ----------------
     copy_features : boolean
         Leave the original features DataFrame intact (slower, uses more memory)
     diagnostics : boolean
@@ -539,6 +529,13 @@ def link_df(features, search_range, memory=0,
     retain_index : boolean
         By default, the index is reset to be sequential. To keep the original
         index, set to True. Default is fine unless you devise a special use.
+
+    Returns
+    -------
+    trajectories : DataFrame
+        This is the input features DataFrame, now with a new column labeling
+        each particle with an ID number. This is not a copy; the original
+        features DataFrame is modified.
     """
     # Assign defaults. (Do it here to avoid "mutable defaults" issue.)
     if pos_columns is None:
@@ -646,15 +643,6 @@ def link_df_iter(features, search_range, memory=0,
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-
-    Returns
-    -------
-    trajectories : DataFrame
-        This is the input features DataFrame, now with a new column labeling
-        each particle with an ID number for each frame.
-
-    Other Parameters
-    ----------------
     diagnostics : boolean
         Collect details about how each particle was linked, and return as
         columns in the output DataFrame.
@@ -674,6 +662,12 @@ def link_df_iter(features, search_range, memory=0,
     retain_index : boolean
         By default, the index is reset to be sequential. To keep the original
         index, set to True. Default is fine unless you devise a special use.
+
+    Returns
+    -------
+    trajectories : DataFrame
+        This is the input features DataFrame, now with a new column labeling
+        each particle with an ID number for each frame.
     """
     # Assign defaults. (Do it here to avoid "mutable defaults" issue.)
     if pos_columns is None:
@@ -833,6 +827,13 @@ def link_iter(levels, search_range, memory=0,
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
         'drop' causes particles in subnetworks to go unlinked
+    hash_size : sequence
+        For 'BTree' mode only. Define the shape of the search region.
+        (Higher-level wrappers of link infer this from the data.)
+    box_size : sequence
+        For 'BTree' mode only. Define the parition size to optimize
+        performance. If None (default), the search_range is used, which is
+        a reasonable guess for best performance.
     predictor : function, optional
         Improve performance by guessing where a particle will be in the
         next frame.
@@ -843,27 +844,17 @@ def link_iter(levels, search_range, memory=0,
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-
-    Returns
-    -------
-    cur_level : iterable of Point objects
-        The labeled points at each level.
-
-    Other Parameters
-    ----------------
-    hash_size : sequence
-        For 'BTree' mode only. Define the shape of the search region.
-        (Higher-level wrappers of link infer this from the data.)
-    box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize
-        performance. If None (default), the search_range is used, which is
-        a reasonable guess for best performance.
     track_cls : class, optional
         for special uses, you can specify a custom class that holds
         each Track
     hash_generator : function, optional
         a function that returns a HashTable, included for legacy support.
         Specifying hash_size and box_size (above) fully defined a HashTable.
+
+    Returns
+    -------
+    cur_level : iterable of Point objects
+        The labeled points at each level.
     """
     linker = Linker(search_range, memory=memory, neighbor_strategy=neighbor_strategy,
                  link_strategy=link_strategy, hash_size=hash_size,
