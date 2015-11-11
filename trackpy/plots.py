@@ -241,7 +241,7 @@ def scatter3d(*args, **kwargs):
     
     See Also
     --------
-    scatter3d : the 3D equivalent of `scatter`
+    scatter : the 2D equivalent of `scatter3d`
     """
     if kwargs.get('pos_columns') is None:
         kwargs['pos_columns'] = ['x', 'y', 'z']
@@ -707,6 +707,7 @@ def plot_density_profile(f, binsize, blocks=None, mpp=None, fps=None,
         if true, the histogram is normalized
     t_column : string, default 'frame'
     pos_column : string, default 'z'
+    ax : matplotlib axes (optional)
     
     Returns
     -------
