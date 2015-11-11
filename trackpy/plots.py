@@ -769,9 +769,6 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, pos_columns=None,
         destination; if any other number arrows are rescaled
     pos_columns : list of strings, optional
         Dataframe column names for spatial coordinates. Default is ['x', 'y'].
-
-    Other Parameters
-    ----------------
     ax : matplotlib axes (optional)
 
     Any other keyword arguments will pass through to matplotlib's `annotate`.
