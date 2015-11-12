@@ -71,14 +71,14 @@ Trackpy includes functions for plotting the data in ways that are commonly usefu
     :toctree: generated/
 
     annotate
-	scatter
+    scatter
     plot_traj
-	annotate3d
-	scatter3d
-	plot_traj3d
+    annotate3d
+    scatter3d
+    plot_traj3d
     plot_displacements
     subpx_bias
-	plot_density_profile
+    plot_density_profile
 
 These two are almost too simple to justify their existence -- just a convenient shorthand for a common plotting task.
 
