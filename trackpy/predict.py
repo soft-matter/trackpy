@@ -313,9 +313,9 @@ def instrumented(limit=None):
     Examples
     --------
 
-        pred = instrumented()(ChannelPredict)(50, flow_axis='y')
-        pred.link_df_iter(...)
-        diagnostics = pred.dump()
+    >>> pred = instrumented()(ChannelPredict)(50, flow_axis='y')
+    >>> pred.link_df_iter(...)
+    >>> diagnostics = pred.dump()
     """
     def instrumentor(cls):
         class InstrumentedPredictor(cls):
