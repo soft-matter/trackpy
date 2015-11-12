@@ -72,8 +72,7 @@ soft-matter development channel on conda
 
 .. code-block:: bash
 
-    conda config --add channels soft-matter
-    conda install -c soft-matter/channel/dev trackpy
+    conda install -c soft-matter -c soft-matter/channel/dev trackpy
 
 If you plan to edit the code yourself, you should use git and pip as
 explained below.
