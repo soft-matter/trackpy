@@ -140,6 +140,8 @@ Optional Dependencies:
       This is included with Anaconda and Canopy. Installing it any other way is
       difficult; we recommend sticking with one of these. We support numba versions
       >=0.13.4 (though 0.13.3 appears to work). We currently test on 0.17.
+* `Pillow <https://pillow.readthedocs.org/>`__ or `PIL <http://www.pythonware.com/products/pil/>`__ for some display routines.
+      This is included with Anaconda. We do not support version 3.0.0.
 
 PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format
