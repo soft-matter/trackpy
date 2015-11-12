@@ -421,7 +421,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         the `Axes.plot(...)` command that marks the features
 
     Returns
-    ------
+    -------
     Axes object
     
     See Also
@@ -610,14 +610,20 @@ def mass_size(f, ax=None):
 def subpx_bias(f, pos_columns=None):
     """Histogram the fractional part of the x and y position.
 
+    Parameters
+    ----------
+    f : DataFrame
+    pos_columns : list of column names, optional
+
     Notes
     -----
     If subpixel accuracy is good, this should be flat. If it depressed in the
     middle, try using a larger value for feature diameter."""
-    if 'z' in f:
-        pos_columns = ['x', 'y', 'z']
-    else:
-        pos_columns = ['x', 'y']
+    if pos_columns is None:
+        if 'z' in f:
+            pos_columns = ['x', 'y', 'z']
+        else:
+            pos_columns = ['x', 'y']
     axlist = f[pos_columns].applymap(lambda x: x % 1).hist()
     return axlist
 
@@ -712,6 +718,10 @@ def plot_density_profile(f, binsize, blocks=None, mpp=None, fps=None,
     Returns
     -------
     Axes object
+
+    Notes
+    -----
+    Any other keyword arguments will pass through to matplotlib's `plot`.
     """
     import matplotlib as mpl
     lastframe = f[t_column].max()
@@ -780,6 +790,8 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, pos_columns=None,
         Dataframe column names for spatial coordinates. Default is ['x', 'y'].
     ax : matplotlib axes (optional)
 
+    Notes
+    -----
     Any other keyword arguments will pass through to matplotlib's `annotate`.
     """
     if pos_columns is None:
