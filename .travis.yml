@@ -44,4 +44,4 @@ before_install:
   - ./miniconda.sh -b -p /home/travis/mc
   - export PATH=/home/travis/mc/bin:$PATH
 
-script: nosetests --nologcapture -a '!slow'
+script: cd trackpy/tests; nosetests --nologcapture -a '!slow'
