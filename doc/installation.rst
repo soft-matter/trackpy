@@ -49,6 +49,10 @@ To get started, check out the links to tutorials at the top of this document.
 Updating Your Installation
 --------------------------
 
+Before updating to a new version of trackpy, be sure to read the
+:doc:`release notes<whatsnew>` for a list of new features and any changes
+that may affect your existing analysis code.
+
 Latest Stable Release
 ^^^^^^^^^^^^^^^^^^^^^
 
