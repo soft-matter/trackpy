@@ -16,7 +16,7 @@ matrix:
     - python: "3.5"
       env: DEPS="numpy scipy matplotlib pillow<3 pandas scikit-image pyyaml pytables numba"
     - python: "3.5"
-      env: DEPS="conda-build" BUILD_CONDA_PKG=yes
+      env: BUILD_CONDA_PKG=yes
 
 install:
   # See:
@@ -26,6 +26,7 @@ install:
   # If you're reading this, good luck out there. I'm not sure what to tell you.
   - conda update --yes conda
   - conda config --add channels soft-matter
+  - if [ $BUILD_CONDA_PKG ]; then conda install --yes conda-build; conda build --python $TRAVIS_PYTHON_VERSION conda-recipe; fi
   - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   # for debugging...
@@ -33,7 +34,7 @@ install:
   - which python
   - conda info
   - conda list
-  - if [ $BUILD_CONDA_PKG ]; then conda build conda-recipe; conda create -n pkgtest --use-local trackpy; source activate pkgtest; else python setup.py install; fi
+  - if [ $BUILD_CONDA_PKG ]; then conda build conda-recipe; conda install --yes --use-local trackpy; conda list; else python setup.py install; fi
 
 before_install:
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-3.5.5-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-3.5.5-Linux-x86_64.sh -O miniconda.sh; fi
