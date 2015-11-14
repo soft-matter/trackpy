@@ -28,7 +28,7 @@ install:
   - conda config --add channels soft-matter
   # Make this a non-shallow repository, to satisfy conda-build.
   # Then set the version and build the package while we're still in the root env.
-  - if [ $BUILD_CONDA_PKG ]; then git fetch --unshallow; python setup.py build; conda install --yes conda-build; conda build --python $TRAVIS_PYTHON_VERSION conda-recipe; fi
+  - if [ $BUILD_CONDA_PKG ]; then git fetch --unshallow; conda install --yes conda-build pip setuptools; python setup.py build; conda build --python $TRAVIS_PYTHON_VERSION conda-recipe; fi
   - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   # for debugging...
