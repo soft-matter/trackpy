@@ -40,7 +40,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
        feat = feat[(feat.x > xmin) & (feat.x < xmax) & (feat.y > ymin) & (feat.y < ymax)] # Disregard all particles outside the bounding box
 
     if ndensity is None:
-        ndensity = feat.x.count() / ((feat.x.max() - feat.x.min()) * (feat.y.max() - feat.y.min())) #  particle packing density 
+        ndensity = feat.x.count() / ((xmax - xmin) * (ymax - ymin)) #  particle packing density 
         warn("Rectangular homogenous packing is assumed to calculate particle density.")
 
     if p_indexes is None:
