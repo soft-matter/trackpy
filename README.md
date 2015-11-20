@@ -1,7 +1,7 @@
 trackpy
 =======
 
-[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.12255.svg)](http://dx.doi.org/10.5281/zenodo.12255)
+[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.34028.svg)](http://dx.doi.org/10.5281/zenodo.34028)
 
 What is it?
 -----------
