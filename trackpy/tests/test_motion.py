@@ -3,45 +3,47 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import unittest
 
-import nose
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from numpy.testing import assert_almost_equal, assert_allclose
-from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
 
-import trackpy as tp 
-from trackpy.utils import suppress_plotting
+import trackpy as tp
+from trackpy.utils import pandas_sort
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
 
+
+
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
+
 def conformity(df):
-    "Organize toy data to look like real data."
+    """ Organize toy data to look like real data. Be strict about dtypes:
+    particle is a float and frame is an integer."""
     df['frame'] = df['frame'].astype(np.int)
     df['particle'] = df['particle'].astype(np.float)
     df['x'] = df['x'].astype(np.float)
     df['y'] = df['y'].astype(np.float)
     df.set_index('frame', drop=False, inplace=True)
-    return df.sort_values(by=['frame', 'particle'])
+    return pandas_sort(df, by=['frame', 'particle'])
+
 
 def add_drift(df, drift):
     df['x'] = df['x'].add(drift['x'], fill_value=0)
     df['y'] = df['y'].add(drift['y'], fill_value=0)
     return df
 
-class TestDrift(unittest.TestCase):
 
+class TestDrift(unittest.TestCase):
     def setUp(self):
         N = 10
         Y = 1
         a = DataFrame({'x': np.zeros(N), 'y': np.zeros(N), 
-                      'frame': np.arange(N), 'particle': np.zeros(N)})
+                       'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1), 
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
@@ -49,13 +51,13 @@ class TestDrift(unittest.TestCase):
         P = 1000 # particles
         A = 0.00001 # step amplitude
         np.random.seed(0)
-        particles = [DataFrame({'x': A*random_walk(N), 
-            'y': A*random_walk(N), 
-            'frame': np.arange(N), 'particle': i}) for i in range(P)]
+        particles = [DataFrame({'x': A*random_walk(N), 'y': A*random_walk(N),
+                                'frame': np.arange(N), 'particle': i})
+                     for i in range(P)]
         self.many_walks = conformity(pd.concat(particles))
 
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N), 
-                      'frame': np.arange(N), 'particle': np.zeros(N)})
+                       'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1), 
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pd.concat([a, b]))
@@ -113,8 +115,8 @@ class TestDrift(unittest.TestCase):
         actual = tp.subtract_drift(add_drift(self.steppers, drift), drift)
         assert_frame_equal(actual, self.steppers)
 
-class TestMSD(unittest.TestCase):
 
+class TestMSD(unittest.TestCase):
     def setUp(self):
         N = 10
         Y = 1
@@ -127,9 +129,9 @@ class TestMSD(unittest.TestCase):
         P = 50 # particles
         A = 1 # step amplitude
         np.random.seed(0)
-        particles = [DataFrame({'x': A*random_walk(N),
-            'y': A*random_walk(N),
-            'frame': np.arange(N), 'particle': i}) for i in range(P)]
+        particles = [DataFrame({'x': A*random_walk(N), 'y': A*random_walk(N),
+                                'frame': np.arange(N), 'particle': i})
+                     for i in range(P)]
         self.many_walks = conformity(pd.concat(particles))
 
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
@@ -154,15 +156,15 @@ class TestMSD(unittest.TestCase):
         a = np.arange(EARLY, dtype='float64')
         expected = Series(2*A*a, index=a).iloc[1:]
         expected.name = 'msd'
-        expected.index.name = 'lag time [s]'
+        expected.index.name = 'lagt'
         # HACK: Float64Index imprecision ruins index equality.
         # Test them separately. If that works, make them exactly the same.
         assert_almost_equal(actual.index.values, expected.index.values)
         actual.index = expected.index
         assert_series_equal(np.round(actual), expected)
 
+
 class TestSpecial(unittest.TestCase):
-    
     def setUp(self):
         N = 10
         Y = 1
@@ -176,6 +178,8 @@ class TestSpecial(unittest.TestCase):
         # just a smoke test
         theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
         self.steppers.groupby('particle').apply(theta_entropy)
+
+
 if __name__ == '__main__':
     import nose
     nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
