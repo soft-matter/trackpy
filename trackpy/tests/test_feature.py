@@ -20,6 +20,7 @@ import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point,
                                 gen_nonoverlapping_locations)
+from trackpy.utils import pandas_sort
                                 
 from scipy.spatial import cKDTree
 
@@ -39,8 +40,8 @@ def compare(shape, count, radius, noise_level, engine):
     pos = gen_nonoverlapping_locations(shape, count, draw_range, margin)
     image = draw_spots(shape, pos, draw_range, noise_level)
     f = tp.locate(image, diameter, engine=engine)
-    actual = f[cols].sort(cols)
-    expected = DataFrame(pos, columns=cols).sort(cols)
+    actual = pandas_sort(f[cols], cols)
+    expected = pandas_sort(DataFrame(pos, columns=cols), cols)
     return actual, expected
 
 
@@ -478,15 +479,15 @@ class CommonFeatureIdentificationTests(object):
         draw_point(image, pos3, 80)
         actual = tp.locate(image, 5, 1, topn=2, preprocess=False,
                            engine=self.engine)[cols]
-        actual = actual.sort(['x', 'y'])  # sort for reliable comparison
-        expected = DataFrame([pos1, pos2], columns=cols).sort(['x', 'y'])
+        actual = pandas_sort(actual, ['x', 'y'])  # sort for reliable comparison
+        expected = pandas_sort(DataFrame([pos1, pos2], columns=cols), ['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
         # top 1
         actual = tp.locate(image, 5, 1, topn=1, preprocess=False,
                            engine=self.engine)[cols]
-        actual = actual.sort(['x', 'y'])  # sort for reliable comparison
-        expected = DataFrame([pos1], columns=cols).sort(['x', 'y'])
+        actual = pandas_sort(actual, ['x', 'y'])  # sort for reliable comparison
+        expected = pandas_sort(DataFrame([pos1], columns=cols), ['x', 'y'])
         assert_allclose(actual, expected, atol=PRECISION)
 
     def test_minmass_maxsize(self):
@@ -511,22 +512,22 @@ class CommonFeatureIdentificationTests(object):
         # filter on mass
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
                            minmass=6500)[cols]
-        actual = actual.sort(cols)
-        expected = DataFrame([pos2, pos4], columns=cols).sort(cols)
+        actual = pandas_sort(actual, cols)
+        expected = pandas_sort(DataFrame([pos2, pos4], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
                            maxsize=3.0)[cols]
-        actual = actual.sort(cols)
-        expected = DataFrame([pos1, pos3], columns=cols).sort(cols)
+        actual = pandas_sort(actual, cols)
+        expected = pandas_sort(DataFrame([pos1, pos3], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on both mass and size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
                            minmass=600, maxsize=4.0)[cols]
-        actual = actual.sort(cols)
-        expected = DataFrame([pos1, pos4], columns=cols).sort(cols)
+        actual = pandas_sort(actual, cols)
+        expected = pandas_sort(DataFrame([pos1, pos4], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
     def test_mass(self):
