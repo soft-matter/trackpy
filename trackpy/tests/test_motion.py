@@ -23,8 +23,17 @@ def random_walk(N):
 
 def conformity(df):
     "Organize toy data to look like real data."
-    return df.set_index('frame', drop=False).sort(['frame', 'particle']). \
-        astype('float64')
+    df['frame'] = df['frame'].astype(np.int)
+    df['particle'] = df['particle'].astype(np.float)
+    df['x'] = df['x'].astype(np.float)
+    df['y'] = df['y'].astype(np.float)
+    df.set_index('frame', drop=False, inplace=True)
+    return df.sort_values(by=['frame', 'particle'])
+
+def add_drift(df, drift):
+    df['x'] = df['x'].add(drift['x'], fill_value=0)
+    df['y'] = df['y'].add(drift['y'], fill_value=0)
+    return df
 
 class TestDrift(unittest.TestCase):
 
@@ -78,8 +87,8 @@ class TestDrift(unittest.TestCase):
 
     def test_subtract_zero_drift(self):
         N = 10
-        drift = DataFrame(np.zeros((N - 1, 2)), 
-                          index=np.arange(1, N)).astype('float64')
+        drift = DataFrame(np.zeros((N - 1, 2)),
+                          np.arange(1, N, dtype=np.int)).astype('float64')
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
         actual = tp.subtract_drift(self.dead_still, drift)
@@ -94,17 +103,14 @@ class TestDrift(unittest.TestCase):
         # Add a constant drift here, and then use subtract_drift to 
         # subtract it.
         drift = DataFrame(np.outer(np.arange(N - 1), [1, 1]), 
-                          index=np.arange(1, N))
+                          index=np.arange(1, N, dtype=np.int)).astype('float64')
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
-        actual = tp.subtract_drift(
-            self.dead_still.add(drift, fill_value=0), drift)
+        actual = tp.subtract_drift(add_drift(self.dead_still, drift), drift)
         assert_frame_equal(actual, self.dead_still)
-        actual = tp.subtract_drift(
-            self.many_walks.add(drift, fill_value=0), drift)
+        actual = tp.subtract_drift(add_drift(self.many_walks, drift), drift)
         assert_frame_equal(actual, self.many_walks)
-        actual = tp.subtract_drift(
-            self.steppers.add(drift, fill_value=0), drift)
+        actual = tp.subtract_drift(add_drift(self.steppers, drift), drift)
         assert_frame_equal(actual, self.steppers)
 
 class TestMSD(unittest.TestCase):
@@ -135,7 +141,8 @@ class TestMSD(unittest.TestCase):
     def test_zero_emsd(self):
         N = 10
         actual = tp.emsd(self.dead_still, 1, 1)
-        expected = Series(np.zeros(N)).iloc[1:].astype('float64')
+        expected = Series(np.zeros(N, dtype=np.float),
+                          index=np.arange(N, dtype=np.float)).iloc[1:]
         expected.index.name = 'lagt'
         expected.name = 'msd'
         assert_series_equal(actual, expected)
