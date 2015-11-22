@@ -184,7 +184,10 @@ def subtract_drift(traj, drift=None):
 
     if drift is None:
         drift = compute_drift(traj)
-    return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
+    traj.set_index('frame', inplace=True, drop=False)
+    for col in drift.columns:
+        traj[col] = traj[col].sub(drift[col], fill_value=0)
+    return traj
 
 
 def is_typical(msds, frame, lower=0.1, upper=0.9):
