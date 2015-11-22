@@ -1,7 +1,7 @@
 trackpy
 =======
 
-[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.12255.svg)](http://dx.doi.org/10.5281/zenodo.12255)
+[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.34028.svg)](http://dx.doi.org/10.5281/zenodo.34028)
 
 What is it?
 -----------
@@ -20,6 +20,6 @@ Documentation
 - the reference guide
 
 If you use trackpy for published research, please
-[cite the release](http://soft-matter.github.io/trackpy/introduction.html#citing-trackpy)
+[cite the release](http://soft-matter.github.io/trackpy/dev/introduction.html#citing-trackpy)
 both to credit the contributors, and to direct your readers to the exact
 version of trackpy they could use to reproduce your results.
