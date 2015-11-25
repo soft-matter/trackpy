@@ -12,9 +12,8 @@ import unittest
 import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
-from pandas.util.testing import (assert_series_equal, assert_almost_equal,
-                                 assert_produces_warning)
-from pandas.util.testing import assert_frame_equal as ordered_assert_frame_equal
+from pandas.util.testing import (assert_series_equal, assert_frame_equal,
+                                 assert_almost_equal, assert_produces_warning)
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
@@ -37,15 +36,6 @@ random_x -= random_x.min()  # All x > 0
 max_disp = np.diff(random_x).max()
 random_walk_legacy = lambda: [[PointND(t, (x, 5))] 
                               for t, x in enumerate(random_x)]
-
-
-def assert_frame_equal(left, right, *args, **kwargs):
-    """Wrapper that sorts column names, in case they were scrambled
-    by pandas.concat()."""
-    left = left.sort_index(1)
-    right = right.sort_index(1)
-    return ordered_assert_frame_equal(left, right, *args, **kwargs)
-
 
 
 def hash_generator(dims, box_size):

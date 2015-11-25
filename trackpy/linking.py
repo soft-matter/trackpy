@@ -557,9 +557,16 @@ def link_df(features, search_range, memory=0,
                        ignore_index=(not retain_index))
 
     if not retain_index:
-        return pandas_sort(linked, ['particle', t_column]).reset_index(drop=True)
+        linked = pandas_sort(linked, ['particle', t_column]
+                           ).reset_index(drop=True)
     else:
-        return linked.reindex(features.index)
+        linked = linked.reindex(features.index)
+
+    # Order columns as in original DataFrame, then 'particle', then
+    # any other new columns (i.e. diagnostics)
+    return linked.reindex(columns=list(features.columns) + ['particle'] +
+                          list(set(linked.columns) - set(features.columns) -
+                               {'particle',}))
 
 
 def link_df_iter(features, search_range, memory=0,
