@@ -12,8 +12,9 @@ import unittest
 import nose
 from numpy.testing import assert_almost_equal, assert_allclose
 from numpy.testing.decorators import slow
-from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_almost_equal, assert_produces_warning)
+from pandas.util.testing import (assert_series_equal, assert_almost_equal,
+                                 assert_produces_warning)
+from pandas.util.testing import assert_frame_equal as ordered_assert_frame_equal
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
@@ -36,6 +37,15 @@ random_x -= random_x.min()  # All x > 0
 max_disp = np.diff(random_x).max()
 random_walk_legacy = lambda: [[PointND(t, (x, 5))] 
                               for t, x in enumerate(random_x)]
+
+
+def assert_frame_equal(left, right, *args, **kwargs):
+    """Wrapper that sorts column names, in case they were scrambled
+    by pandas.concat()."""
+    left = left.sort_index(1)
+    right = right.sort_index(1)
+    return ordered_assert_frame_equal(left, right, *args, **kwargs)
+
 
 
 def hash_generator(dims, box_size):
@@ -279,44 +289,6 @@ class CommonTrackingTests(object):
     
             assert np.sum(dx) == level_count - 1
             assert np.sum(dy) == 0
-
-    def test_copy(self):
-        """Check inplace/copy behavior of link_df, link_df_iter"""
-        # One 1D stepper
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        f_inplace = f.copy()
-        expected = f.copy()
-        expected['particle'] = np.zeros(N)
-
-        # Should add particle column in-place
-        # UNLESS diagnostics are enabled (or input dataframe is not writeable)
-        actual = self.link_df(f_inplace, 5)
-        assert_frame_equal(actual, expected)
-        if self.do_diagnostics:
-            assert 'particle' not in f_inplace.columns
-        else:
-            assert_frame_equal(actual, f_inplace)
-
-        # When DataFrame is actually a view, link_df should produce a warning
-        # and then copy the DataFrame. This only happens for pandas >= 0.16.
-        if is_pandas_since_016:
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter('ignore')
-                warnings.simplefilter('always', UserWarning)
-                actual = self.link_df(f[f['frame'] > 0], 5)
-                assert len(w) == 1
-            assert 'particle' not in f.columns
-
-        # Should copy
-        actual = self.link_df(f, 5, copy_features=True)
-        assert_frame_equal(actual, expected)
-        assert 'particle' not in f.columns
-
-        # Should copy
-        actual_iter = self.link_df_iter(f, 5, hash_size=(10, 2))
-        assert_frame_equal(actual_iter, expected)
-        assert 'particle' not in f.columns
 
     @nose.tools.raises(tp.SubnetOversizeException)
     def test_oversize_fail(self):
