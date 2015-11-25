@@ -18,7 +18,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, link, Hash_table
-from trackpy.utils import is_pandas_since_016, pandas_sort
+from trackpy.utils import pandas_sort
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
