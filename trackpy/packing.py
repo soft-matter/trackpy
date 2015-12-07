@@ -5,7 +5,7 @@ from warnings import warn
 
 
 
-def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = None, ndensity=None, boundary = None): 
+def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = None, ndensity=None, boundary = None, handle_edge=True): 
     """   
     Calculate the pair correlation function in 2 dimensions.
 
@@ -15,14 +15,14 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
         DataFrame containing the x and y coordinates of particles
     cutoff : float
         Maximum distance to calculate g(r)
-    fration : float, optional
+    fraction : float, optional
         The fraction of particles to calculate g(r) with. May be used to increase speed of function. Particles selected at random.
     dr : float, optional
         The bin width
     ndensity : float, optional
         Density of particle packing. If not specified, density will be calculated assuming rectangular homogenous arangement
     boundary : Tuple, optional
-        Tuple specifying rectangular boundary of partcicles (xmin, xmax, ymin, ymax)
+        Tuple specifying rectangular boundary of partcicles (xmin, xmax, ymin, ymax). Must be floats.
 
     Returns
     -------
@@ -37,7 +37,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
         xmin, xmax, ymin, ymax =  feat.x.min(), feat.x.max(), feat.y.min(), feat.y.max()
     else:
        xmin, xmax, ymin, ymax = boundary
-       feat = feat[(feat.x > xmin) & (feat.x < xmax) & (feat.y > ymin) & (feat.y < ymax)] # Disregard all particles outside the bounding box
+       feat = feat[(feat.x >= xmin) & (feat.x <= xmax) & (feat.y >= ymin) & (feat.y <= ymax)] # Disregard all particles outside the bounding box
 
     if ndensity is None:
         ndensity = feat.x.count() / ((xmax - xmin) * (ymax - ymin)) #  particle packing density 
@@ -52,7 +52,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
     ckdtree = cKDTree(feat[['x', 'y']])  # initialize kdtree for fast neighbor search
     points = feat.as_matrix(['x', 'y'])  # Convert pandas dataframe to numpy array for fast indexing
         
-    # For edge handling, two techniques are used. If a particle is near only one edge, the area of the search ring r+dr is 
+    # For edge handling, two techniques are used. If a particle is near only one edge, the fractional area of the search ring r+dr is 
     # caluclated analytically via 1 - arccos(d / r ) / pi, where d is the distance to the wall
     # If the particle is near two or more walls, a ring of points is generated around the particle, and a mask
     # is applied to find the the number of points within the boundary, giving an estimate of the area
@@ -65,24 +65,26 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
         dist, idxs = ckdtree.query(points[idx], k=max_p_count, distance_upper_bound=cutoff)
         area = np.ones(len(r_edges)) * dr * r_edges * 2 * np.pi
 
-        # Find the number of edge collisions at each radii
-        collisions = _num_wall_collisions(points[idx], r_edges, xmin, xmax, ymin, ymax)
 
-        # If some disk will collide with the wall, we need to implement edge handling
-        if collisions.max() > 0:
+        if handle_edge:
+            # Find the number of edge collisions at each radii
+            collisions = _num_wall_collisions(points[idx], r_edges, xmin, xmax, ymin, ymax)
 
-            # Use analyitcal solution to find area of disks cut off by one wall
-            d = _distances_to_wall(points[idx], xmin, xmax, ymin, ymax).min() #grab the distance to the closest wall
+            # If some disk will collide with the wall, we need to implement edge handling
+            if collisions.max() > 0:
 
-            inx = np.where(collisions == 1)[0]
-            area[inx] *= 1 - np.arccos(d / (r_edges[inx])) / np.pi 
-        
-            # If disk is cutoff by 2 or more walls, generate a bunch of points and use a mask to estimate the area within the boundaries
-            inx = np.where(collisions >= 2)[0]
-            x = refx[inx] + points[idx,0]
-            y = refy[inx] + points[idx,1]
-            mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
-            area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
+                # Use analyitcal solution to find area of disks cut off by one wall
+                d = _distances_to_wall(points[idx], xmin, xmax, ymin, ymax).min() #grab the distance to the closest wall
+
+                inx = np.where(collisions == 1)[0]
+                area[inx] *= 1 - np.arccos(d / (r_edges[inx])) / np.pi 
+            
+                # If disk is cutoff by 2 or more walls, generate a bunch of points and use a mask to estimate the area within the boundaries
+                inx = np.where(collisions >= 2)[0]
+                x = refx[inx] + points[idx,0]
+                y = refy[inx] + points[idx,1]
+                mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
+                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
             
         g_r +=  np.histogram(dist, bins = r_edges)[0] / (area[:-1])  
 
@@ -113,3 +115,4 @@ def _points_ring(r_edges, dr, layers, n):
         refy[index] = y.reshape(n*layers)
 
     return refx, refy
+
