@@ -46,11 +46,11 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
     if p_indexes is None:
         p_indexes = random.sample(range(len(feat)), int(fraction*len(feat)))  # grab random sample of particles
 
-    r_edges = np.arange(dr, cutoff + dr, dr)  # radii bins to search for particles
+    r_edges = np.arange(0, cutoff + dr, dr)  # radii bins to search for particles
     g_r = np.zeros(len(r_edges) - 1) 
     max_p_count =  int(np.pi * (r_edges.max() + dr)**2 * ndensity * 10)  # upper bound for neighborhood particle count
     ckdtree = cKDTree(feat[['x', 'y']])  # initialize kdtree for fast neighbor search
-    points = feat.as_matrix(['x', 'y'])  # Convert pandas dataframe to numpy array for fast indexing
+    points = feat.as_matrix(['x', 'y'])  # Convert pandas dataframe to numpy array for faster indexing
         
     # For edge handling, two techniques are used. If a particle is near only one edge, the fractional area of the search ring r+dr is 
     # caluclated analytically via 1 - arccos(d / r ) / pi, where d is the distance to the wall
@@ -63,9 +63,10 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
 
     for idx in p_indexes:
         dist, idxs = ckdtree.query(points[idx], k=max_p_count, distance_upper_bound=cutoff)
-        area = np.ones(len(r_edges)) * dr * r_edges * 2 * np.pi
+        dist = dist[dist > .001] # We don't want to count the same particle
 
-
+        area = np.pi * (np.arange(dr, cutoff + 2*dr, dr)**2 - np.arange(0, cutoff + dr, dr)**2)
+        
         if handle_edge:
             # Find the number of edge collisions at each radii
             collisions = _num_wall_collisions(points[idx], r_edges, xmin, xmax, ymin, ymax)
@@ -77,7 +78,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
                 d = _distances_to_wall(points[idx], xmin, xmax, ymin, ymax).min() #grab the distance to the closest wall
 
                 inx = np.where(collisions == 1)[0]
-                area[inx] *= 1 - np.arccos(d / (r_edges[inx])) / np.pi 
+                area[inx] *= 1 - np.arccos(d / (r_edges[inx] + dr/2)) / np.pi 
             
                 # If disk is cutoff by 2 or more walls, generate a bunch of points and use a mask to estimate the area within the boundaries
                 inx = np.where(collisions >= 2)[0]
@@ -85,8 +86,10 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
                 y = refy[inx] + points[idx,1]
                 mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
                 area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
+
+                print area
             
-        g_r +=  np.histogram(dist, bins = r_edges)[0] / (area[:-1])  
+        g_r +=  np.histogram(dist, bins = r_edges)[0] / area[:-1]
 
     g_r /= (ndensity * len(p_indexes))
     return r_edges, g_r
