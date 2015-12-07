@@ -18,7 +18,6 @@ class TestPairCorrelation(unittest.TestCase):
 		g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
 
 
-
 		#Calculate g_r on all particles 
 		edges, g_r_all = pairCorrelationKDTree2D(lattice, dr=.1, cutoff=8)
 		g_r_all /= np.linalg.norm(g_r_all)
@@ -28,7 +27,7 @@ class TestPairCorrelation(unittest.TestCase):
 		edges, g_r_no_edge = pairCorrelationKDTree2D(lattice, dr=.1, cutoff=8, handle_edge=False)
 		g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
-
+		
 		#Assert the functions are essentially the same
 		self.assertTrue(np.allclose(g_r_all, g_r_one, atol=.02))
 
@@ -41,17 +40,19 @@ class TestPairCorrelation(unittest.TestCase):
 	def test_ring(self):	
 		ring = self._rings()
 
-		edges, g_r = pairCorrelationKDTree2D(ring, dr=.1, cutoff=10, p_indexes=[0], boundary = (-10.,10.,-10.,10.))		
+		edges, g_r = pairCorrelationKDTree2D(ring, dr=.1, cutoff=10, p_indexes=[0], boundary = (-10.,10.,-10.,10.))	
+		g_r /= np.linalg.norm(g_r)	
 		peaks = g_r[g_r > 0]
 
 		self.assertTrue( len(peaks) == 9 )
 
 		x = np.arange(1,10,1)
 		r = peaks.max() * 1/x
-	
-		self.assertTrue( np.allclose(peaks, r) )
 
-	
+		self.assertTrue( np.allclose(peaks, r, atol=.01) )
+
+
+
 	def _lattice(self, n = 20):
 		x,y = [],[]
 		epsilon = 0.0
