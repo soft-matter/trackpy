@@ -1,6 +1,6 @@
 
-from trackpy.packing import pairCorrelationKDTree2D, pairCorrelationKDTree3D
-from trackpy.packing import _points_ring3D
+from trackpy.static import pairCorrelationKDTree2D, pairCorrelationKDTree3D
+from trackpy.static import _points_ring3D
 import unittest
 import pandas
 import numpy as np
