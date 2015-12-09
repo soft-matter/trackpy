@@ -95,7 +95,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
                 x = refx[inx] + points[idx,0]
                 y = refy[inx] + points[idx,1]
                 mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
-                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[inx])
+                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
             
         g_r +=  np.histogram(dist, bins = r_edges)[0] / area[:-1]
 
@@ -201,7 +201,7 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
                 y = refy[inx] + points[idx,1]
                 z = refz[inx] + points[idx,2]
                 mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (z >= zmin) & (z <= zmax)
-                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[inx])
+                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
 
         g_r +=  np.histogram(dist, bins = r_edges)[0] / area[:-1]
 
@@ -258,8 +258,14 @@ def _points_ring3D(r_edges, dr, layers, stacks, n):
         mask1 = refx**2 + refy**2 + refz**2 <= r + dr
         mask2 = refx**2 + refy**2 + refz**2 >=r
 
-        refx_all.append( refx[mask1 & mask2])
+        refx_all.append(refx[mask1 & mask2])
         refy_all.append(refy[mask1 & mask2])
         refz_all.append(refz[mask1 & mask2])
+
+    # Trim everything to shortest length
+    shortest = min([len(ring) for ring in refx_all])
+    refx_all = np.array([ring[:shortest] for ring in refx_all])
+    refy_all = np.array([ring[:shortest] for ring in refy_all])
+    refz_all = np.array([ring[:shortest] for ring in refz_all])
 
     return refx_all, refy_all, refz_all

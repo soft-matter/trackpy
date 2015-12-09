@@ -54,11 +54,14 @@ class TestPairCorrelation(unittest.TestCase):
         # The peaks in g(r) should decay as 1/r^2.
         ring = self._rings3D()
 
-        edges, g_r = pairCorrelationKDTree3D(ring, dr=.1, cutoff=10, p_indices=[len(ring) - 1], boundary = (-10., 10., -10., 10., -10., 10.))
+        edges, g_r = pairCorrelationKDTree3D(ring, dr=.1, cutoff=10, p_indices=[len(ring) - 1], boundary = (-10., 10., -10., 10., -10., 10.), handle_edge=True)
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
 
-        self.assertTrue( len(peaks) == 9 )
+        plt.plot(g_r)
+        plt.show()
+
+        assert len(peaks) == 9
 
         x = np.arange(1,10,1)
         r = peaks.max() * 1/x**2
@@ -146,7 +149,8 @@ class TestPairCorrelation(unittest.TestCase):
         n = 50
         refx, refy, refz = _points_ring3D(r, 0, layers, stacks, n)
 
-        df = pandas.DataFrame({'x': refx.reshape(len(refx) * layers * stacks * n), 'y':refy.reshape(len(refy) * layers * stacks * n), 'z': refz.reshape(len(refz) * layers * stacks * n) })
+        df = pandas.DataFrame({'x': np.concatenate(refx), 'y': np.concatenate(refy),
+                               'z': np.concatenate(refz)})
         df.loc[len(df)] = [0.,0.,0.]
         return df
 
