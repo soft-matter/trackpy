@@ -95,7 +95,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
                 x = refx[inx] + points[idx,0]
                 y = refy[inx] + points[idx,1]
                 mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
-                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
+                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[inx])
             
         g_r +=  np.histogram(dist, bins = r_edges)[0] / area[:-1]
 
@@ -201,7 +201,7 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
                 y = refy[inx] + points[idx,1]
                 z = refz[inx] + points[idx,2]
                 mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (z >= zmin) & (z <= zmax)
-                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
+                area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[inx])
 
         g_r +=  np.histogram(dist, bins = r_edges)[0] / area[:-1]
 
@@ -251,30 +251,15 @@ def _points_ring3D(r_edges, dr, layers, stacks, n):
     layers determines how many concentric layers are in each shell,
     and n determines the number of points in each layer"""
 
-        
-    refx=np.empty((len(r_edges), n*layers*stacks))
-    refy=refx.copy()
-    refz=refx.copy()
+    n = 20
+    refx_all, refy_all, refz_all = [],[],[]
+    for r in r_edges:
+        refx, refy, refz = np.mgrid[-n:n+1, -n:n+1, -n:n+1] * (r + dr) / n
+        mask1 = refx**2 + refy**2 + refz**2 <= r + dr
+        mask2 = refx**2 + refy**2 + refz**2 >=r
 
-    theta = np.linspace(0, 2*np.pi, n)
-    theta = theta.repeat(layers).reshape((len(theta), layers))
-    
-    for i, r in enumerate(r_edges):
-        r = np.linspace(r, r+dr, layers)
-        xlist, ylist, zlist = [],[],[]
-        for phi in np.linspace(0, np.pi, stacks):
-            x = r * np.cos(theta) * np.sin(phi)
-            y = r * np.sin(theta) * np.sin(phi)
+        refx_all.append( refx[mask1 & mask2])
+        refy_all.append(refy[mask1 & mask2])
+        refz_all.append(refz[mask1 & mask2])
 
-            x = x.reshape(n*layers)
-            y = y.reshape(n*layers)
-
-            xlist += list(x)
-            ylist += list(y)
-            zlist += list(np.ones(len(x)) * (r_edges[i] + dr) * np.cos(phi))
-       
-        refx[i] = np.array(xlist)
-        refy[i] = np.array(ylist)
-        refz[i] = np.array(zlist)
-
-    return refx, refy, refz
+    return refx_all, refy_all, refz_all
