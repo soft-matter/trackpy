@@ -63,7 +63,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
 
     for idx in p_indexes:
         dist, idxs = ckdtree.query(points[idx], k=max_p_count, distance_upper_bound=cutoff)
-        dist = dist[dist > .001] # We don't want to count the same particle
+        dist = dist[1:]  # We don't want to count the same particle
 
         area = np.pi * (np.arange(dr, cutoff + 2*dr, dr)**2 - np.arange(0, cutoff + dr, dr)**2)
         
@@ -155,7 +155,7 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indexes = No
 
     for idx in p_indexes:
         dist, idxs = ckdtree.query(points[idx], k=max_p_count, distance_upper_bound=cutoff)
-        dist = dist[dist > .001] # We don't want to count the same particle
+        dist = dist[1:]  # We don't want to count the same particle
 
         area = (4./3.) * np.pi * (np.arange(dr, cutoff + 2*dr, dr)**3 - np.arange(0, cutoff + dr, dr)**3)
         
