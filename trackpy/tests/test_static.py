@@ -16,7 +16,7 @@ class TestPairCorrelation(unittest.TestCase):
         lattice = self._lattice2D()
 
         # Calculate g_r on the center particle only (index 210)
-        edges, g_r_one = pairCorrelationKDTree2D(lattice, dr=.1, cutoff=8, p_indexes=[210])
+        edges, g_r_one = pairCorrelationKDTree2D(lattice, dr=.1, cutoff=8, p_indices=[210])
         g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
 
         # Calculate g_r on all particles
@@ -34,10 +34,9 @@ class TestPairCorrelation(unittest.TestCase):
         self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.02))
 
 
-
         ring = self._rings2D()
 
-        edges, g_r = pairCorrelationKDTree2D(ring, dr=.1, cutoff=10, p_indexes=[0], boundary = (-10.,10.,-10.,10.))
+        edges, g_r = pairCorrelationKDTree2D(ring, dr=.1, cutoff=10, p_indices=[0], boundary = (-10., 10., -10., 10.))
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
 
@@ -49,13 +48,13 @@ class TestPairCorrelation(unittest.TestCase):
         self.assertTrue( np.allclose(peaks, r, atol=.01) )
 
 
-
-    def test_correlation3D(self):
-
-        ### Ring test
+    def test_correlation3D_ring(self):
+        # Ring test
+        # Generate a series of concentric shells, each with the same number of particles.
+        # The peaks in g(r) should decay as 1/r^2.
         ring = self._rings3D()
 
-        edges, g_r = pairCorrelationKDTree3D(ring, dr=.1, cutoff=10, p_indexes=[len(ring) - 1], boundary = (-10.,10.,-10.,10.,-10., 10.))
+        edges, g_r = pairCorrelationKDTree3D(ring, dr=.1, cutoff=10, p_indices=[len(ring) - 1], boundary = (-10., 10., -10., 10., -10., 10.))
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
 
@@ -67,14 +66,16 @@ class TestPairCorrelation(unittest.TestCase):
         self.assertTrue( np.allclose(peaks, r, atol=.02) )
 
 
-        ### Lattice TEST ####
+    def test_correlation3D_lattice(self):
+        ### Lattice Test
+        # With proper edge handling, g(r) of the particle at the center should be the same as g(r) for all particles.
         lattice = self._lattice3D(n = 10)
 
         a = lattice.iloc[444]
         print a.x, a.y, a.z
 
         # Calculate g_r on the center particle only (index 210)
-        edges, g_r_one = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=4, p_indexes=[444])
+        edges, g_r_one = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=4, p_indices=[444])
         g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
 
         # Calculate g_r on all particles
