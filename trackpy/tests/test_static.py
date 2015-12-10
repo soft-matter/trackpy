@@ -58,9 +58,6 @@ class TestPairCorrelation(unittest.TestCase):
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
 
-        plt.plot(g_r)
-        plt.show()
-
         assert len(peaks) == 9
 
         x = np.arange(1,10,1)
@@ -73,10 +70,8 @@ class TestPairCorrelation(unittest.TestCase):
         ### Lattice Test
         # With proper edge handling, g(r) of the particle at the center should be the same as g(r) for all particles.
         lattice = self._lattice3D(n = 10)
-
-        a = lattice.iloc[444]
-        print a.x, a.y, a.z
-
+        
+        print lattice.iloc[444]
         # Calculate g_r on the center particle only (index 210)
         edges, g_r_one = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=4, p_indices=[444])
         g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
@@ -89,10 +84,12 @@ class TestPairCorrelation(unittest.TestCase):
         edges, g_r_no_edge = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=4, handle_edge=False)
         g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
-
-        plt.plot(edges[:-1], g_r_one)
-        plt.plot(edges[:-1], g_r_all)
-        #plt.plot(edges[:-1], g_r_no_edge)
+        
+        
+        plt.plot(edges[:-1], g_r_one, label='one')
+        plt.plot(edges[:-1], g_r_all, label='all')
+        plt.plot(edges[:-1], g_r_no_edge, label='all, no edge')
+        plt.legend(loc='best')
         plt.show()
 
         # Assert the functions are essentially the same
@@ -100,6 +97,17 @@ class TestPairCorrelation(unittest.TestCase):
 
         # Turning off edge handling should give incorrect result
         self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.02))
+
+    def test_sphere_mask(self):
+        x,y,z = _points_ring3D([1], 0, 10000)
+        #plt.scatter(x,y)
+        #plt.show()
+        
+        mask= (x >= 0) & (x <= 1) & (y >= 0) & (y <= 1)# & (z >= 0) & (z <= 1) 
+        print mask.sum() / len(x)
+        #plt.scatter(x[mask], y[mask])
+        #plt.show()
+
 
 
 
@@ -144,11 +152,7 @@ class TestPairCorrelation(unittest.TestCase):
     def _rings3D(self):
         epsilon = .02
         r = np.arange(1, 10, 1) + epsilon
-        layers = 1
-        stacks = 10
-        n = 50
-        refx, refy, refz = _points_ring3D(r, 0, layers, stacks, n)
-
+        refx, refy, refz = _points_ring3D(r, 0, 500)
         df = pandas.DataFrame({'x': np.concatenate(refx), 'y': np.concatenate(refy),
                                'z': np.concatenate(refz)})
         df.loc[len(df)] = [0.,0.,0.]

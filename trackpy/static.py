@@ -65,9 +65,8 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
     # the particle is near two or more walls, a ring of points is generated around the particle, and a mask is
     # applied to find the the number of points within the boundary, giving an estimate of the area. Below,
     # rings of size r + dr  for all r in r_edges are generated and cached for later use to speed up computation
-    n = 100  # TODO: Should scale with radius, dr
-    layers = 5
-    refx, refy = _points_ring2D(r_edges, dr, layers, n)
+    n = 1000  # TODO: Should scale with radius, dr
+    refx, refy = _points_ring2D(r_edges, dr, n)
 
     for idx in p_indices:
         dist, idxs = ckdtree.query(points[idx], k=max_p_count, distance_upper_bound=cutoff)
@@ -163,20 +162,22 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
     points = feat.as_matrix(['x', 'y', 'z'])  # Convert pandas dataframe to numpy array for faster indexing
         
     # For edge handling, two techniques are used. If a particle is near only one edge, the fractional area of the
-    # search ring r+dr is caluclated analytically via 1 - arccos(d / r ) / pi, where d is the distance to the wall .If
-    # the particle is near two or more walls, a ring of points is generated around the particle, and a mask is
-    # applied to find the the number of points within the boundary, giving an estimate of the area. Below,
-    # rings of size r + dr  for all r in r_edges are generated and cached for later use to speed up computation.
-    n = 100  # TODO: Should scale with radius, dr
-    layers = 5
-    stacks = 10
-    refx, refy, refz = _points_ring3D(r_edges, dr, layers, stacks, n)
+    # search ring r+dr is caluclated analytically. If the particle is near two or more walls, a ring of points is 
+    # generated around the particle, and a mask is applied to find the the number of points within the boundary, 
+    # giving an estimate of the area. Below, rings of size r + dr  for all r in r_edges are generated and cached for 
+    # later use to speed up computation.
+    n = 1000  # TODO: Should scale with radius, dr
+    refx, refy, refz = _points_ring3D(r_edges, dr, n)
 
     for idx in p_indices:
         dist, idxs = ckdtree.query(points[idx], k=max_p_count, distance_upper_bound=cutoff)
         dist = dist[dist > 0] # We don't want to count the same particle
+        #print dist.shape
+        #print dist[dist.shape[0] - 10:]
 
         area = (4./3.) * np.pi * (np.arange(dr, cutoff + 2*dr, dr)**3 - np.arange(0, cutoff + dr, dr)**3)
+
+        #print area
         
         if handle_edge:
             # Find the number of edge collisions at each radii
@@ -194,7 +195,7 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
                 #theta = np.arccos(d / (r_edges[inx] + dr/2))
                 #area[inx] *= 1 - 2*np.pi*(1 - np.cos(theta)) / (4*np.pi)
             
-                # If disk is cutoff by 2 or more walls, generate a bunch of points and use a mask to
+                # If shell is cutoff by 2 or more walls, generate a bunch of points and use a mask to
                 # estimate the area within the boundaries
                 inx = np.where(collisions >= 1)[0]
                 x = refx[inx] + points[idx,0]
@@ -202,6 +203,9 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
                 z = refz[inx] + points[idx,2]
                 mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (z >= zmin) & (z <= zmax)
                 area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
+
+                print points[idx]
+                print mask.sum(axis=1, dtype='float') / len(refx[0])
 
         g_r +=  np.histogram(dist, bins = r_edges)[0] / area[:-1]
 
@@ -217,12 +221,13 @@ def _num_wall_collisions2D(point, radius, xmin, xmax, ymin, ymax):
 def _distances_to_wall2D(point, xmin, xmax, ymin, ymax): 
     return np.array([point[0]-xmin, xmax-point[0], point[1]-ymin, ymax-point[1]])
 
-def _points_ring2D(r_edges, dr, layers, n):
+def _points_ring2D(r_edges, dr, n):
     """Returns x, y array of points comprising shells extending from r to r_dr.
 
     layers determines how many concentric layers are in each shell,
         and n determines the number of points in each layer"""
 
+    """
     refx=np.empty((len(r_edges), n*layers))
     refy=refx.copy()
     for index, r in enumerate(r_edges): 
@@ -234,6 +239,19 @@ def _points_ring2D(r_edges, dr, layers, n):
         refy[index] = y.reshape(n*layers)
 
     return refx, refy
+    """
+
+    refx_all, refy_all = [],[]
+    for r in r_edges:
+        ref = 2*np.random.random(size=(n, 2)) - 1
+        ref /= np.linalg.norm(ref, axis=1).repeat(2).reshape((len(ref), 2))
+        ref *= dr*np.random.random(size=(len(ref), 2))+ r
+        x,y = ref[:,0], ref[:,1]
+
+        refx_all.append(x)
+        refy_all.append(y)
+
+    return np.array(refx_all), np.array(refy_all)
 
 
 def _num_wall_collisions3D(point, radius, xmin, xmax, ymin, ymax, zmin, zmax):
@@ -246,26 +264,18 @@ def _num_wall_collisions3D(point, radius, xmin, xmax, ymin, ymax, zmin, zmax):
 def _distances_to_wall3D(point, xmin, xmax, ymin, ymax, zmin, zmax): 
     return np.array([point[0]-xmin, xmax-point[0], point[1]-ymin, ymax-point[1], point[2]-zmin, zmax-point[2]])
 
-def _points_ring3D(r_edges, dr, layers, stacks, n):
-    """Returns x, y, z arrays of points comprising shells extending from r to r_dr.
-    layers determines how many concentric layers are in each shell,
-    and n determines the number of points in each layer"""
+def _points_ring3D(r_edges, dr, n):
+    """Returns x, y, z arrays of points comprising shells extending from r to r_dr. n determines the density of the shells"""
 
-    n = 20
     refx_all, refy_all, refz_all = [],[],[]
     for r in r_edges:
-        refx, refy, refz = np.mgrid[-n:n+1, -n:n+1, -n:n+1] * (r + dr) / n
-        mask1 = refx**2 + refy**2 + refz**2 <= r + dr
-        mask2 = refx**2 + refy**2 + refz**2 >=r
+        ref = 2*np.random.random(size=(n, 3)) - 1
+        ref /= np.linalg.norm(ref, axis=1).repeat(3).reshape((len(ref), 3))
+        ref *= dr*np.random.random(size=(len(ref), 3))+ r
+        x,y,z = ref[:,0], ref[:,1], ref[:,2]
 
-        refx_all.append(refx[mask1 & mask2])
-        refy_all.append(refy[mask1 & mask2])
-        refz_all.append(refz[mask1 & mask2])
+        refx_all.append(x)
+        refy_all.append(y)
+        refz_all.append(z)
 
-    # Trim everything to shortest length
-    shortest = min([len(ring) for ring in refx_all])
-    refx_all = np.array([ring[:shortest] for ring in refx_all])
-    refy_all = np.array([ring[:shortest] for ring in refy_all])
-    refz_all = np.array([ring[:shortest] for ring in refz_all])
-
-    return refx_all, refy_all, refz_all
+    return np.array(refx_all), np.array(refy_all), np.array(refz_all)
