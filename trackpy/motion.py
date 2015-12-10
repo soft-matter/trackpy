@@ -49,7 +49,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     results['msd'] = mpp**2*(disp**2).mean(level=0).sum(1) # <r^2>
     # Estimated statistically independent measurements = 2N/t
     if detail:
-        results['N'] = 2*disp.icol(0).count(level=0).div(Series(lagtimes))   
+        results['N'] = 2*disp.iloc[:,0].count(level=0).div(Series(lagtimes))
     results['lagt'] = results.index.values/fps
     return results[:-1]
 
@@ -147,12 +147,11 @@ def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
 
     Examples
     --------
-    compute_drift(traj).plot() # Default smoothing usually smooths too much.
-    compute_drift(traj, 0).plot() # not smoothed
-    compute_drift(traj, 15).plot() # Try various smoothing values.
-
-    drift = compute_drift(traj, 15) # Save good drift curves.
-    corrected_traj = subtract_drift(traj, drift) # Apply them.
+    >>> compute_drift(traj).plot() # Default smoothing usually smooths too much.
+    >>> compute_drift(traj, 0).plot() # not smoothed
+    >>> compute_drift(traj, 15).plot() # Try various smoothing values.
+    >>> drift = compute_drift(traj, 15) # Save good drift curves.
+    >>> corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
     # Probe by particle, take the difference between frames.
     delta = pd.concat([t.set_index('frame', drop=False).diff()
@@ -185,7 +184,10 @@ def subtract_drift(traj, drift=None):
 
     if drift is None:
         drift = compute_drift(traj)
-    return traj.set_index('frame', drop=False).sub(drift, fill_value=0)
+    traj.set_index('frame', inplace=True, drop=False)
+    for col in drift.columns:
+        traj[col] = traj[col].sub(drift[col], fill_value=0)
+    return traj
 
 
 def is_typical(msds, frame, lower=0.1, upper=0.9):
@@ -211,11 +213,11 @@ def is_typical(msds, frame, lower=0.1, upper=0.9):
     Examples
     --------
 
-    m = tp.imsd(traj, MPP, FPS)
-    # Index by particle ID, slice using boolean output from is_typical(), and then
-    # restore the original index, frame number.
-    typical_traj = traj.set_index('particle').ix[is_typical(m)].reset_index()\
-        .set_index('frame', drop=False)
+    >>> m = tp.imsd(traj, MPP, FPS)
+    >>> # Index by particle ID, slice using boolean output from is_typical(), and then
+    >>> # restore the original index, frame number.
+    >>> typical_traj = traj.set_index('particle').ix[is_typical(m)]\
+    .reset_index().set_index('frame', drop=False)
     """
     a, b = msds.iloc[frame].quantile(lower), msds.iloc[frame].quantile(upper)
     return (msds.iloc[frame] > a) & (msds.iloc[frame] < b)
@@ -250,8 +252,8 @@ def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
 
     Examples
     --------
-    pos = traj.set_index(['frame', 'particle'])['x'].unstack() # particles as columns
-    vh = vanhove(pos)
+    >>> pos = traj.set_index(['frame', 'particle'])['x'].unstack() # particles as columns
+    >>> vh = vanhove(pos)
     """
     # Reindex with consecutive frames, placing NaNs in the gaps.
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))

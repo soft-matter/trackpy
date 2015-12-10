@@ -49,6 +49,10 @@ To get started, check out the links to tutorials at the top of this document.
 Updating Your Installation
 --------------------------
 
+Before updating to a new version of trackpy, be sure to read the
+:doc:`release notes<whatsnew>` for a list of new features and any changes
+that may affect your existing analysis code.
+
 Latest Stable Release
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -72,8 +76,7 @@ soft-matter development channel on conda
 
 .. code-block:: bash
 
-    conda config --add channels soft-matter
-    conda install -c soft-matter/channel/dev trackpy
+    conda install -c soft-matter -c soft-matter/channel/dev trackpy
 
 If you plan to edit the code yourself, you should use git and pip as
 explained below.
@@ -141,6 +144,8 @@ Optional Dependencies:
       This is included with Anaconda and Canopy. Installing it any other way is
       difficult; we recommend sticking with one of these. We support numba versions
       >=0.13.4 (though 0.13.3 appears to work). We currently test on 0.17.
+* `Pillow <https://pillow.readthedocs.org/>`__ or `PIL <http://www.pythonware.com/products/pil/>`__ for some display routines.
+      This is included with Anaconda. We do not support version 3.0.0.
 
 PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format

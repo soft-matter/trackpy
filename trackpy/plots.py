@@ -241,7 +241,7 @@ def scatter3d(*args, **kwargs):
     
     See Also
     --------
-    scatter3d : the 3D equivalent of `scatter`
+    scatter : the 2D equivalent of `scatter3d`
     """
     if kwargs.get('pos_columns') is None:
         kwargs['pos_columns'] = ['x', 'y', 'z']
@@ -312,7 +312,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     # Background image
     if superimpose is not None:
         ax.imshow(superimpose, cmap=plt.cm.gray,
-                  origin='lower', interpolation='none',
+                  origin='lower', interpolation='nearest',
                   vmin=kwargs.get('vmin'), vmax=kwargs.get('vmax'))
         ax.set_xlim(-0.5 * mpp, (superimpose.shape[1] - 0.5) * mpp)
         ax.set_ylim(-0.5 * mpp, (superimpose.shape[0] - 0.5) * mpp)
@@ -421,7 +421,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         the `Axes.plot(...)` command that marks the features
 
     Returns
-    ------
+    -------
     Axes object
     
     See Also
@@ -448,7 +448,7 @@ def annotate(centroids, image, circle_size=None, color=None,
                        markerfacecolor='none', markeredgecolor='r',
                        marker='o', linestyle='none')
     _plot_style.update(**_normalize_kwargs(plot_style, 'line2d'))
-    _imshow_style = dict(origin='lower', interpolation='none',
+    _imshow_style = dict(origin='lower', interpolation='nearest',
                          cmap=plt.cm.gray)
     _imshow_style.update(imshow_style)
 
@@ -563,23 +563,31 @@ def annotate3d(centroids, image, **kwargs):
     else:
         kwargs['imshow_style'] = imshow_style
 
-    # Suppress warning when >20 figures are opened
     max_open_warning = mpl.rcParams['figure.max_open_warning']
-    mpl.rc('figure', max_open_warning=0)
-    figures = []
-    for i, imageZ in enumerate(normalized):
-        fig = plt.figure()
-        kwargs['ax'] = fig.gca()
-        centroidsZ = centroids[(centroids['z'] > i - 0.5) &
-                               (centroids['z'] < i + 0.5)]
-        annotate(centroidsZ, imageZ, **kwargs)
-        figures.append(fig)
+    was_interactive = plt.isinteractive()
+    try:
+        # Suppress warning when many figures are opened
+        mpl.rc('figure', max_open_warning=0)
+        # Turn off interactive mode (else the closed plots leave emtpy space)
+        plt.ioff()
 
-    result = plots_to_frame(figures, width=512, bbox_inches='tight')
+        figures = [None] * len(normalized)
+        for i, imageZ in enumerate(normalized):
+            fig = plt.figure()
+            kwargs['ax'] = fig.gca()
+            centroidsZ = centroids[(centroids['z'] > i - 0.5) &
+                                   (centroids['z'] < i + 0.5)]
+            annotate(centroidsZ, imageZ, **kwargs)
+            figures[i] = fig
 
-    for fig in figures:
-        plt.close(fig)
-    mpl.rc('figure', max_open_warning=max_open_warning)
+        result = plots_to_frame(figures, width=512, close_fig=True,
+                                bbox_inches='tight')
+    finally:
+        # put matplotlib back in original state
+        if was_interactive:
+            plt.ion()
+        mpl.rc('figure', max_open_warning=max_open_warning)
+
     return result
 
 
@@ -602,14 +610,20 @@ def mass_size(f, ax=None):
 def subpx_bias(f, pos_columns=None):
     """Histogram the fractional part of the x and y position.
 
+    Parameters
+    ----------
+    f : DataFrame
+    pos_columns : list of column names, optional
+
     Notes
     -----
     If subpixel accuracy is good, this should be flat. If it depressed in the
     middle, try using a larger value for feature diameter."""
-    if 'z' in f:
-        pos_columns = ['x', 'y', 'z']
-    else:
-        pos_columns = ['x', 'y']
+    if pos_columns is None:
+        if 'z' in f:
+            pos_columns = ['x', 'y', 'z']
+        else:
+            pos_columns = ['x', 'y']
     axlist = f[pos_columns].applymap(lambda x: x % 1).hist()
     return axlist
 
@@ -699,10 +713,15 @@ def plot_density_profile(f, binsize, blocks=None, mpp=None, fps=None,
         if true, the histogram is normalized
     t_column : string, default 'frame'
     pos_column : string, default 'z'
+    ax : matplotlib axes (optional)
     
     Returns
     -------
     Axes object
+
+    Notes
+    -----
+    Any other keyword arguments will pass through to matplotlib's `plot`.
     """
     import matplotlib as mpl
     lastframe = f[t_column].max()
@@ -769,11 +788,10 @@ def plot_displacements(t, frame1, frame2, scale=1, ax=None, pos_columns=None,
         destination; if any other number arrows are rescaled
     pos_columns : list of strings, optional
         Dataframe column names for spatial coordinates. Default is ['x', 'y'].
-
-    Other Parameters
-    ----------------
     ax : matplotlib axes (optional)
 
+    Notes
+    -----
     Any other keyword arguments will pass through to matplotlib's `annotate`.
     """
     if pos_columns is None:

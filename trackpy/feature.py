@@ -463,16 +463,6 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     topn : integer
         Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
-
-    Returns
-    -------
-    DataFrame([x, y, mass, size, ecc, signal])
-        where mass means total integrated brightness of the blob,
-        size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (0 is circular).
-
-    Other Parameters
-    ----------------
     preprocess : boolean
         Set to False to turn off bandpass preprocessing.
     max_iterations : integer
@@ -487,6 +477,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
+
+    Returns
+    -------
+    DataFrame([x, y, mass, size, ecc, signal])
+        where mass means total integrated brightness of the blob,
+        size means the radius of gyration of its Gaussian-like profile,
+        and ecc is its eccentricity (0 is circular).
 
     See Also
     --------
@@ -642,8 +639,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine(raw_image, image, radius, coords, separation,
-                            max_iterations, engine, characterize)
+    refined_coords = refine(raw_image, image, radius, coords,
+                            separation=separation, max_iterations=max_iterations,
+                            engine=engine, characterize=characterize)
     # mass and signal values has to be corrected due to the rescaling
     # raw_mass was obtained from raw image; size and ecc are scale-independent
     refined_coords[:, MASS_COLUMN_INDEX] *= 1. / scale_factor
@@ -747,16 +745,6 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     topn : integer
         Return only the N brightest features above minmass.
         If None (default), return all features above minmass.
-
-    Returns
-    -------
-    DataFrame([x, y, mass, size, ecc, signal])
-        where mass means total integrated brightness of the blob,
-        size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (0 is circular).
-
-    Other Parameters
-    ----------------
     preprocess : boolean
         Set to False to turn off bandpass preprocessing.
     max_iterations : integer
@@ -779,6 +767,13 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         If specified, information relevant to reproducing this batch is saved
         as a YAML file, a plain-text machine- and human-readable format.
         By default, this is None, and no file is saved.
+
+    Returns
+    -------
+    DataFrame([x, y, mass, size, ecc, signal])
+        where mass means total integrated brightness of the blob,
+        size means the radius of gyration of its Gaussian-like profile,
+        and ecc is its eccentricity (0 is circular).
 
     See Also
     --------

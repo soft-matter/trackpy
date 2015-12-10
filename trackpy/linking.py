@@ -14,7 +14,7 @@ from scipy.spatial import cKDTree
 import pandas as pd
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
-from .utils import is_pandas_recent
+from .utils import is_pandas_since_016, pandas_sort
 
 logger = logging.getLogger(__name__)
 
@@ -507,16 +507,6 @@ def link_df(features, search_range, memory=0,
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-
-    Returns
-    -------
-    trajectories : DataFrame
-        This is the input features DataFrame, now with a new column labeling
-        each particle with an ID number. This is not a copy; the original
-        features DataFrame is modified.
-
-    Other Parameters
-    ----------------
     copy_features : boolean
         Leave the original features DataFrame intact (slower, uses more memory)
     diagnostics : boolean
@@ -539,6 +529,13 @@ def link_df(features, search_range, memory=0,
     retain_index : boolean
         By default, the index is reset to be sequential. To keep the original
         index, set to True. Default is fine unless you devise a special use.
+
+    Returns
+    -------
+    trajectories : DataFrame
+        This is the input features DataFrame, now with a new column labeling
+        each particle with an ID number. This is not a copy; the original
+        features DataFrame is modified.
     """
     # Assign defaults. (Do it here to avoid "mutable defaults" issue.)
     if pos_columns is None:
@@ -551,7 +548,7 @@ def link_df(features, search_range, memory=0,
 
     # Check if DataFrame is writeable.
     # I don't know how to do this for pandas < 0.16.
-    if (is_pandas_recent and features.is_copy is not None and
+    if (is_pandas_since_016 and features.is_copy is not None and
             not copy_features):
         warn('The features DataFrame is a view, so it is not writeable. '
              'The results will be output to a copy. Use copy_features='
@@ -603,7 +600,7 @@ def link_df(features, search_range, memory=0,
         features.index = orig_index
         # And don't bother to sort -- user must be doing something special.
     else:
-        features.sort(['particle', t_column], inplace=True)
+        pandas_sort(features, ['particle', t_column], inplace=True)
         features.reset_index(drop=True, inplace=True)
     return features
 
@@ -646,15 +643,6 @@ def link_df_iter(features, search_range, memory=0,
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-
-    Returns
-    -------
-    trajectories : DataFrame
-        This is the input features DataFrame, now with a new column labeling
-        each particle with an ID number for each frame.
-
-    Other Parameters
-    ----------------
     diagnostics : boolean
         Collect details about how each particle was linked, and return as
         columns in the output DataFrame.
@@ -674,6 +662,12 @@ def link_df_iter(features, search_range, memory=0,
     retain_index : boolean
         By default, the index is reset to be sequential. To keep the original
         index, set to True. Default is fine unless you devise a special use.
+
+    Returns
+    -------
+    trajectories : DataFrame
+        This is the input features DataFrame, now with a new column labeling
+        each particle with an ID number for each frame.
     """
     # Assign defaults. (Do it here to avoid "mutable defaults" issue.)
     if pos_columns is None:
@@ -743,7 +737,7 @@ def link_df_iter(features, search_range, memory=0,
             features.index = old_index
             # TODO: don't run index.copy() even when retain_index is false
         else:
-            features.sort('particle', inplace=True)
+            pandas_sort(features, 'particle', inplace=True)
             features.reset_index(drop=True, inplace=True)
 
         logger.info("Frame %d: %d trajectories present", frame_no, len(labels))
@@ -833,6 +827,13 @@ def link_iter(levels, search_range, memory=0,
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
         'drop' causes particles in subnetworks to go unlinked
+    hash_size : sequence
+        For 'BTree' mode only. Define the shape of the search region.
+        (Higher-level wrappers of link infer this from the data.)
+    box_size : sequence
+        For 'BTree' mode only. Define the parition size to optimize
+        performance. If None (default), the search_range is used, which is
+        a reasonable guess for best performance.
     predictor : function, optional
         Improve performance by guessing where a particle will be in the
         next frame.
@@ -843,27 +844,17 @@ def link_iter(levels, search_range, memory=0,
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-
-    Returns
-    -------
-    cur_level : iterable of Point objects
-        The labeled points at each level.
-
-    Other Parameters
-    ----------------
-    hash_size : sequence
-        For 'BTree' mode only. Define the shape of the search region.
-        (Higher-level wrappers of link infer this from the data.)
-    box_size : sequence
-        For 'BTree' mode only. Define the parition size to optimize
-        performance. If None (default), the search_range is used, which is
-        a reasonable guess for best performance.
     track_cls : class, optional
         for special uses, you can specify a custom class that holds
         each Track
     hash_generator : function, optional
         a function that returns a HashTable, included for legacy support.
         Specifying hash_size and box_size (above) fully defined a HashTable.
+
+    Returns
+    -------
+    cur_level : iterable of Point objects
+        The labeled points at each level.
     """
     linker = Linker(search_range, memory=memory, neighbor_strategy=neighbor_strategy,
                  link_strategy=link_strategy, hash_size=hash_size,

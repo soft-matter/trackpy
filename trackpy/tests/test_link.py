@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from copy import deepcopy
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, link, Hash_table
-from trackpy.utils import is_pandas_recent
+from trackpy.utils import is_pandas_since_016, pandas_sort
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -101,16 +102,16 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(pandas_sort(f, 'frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -135,7 +136,7 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         expected = f.copy()
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
@@ -145,9 +146,9 @@ class CommonTrackingTests(object):
         # not knowable from the first frame alone.
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(pandas_sort(f, 'frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -170,7 +171,7 @@ class CommonTrackingTests(object):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(2*M, Y + 2*M))
@@ -189,7 +190,7 @@ class CommonTrackingTests(object):
         f = pd.concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(200 + M, 200 + M))
@@ -299,9 +300,12 @@ class CommonTrackingTests(object):
 
         # When DataFrame is actually a view, link_df should produce a warning
         # and then copy the DataFrame. This only happens for pandas >= 0.16.
-        if is_pandas_recent:
-            with assert_produces_warning(UserWarning):
+        if is_pandas_since_016:
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('ignore')
+                warnings.simplefilter('always', UserWarning)
                 actual = self.link_df(f[f['frame'] > 0], 5)
+                assert len(w) == 1
             assert 'particle' not in f.columns
 
         # Should copy
@@ -339,7 +343,7 @@ class CommonTrackingTests(object):
         features = args.pop(0)
         res = pd.concat(tp.link_df_iter(
             (df for fr, df in features.groupby('frame')), *args, **kwargs))
-        return res.sort(['particle', 'frame']).reset_index(drop=True)
+        return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
 
 class TestOnce(unittest.TestCase):
@@ -381,16 +385,16 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(pandas_sort(f, 'frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -424,7 +428,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
@@ -432,9 +436,9 @@ class SubnetNeededTests(CommonTrackingTests):
         assert_frame_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5)
+        actual = self.link_df(pandas_sort(f, 'frame'), 5)
         assert_frame_equal(actual, expected)
-        actual_iter = self.link_df_iter(f.sort('frame'), 5, hash_size=(50, 50))
+        actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
@@ -461,7 +465,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M + Y))
@@ -481,7 +485,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
         assert_frame_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M))
@@ -559,7 +563,7 @@ class SubnetNeededTests(CommonTrackingTests):
         f = pd.concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
-        expected.sort(['particle', 'frame'], inplace=True)
+        pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5, memory=1)
         assert_frame_equal(actual, expected)
@@ -571,11 +575,11 @@ class SubnetNeededTests(CommonTrackingTests):
             assert 'diag_remembered' in self.diag.columns
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(f.sort('frame'), 5, memory=1)
+        actual = self.link_df(pandas_sort(f, 'frame'), 5, memory=1)
         assert_frame_equal(actual, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
-        actual_iter = self.link_df_iter(f.sort('frame'), 5,
+        actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5,
                                         memory=1, hash_size=(50, 50))
         assert_frame_equal(actual_iter, expected)
         if self.do_diagnostics:
