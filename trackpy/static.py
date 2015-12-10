@@ -4,7 +4,6 @@ import numpy as np
 from warnings import warn
 
 
-
 def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, ndensity=None, boundary = None,
                             handle_edge=True):
     """   
@@ -172,12 +171,8 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
     for idx in p_indices:
         dist, idxs = ckdtree.query(points[idx], k=max_p_count, distance_upper_bound=cutoff)
         dist = dist[dist > 0] # We don't want to count the same particle
-        #print dist.shape
-        #print dist[dist.shape[0] - 10:]
-
+     
         area = (4./3.) * np.pi * (np.arange(dr, cutoff + 2*dr, dr)**3 - np.arange(0, cutoff + dr, dr)**3)
-
-        #print area
         
         if handle_edge:
             # Find the number of edge collisions at each radii
@@ -188,24 +183,19 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
 
                 # Use analyitcal solution to find area of disks cut off by one wall.
                 # Grab the distance to the closest wall
-                #d = _distances_to_wall3D(points[idx], xmin, xmax, ymin, ymax, zmin, zmax).min()
-
-                #inx = np.where(collisions == 1)[0]
-
-                #theta = np.arccos(d / (r_edges[inx] + dr/2))
-                #area[inx] *= 1 - 2*np.pi*(1 - np.cos(theta)) / (4*np.pi)
+                d = _distances_to_wall3D(points[idx], xmin, xmax, ymin, ymax, zmin, zmax).min()
+                inx = np.where(collisions == 1)[0]
+                theta = np.arccos(d / (r_edges[inx] + dr/2))
+                area[inx] *= 1 - 2*np.pi*(1 - np.cos(theta)) / (4*np.pi)
             
                 # If shell is cutoff by 2 or more walls, generate a bunch of points and use a mask to
                 # estimate the area within the boundaries
-                inx = np.where(collisions >= 1)[0]
+                inx = np.where(collisions >= 2)[0]
                 x = refx[inx] + points[idx,0]
                 y = refy[inx] + points[idx,1]
                 z = refz[inx] + points[idx,2]
                 mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (z >= zmin) & (z <= zmax)
                 area[inx] *= mask.sum(axis=1, dtype='float') / len(refx[0])
-
-                print points[idx]
-                print mask.sum(axis=1, dtype='float') / len(refx[0])
 
         g_r +=  np.histogram(dist, bins = r_edges)[0] / area[:-1]
 
@@ -213,33 +203,20 @@ def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
     return r_edges, g_r
 
 def _num_wall_collisions2D(point, radius, xmin, xmax, ymin, ymax):
+    """Returns the number of walls a shell of a certain radius and position collides with.
+       Wall boundaries specified by min, max parameters"""
     collisions = (point[0] + radius >= xmax).astype(int) + (point[0] - radius <= xmin).astype(int) + \
                  (point[1] + radius >= ymax).astype(int) + (point[1] - radius <= ymin).astype(int)
 
     return collisions
     
 def _distances_to_wall2D(point, xmin, xmax, ymin, ymax): 
+    """Returns the distance of a paritlce a position 'point' to the nearest wall"""
     return np.array([point[0]-xmin, xmax-point[0], point[1]-ymin, ymax-point[1]])
 
 def _points_ring2D(r_edges, dr, n):
     """Returns x, y array of points comprising shells extending from r to r_dr.
-
-    layers determines how many concentric layers are in each shell,
-        and n determines the number of points in each layer"""
-
-    """
-    refx=np.empty((len(r_edges), n*layers))
-    refy=refx.copy()
-    for index, r in enumerate(r_edges): 
-        theta = np.linspace(0, 2*np.pi, n)
-        theta = theta.repeat(layers).reshape((len(theta), layers))
-        x = np.cos(theta) * np.linspace(r, r+dr, layers)
-        y = np.sin(theta) * np.linspace(r, r+dr, layers)
-        refx[index] = x.reshape(n*layers)
-        refy[index] = y.reshape(n*layers)
-
-    return refx, refy
-    """
+       n determines the number of points in each ring"""
 
     refx_all, refy_all = [],[]
     for r in r_edges:
@@ -255,6 +232,8 @@ def _points_ring2D(r_edges, dr, n):
 
 
 def _num_wall_collisions3D(point, radius, xmin, xmax, ymin, ymax, zmin, zmax):
+    """Returns the number of walls a shell of a certain radius and position collides with.
+       Wall boundaries specified by min, max parameters"""
     collisions = (point[0] + radius >= xmax).astype(int) + (point[0] - radius <= xmin).astype(int) + \
                  (point[1] + radius >= ymax).astype(int) + (point[1] - radius <= ymin).astype(int) + \
                  (point[2] + radius >= zmax).astype(int) + (point[2] - radius <= zmin).astype(int) 
@@ -262,10 +241,12 @@ def _num_wall_collisions3D(point, radius, xmin, xmax, ymin, ymax, zmin, zmax):
     return collisions
     
 def _distances_to_wall3D(point, xmin, xmax, ymin, ymax, zmin, zmax): 
+    """Returns the distance of a paritlce a position 'point' to the nearest wall"""
     return np.array([point[0]-xmin, xmax-point[0], point[1]-ymin, ymax-point[1], point[2]-zmin, zmax-point[2]])
 
 def _points_ring3D(r_edges, dr, n):
-    """Returns x, y, z arrays of points comprising shells extending from r to r_dr. n determines the density of the shells"""
+    """Returns x, y, z arrays of points comprising shells extending from r to r_dr. 
+       n determines the number of particles in each of the shells"""
 
     refx_all, refy_all, refz_all = [],[],[]
     for r in r_edges:
