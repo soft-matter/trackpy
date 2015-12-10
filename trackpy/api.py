@@ -7,7 +7,8 @@ from .motion import msd, imsd, emsd, compute_drift, subtract_drift, \
            proximity, vanhove, relate_frames, velocity_corr, \
            direction_corr, is_typical, diagonal_size
 from .plots import annotate, annotate3d, plot_traj, ptraj, \
-           plot_displacements, subpx_bias, mass_size, mass_ecc
+           plot_displacements, subpx_bias, mass_size, mass_ecc, \
+           scatter, scatter3d, plot_traj3d, ptraj3d, plot_density_profile
 from .linking import HashTable, TreeFinder, Point, PointND, \
            Track, TrackUnstored, UnknownLinkingError, \
            SubnetOversizeException, link, link_df, link_iter, \
