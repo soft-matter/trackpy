@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 class TestPairCorrelation(unittest.TestCase):
 
 
-    def test_correlation2D(self):
-
-        ##### 2D TEST ######
+    def test_correlation2D_lattice(self):
+        ### Lattice Test
+        # With proper edge handling, g(r) of the particle at the center should be the same as g(r) for all particles.
         lattice = self._lattice2D()
 
         # Calculate g_r on the center particle only (index 210)
@@ -34,6 +34,10 @@ class TestPairCorrelation(unittest.TestCase):
         self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.02))
 
 
+    def test_correlation2D_ring(self):
+        # Ring test
+        # Generate a series of concentric shells, each with the same number of particles.
+        # The peaks in g(r) should decay as 1/r.
         ring = self._rings2D()
 
         edges, g_r = pairCorrelationKDTree2D(ring, dr=.1, cutoff=10, p_indices=[0], boundary = (-10., 10., -10., 10.))
@@ -53,65 +57,40 @@ class TestPairCorrelation(unittest.TestCase):
         # Generate a series of concentric shells, each with the same number of particles.
         # The peaks in g(r) should decay as 1/r^2.
         ring = self._rings3D()
-
         edges, g_r = pairCorrelationKDTree3D(ring, dr=.1, cutoff=10, p_indices=[len(ring) - 1], boundary = (-10., 10., -10., 10., -10., 10.), handle_edge=True)
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
-
         assert len(peaks) == 9
-
         x = np.arange(1,10,1)
         r = peaks.max() * 1/x**2
-
         self.assertTrue( np.allclose(peaks, r, atol=.02) )
 
 
     def test_correlation3D_lattice(self):
         ### Lattice Test
         # With proper edge handling, g(r) of the particle at the center should be the same as g(r) for all particles.
-        lattice = self._lattice3D(n = 10)
-        
-        print lattice.iloc[444]
+        lattice = self._lattice3D(n = 20)
+
         # Calculate g_r on the center particle only (index 210)
-        edges, g_r_one = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=4, p_indices=[444])
+        edges, g_r_one = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=7, p_indices=[4649])
         g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
 
         # Calculate g_r on all particles
-        edges, g_r_all = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=4)
+        edges, g_r_all = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=7)
         g_r_all /= np.linalg.norm(g_r_all)
 
         # Calculate g_r on all particles
-        edges, g_r_no_edge = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=4, handle_edge=False)
+        edges, g_r_no_edge = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=7, handle_edge=False)
         g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
-        
-        
-        plt.plot(edges[:-1], g_r_one, label='one')
-        plt.plot(edges[:-1], g_r_all, label='all')
-        plt.plot(edges[:-1], g_r_no_edge, label='all, no edge')
-        plt.legend(loc='best')
-        plt.show()
-
         # Assert the functions are essentially the same
-        self.assertTrue(np.allclose(g_r_all, g_r_one, atol=.02))
+        self.assertTrue(np.allclose(g_r_all, g_r_one, atol=.04))
 
         # Turning off edge handling should give incorrect result
-        self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.02))
-
-    def test_sphere_mask(self):
-        x,y,z = _points_ring3D([1], 0, 10000)
-        #plt.scatter(x,y)
-        #plt.show()
-        
-        mask= (x >= 0) & (x <= 1) & (y >= 0) & (y <= 1)# & (z >= 0) & (z <= 1) 
-        print mask.sum() / len(x)
-        #plt.scatter(x[mask], y[mask])
-        #plt.show()
-
-
-
+        self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.04))
 
     def _lattice2D(self, n = 20):
+        #Generates 2D lattice, spacing = 1
         x,y = [],[]
         epsilon = 0.0
         for i in range(n):
@@ -123,6 +102,7 @@ class TestPairCorrelation(unittest.TestCase):
 
 
     def _rings2D(self):
+        #Generates concentric rings, with a particle at the center
         theta = np.linspace(0, 2*np.pi, 10)
         points = np.zeros((100,2))
 
@@ -138,6 +118,7 @@ class TestPairCorrelation(unittest.TestCase):
 
 
     def _lattice3D(self, n = 20):
+        #Generates 3D lattice, spacing = 1
         x,y,z = [],[],[]
         for i in range(n):
             for j in range(n):
@@ -150,6 +131,7 @@ class TestPairCorrelation(unittest.TestCase):
 
 
     def _rings3D(self):
+        #Generates concentric spherical shells, with a particle at the center
         epsilon = .02
         r = np.arange(1, 10, 1) + epsilon
         refx, refy, refz = _points_ring3D(r, 0, 500)
