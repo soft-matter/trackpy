@@ -15,6 +15,8 @@ matrix:
       env: DEPS="numpy=1.9 scipy=0.16 matplotlib=1.4 pillow<3 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw"
     - python: "3.5"
       env: DEPS="numpy scipy matplotlib pillow<3 pandas scikit-image pyyaml pytables numba"
+    - python: "3.5"
+      env: BUILD_CONDA_PKG=yes
 
 install:
   # See:
@@ -24,14 +26,27 @@ install:
   # If you're reading this, good luck out there. I'm not sure what to tell you.
   - conda update --yes conda
   - conda config --add channels soft-matter
-  - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
-  - source activate testenv
-  # for debugging...
-  - echo $PATH
-  - which python
-  - conda info
-  - conda list
-  - python setup.py install
+  - |
+        if [ ! $BUILD_CONDA_PKG ]; then
+            conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
+            source activate testenv
+            # for debugging...
+            echo $PATH
+            which python
+        fi
+  - if [ ! $BUILD_CONDA_PKG ]; then conda info; fi
+  - if [ ! $BUILD_CONDA_PKG ]; then conda list; fi
+  - if [ ! $BUILD_CONDA_PKG ]; then python setup.py install; fi
+  ### If we are building the conda package:
+  # Make this a non-shallow repository, to satisfy conda-build.
+  # Then set the version and build the package while we're still in the root env.
+  # The package recipe will run nosetests.
+  - |
+        if [ $BUILD_CONDA_PKG ]; then
+            git fetch --unshallow
+            conda install --yes conda-build pip setuptools
+            python setup.py build
+        fi
 
 before_install:
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-3.5.5-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-3.5.5-Linux-x86_64.sh -O miniconda.sh; fi
@@ -39,4 +54,10 @@ before_install:
   - ./miniconda.sh -b -p /home/travis/mc
   - export PATH=/home/travis/mc/bin:$PATH
 
-script: nosetests --nologcapture -a '!slow'
+script:
+  - |
+        if [ $BUILD_CONDA_PKG ]; then
+            conda build --python $TRAVIS_PYTHON_VERSION conda-recipe
+        else
+            cd trackpy/tests; nosetests --nologcapture -a '!slow'
+        fi

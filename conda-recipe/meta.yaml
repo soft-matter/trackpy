@@ -39,6 +39,10 @@ requirements:
 test:
   imports:
     - trackpy
+  requires:
+    - nose
+  commands:
+    - nosetests --nologcapture -a '!slow' -w $SRC_DIR/trackpy/tests
 
 about:
   home: http://trackpy.readthedocs.org
