@@ -131,6 +131,82 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     return results
 
 
+def _autocorr_fft(x):
+    N = len(x)
+    F = np.fft.fft(x, n=2 * N)  # 2*N because of zero-padding
+    PSD = F * F.conjugate()
+    res = np.fft.ifft(PSD)
+    res = (res[:N]).real  # now we have the autocorrelation in convention B
+    n = N * np.ones(N) - np.arange(0, N)  # divide res(m) by (N-m)
+    return res / n  # this is the autocorrelation in convention A
+
+
+def msd_fft(traj, mpp, fps, max_lagtime=100, pos_columns=['x', 'y']):
+    """Compute the mean displacement and mean squared displacement of one
+    trajectory over a range of time intervals using FFT transformation.
+
+    The original Python implementation comes from a SO answer :
+    http://stackoverflow.com/questions/34222272/computing-mean-square-displacement-using-python-and-fft#34222273.
+    The algorithm is described in this paper : http://dx.doi.org/10.1051/sfn/201112010.
+
+    Parameters
+    ----------
+    traj : DataFrame with one trajectory, including columns frame, x, and y
+    mpp : microns per pixel
+    fps : frames per second
+    max_lagtime : intervals of frames out to which MSD is computed
+        Default: 100
+
+    Returns
+    -------
+    DataFrame([msd], index=t)
+
+    If detail is True, the DataFrame also contains a column N,
+    the estimated number of statistically independent measurements
+    that comprise the result at each lagtime.
+
+    Notes
+    -----
+    Input units are pixels and frames. Output units are microns and seconds.
+
+    See also
+    --------
+    msd(), imsd() and emsd()
+    """
+
+    r = traj[pos_columns].values
+    r *= mpp
+
+    t = traj['frame']
+
+    max_lagtime = min(max_lagtime, len(t))  # checking to be safe
+    lagtimes = 1 + np.arange(max_lagtime - 1)
+
+    N = len(r)
+
+    D = np.square(r).sum(axis=1)
+    D = np.append(D, 0)
+    S2 = sum([_autocorr_fft(r[:, i]) for i in range(len(pos_columns))])
+
+    Q = 2 * D.sum()
+    S1 = np.zeros(max_lagtime)
+
+    for m in range(max_lagtime):
+        Q = Q - D[m - 1] - D[N - m]
+        S1[m] = Q / (N - m)
+
+    msd = S1 - 2 * S2[:max_lagtime]
+    msd = msd[1:]
+
+    lagt = lagtimes / fps
+
+    results = pd.DataFrame(np.array([msd, lagt]).T, columns=['msd', 'lagt'])
+    results.index = 1 + np.arange(max_lagtime - 1)
+    results.index.name = 'lagt'
+
+    return results
+
+
 def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
     """Return the ensemble drift, x(t).
 

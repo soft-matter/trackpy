@@ -16,7 +16,6 @@ from trackpy.utils import pandas_sort
 tp.utils.make_pandas_strict()
 
 
-
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
@@ -42,9 +41,9 @@ class TestDrift(unittest.TestCase):
     def setUp(self):
         N = 10
         Y = 1
-        a = DataFrame({'x': np.zeros(N), 'y': np.zeros(N), 
+        a = DataFrame({'x': np.zeros(N), 'y': np.zeros(N),
                        'frame': np.arange(N), 'particle': np.zeros(N)})
-        b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1), 
+        b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
 
@@ -56,9 +55,9 @@ class TestDrift(unittest.TestCase):
                      for i in range(P)]
         self.many_walks = conformity(pd.concat(particles))
 
-        a = DataFrame({'x': np.arange(N), 'y': np.zeros(N), 
+        a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
                        'frame': np.arange(N), 'particle': np.zeros(N)})
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1), 
+        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pd.concat([a, b]))
 
@@ -102,9 +101,9 @@ class TestDrift(unittest.TestCase):
 
     def test_subtract_constant_drift(self):
         N = 10
-        # Add a constant drift here, and then use subtract_drift to 
+        # Add a constant drift here, and then use subtract_drift to
         # subtract it.
-        drift = DataFrame(np.outer(np.arange(N - 1), [1, 1]), 
+        drift = DataFrame(np.outer(np.arange(N - 1), [1, 1]),
                           index=np.arange(1, N, dtype=np.int)).astype('float64')
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
