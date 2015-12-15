@@ -146,6 +146,10 @@ class TestMSD(unittest.TestCase):
                           index=np.arange(N, dtype=np.float)).iloc[1:]
         expected.index.name = 'lagt'
         expected.name = 'msd'
+        # HACK: Float64Index imprecision ruins index equality.
+        # Test them separately. If that works, make them exactly the same.
+        assert_almost_equal(actual.index.values, expected.index.values)
+        actual.index = expected.index
         assert_series_equal(actual, expected)
 
     def test_linear_emsd(self):
