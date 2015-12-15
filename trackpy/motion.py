@@ -6,6 +6,31 @@ import pandas as pd
 from pandas import DataFrame, Series
 from scipy.spatial import cKDTree
 
+
+def _msd_N(N, t):
+    """Computes the effective number of statistically independent measurements
+    of the mean square displacement of a single trajectory.
+
+    Parameters
+    ----------
+    N : integer
+        the number of positions in the trajectory (=number of steps + 1)
+    t : iterable
+        an iterable of lagtimes (integers)
+
+    References
+    ----------
+    Derived from Equation B4 in:
+    Qian, Hong, Michael P. Sheetz, and Elliot L. Elson. "Single particle
+    tracking. Analysis of diffusion and flow in two-dimensional systems."
+    Biophysical journal 60.4 (1991): 910.
+    """
+    t = np.array(t, dtype=np.float)
+    return np.where(t > N/2,
+                    1/(1+((N-t)**3+5*t-4*(N-t)**2*t-N)/(6*(N-t)*t**2)),
+                    6*(N-t)**2*t/(2*N-t+4*N*t**2-5*t**3))
+
+
 def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     """Compute the mean displacement and mean squared displacement of one
     trajectory over a range of time intervals.
@@ -47,9 +72,8 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     results.columns = ['<{}>'.format(p) for p in pos_columns]
     results[['<{}^2>'.format(p) for p in pos_columns]] = mpp**2*(disp**2).mean(level=0)
     results['msd'] = mpp**2*(disp**2).mean(level=0).sum(1) # <r^2>
-    # Estimated statistically independent measurements = 2N/t
     if detail:
-        results['N'] = 2*disp.iloc[:,0].count(level=0).div(Series(lagtimes))
+        results['N'] = _msd_N(len(pos), lagtimes)
     results['lagt'] = results.index.values/fps
     return results[:-1]
 
@@ -141,7 +165,7 @@ def _autocorr_fft(x):
     return res / n  # this is the autocorrelation in convention A
 
 
-def msd_fft(traj, mpp, fps, max_lagtime=100, pos_columns=['x', 'y']):
+def msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     """Compute the mean displacement and mean squared displacement of one
     trajectory over a range of time intervals using FFT transformation.
 
@@ -156,6 +180,7 @@ def msd_fft(traj, mpp, fps, max_lagtime=100, pos_columns=['x', 'y']):
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
+    detail : See below. Default False.
 
     Returns
     -------
@@ -201,8 +226,10 @@ def msd_fft(traj, mpp, fps, max_lagtime=100, pos_columns=['x', 'y']):
     lagt = lagtimes / fps
 
     results = pd.DataFrame(np.array([msd, lagt]).T, columns=['msd', 'lagt'])
-    results.index = 1 + np.arange(max_lagtime - 1)
+    results.index = lagtimes
     results.index.name = 'lagt'
+    if detail:
+        results['N'] = _msd_N(N, lagtimes)
 
     return results
 
