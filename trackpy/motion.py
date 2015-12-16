@@ -74,7 +74,7 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     results['msd'] = mpp**2*(disp**2).mean(level=0).sum(1) # <r^2>
     if detail:
         results['N'] = _msd_N(len(pos), lagtimes)
-    results['lagt'] = results.index.values/fps
+    results['lagt'] = results.index.values/float(fps)
     return results[:-1]
 
 
@@ -155,16 +155,6 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     return results
 
 
-def _autocorr_fft(x):
-    N = len(x)
-    F = np.fft.fft(x, n=2 * N)  # 2*N because of zero-padding
-    PSD = F * F.conjugate()
-    res = np.fft.ifft(PSD)
-    res = (res[:N]).real  # now we have the autocorrelation in convention B
-    n = N * np.ones(N) - np.arange(0, N)  # divide res(m) by (N-m)
-    return res / n  # this is the autocorrelation in convention A
-
-
 def msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     """Compute the mean displacement and mean squared displacement of one
     trajectory over a range of time intervals using FFT transformation.
@@ -198,35 +188,30 @@ def msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y'
     --------
     msd(), imsd() and emsd()
     """
-
-    r = traj[pos_columns].values
-    r *= mpp
-
+    r = traj[pos_columns].values * mpp
     t = traj['frame']
 
     max_lagtime = min(max_lagtime, len(t))  # checking to be safe
-    lagtimes = 1 + np.arange(max_lagtime - 1)
-
+    lagtimes = np.arange(1, max_lagtime)
     N = len(r)
+    D = r**2
 
-    D = np.square(r).sum(axis=1)
-    D = np.append(D, 0)
-    S2 = sum([_autocorr_fft(r[:, i]) for i in range(len(pos_columns))])
+    # below is a vectorized version of the original code
+    D_sum = D[:max_lagtime-1] + D[:-max_lagtime:-1]
+    S1 = (2*D.sum(axis=0) - np.cumsum(D_sum, axis=0))
 
-    Q = 2 * D.sum()
-    S1 = np.zeros(max_lagtime)
+    F = np.fft.fft(r, n=2*N, axis=0)  # 2*N because of zero-padding
+    PSD = F * F.conjugate()
+    # this is the autocorrelation in convention B:
+    S2 = np.fft.ifft(PSD, axis=0)[1:max_lagtime].real
 
-    for m in range(max_lagtime):
-        Q = Q - D[m - 1] - D[N - m]
-        S1[m] = Q / (N - m)
+    squared_disp = S1 - 2 * S2
+    squared_disp /= N - lagtimes[:, np.newaxis]  # divide res(m) by (N-m)
 
-    msd = S1 - 2 * S2[:max_lagtime]
-    msd = msd[1:]
-
-    lagt = lagtimes / fps
-
-    results = pd.DataFrame(np.array([msd, lagt]).T, columns=['msd', 'lagt'])
-    results.index = lagtimes
+    results = pd.DataFrame(squared_disp, index=lagtimes,
+                           columns=['<{}^2>'.format(col) for col in pos_columns])
+    results['msd'] = squared_disp.sum(axis=1)
+    results['lagt'] = results.index / float(fps)
     results.index.name = 'lagt'
     if detail:
         results['N'] = _msd_N(N, lagtimes)
