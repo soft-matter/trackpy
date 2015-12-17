@@ -174,7 +174,7 @@ def msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y'
 
     Returns
     -------
-    DataFrame([msd], index=t)
+    DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
 
     If detail is True, the DataFrame also contains a column N,
     the estimated number of statistically independent measurements
@@ -192,26 +192,30 @@ def msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y'
     t = traj['frame']
 
     max_lagtime = min(max_lagtime, len(t))  # checking to be safe
-    lagtimes = np.arange(1, max_lagtime)
+    lagtimes = np.arange(1, max_lagtime + 1)
     N = len(r)
-    D = r**2
+
+    # calculate the mean displacements
+    r_diff = r[:-max_lagtime-1:-1] - r[:max_lagtime]
+    disp = np.cumsum(r_diff, axis=0) / (N - lagtimes[:, np.newaxis])
 
     # below is a vectorized version of the original code
-    D_sum = D[:max_lagtime-1] + D[:-max_lagtime:-1]
+    D = r**2
+    D_sum = D[:max_lagtime] + D[:-max_lagtime-1:-1]
     S1 = (2*D.sum(axis=0) - np.cumsum(D_sum, axis=0))
-
     F = np.fft.fft(r, n=2*N, axis=0)  # 2*N because of zero-padding
     PSD = F * F.conjugate()
     # this is the autocorrelation in convention B:
-    S2 = np.fft.ifft(PSD, axis=0)[1:max_lagtime].real
-
+    S2 = np.fft.ifft(PSD, axis=0)[1:max_lagtime+1].real
     squared_disp = S1 - 2 * S2
     squared_disp /= N - lagtimes[:, np.newaxis]  # divide res(m) by (N-m)
 
-    results = pd.DataFrame(squared_disp, index=lagtimes,
-                           columns=['<{}^2>'.format(col) for col in pos_columns])
+    results = pd.DataFrame(np.concatenate((disp, squared_disp), axis=1),
+                           index=lagtimes,
+                           columns=(['<{}>'.format(col) for col in pos_columns] +
+                                    ['<{}^2>'.format(col) for col in pos_columns]))
     results['msd'] = squared_disp.sum(axis=1)
-    results['lagt'] = results.index / float(fps)
+    results['lagt'] = lagtimes / float(fps)
     results.index.name = 'lagt'
     if detail:
         results['N'] = _msd_N(N, lagtimes)
