@@ -4,7 +4,7 @@ import numpy as np
 from warnings import warn
 
 
-def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, ndensity=None, boundary = None,
+def pairCorrelation2D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, ndensity=None, boundary = None,
                             handle_edge=True):
     """   
     Calculate the pair correlation function in 2 dimensions.
@@ -102,7 +102,7 @@ def pairCorrelationKDTree2D(feat, cutoff, fraction = 1., dr = .5, p_indices = No
 
 
 
-def pairCorrelationKDTree3D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, ndensity=None, boundary = None,
+def pairCorrelation3D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, ndensity=None, boundary = None,
                             handle_edge=True):
     """   
     Calculate the pair correlation function in 3 dimensions.

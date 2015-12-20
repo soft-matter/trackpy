@@ -1,5 +1,5 @@
 
-from trackpy.static import pairCorrelationKDTree2D, pairCorrelationKDTree3D
+from trackpy.static import pairCorrelation2D, pairCorrelation3D
 from trackpy.static import _points_ring3D
 import unittest
 import pandas
@@ -16,15 +16,15 @@ class TestPairCorrelation(unittest.TestCase):
         lattice = self._lattice2D()
 
         # Calculate g_r on the center particle only (index 210)
-        edges, g_r_one = pairCorrelationKDTree2D(lattice, dr=.1, cutoff=8, p_indices=[210])
+        edges, g_r_one = pairCorrelation2D(lattice, dr=.1, cutoff=8, p_indices=[210])
         g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
 
         # Calculate g_r on all particles
-        edges, g_r_all = pairCorrelationKDTree2D(lattice, dr=.1, cutoff=8)
+        edges, g_r_all = pairCorrelation2D(lattice, dr=.1, cutoff=8)
         g_r_all /= np.linalg.norm(g_r_all)
 
         # Calculate g_r on all particles
-        edges, g_r_no_edge = pairCorrelationKDTree2D(lattice, dr=.1, cutoff=8, handle_edge=False)
+        edges, g_r_no_edge = pairCorrelation2D(lattice, dr=.1, cutoff=8, handle_edge=False)
         g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
         # Assert the functions are essentially the same
@@ -40,7 +40,7 @@ class TestPairCorrelation(unittest.TestCase):
         # The peaks in g(r) should decay as 1/r.
         ring = self._rings2D()
 
-        edges, g_r = pairCorrelationKDTree2D(ring, dr=.1, cutoff=10, p_indices=[0], boundary = (-10., 10., -10., 10.))
+        edges, g_r = pairCorrelation2D(ring, dr=.1, cutoff=10, p_indices=[0], boundary = (-10., 10., -10., 10.))
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
 
@@ -57,7 +57,7 @@ class TestPairCorrelation(unittest.TestCase):
         # Generate a series of concentric shells, each with the same number of particles.
         # The peaks in g(r) should decay as 1/r^2.
         ring = self._rings3D()
-        edges, g_r = pairCorrelationKDTree3D(ring, dr=.1, cutoff=10, p_indices=[len(ring) - 1], boundary = (-10., 10., -10., 10., -10., 10.), handle_edge=True)
+        edges, g_r = pairCorrelation3D(ring, dr=.1, cutoff=10, p_indices=[len(ring) - 1], boundary = (-10., 10., -10., 10., -10., 10.), handle_edge=True)
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
         assert len(peaks) == 9
@@ -72,15 +72,15 @@ class TestPairCorrelation(unittest.TestCase):
         lattice = self._lattice3D(n = 20)
 
         # Calculate g_r on the center particle only (index 210)
-        edges, g_r_one = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=7, p_indices=[4649])
+        edges, g_r_one = pairCorrelation3D(lattice, dr=.1, cutoff=7, p_indices=[4649])
         g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
 
         # Calculate g_r on all particles
-        edges, g_r_all = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=7)
+        edges, g_r_all = pairCorrelation3D(lattice, dr=.1, cutoff=7)
         g_r_all /= np.linalg.norm(g_r_all)
 
         # Calculate g_r on all particles
-        edges, g_r_no_edge = pairCorrelationKDTree3D(lattice, dr=.1, cutoff=7, handle_edge=False)
+        edges, g_r_no_edge = pairCorrelation3D(lattice, dr=.1, cutoff=7, handle_edge=False)
         g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
         # Assert the functions are essentially the same
@@ -137,7 +137,7 @@ class TestPairCorrelation(unittest.TestCase):
         refx, refy, refz = _points_ring3D(r, 0, 500)
         df = pandas.DataFrame({'x': np.concatenate(refx), 'y': np.concatenate(refy),
                                'z': np.concatenate(refz)})
-        df.iloc[len(df)] = [0.,0.,0.]
+        df.loc[-1] = [0.,0.,0.]
         return df
 
 if __name__ == '__main__':
