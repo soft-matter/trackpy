@@ -137,7 +137,9 @@ class TestPairCorrelation(unittest.TestCase):
         refx, refy, refz = _points_ring3D(r, 0, 500)
         df = pandas.DataFrame({'x': np.concatenate(refx), 'y': np.concatenate(refy),
                                'z': np.concatenate(refz)})
-        df.loc[-1] = [0.,0.,0.]
+        
+        # The last index is the center particle, which is used to calculate g_r 
+        df = df.append(pandas.DataFrame({'x': [0.], 'y': [0.], 'z':[0.]}))
         return df
 
 if __name__ == '__main__':
