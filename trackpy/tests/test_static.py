@@ -137,7 +137,7 @@ class TestPairCorrelation(unittest.TestCase):
         refx, refy, refz = _points_ring3D(r, 0, 500)
         df = pandas.DataFrame({'x': np.concatenate(refx), 'y': np.concatenate(refy),
                                'z': np.concatenate(refz)})
-        df.loc[len(df)] = [0.,0.,0.]
+        df.iloc[len(df)] = [0.,0.,0.]
         return df
 
 if __name__ == '__main__':
