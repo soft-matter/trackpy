@@ -156,7 +156,26 @@ class TestMSD(unittest.TestCase):
         A = 1
         EARLY = 7 # only early lag times have good stats
         actual = tp.emsd(self.many_walks, 1, 1, max_lagtime=EARLY)
-        a = np.arange(EARLY, dtype='float64')
+        a = np.arange(EARLY+1, dtype='float64')
+        expected = Series(2*A*a, index=a).iloc[1:]
+        expected.name = 'msd'
+        expected.index.name = 'lagt'
+        # HACK: Float64Index imprecision ruins index equality.
+        # Test them separately. If that works, make them exactly the same.
+        assert_almost_equal(actual.index.values, expected.index.values)
+        actual.index = expected.index
+        assert_series_equal(np.round(actual), expected)
+
+    def test_linear_emsd_gaps(self):
+        A = 1
+        EARLY = 4  # only early lag times have good stats
+        gapped_walks = self.many_walks.reset_index(drop=True)
+        to_drop = np.random.choice(gapped_walks.index,
+                                   int(len(gapped_walks) * 0.1), replace=False)
+        gapped_walks.drop(to_drop, axis=0, inplace=True)
+
+        actual = tp.emsd(gapped_walks, 1, 1, max_lagtime=EARLY)
+        a = np.arange(EARLY+1, dtype='float64')
         expected = Series(2*A*a, index=a).iloc[1:]
         expected.name = 'msd'
         expected.index.name = 'lagt'

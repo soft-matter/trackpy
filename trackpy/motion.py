@@ -7,31 +7,7 @@ from pandas import DataFrame, Series
 from scipy.spatial import cKDTree
 
 
-def _msd_N(N, t):
-    """Computes the effective number of statistically independent measurements
-    of the mean square displacement of a single trajectory.
-
-    Parameters
-    ----------
-    N : integer
-        the number of positions in the trajectory (=number of steps + 1)
-    t : iterable
-        an iterable of lagtimes (integers)
-
-    References
-    ----------
-    Derived from Equation B4 in:
-    Qian, Hong, Michael P. Sheetz, and Elliot L. Elson. "Single particle
-    tracking. Analysis of diffusion and flow in two-dimensional systems."
-    Biophysical journal 60.4 (1991): 910.
-    """
-    t = np.array(t, dtype=np.float)
-    return np.where(t > N/2,
-                    1/(1+((N-t)**3+5*t-4*(N-t)**2*t-N)/(6*(N-t)*t**2)),
-                    6*(N-t)**2*t/(2*N-t+4*N*t**2-5*t**3))
-
-
-def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
+def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     """Compute the mean displacement and mean squared displacement of one
     trajectory over a range of time intervals.
 
@@ -60,22 +36,116 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     --------
     imsd() and emsd()
     """
-    pos = traj.set_index('frame')[pos_columns]
-    t = traj['frame']
+    if traj['frame'].max() - traj['frame'].min() + 1 == len(traj):
+        # no gaps: use fourier-transform algorithm
+        return _msd_fft(traj, mpp, fps, max_lagtime, detail, pos_columns)
+    else:
+        # there are gaps in the trajectory: use slower algorithm
+        return _msd_gaps(traj, mpp, fps, max_lagtime, detail, pos_columns)
+
+
+def _msd_N(N, t):
+    """Computes the effective number of statistically independent measurements
+    of the mean square displacement of a single trajectory.
+
+    Parameters
+    ----------
+    N : integer
+        the number of positions in the trajectory (=number of steps + 1)
+    t : iterable
+        an iterable of lagtimes (integers)
+
+    References
+    ----------
+    Derived from Equation B4 in:
+    Qian, Hong, Michael P. Sheetz, and Elliot L. Elson. "Single particle
+    tracking. Analysis of diffusion and flow in two-dimensional systems."
+    Biophysical journal 60.4 (1991): 910.
+    """
+    t = np.array(t, dtype=np.float)
+    return np.where(t > N/2,
+                    1/(1+((N-t)**3+5*t-4*(N-t)**2*t-N)/(6*(N-t)*t**2)),
+                    6*(N-t)**2*t/(2*N-t+4*N*t**2-5*t**3))
+
+
+def _msd_iter(pos, lagtimes):
+    for lt in lagtimes:
+        diff = pos[lt:] - pos[:-lt]
+        yield np.concatenate((np.nanmean(diff, axis=0),
+                              np.nanmean(diff**2, axis=0)))
+
+
+def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
+    """Compute the mean displacement and mean squared displacement of one
+    trajectory over a range of time intervals."""
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
+    result_columns = ['<{}>'.format(p) for p in pos_columns] + \
+                     ['<{}^2>'.format(p) for p in pos_columns]
+
     # Reindex with consecutive frames, placing NaNs in the gaps.
+    pos = traj.set_index('frame')[pos_columns] * mpp
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
-    max_lagtime = min(max_lagtime, len(t))  # checking to be safe
-    lagtimes = 1 + np.arange(max_lagtime)
-    disp = pd.concat([pos.sub(pos.shift(lt)) for lt in lagtimes],
-                     keys=lagtimes, names=['lagt', 'frames'])
-    results = mpp*disp.mean(level=0)
-    results.columns = ['<{}>'.format(p) for p in pos_columns]
-    results[['<{}^2>'.format(p) for p in pos_columns]] = mpp**2*(disp**2).mean(level=0)
-    results['msd'] = mpp**2*(disp**2).mean(level=0).sum(1) # <r^2>
+
+    max_lagtime = min(max_lagtime, len(pos) - 1)  # checking to be safe
+
+    lagtimes = np.arange(1, max_lagtime + 1)
+
+    result = pd.DataFrame(_msd_iter(pos.values, lagtimes),
+                          columns=result_columns, index=lagtimes)
+    result['msd'] = result[result_columns[-len(pos_columns):]].sum(1)
+    result['lagt'] = result.index.values/float(fps)
     if detail:
-        results['N'] = _msd_N(len(pos), lagtimes)
-    results['lagt'] = results.index.values/float(fps)
-    return results[:-1]
+        # effective number of measurements
+        # approximately corrected with number of gaps
+        result['N'] = _msd_N(len(pos), lagtimes) * len(traj) / len(pos)
+    return result
+
+
+def _msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
+    """Compute the mean displacement and mean squared displacement of one
+    trajectory over a range of time intervals using FFT transformation.
+
+    The original Python implementation comes from a SO answer :
+    http://stackoverflow.com/questions/34222272/computing-mean-square-displacement-using-python-and-fft#34222273.
+    The algorithm is described in this paper : http://dx.doi.org/10.1051/sfn/201112010.
+    """
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
+    result_columns = ['<{}>'.format(p) for p in pos_columns] + \
+                     ['<{}^2>'.format(p) for p in pos_columns]
+
+    r = traj[pos_columns].values * mpp
+    t = traj['frame']
+
+    max_lagtime = min(max_lagtime, len(t) - 1)  # checking to be safe
+    lagtimes = np.arange(1, max_lagtime + 1)
+    N = len(r)
+
+    # calculate the mean displacements
+    r_diff = r[:-max_lagtime-1:-1] - r[:max_lagtime]
+    disp = np.cumsum(r_diff, axis=0) / (N - lagtimes[:, np.newaxis])
+
+    # below is a vectorized version of the original code
+    D = r**2
+    D_sum = D[:max_lagtime] + D[:-max_lagtime-1:-1]
+    S1 = (2*D.sum(axis=0) - np.cumsum(D_sum, axis=0))
+    F = np.fft.fft(r, n=2*N, axis=0)  # 2*N because of zero-padding
+    PSD = F * F.conjugate()
+    # this is the autocorrelation in convention B:
+    S2 = np.fft.ifft(PSD, axis=0)[1:max_lagtime+1].real
+    squared_disp = S1 - 2 * S2
+    squared_disp /= N - lagtimes[:, np.newaxis]  # divide res(m) by (N-m)
+
+    results = pd.DataFrame(np.concatenate((disp, squared_disp), axis=1),
+                           index=lagtimes, columns=result_columns)
+    results['msd'] = squared_disp.sum(axis=1)
+    results['lagt'] = lagtimes / float(fps)
+    results.index.name = 'lagt'
+    if detail:
+        results['N'] = _msd_N(N, lagtimes)
+
+    return results
 
 
 def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=['x', 'y']):
@@ -152,74 +222,6 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     # Here, rebuild it from the frame index.
     if not detail:
         return results.set_index('lagt')['msd']
-    return results
-
-
-def msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
-    """Compute the mean displacement and mean squared displacement of one
-    trajectory over a range of time intervals using FFT transformation.
-
-    The original Python implementation comes from a SO answer :
-    http://stackoverflow.com/questions/34222272/computing-mean-square-displacement-using-python-and-fft#34222273.
-    The algorithm is described in this paper : http://dx.doi.org/10.1051/sfn/201112010.
-
-    Parameters
-    ----------
-    traj : DataFrame with one trajectory, including columns frame, x, and y
-    mpp : microns per pixel
-    fps : frames per second
-    max_lagtime : intervals of frames out to which MSD is computed
-        Default: 100
-    detail : See below. Default False.
-
-    Returns
-    -------
-    DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
-
-    If detail is True, the DataFrame also contains a column N,
-    the estimated number of statistically independent measurements
-    that comprise the result at each lagtime.
-
-    Notes
-    -----
-    Input units are pixels and frames. Output units are microns and seconds.
-
-    See also
-    --------
-    msd(), imsd() and emsd()
-    """
-    r = traj[pos_columns].values * mpp
-    t = traj['frame']
-
-    max_lagtime = min(max_lagtime, len(t))  # checking to be safe
-    lagtimes = np.arange(1, max_lagtime + 1)
-    N = len(r)
-
-    # calculate the mean displacements
-    r_diff = r[:-max_lagtime-1:-1] - r[:max_lagtime]
-    disp = np.cumsum(r_diff, axis=0) / (N - lagtimes[:, np.newaxis])
-
-    # below is a vectorized version of the original code
-    D = r**2
-    D_sum = D[:max_lagtime] + D[:-max_lagtime-1:-1]
-    S1 = (2*D.sum(axis=0) - np.cumsum(D_sum, axis=0))
-    F = np.fft.fft(r, n=2*N, axis=0)  # 2*N because of zero-padding
-    PSD = F * F.conjugate()
-    # this is the autocorrelation in convention B:
-    S2 = np.fft.ifft(PSD, axis=0)[1:max_lagtime+1].real
-    squared_disp = S1 - 2 * S2
-    squared_disp /= N - lagtimes[:, np.newaxis]  # divide res(m) by (N-m)
-
-    results = pd.DataFrame(np.concatenate((disp, squared_disp), axis=1),
-                           index=lagtimes,
-                           columns=(['<{}>'.format(col) for col in pos_columns] +
-                                    ['<{}^2>'.format(col) for col in pos_columns]))
-    results['msd'] = squared_disp.sum(axis=1)
-    results['lagt'] = lagtimes / float(fps)
-    results.index.name = 'lagt'
-    if detail:
-        results['N'] = _msd_N(N, lagtimes)
-
     return results
 
 

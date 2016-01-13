@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import warnings
 
-from .motion import msd, msd_fft, imsd, emsd, compute_drift, subtract_drift, \
+from .motion import msd, imsd, emsd, compute_drift, subtract_drift, \
            proximity, vanhove, relate_frames, velocity_corr, \
            direction_corr, is_typical, diagonal_size
 from .plots import annotate, annotate3d, plot_traj, ptraj, \
