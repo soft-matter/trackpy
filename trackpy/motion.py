@@ -129,7 +129,7 @@ def _msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     # below is a vectorized version of the original code
     D = r**2
     D_sum = D[:max_lagtime] + D[:-max_lagtime-1:-1]
-    S1 = (2*D.sum(axis=0) - np.cumsum(D_sum, axis=0))
+    S1 = 2*D.sum(axis=0) - np.cumsum(D_sum, axis=0)
     F = np.fft.fft(r, n=2*N, axis=0)  # 2*N because of zero-padding
     PSD = F * F.conjugate()
     # this is the autocorrelation in convention B:
@@ -148,7 +148,7 @@ def _msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     return results
 
 
-def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=['x', 'y']):
+def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=None):
     """Compute the mean squared displacement of each particle.
 
     Parameters
@@ -187,7 +187,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=['x', 'y'
     return results
 
 
-def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
+def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     """Compute the ensemble mean squared displacements of many particles.
 
     Parameters
@@ -225,7 +225,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=['x', 'y']):
     return results
 
 
-def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
+def compute_drift(traj, smoothing=0, pos_columns=None):
     """Return the ensemble drift, x(t).
 
     Parameters
@@ -247,6 +247,8 @@ def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
     >>> drift = compute_drift(traj, 15) # Save good drift curves.
     >>> corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
     # Probe by particle, take the difference between frames.
     delta = pd.concat([t.set_index('frame', drop=False).diff()
                        for p, t in traj.groupby('particle')])
