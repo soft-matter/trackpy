@@ -94,11 +94,12 @@ def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     result = pd.DataFrame(_msd_iter(pos.values, lagtimes),
                           columns=result_columns, index=lagtimes)
     result['msd'] = result[result_columns[-len(pos_columns):]].sum(1)
-    result['lagt'] = result.index.values/float(fps)
     if detail:
         # effective number of measurements
         # approximately corrected with number of gaps
         result['N'] = _msd_N(len(pos), lagtimes) * len(traj) / len(pos)
+    result['lagt'] = result.index.values/float(fps)
+    result.index.name = 'lagt'
     return result
 
 
@@ -140,10 +141,10 @@ def _msd_fft(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     results = pd.DataFrame(np.concatenate((disp, squared_disp), axis=1),
                            index=lagtimes, columns=result_columns)
     results['msd'] = squared_disp.sum(axis=1)
-    results['lagt'] = lagtimes / float(fps)
-    results.index.name = 'lagt'
     if detail:
         results['N'] = _msd_N(N, lagtimes)
+    results['lagt'] = lagtimes / float(fps)
+    results.index.name = 'lagt'
 
     return results
 
