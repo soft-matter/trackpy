@@ -172,7 +172,7 @@ class TestMSD(unittest.TestCase):
         gapped_walks = self.many_walks.reset_index(drop=True)
         to_drop = np.random.choice(gapped_walks.index,
                                    int(len(gapped_walks) * 0.1), replace=False)
-        gapped_walks.drop(to_drop, axis=0, inplace=True)
+        gapped_walks = gapped_walks.drop(to_drop, axis=0)
 
         actual = tp.emsd(gapped_walks, 1, 1, max_lagtime=EARLY)
         a = np.arange(EARLY+1, dtype='float64')
