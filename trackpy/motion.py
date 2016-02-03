@@ -154,13 +154,14 @@ def compute_drift(traj, smoothing=0, pos_columns=['x', 'y']):
     >>> corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
     # Probe by particle, take the difference between frames.
-    delta = pd.concat([t.set_index('frame', drop=False).diff()
-                       for p, t in traj.groupby('particle')])
+    delta = traj.groupby('particle').apply(lambda x :
+                                    x.set_index('frame',drop=False).diff())
     # Keep only deltas between frames that are consecutive.
     delta = delta[delta['frame'] == 1]
     # Restore the original frame column (replacing delta frame).
     del delta['frame']
-    delta.reset_index(inplace=True)
+    delta.reset_index('particle',drop=True,inplace=True)
+    delta.reset_index('frame',drop=False,inplace=True)
     dx = delta.groupby('frame').mean()
     if smoothing > 0:
         dx = pd.rolling_mean(dx, smoothing, min_periods=0)
