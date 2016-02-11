@@ -78,7 +78,7 @@ def pairCorrelation2D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, nd
             collisions = _num_wall_collisions2D(points[idx], r_edges, xmin, xmax, ymin, ymax)
 
             # If some disk will collide with the wall, we need to implement edge handling
-            if collisions.max() > 0:
+            if np.any(collisions) > 0:
 
                 # Use analyitcal solution to find area of disks cut off by one wall.
                 # grab the distance to the closest wall
@@ -179,7 +179,7 @@ def pairCorrelation3D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, nd
             collisions = _num_wall_collisions3D(points[idx], r_edges, xmin, xmax, ymin, ymax, zmin, zmax)
 
             # If some disk will collide with the wall, we need to implement edge handling
-            if collisions.max() > 0:
+            if np.any(collisions) > 0:
 
                 # Use analyitcal solution to find area of disks cut off by one wall.
                 # Grab the distance to the closest wall
