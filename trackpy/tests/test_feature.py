@@ -166,18 +166,30 @@ class CommonFeatureIdentificationTests(object):
             f = tp.locate(black_image, 5, minmass=200,
                           engine=self.engine, preprocess=False)
 
-    def test_warn_color_image(self):
+    def test_exception_color_image(self):
         self.check_skip()
 
         # RGB-like
         image = np.random.randint(0, 100, (21, 23, 3)).astype(np.uint8)
-        with assert_produces_warning(UserWarning):
+        with self.assertRaises(ValueError):
             tp.locate(image, 5)
 
         # RGBA-like
         image = np.random.randint(0, 100, (21, 23, 4)).astype(np.uint8)
-        with assert_produces_warning(UserWarning):
+        with self.assertRaises(ValueError):
             tp.locate(image, 5)
+
+        # multichannel-like
+        image = np.random.randint(0, 100, (2, 21, 23)).astype(np.uint8)
+        with self.assertRaises(ValueError):
+            tp.locate(image, 5)
+
+    def test_exception_too_small(self):
+        self.check_skip()
+
+        image = np.random.randint(0, 100, (10, 50)).astype(np.uint8)
+        with self.assertRaises(ValueError):
+            tp.locate(image, 11)
 
     def test_flat_peak(self):
         # This tests the part of locate_maxima that eliminates multiple
