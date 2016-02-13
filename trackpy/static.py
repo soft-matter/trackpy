@@ -48,7 +48,7 @@ def pairCorrelation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None, ndensit
         feat = feat[(feat.x >= xmin) & (feat.x <= xmax) & (feat.y >= ymin) & (feat.y <= ymax)]
 
     if ndensity is None:
-        ndensity = feat.x.count() / ((xmax - xmin) * (ymax - ymin))  #  particle packing density
+        ndensity = (feat.x.count() - 1) / ((xmax - xmin) * (ymax - ymin))  #  particle packing density
 
     if p_indices is None:
         p_indices = random.sample(range(len(feat)), int(fraction * len(feat)))  # grab random sample of particles
@@ -102,7 +102,7 @@ def pairCorrelation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None, ndensit
 
 
 
-def pairCorrelation3D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, ndensity=None, boundary = None,
+def pairCorrelation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None, ndensity=None, boundary=None,
                             handle_edge=True):
     """   
     Calculate the pair correlation function in 3 dimensions.
@@ -148,7 +148,7 @@ def pairCorrelation3D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, nd
                     (feat.z >= zmin) & (feat.z <= zmax)]
 
     if ndensity is None:
-        ndensity = feat.x.count() / ((xmax - xmin) * (ymax - ymin) * (zmax - zmin)) #  particle packing density 
+        ndensity = (feat.x.count() - 1) / ((xmax - xmin) * (ymax - ymin) * (zmax - zmin)) #  particle packing density 
 
     if p_indices is None:
         p_indices = random.sample(range(len(feat)), int(fraction * len(feat)))  # grab random sample of particles
