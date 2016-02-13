@@ -4,7 +4,7 @@ import numpy as np
 from warnings import warn
 
 
-def pairCorrelation2D(feat, cutoff, fraction = 1., dr = .5, p_indices = None, ndensity=None, boundary = None,
+def pairCorrelation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None, ndensity=None, boundary=None,
                             handle_edge=True):
     """   
     Calculate the pair correlation function in 2 dimensions.
