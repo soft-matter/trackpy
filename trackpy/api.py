@@ -6,6 +6,7 @@ import warnings
 from .motion import msd, imsd, emsd, compute_drift, subtract_drift, \
            proximity, vanhove, relate_frames, velocity_corr, \
            direction_corr, is_typical, diagonal_size
+from .static import pair_correlation_2d, pair_correlation_3d
 from .plots import annotate, annotate3d, plot_traj, ptraj, \
            plot_displacements, subpx_bias, mass_size, mass_ecc
 from .linking import HashTable, TreeFinder, Point, PointND, \
