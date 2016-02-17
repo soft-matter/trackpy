@@ -100,7 +100,7 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
         arclen = arclen_2d_bounded(dist, pos_repeated,
                                    np.array([[xmin, xmax], [ymin, ymax]]))
     else:
-        arclen = np.pi*dist
+        arclen = 2*np.pi*dist
     g_r = np.histogram(dist, bins=r_edges, weights=1/arclen)[0]
 
     return r_edges, g_r / (ndensity * len(pos) * dr)
