@@ -9,7 +9,8 @@ MAX_ARRAY_SIZE = 1e8
 
 
 def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
-                        ndensity=None, boundary=None, max_rel_ndensity=10):
+                        ndensity=None, boundary=None, handle_edge=True,
+                        max_rel_ndensity=10):
     """
     Calculate the pair correlation function in 2 dimensions.
 
@@ -35,6 +36,8 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
         Tuple specifying rectangular prism boundary of particles (xmin, xmax,
         ymin, ymax). Must be floats. Default is to assume a rectangular packing.
         Boundaries are determined by edge particles.
+    handle_edge : boolean, optional
+        If true, compensate for reduced area around particles near the edges.
     max_ndensity : number, optional
         The relative maximum density deviation, used to estimate the maximum
         number of neighbours. Lower numbers increase performance, until the
@@ -91,17 +94,21 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
     # drop zero and infinite dist values
     mask = (dist > 0) & np.isfinite(dist)
     dist = dist[mask]
-    pos_repeated = pos[:, np.newaxis].repeat(max_p_count, axis=1)[mask]
-    arclen = arclen_2d_bounded(dist, pos_repeated,
-                                np.array([[xmin, xmax], [ymin, ymax]]))
-    
+
+    if handle_edge:
+        pos_repeated = pos[:, np.newaxis].repeat(max_p_count, axis=1)[mask]
+        arclen = arclen_2d_bounded(dist, pos_repeated,
+                                   np.array([[xmin, xmax], [ymin, ymax]]))
+    else:
+        arclen = np.pi*dist
     g_r = np.histogram(dist, bins=r_edges, weights=1/arclen)[0]
 
     return r_edges, g_r / (ndensity * len(pos) * dr)
 
 
 def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
-                        ndensity=None, boundary=None, max_rel_ndensity=10):
+                        ndensity=None, boundary=None, handle_edge=True,
+                        max_rel_ndensity=10):
     """
     Calculate the pair correlation function in 3 dimensions.
 
@@ -127,6 +134,8 @@ def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
         Tuple specifying rectangular prism boundary of particles (xmin, xmax,
         ymin, ymax, zmin, zmax). Must be floats. Default is to assume a
         rectangular packing. Boundaries are determined by edge particles.
+    handle_edge : boolean, optional
+        If true, compensate for reduced volume around particles near the edges.
     max_ndensity : number, optional
         The relative maximum density deviation, used to estimate the maximum
         number of neighbours. Lower numbers increase performance, until the
@@ -187,69 +196,6 @@ def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
     mask = (dist > 0) & np.isfinite(dist)
     dist = dist[mask]
 
-    pos_repeated = pos[:, np.newaxis].repeat(max_p_count, axis=1)[mask]
-    area = area_3d_bounded(dist, pos_repeated,
-                            np.array([[xmin, xmax], [ymin, ymax],
-                                         [zmin, zmax]]))
-  
-    g_r = np.histogram(dist, bins=r_edges, weights=1/area)[0]
-
-    return r_edges, g_r / (ndensity * len(pos) * dr)
-
-
-def pair_correlation_xy(feat, cutoff, fraction=1., ds=.5, p_indices=None,
-                        ndensity=None, boundary=None, handle_edge=True,
-                        max_rel_ndensity=10):
-
-
-    if boundary is None:
-        xmin, xmax, ymin, ymax = (feat.x.min(), feat.x.max(),
-                                  feat.y.min(), feat.y.max())
-    else:
-        xmin, xmax, ymin, ymax = boundary
-
-        # Disregard all particles outside the bounding box
-        feat = feat[(feat.x >= xmin) & (feat.x <= xmax) &
-                    (feat.y >= ymin) & (feat.y <= ymax)]
-
-    if ndensity is None:  # particle packing density
-        ndensity = (feat.x.count() - 1) / ((xmax - xmin) * (ymax - ymin))
-
-    if p_indices is None:
-        if fraction == 1.:
-            p_indices = slice(len(feat))
-        else:  # grab random sample of particles
-            p_indices = np.random.randint(0, len(feat),
-                                          int(fraction * len(feat)))
-
-    # bins to search for particles
-    xbins = np.arange(-(cutoff + ds), cutoff + ds, ds)
-    ybins = xbins.copy()
-
-    # initialize kdtree for fast neighbor search
-    ckdtree = cKDTree(feat[['x', 'y']])
-    pos = ckdtree.data[p_indices]
-
-    # Estimate upper bound for neighborhood particle count
-    max_p_count = int(np.pi * (xbins.max() + ds)**2 *
-                      ndensity * max_rel_ndensity)
-    # Protect against too large memory usage
-    if len(pos) * max_p_count > MAX_ARRAY_SIZE:
-        max_p_count = int(MAX_ARRAY_SIZE / len(pos))
-
-
-    dist, idxs = ckdtree.query(pos, k=max_p_count, distance_upper_bound=np.sqrt(2)*cutoff)
-    if np.any(np.isfinite(dist[:, -1])):
-        raise RuntimeError("There are too many particle pairs in the frame. "
-                           "Please reduce the cutoff distance, "
-                           "or use a fraction.")
-    print(idxs.shape)
-
-
-    # drop zero and infinite dist values
-    mask = (dist > 0) & np.isfinite(dist)
-    dist = dist[mask]
-
     if handle_edge:
         pos_repeated = pos[:, np.newaxis].repeat(max_p_count, axis=1)[mask]
         area = area_3d_bounded(dist, pos_repeated,
@@ -260,7 +206,6 @@ def pair_correlation_xy(feat, cutoff, fraction=1., ds=.5, p_indices=None,
     g_r = np.histogram(dist, bins=r_edges, weights=1/area)[0]
 
     return r_edges, g_r / (ndensity * len(pos) * dr)
-    
 
 
 def circle_cap_arclen(h, r):
