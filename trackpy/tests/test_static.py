@@ -34,19 +34,24 @@ class TestPairCorrelation(unittest.TestCase):
 
     def test_correlation2D_lattice(self):
         ### Lattice Test
-        # With proper edge handling, g(r) of the particle at the center should be the same as g(r) for all particles.
+        # With proper edge handling, g(r) of the particle at the center should
+        # be the same as g(r) for all particles.
         lattice = self._lattice2D()
 
         # Calculate g_r on the center particle only (index 210)
-        edges, g_r_one = pair_correlation_2d(lattice, dr=.1, cutoff=8, p_indices=[210])
-        g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
+        edges, g_r_one = pair_correlation_2d(lattice, dr=.1, cutoff=8, 
+                                             p_indices=[210])
+        
+        #We care about the relative difference of g_r, so let's normalize both.
+        g_r_one /= np.linalg.norm(g_r_one) 
 
         # Calculate g_r on all particles
         edges, g_r_all = pair_correlation_2d(lattice, dr=.1, cutoff=8)
         g_r_all /= np.linalg.norm(g_r_all)
 
         # Calculate g_r on all particles
-        edges, g_r_no_edge = pair_correlation_2d(lattice, dr=.1, cutoff=8, handle_edge=False)
+        edges, g_r_no_edge = pair_correlation_2d(lattice, dr=.1, cutoff=8, 
+                                                 handle_edge=False)
         g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
         # Assert the functions are essentially the same
@@ -58,11 +63,12 @@ class TestPairCorrelation(unittest.TestCase):
 
     def test_correlation2D_ring(self):
         # Ring test
-        # Generate a series of concentric shells, each with the same number of particles.
+        # Generate a series of concentric shells
         # The peaks in g(r) should decay as 1/r.
         ring = self._rings2D()
 
-        edges, g_r = pair_correlation_2d(ring, dr=.1, cutoff=10, p_indices=[0], boundary = (-10., 10., -10., 10.))
+        edges, g_r = pair_correlation_2d(ring, dr=.1, cutoff=10, p_indices=[0],
+                                         boundary = (-10., 10., -10., 10.))
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
 
@@ -76,10 +82,14 @@ class TestPairCorrelation(unittest.TestCase):
 
     def test_correlation3D_ring(self):
         # Ring test
-        # Generate a series of concentric shells, each with the same number of particles.
+        # Generate a series of concentric shells, 
         # The peaks in g(r) should decay as 1/r^2.
         ring = self._rings3D()
-        edges, g_r = pair_correlation_3d(ring, dr=.1, cutoff=10, p_indices=[len(ring) - 1], boundary = (-10., 10., -10., 10., -10., 10.), handle_edge=True)
+        edges, g_r = pair_correlation_3d(ring, dr=.1, cutoff=10, 
+                                         p_indices=[len(ring) - 1], 
+                                         boundary = (-10., 10., -10., 
+                                                      10., -10., 10.), 
+                                         handle_edge=True)
         g_r /= np.linalg.norm(g_r)
         peaks = g_r[g_r > 0]
         assert len(peaks) == 9
@@ -89,20 +99,25 @@ class TestPairCorrelation(unittest.TestCase):
 
 
     def test_correlation3D_lattice(self):
-        ### Lattice Test
-        # With proper edge handling, g(r) of the particle at the center should be the same as g(r) for all particles.
+        ### Lattice Test 
+        # With proper edge handling, g(r) of the particle at the center should 
+        # be the same as g(r) for all particles.
         lattice = self._lattice3D(n = 20)
 
         # Calculate g_r on the center particle only (index 210)
-        edges, g_r_one = pair_correlation_3d(lattice, dr=.1, cutoff=7, p_indices=[4649])
-        g_r_one /= np.linalg.norm(g_r_one) #We care about the relative difference of g_r in this case, so let's normalize both.
+        edges, g_r_one = pair_correlation_3d(lattice, dr=.1, cutoff=7, 
+                                             p_indices=[4649])
+
+        # We care about the relative difference of g_r,so let's normalize both.
+        g_r_one /= np.linalg.norm(g_r_one) 
 
         # Calculate g_r on all particles
         edges, g_r_all = pair_correlation_3d(lattice, dr=.1, cutoff=7)
         g_r_all /= np.linalg.norm(g_r_all)
 
         # Calculate g_r on all particles
-        edges, g_r_no_edge = pair_correlation_3d(lattice, dr=.1, cutoff=7, handle_edge=False)
+        edges, g_r_no_edge = pair_correlation_3d(lattice, dr=.1, cutoff=7, 
+                                                 handle_edge=False)
         g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
         # Assert the functions are essentially the same
@@ -112,7 +127,7 @@ class TestPairCorrelation(unittest.TestCase):
         self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.04))
 
     def _lattice2D(self, n = 20):
-        #Generates 2D lattice, spacing = 1
+        # Generates 2D lattice, spacing = 1
         x,y = [],[]
         epsilon = 0.0
         for i in range(n):
@@ -124,7 +139,7 @@ class TestPairCorrelation(unittest.TestCase):
 
 
     def _rings2D(self):
-        #Generates concentric rings, with a particle at the center
+        # Generates concentric rings, with a particle at the center
         theta = np.linspace(0, 2*np.pi, 10)
         points = np.zeros((100,2))
 
@@ -140,7 +155,7 @@ class TestPairCorrelation(unittest.TestCase):
 
 
     def _lattice3D(self, n = 20):
-        #Generates 3D lattice, spacing = 1
+        # Generates 3D lattice, spacing = 1
         x,y,z = [],[],[]
         for i in range(n):
             for j in range(n):
@@ -153,11 +168,12 @@ class TestPairCorrelation(unittest.TestCase):
 
 
     def _rings3D(self):
-        #Generates concentric spherical shells, with a particle at the center
+        # Generates concentric spherical shells, with a particle at the center
         epsilon = .02
         r = np.arange(1, 10, 1) + epsilon
         refx, refy, refz = _points_ring3D(r, 0, 500)
-        df = pandas.DataFrame({'x': np.concatenate(refx), 'y': np.concatenate(refy),
+        df = pandas.DataFrame({'x': np.concatenate(refx), 
+                               'y': np.concatenate(refy),
                                'z': np.concatenate(refz)})
         
         # The last index is the center particle, which is used to calculate g_r 
