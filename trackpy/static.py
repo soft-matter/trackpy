@@ -83,13 +83,16 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
                       ndensity * max_rel_ndensity)
     # Protect against too large memory usage
     if len(pos) * max_p_count > MAX_ARRAY_SIZE:
-        max_p_count = int(MAX_ARRAY_SIZE / len(pos))
+        raise MemoryError('The distance array will be larger than the maximum '
+                          'allowed size. Please reduce the cutoff or '
+                          'max_rel_ndensity. Or run the analysis on a fraction '
+                          'of the features using the fraction parameter.')
 
     dist, idxs = ckdtree.query(pos, k=max_p_count, distance_upper_bound=cutoff)
     if np.any(np.isfinite(dist[:, -1])):
-        raise RuntimeError("There are too many particle pairs in the frame. "
-                           "Please reduce the cutoff distance, "
-                           "or use a fraction.")
+        raise RuntimeError("There are too many particle pairs per particle. "
+                           "Apparently, density fluctuations are larger than "
+                           "max_rel_ndensity. Please increase it.")
 
     # drop zero and infinite dist values
     mask = (dist > 0) & np.isfinite(dist)
@@ -184,13 +187,16 @@ def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
                       ndensity * max_rel_ndensity)
     # Protect against too large memory usage
     if len(pos) * max_p_count > MAX_ARRAY_SIZE:
-        max_p_count = int(MAX_ARRAY_SIZE / len(pos))
+    raise MemoryError('The distance array will be larger than the maximum '
+                      'allowed size. Please reduce the cutoff or '
+                      'max_rel_ndensity. Or run the analysis on a fraction '
+                      'of the features using the fraction parameter.')
 
     dist, idxs = ckdtree.query(pos, k=max_p_count, distance_upper_bound=cutoff)
     if np.any(np.isfinite(dist[:, -1])):
-        raise RuntimeError("There are too many particle pairs in the frame. "
-                           "Please reduce the cutoff distance, "
-                           "or use a fraction.")
+        raise RuntimeError("There are too many particle pairs per particle. "
+                           "Apparently, density fluctuations are larger than "
+                           "max_rel_ndensity. Please increase it.")
 
     # drop zero and infinite dist values
     mask = (dist > 0) & np.isfinite(dist)
