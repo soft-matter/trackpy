@@ -38,7 +38,7 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
         Boundaries are determined by edge particles.
     handle_edge : boolean, optional
         If true, compensate for reduced area around particles near the edges.
-    max_ndensity : number, optional
+    max_rel_ndensity : number, optional
         The relative maximum density deviation, used to estimate the maximum
         number of neighbours. Lower numbers increase performance, until the
         method fails because there are more neighbours than expected.
@@ -83,14 +83,16 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
                       ndensity * max_rel_ndensity)
     # Protect against too large memory usage
     if len(pos) * max_p_count > MAX_ARRAY_SIZE:
-        raise RuntimeError("The required memory is too high. Please reduce "
-                            "fraction, cutoff, or max_rel_ndensity.")
+          raise MemoryError('The distance array will be larger than the maximum '
+                          'allowed size. Please reduce the cutoff or '
+                          'max_rel_ndensity. Or run the analysis on a fraction '
+                          'of the features using the fraction parameter.')
 
     dist, idxs = ckdtree.query(pos, k=max_p_count, distance_upper_bound=cutoff)
     if np.any(np.isfinite(dist[:, -1])):
-        raise RuntimeError("There are too many particle pairs in the frame. "
-                           "Please reduce the cutoff distance, increase "
-                           "max_rel_ndensity, or use a fraction.")
+        raise RuntimeError("There are too many particle pairs per particle. "
+                           "Apparently, density fluctuations are larger than "
+                           "max_rel_ndensity. Please increase it.")
 
     # drop zero and infinite dist values
     mask = (dist > 0) & np.isfinite(dist)
@@ -137,7 +139,7 @@ def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
         rectangular packing. Boundaries are determined by edge particles.
     handle_edge : boolean, optional
         If true, compensate for reduced volume around particles near the edges.
-    max_ndensity : number, optional
+    max_rel_ndensity : number, optional
         The relative maximum density deviation, used to estimate the maximum
         number of neighbours. Lower numbers increase performance, until the
         method fails because there are more neighbours than expected.
@@ -185,8 +187,10 @@ def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
                       ndensity * max_rel_ndensity)
     # Protect against too large memory usage
     if len(pos) * max_p_count > MAX_ARRAY_SIZE:
-        raise RuntimeError("The required memory is too high. Please reduce "
-                            "fraction, cutoff, or max_rel_ndensity.")
+        raise MemoryError('The distance array will be larger than the maximum '
+                          'allowed size. Please reduce the cutoff or '
+                          'max_rel_ndensity. Or run the analysis on a fraction '
+                          'of the features using the fraction parameter.')
 
     dist, idxs = ckdtree.query(pos, k=max_p_count, distance_upper_bound=cutoff)
     if np.any(np.isfinite(dist[:, -1])):
