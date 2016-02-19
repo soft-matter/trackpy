@@ -32,11 +32,11 @@ def _points_ring3D(r_edges, dr, n):
 class TestPairCorrelation(unittest.TestCase):
 
 
-    def test_correlation2D_lattice(self):
+    def test_correlation_2d_lattice(self):
         ### Lattice Test
         # With proper edge handling, g(r) of the particle at the center should
         # be the same as g(r) for all particles.
-        lattice = self._lattice2D()
+        lattice = self._lattice_2d()
 
         # Calculate g_r on the center particle only (index 210)
         edges, g_r_one = pair_correlation_2d(lattice, dr=.1, cutoff=8, 
@@ -61,11 +61,11 @@ class TestPairCorrelation(unittest.TestCase):
         self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.02))
 
 
-    def test_correlation2D_ring(self):
+    def test_correlation_2d_ring(self):
         # Ring test
         # Generate a series of concentric shells
         # The peaks in g(r) should decay as 1/r.
-        ring = self._rings2D()
+        ring = self._rings_2d()
 
         edges, g_r = pair_correlation_2d(ring, dr=.1, cutoff=10, p_indices=[0],
                                          boundary = (-10., 10., -10., 10.))
@@ -84,7 +84,7 @@ class TestPairCorrelation(unittest.TestCase):
         # Ring test
         # Generate a series of concentric shells, 
         # The peaks in g(r) should decay as 1/r^2.
-        ring = self._rings3D()
+        ring = self._rings_3d()
         edges, g_r = pair_correlation_3d(ring, dr=.1, cutoff=10, 
                                          p_indices=[len(ring) - 1], 
                                          boundary = (-10., 10., -10., 
@@ -98,11 +98,11 @@ class TestPairCorrelation(unittest.TestCase):
         self.assertTrue( np.allclose(peaks, r, atol=.02) )
 
 
-    def test_correlation3D_lattice(self):
+    def test_correlation_3d_lattice(self):
         ### Lattice Test 
         # With proper edge handling, g(r) of the particle at the center should 
         # be the same as g(r) for all particles.
-        lattice = self._lattice3D(n = 20)
+        lattice = self._lattice_3d(n = 20)
 
         # Calculate g_r on the center particle only (index 210)
         edges, g_r_one = pair_correlation_3d(lattice, dr=.1, cutoff=7, 
@@ -112,12 +112,14 @@ class TestPairCorrelation(unittest.TestCase):
         g_r_one /= np.linalg.norm(g_r_one) 
 
         # Calculate g_r on all particles
-        edges, g_r_all = pair_correlation_3d(lattice, dr=.1, cutoff=7)
+        edges, g_r_all = pair_correlation_3d(lattice, dr=.1, cutoff=7, 
+                                             max_rel_ndensity=2)
         g_r_all /= np.linalg.norm(g_r_all)
 
         # Calculate g_r on all particles
         edges, g_r_no_edge = pair_correlation_3d(lattice, dr=.1, cutoff=7, 
-                                                 handle_edge=False)
+                                                 handle_edge=False,
+                                                 max_rel_ndensity=2.)
         g_r_no_edge /= np.linalg.norm(g_r_no_edge)
 
         # Assert the functions are essentially the same
@@ -126,7 +128,7 @@ class TestPairCorrelation(unittest.TestCase):
         # Turning off edge handling should give incorrect result
         self.assertFalse(np.allclose(g_r_all, g_r_no_edge, atol=.04))
 
-    def _lattice2D(self, n = 20):
+    def _lattice_2d(self, n = 20):
         # Generates 2D lattice, spacing = 1
         x,y = [],[]
         epsilon = 0.0
@@ -138,7 +140,7 @@ class TestPairCorrelation(unittest.TestCase):
         return pandas.DataFrame({'x':x, 'y':y})
 
 
-    def _rings2D(self):
+    def _rings_2d(self):
         # Generates concentric rings, with a particle at the center
         theta = np.linspace(0, 2*np.pi, 10)
         points = np.zeros((100,2))
@@ -154,7 +156,7 @@ class TestPairCorrelation(unittest.TestCase):
         return pandas.DataFrame(points, columns = ['x', 'y'])
 
 
-    def _lattice3D(self, n = 20):
+    def _lattice_3d(self, n = 20):
         # Generates 3D lattice, spacing = 1
         x,y,z = [],[],[]
         for i in range(n):
@@ -167,7 +169,7 @@ class TestPairCorrelation(unittest.TestCase):
         return pandas.DataFrame({'x':x, 'y':y, 'z':z})
 
 
-    def _rings3D(self):
+    def _rings_3d(self):
         # Generates concentric spherical shells, with a particle at the center
         epsilon = .02
         r = np.arange(1, 10, 1) + epsilon
