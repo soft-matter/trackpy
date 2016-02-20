@@ -5,6 +5,8 @@ from scipy.spatial import cKDTree
 import numpy as np
 from warnings import warn
 
+# Maximum number of elements in the array of all distances.
+# Should be roughly (bytes of available memory)/16
 MAX_ARRAY_SIZE = 1e8
 
 
@@ -25,13 +27,12 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
         increase speed of function. Particles selected at random.
     dr : float, optional
         The bin width
-    p_indices : sequence, optional
+    p_indices : list or ndarray, optional
         Only consider a pair of particles if one of them is in 'p_indices'.
         Uses zero-based indexing, regardless of how 'feat' is indexed.
     ndensity : float, optional
         Density of particle packing. If not specified, density will be
-        calculated assuming rectangular homogenous
-        arrangement.
+        calculated assuming rectangular homogeneous arrangement.
     boundary : tuple, optional
         Tuple specifying rectangular prism boundary of particles (xmin, xmax,
         ymin, ymax). Must be floats. Default is to assume a rectangular packing.
@@ -46,9 +47,9 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
     Returns
     -------
     r_edges : array
-        Return the bin edges
+        The bin edges, with 1 more element than g_r.
     g_r : array
-        The values of g_r
+        The values of g_r.
     """
 
     if boundary is None:
@@ -126,15 +127,14 @@ def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
         increase speed of function. Particles selected at random.
     dr : float, optional
         The bin width
-    p_indices : sequence, optional
+    p_indices : list or ndarray, optional
         Only consider a pair of particles if one of them is in 'p_indices'.
         Uses zero-based indexing, regardless of how 'feat' is indexed.
     ndensity : float, optional
         Density of particle packing. If not specified, density will be
-        calculated assuming rectangular homogenous
-        arrangement.
+        calculated assuming rectangular homogeneous arrangement.
     boundary : tuple, optional
-        Tuple specifying rectangular prism boundary of particles (xmin, xmax,
+        Tuple specifying rectangular boundary of particles (xmin, xmax,
         ymin, ymax, zmin, zmax). Must be floats. Default is to assume a
         rectangular packing. Boundaries are determined by edge particles.
     handle_edge : boolean, optional
@@ -147,9 +147,9 @@ def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
     Returns
     -------
     r_edges : array
-        Return the bin edges
+        The bin edges, with 1 more element than g_r.
     g_r : array
-        The values of g_r
+        The values of g_r.
     """
 
     if boundary is None:
