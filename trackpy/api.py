@@ -17,9 +17,10 @@ from .linking import HashTable, TreeFinder, Point, PointND, \
 from .filtering import filter_stubs, filter_clusters, filter
 from .feature import locate, batch, percentile_threshold, local_maxima, \
            refine, estimate_mass, estimate_size, minmass_version_change
-from .preprocessing import bandpass
+from .preprocessing import bandpass, lowpass
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
+from .gaussian import refine_gaussian, refine_gaussian_batch, find_clusters
 from . import utils
 from . import artificial
 from .utils import handle_logging, ignore_logging, quiet

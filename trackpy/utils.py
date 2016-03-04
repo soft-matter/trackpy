@@ -288,3 +288,11 @@ if is_pandas_since_017:
     pandas_sort = _pandas_sort_post_017
 else:
     pandas_sort = _pandas_sort_pre_017
+
+
+def guess_pos_columns(f):
+    if 'z' in f:
+        pos_columns = ['z', 'y', 'x']
+    else:
+        pos_columns = ['y', 'x']
+    return pos_columns

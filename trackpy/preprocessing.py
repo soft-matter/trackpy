@@ -40,7 +40,7 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
 
     See Also
     --------
-    legacy_bandpass, legacy_bandpass_fftw
+    lowpass, legacy_bandpass, legacy_bandpass_fftw
     """
     lshort = validate_tuple(lshort, image.ndim)
     llong = validate_tuple(llong, image.ndim)
@@ -62,6 +62,41 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
             correlate1d(result, gaussian_kernel(sigma, truncate), axis,
                         output=result, mode='constant', cval=0.0)
     result -= boxcar
+    return np.where(result > threshold, result, 0)
+
+
+def lowpass(image, lshort, threshold=None):
+    """Convolve with a Gaussian to remove short-wavelength noise.
+
+    Parameters
+    ----------
+    image : ndarray
+    lshort : small-scale cutoff (noise)
+        give a tuple value for different sizes per dimension
+        give int value for same value for all dimensions
+    threshold : float or integer
+        By default, 1 for integer images and 1/256. for float images.
+
+    Returns
+    -------
+    result : array
+        the filtered image
+
+    See Also
+    --------
+    bandpass
+    """
+    lshort = validate_tuple(lshort, image.ndim)
+    if threshold is None:
+        if np.issubdtype(image.dtype, np.integer):
+            threshold = 1
+        else:
+            threshold = 1/256.
+    result = np.array(image, dtype=np.float)
+    for (axis, size) in enumerate(lshort):
+        if size > 0:
+            correlate1d(result, gaussian_kernel(size, 4), axis,
+                        output=result, mode='constant', cval=0.0)
     return np.where(result > threshold, result, 0)
 
 
