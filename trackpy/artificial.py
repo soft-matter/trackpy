@@ -72,12 +72,6 @@ class SimulatedImage(object):
     image.add_noise(5)
     image()
     """
-    feat_hat = feat_hat
-    feat_gauss = feat_gauss
-    feat_ring = feat_ring
-    feat_step = feat_step
-    feat_gauss_edge = feat_gauss_edge
-
     def __init__(self, shape, size, dtype=np.uint8, saturation=None,
                  hard_radius=None, signal=None, noise=0,
                  feat_func=feat_gauss, **feat_kwargs):

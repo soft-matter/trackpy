@@ -10,7 +10,7 @@ from scipy.spatial import cKDTree
 
 import trackpy as tp
 from trackpy.masks import slice_image, mask_image
-from trackpy.artificial import SimulatedImage
+from trackpy.artificial import SimulatedImage, feat_gauss, feat_hat
 
 
 def sort_positions(actual, expected):
@@ -390,7 +390,7 @@ def refine_single(im, diameter, separation, pos=None,
     return actual_pos - pos
 
 
-class TestSingle(object):
+class _RefineGaussianTsts(object):
     def setUp(self):
         self.separation = 100
         self.signal = 200
@@ -401,7 +401,7 @@ class TestSingle(object):
                 self.size = self.diameter / 8
         self.im = SimulatedImage(self.shape, self.size, dtype=np.uint8,
                                  signal=self.signal,
-                                 feat_func=SimulatedImage.feat_gauss)
+                                 feat_func=feat_gauss)
         self.N = 10
 
     def test_perfect_gaussian(self):
@@ -424,7 +424,7 @@ class TestSingle(object):
                           signal_rtol=1, size_rtol=1)
 
     def test_disc_like(self):
-        self.im.feat_func = SimulatedImage.feat_hat
+        self.im.feat_func = feat_hat
         pos_err = self.pos_err
         positions = self.im.center + \
                     np.random.random((self.N, self.im.ndim)) * pos_err * 2 - pos_err
@@ -497,7 +497,7 @@ class TestSingle(object):
         pass
 
 
-class TestFit_gauss2D(TestSingle, unittest.TestCase):
+class TestFit_gauss2D(_RefineGaussianTsts, unittest.TestCase):
     shape = (128, 128)
     fit_function = 'gauss'
     var_size = False
@@ -509,7 +509,7 @@ class TestFit_gauss2D(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss2D_a(TestSingle, unittest.TestCase):
+class TestFit_gauss2D_a(_RefineGaussianTsts, unittest.TestCase):
     shape = (128, 64)
     fit_function = 'gauss'
     var_size = False
@@ -521,7 +521,7 @@ class TestFit_gauss2D_a(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss2D_signal(TestSingle, unittest.TestCase):
+class TestFit_gauss2D_signal(_RefineGaussianTsts, unittest.TestCase):
     # in this test, the magnitude of signal is tested (5% tol)
     shape = (128, 128)
     fit_function = 'gauss'
@@ -534,7 +534,7 @@ class TestFit_gauss2D_signal(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss2D_a_signal(TestSingle, unittest.TestCase):
+class TestFit_gauss2D_a_signal(_RefineGaussianTsts, unittest.TestCase):
     shape = (128, 64)
     fit_function = 'gauss'
     var_size = False
@@ -546,7 +546,7 @@ class TestFit_gauss2D_a_signal(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss2D_size(TestSingle, unittest.TestCase):
+class TestFit_gauss2D_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (128, 128)
     fit_function = 'gauss'
     var_size = True
@@ -558,7 +558,7 @@ class TestFit_gauss2D_size(TestSingle, unittest.TestCase):
    # signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss2D_a_size(TestSingle, unittest.TestCase):
+class TestFit_gauss2D_a_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (128, 64)
     fit_function = 'gauss'
     var_size = True
@@ -570,7 +570,7 @@ class TestFit_gauss2D_a_size(TestSingle, unittest.TestCase):
    # signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss2D_signal_size(TestSingle, unittest.TestCase):
+class TestFit_gauss2D_signal_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (128, 128)
     fit_function = 'gauss'
     var_size = True
@@ -582,7 +582,7 @@ class TestFit_gauss2D_signal_size(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss2D_a_signal_size(TestSingle, unittest.TestCase):
+class TestFit_gauss2D_a_signal_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (128, 64)
     fit_function = 'gauss'
     var_size = True
@@ -594,7 +594,7 @@ class TestFit_gauss2D_a_signal_size(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss3D(TestSingle, unittest.TestCase):
+class TestFit_gauss3D(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 64)
     fit_function = 'gauss'
     var_size = False
@@ -606,7 +606,7 @@ class TestFit_gauss3D(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss3D_a(TestSingle, unittest.TestCase):
+class TestFit_gauss3D_a(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 32)
     fit_function = 'gauss'
     var_size = False
@@ -618,7 +618,7 @@ class TestFit_gauss3D_a(TestSingle, unittest.TestCase):
     signal_err_factor = [0.2, 5.]
 
 
-class TestFit_gauss3D_signal(TestSingle, unittest.TestCase):
+class TestFit_gauss3D_signal(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 64)
     fit_function = 'gauss'
     var_size = False
@@ -630,7 +630,7 @@ class TestFit_gauss3D_signal(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss3D_a_signal(TestSingle, unittest.TestCase):
+class TestFit_gauss3D_a_signal(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 32)
     fit_function = 'gauss'
     var_size = False
@@ -642,7 +642,7 @@ class TestFit_gauss3D_a_signal(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss3D_size(TestSingle, unittest.TestCase):
+class TestFit_gauss3D_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 64)
     fit_function = 'gauss'
     var_size = True
@@ -654,7 +654,7 @@ class TestFit_gauss3D_size(TestSingle, unittest.TestCase):
    # signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss3D_a_size(TestSingle, unittest.TestCase):
+class TestFit_gauss3D_a_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 32)
     fit_function = 'gauss'
     var_size = True
@@ -666,7 +666,7 @@ class TestFit_gauss3D_a_size(TestSingle, unittest.TestCase):
    # signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss3D_signal_size(TestSingle, unittest.TestCase):
+class TestFit_gauss3D_signal_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 64)
     fit_function = 'gauss'
     var_size = True
@@ -678,7 +678,7 @@ class TestFit_gauss3D_signal_size(TestSingle, unittest.TestCase):
     signal_err_factor = [0.1, 10.]
 
 
-class TestFit_gauss3D_a_signal_size(TestSingle, unittest.TestCase):
+class TestFit_gauss3D_a_signal_size(_RefineGaussianTsts, unittest.TestCase):
     shape = (64, 64, 32)
     fit_function = 'gauss'
     var_size = True
