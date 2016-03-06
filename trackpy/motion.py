@@ -4,7 +4,9 @@ import six
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
+
 from warnings import warn
+from .utils import dataframe_add_index
 
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
@@ -266,7 +268,7 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
     return x
 
 
-def subtract_drift(traj, drift=None):
+def subtract_drift(traj, drift=None, inplace=False):
     """Return a copy of particle trajectores with the overall drift subtracted out.
 
     Parameters
@@ -279,12 +281,14 @@ def subtract_drift(traj, drift=None):
     -------
     traj : a copy, having modified columns x and y
     """
-
     if drift is None:
         drift = compute_drift(traj)
-    traj.set_index('frame', inplace=True, drop=False)
-    for col in drift.columns:
-        traj[col] = traj[col].sub(drift[col], fill_value=0)
+    if not inplace:
+        traj = traj.copy()
+    with dataframe_add_index(traj, 'frame') as df:
+        for col in drift.columns:
+            df[col] = traj[col].sub(drift[col], fill_value=0,
+                                    level=df.index.names.index('frame'))
     return traj
 
 
