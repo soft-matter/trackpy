@@ -223,7 +223,16 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     # Here, rebuild it from the frame index.
     if not detail:
         return results.set_index('lagt')['msd']
-    return results
+
+    # Calculation of biased weighted standard deviation
+    numerator = ((msds.subtract(results))**2).mul(msds['N'], axis=0).sum(level=1)
+    denominator = msds['N'].sum(level=1) # without Bessel's correction
+    variance = numerator.div(denominator, axis=0)
+    variance = variance[['<x>', '<y>', '<x^2>','<y^2>','msd']]
+    std = np.sqrt(variance)
+    std.columns = 'std_' + std.columns
+
+    return results.join(std)
 
 
 def compute_drift(traj, smoothing=0, pos_columns=None):
