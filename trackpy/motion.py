@@ -205,7 +205,10 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     Returns
     -------
     Series[msd, index=t] or, if detail=True,
-    DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
+    DataFrame([<x>, <y>, <x^2>, <y^2>, msd, N, lagt,
+               std_<x>, std_<y>, std_<x^2>, std_<y^2>, 
+               std_msd],
+              index=frame)
 
     Notes
     -----
