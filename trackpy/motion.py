@@ -199,8 +199,10 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
-    detail : Set to True to include <x>, <y>, <x^2>, <y^2>. Returns
-        only <r^2> by default.
+    detail : Set to True to include <x>, <y>, <x^2>, <y^2>,
+        and their biased weighted standard deviations in the
+        mean, std_<x>, std_<y>, std_<x^2>, std_<y^2>.
+        Returns only <r^2> by default.
 
     Returns
     -------
