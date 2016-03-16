@@ -93,7 +93,8 @@ def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
 
     result = pd.DataFrame(_msd_iter(pos.values, lagtimes),
                           columns=result_columns, index=lagtimes)
-    result['msd'] = result[result_columns[-len(pos_columns):]].sum(1)
+    result['msd'] = result[result_columns[len(pos_columns):
+                                          2*len(pos_columns)]].sum(1)
     if detail:
         # effective number of measurements
         # approximately corrected with number of gaps
