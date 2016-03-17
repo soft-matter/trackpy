@@ -190,7 +190,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=None):
 
 
 def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
-        bessel_correction = True, pos_columns=None):
+        bessel_correction=True, pos_columns=None):
     """Compute the ensemble mean squared displacements of many particles.
 
     Parameters
@@ -209,6 +209,8 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
         bessel_correction to True if you want to apply
         Bessel's Correction to the calculation of the
         standard deviation.
+    pos_columns : If None, pos_columns will be set to 
+        ['x','y'].
 
     Returns
     -------
@@ -247,7 +249,10 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
         variance = np.Inf
     else:
         variance = numerator.div(denominator, axis=0)
+
+    # Warning: the following assumes pos_columns is ['x','y'] 
     variance = variance[['<x>', '<y>', '<x^2>','<y^2>','msd']]
+
     std = np.sqrt(variance)
     std.columns = 'std_' + std.columns
 
