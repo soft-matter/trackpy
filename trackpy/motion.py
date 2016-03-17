@@ -211,7 +211,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     DataFrame([<x>, <y>, <x^2>, <y^2>, msd, N, lagt,
                std_<x>, std_<y>, std_<x^2>, std_<y^2>, 
                std_msd],
-              index=frame)
+              index=lagt)
 
     Notes
     -----
@@ -238,7 +238,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     std = np.sqrt(variance)
     std.columns = 'std_' + std.columns
 
-    return results.join(std)
+    return results.join(std).set_index('lagt')
 
 
 def compute_drift(traj, smoothing=0, pos_columns=None):
