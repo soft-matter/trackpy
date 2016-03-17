@@ -189,7 +189,8 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=None):
     return results
 
 
-def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
+def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
+        bessel_correction = True, pos_columns=None):
     """Compute the ensemble mean squared displacements of many particles.
 
     Parameters
@@ -204,6 +205,10 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
         and their biased weighted standard deviations in the
         mean, std_<x>, std_<y>, std_<x^2>, std_<y^2>.
         Returns only <r^2> by default.
+    bessel_correction : If detail is True, set
+        bessel_correction to True if you want to apply
+        Bessel's Correction to the calculation of the
+        standard deviation.
 
     Returns
     -------
@@ -232,8 +237,16 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
 
     # Calculation of biased weighted standard deviation
     numerator = ((msds.subtract(results))**2).mul(msds['N'], axis=0).sum(level=1)
-    denominator = msds['N'].sum(level=1) # without Bessel's correction
-    variance = numerator.div(denominator, axis=0)
+    denominator = msds['N'].sum(level=1)
+    if bessel_correction:
+        denominator -= 1
+        # Bessel's correction makes it possible to calculate
+        # the unbiased variance, but the standard deviation
+        # will still be biased, just less so than otherwise.
+    if denominator <= 0:
+        variance = np.Inf
+    else:
+        variance = numerator.div(denominator, axis=0)
     variance = variance[['<x>', '<y>', '<x^2>','<y^2>','msd']]
     std = np.sqrt(variance)
     std.columns = 'std_' + std.columns
