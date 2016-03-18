@@ -245,10 +245,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
         # Bessel's correction makes it possible to calculate
         # the unbiased variance, but the standard deviation
         # will still be biased, just less so than otherwise.
-    if denominator <= 0:
-        variance = np.Inf
-    else:
-        variance = numerator.div(denominator, axis=0)
+    variance = numerator.div(denominator, axis=0)
 
     # Warning: the following assumes pos_columns is ['x','y'] 
     variance = variance[['<x>', '<y>', '<x^2>','<y^2>','msd']]
