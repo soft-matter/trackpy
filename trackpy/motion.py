@@ -247,8 +247,8 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
         # will still be biased, just less so than otherwise.
     variance = numerator.div(denominator, axis=0)
 
-    # Warning: the following assumes pos_columns is ['x','y'] 
-    variance = variance[['<x>', '<y>', '<x^2>','<y^2>','msd']]
+    # Just keep the first few columns.
+    variance = variance.loc[:,variance.columns[0]:'msd']
 
     std = np.sqrt(variance)
     std.columns = 'std_' + std.columns
