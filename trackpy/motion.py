@@ -248,7 +248,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
     variance = numerator.div(denominator, axis=0)
 
     # Just keep the first few columns.
-    variance = variance.loc[:,variance.columns[0]:'msd']
+    variance = variance.loc[:,:'msd']
 
     std = np.sqrt(variance)
     std.columns = 'std_' + std.columns
