@@ -189,8 +189,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=None):
     return results
 
 
-def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
-        bessel_correction=True, pos_columns=None):
+def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     """Compute the ensemble mean squared displacements of many particles.
 
     Parameters
@@ -207,10 +206,6 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
         and std_msd.  Returns only <r^2> by default. If
         pandas is out-of-date, the std columns may not be
         calculated.
-    bessel_correction : If detail is True, set
-        bessel_correction to True if you want to apply
-        Bessel's Correction to the calculation of the
-        standard deviation.
     pos_columns : The names of the pos_columns in traj. If
         None, pos_columns will be set to ['x','y'].
 
@@ -243,16 +238,9 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
         # Calculation of biased weighted standard deviation
         numerator = ((msds.subtract(results))**2).mul(msds['N'], axis=0).sum(level=1)
         denominator = msds['N'].sum(level=1)
-        if bessel_correction:
-            denominator -= 1
-            # Bessel's correction makes it possible to calculate
-            # the unbiased variance, but the standard deviation
-            # will still be biased, just less so than otherwise.
+        denominator -= 1    # Bessel's correction
         variance = numerator.div(denominator, axis=0)
-    
-        # Just keep the first few columns.
         variance = variance.loc[:,:'msd']
-    
         std = np.sqrt(variance)
         std.columns = 'std_' + std.columns
     
