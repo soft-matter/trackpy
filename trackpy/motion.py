@@ -237,23 +237,28 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
     if not detail:
         return results.set_index('lagt')['msd']
 
-    # Calculation of biased weighted standard deviation
-    numerator = ((msds.subtract(results))**2).mul(msds['N'], axis=0).sum(level=1)
-    denominator = msds['N'].sum(level=1)
-    if bessel_correction:
-        denominator -= 1
-        # Bessel's correction makes it possible to calculate
-        # the unbiased variance, but the standard deviation
-        # will still be biased, just less so than otherwise.
-    variance = numerator.div(denominator, axis=0)
+    try:
+        # Calculation of biased weighted standard deviation
+        numerator = ((msds.subtract(results))**2).mul(msds['N'], axis=0).sum(level=1)
+        denominator = msds['N'].sum(level=1)
+        if bessel_correction:
+            denominator -= 1
+            # Bessel's correction makes it possible to calculate
+            # the unbiased variance, but the standard deviation
+            # will still be biased, just less so than otherwise.
+        variance = numerator.div(denominator, axis=0)
+    
+        # Just keep the first few columns.
+        variance = variance.loc[:,:'msd']
+    
+        std = np.sqrt(variance)
+        std.columns = 'std_' + std.columns
+    
+        return results.join(std).set_index('lagt')
 
-    # Just keep the first few columns.
-    variance = variance.loc[:,:'msd']
-
-    std = np.sqrt(variance)
-    std.columns = 'std_' + std.columns
-
-    return results.join(std).set_index('lagt')
+    except TypeError:
+        # This error may arise if pandas is out of date.
+        return results.set_index('lagt')
 
 
 def compute_drift(traj, smoothing=0, pos_columns=None):
