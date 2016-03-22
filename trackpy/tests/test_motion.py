@@ -185,6 +185,18 @@ class TestMSD(unittest.TestCase):
         actual.index = expected.index
         assert_series_equal(np.round(actual), expected)
 
+    def test_detail(self):
+        EARLY = 7 # only early lag times have good stats
+        no_detail = tp.emsd(self.many_walks, 1, 1,
+                max_lagtime=EARLY, detail=False)
+        with_detail = tp.emsd(self.many_walks, 1, 1,
+                max_lagtime=EARLY, detail=True)
+        # HACK: Float64Index imprecision ruins index equality.
+        # Test them separately. If that works, make them exactly the same.
+        assert_almost_equal(no_detail.values,with_detail.msd.values)
+        with_detail.index = no_detail.index
+        assert_series_equal(no_detail,with_detail.msd)
+
 
 class TestSpecial(unittest.TestCase):
     def setUp(self):
