@@ -259,7 +259,9 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
         return results.join(std).set_index('lagt')
 
     except TypeError:
-        # This error may arise if pandas is out of date.
+        # This error may arise if pandas is out of date:
+        #     Pandas 0.13.1 throws a TypeError.
+        #     Pandas 0.14.1 does not.
         return results.set_index('lagt')
 
 
