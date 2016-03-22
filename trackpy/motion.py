@@ -202,15 +202,17 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False,
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
     detail : Set to True to include <x>, <y>, <x^2>, <y^2>,
-        and their biased weighted standard deviations in the
-        mean, std_<x>, std_<y>, std_<x^2>, std_<y^2>.
-        Returns only <r^2> by default.
+        N, and their biased weighted standard deviations in
+        the mean, std_<x>, std_<y>, std_<x^2>, std_<y^2>,
+        and std_msd.  Returns only <r^2> by default. If
+        pandas is out-of-date, the std columns may not be
+        calculated.
     bessel_correction : If detail is True, set
         bessel_correction to True if you want to apply
         Bessel's Correction to the calculation of the
         standard deviation.
-    pos_columns : If None, pos_columns will be set to 
-        ['x','y'].
+    pos_columns : The names of the pos_columns in traj. If
+        None, pos_columns will be set to ['x','y'].
 
     Returns
     -------
