@@ -202,8 +202,8 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
         Default: 100
     detail : Set to True to include <x>, <y>, <x^2>, <y^2>,
         N, and their biased weighted standard deviations in
-        the mean, std_<x>, std_<y>, std_<x^2>, std_<y^2>,
-        and std_msd.  Returns only <r^2> by default. If
+        the mean, <x>_std, <y>_std, <x^2>_std, <y^2>_std,
+        and msd_std.  Returns only <r^2> by default. If
         pandas is out-of-date, the std columns may not be
         calculated.
     pos_columns : The names of the pos_columns in traj. If
@@ -213,8 +213,8 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     -------
     Series[msd, index=t] or, if detail=True,
     DataFrame([<x>, <y>, <x^2>, <y^2>, msd, N, lagt,
-               std_<x>, std_<y>, std_<x^2>, std_<y^2>, 
-               std_msd],
+               <x>_std, <y>_std, <x^2>_std, <y^2>_std, 
+               msd_std],
               index=lagt)
 
     Notes
@@ -242,7 +242,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
         variance = numerator.div(denominator, axis=0)
         variance = variance.loc[:,:'msd']
         std = np.sqrt(variance)
-        std.columns = 'std_' + std.columns
+        std.columns = std.columns + '_std'
     
         return results.join(std).set_index('lagt')
 
