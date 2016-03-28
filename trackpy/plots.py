@@ -46,16 +46,11 @@ def make_axes(func):
                 plt.clf()  # clear plot when plot is 3d
             kwargs['ax'] = plt.gca()
             # Delete legend keyword so remaining ones can be passed to plot().
-            try:
-                legend = kwargs['legend']
-            except KeyError:
-                legend = None
-            else:
-                del kwargs['legend']
+            legend = kwargs.pop('legend', False)
             result = func(*args, **kwargs)
-            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or
-                    legend is False):
-                plt.legend(loc='best')
+            handles, labels = kwargs['ax'].get_legend_handles_labels()
+            if legend and len(labels) > 0:
+                plt.legend(handles, labels, loc='best')
             plt.show()
             return result
         else:
