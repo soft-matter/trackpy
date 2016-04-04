@@ -18,7 +18,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, link, Hash_table
-from trackpy.utils import is_pandas_since_016, pandas_sort
+from trackpy.utils import pandas_sort
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -279,44 +279,6 @@ class CommonTrackingTests(object):
     
             assert np.sum(dx) == level_count - 1
             assert np.sum(dy) == 0
-
-    def test_copy(self):
-        """Check inplace/copy behavior of link_df, link_df_iter"""
-        # One 1D stepper
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        f_inplace = f.copy()
-        expected = f.copy()
-        expected['particle'] = np.zeros(N)
-
-        # Should add particle column in-place
-        # UNLESS diagnostics are enabled (or input dataframe is not writeable)
-        actual = self.link_df(f_inplace, 5)
-        assert_frame_equal(actual, expected)
-        if self.do_diagnostics:
-            assert 'particle' not in f_inplace.columns
-        else:
-            assert_frame_equal(actual, f_inplace)
-
-        # When DataFrame is actually a view, link_df should produce a warning
-        # and then copy the DataFrame. This only happens for pandas >= 0.16.
-        if is_pandas_since_016:
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter('ignore')
-                warnings.simplefilter('always', UserWarning)
-                actual = self.link_df(f[f['frame'] > 0], 5)
-                assert len(w) == 1
-            assert 'particle' not in f.columns
-
-        # Should copy
-        actual = self.link_df(f, 5, copy_features=True)
-        assert_frame_equal(actual, expected)
-        assert 'particle' not in f.columns
-
-        # Should copy
-        actual_iter = self.link_df_iter(f, 5, hash_size=(10, 2))
-        assert_frame_equal(actual_iter, expected)
-        assert 'particle' not in f.columns
 
     @nose.tools.raises(tp.SubnetOversizeException)
     def test_oversize_fail(self):

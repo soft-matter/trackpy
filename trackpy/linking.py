@@ -14,7 +14,7 @@ from scipy.spatial import cKDTree
 import pandas as pd
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
-from .utils import is_pandas_since_016, pandas_sort
+from .utils import pandas_sort
 
 logger = logging.getLogger(__name__)
 
@@ -472,7 +472,7 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
 def link_df(features, search_range, memory=0,
             neighbor_strategy='KDTree', link_strategy='auto',
             predictor=None, adaptive_stop=None, adaptive_step=0.95,
-            copy_features=False, diagnostics=False, pos_columns=None,
+            diagnostics=False, pos_columns=None,
             t_column=None, hash_size=None, box_size=None,
             verify_integrity=True, retain_index=False):
     """Link features into trajectories, assigning a label to each trajectory.
@@ -507,8 +507,6 @@ def link_df(features, search_range, memory=0,
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-    copy_features : boolean
-        Leave the original features DataFrame intact (slower, uses more memory)
     diagnostics : boolean
         Collect details about how each particle was linked, and return as
         columns in the output DataFrame. Implies copy=True.
@@ -546,63 +544,29 @@ def link_df(features, search_range, memory=0,
         MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
 
-    # Check if DataFrame is writeable.
-    # I don't know how to do this for pandas < 0.16.
-    if (is_pandas_since_016 and features.is_copy is not None and
-            not copy_features):
-        warn('The features DataFrame is a view, so it is not writeable. '
-             'The results will be output to a copy. Use copy_features='
-             'True to prevent this warning message.')
-        copy_features = True
-
-    # Group the DataFrame by time steps and make a 'level' out of each
-    # one, using the index to keep track of Points.
-    if retain_index:
-        orig_index = features.index.copy()  # Save it; restore it at the end.
-    features.reset_index(inplace=True, drop=True)
-    levels = (_build_level(frame, pos_columns, t_column,
-                           diagnostics=diagnostics) for frame_no, frame
-              in features.groupby(t_column))
-    labeled_levels = link_iter(
-        levels, search_range, memory=memory, predictor=predictor,
-        adaptive_stop=adaptive_stop, adaptive_step=adaptive_step,
+    features_iter = (frame for fnum, frame in features.groupby(t_column))
+    linked_iter = link_df_iter(
+        features_iter, search_range, memory=memory,
         neighbor_strategy=neighbor_strategy, link_strategy=link_strategy,
-        hash_size=hash_size, box_size=box_size)
+        predictor=predictor, adaptive_stop=adaptive_stop,
+        adaptive_step=adaptive_step, diagnostics=diagnostics,
+        pos_columns=pos_columns, t_column=t_column, hash_size=hash_size,
+        box_size=box_size, verify_integrity=verify_integrity,
+        retain_index=retain_index)
+    linked = pd.concat(linked_iter, verify_integrity=verify_integrity,
+                       ignore_index=(not retain_index))
 
-    if diagnostics:
-        features = strip_diagnostics(features)  # Makes a copy
-    elif copy_features:
-        features = features.copy()
-
-    # Do the tracking, and update the DataFrame after each iteration.
-    features['particle'] = np.nan  # placeholder
-    for level in labeled_levels:
-        index = [x.id for x in level]
-        labels = pd.Series([x.track.id for x in level], index)
-        frame_no = next(iter(level)).t  # uses an arbitary element from the set
-        if verify_integrity:
-            # This checks that the labeling is sane and tries
-            # to raise informatively if some unknown bug in linking
-            # produces a malformed labeling.
-            _verify_integrity(frame_no, labels)
-            # an additional check particular to link_df
-            if len(labels) > len(features[features[t_column] == frame_no]):
-                raise UnknownLinkingError("There are more labels than "
-                                          "particles to be labeled in Frame "
-                                          "%d".format(frame_no))
-        features['particle'].update(labels)
-        if diagnostics:
-            _add_diagnostic_columns(features, level)
-
-        logger.info("Frame %d: %d trajectories present", frame_no, len(labels))
-
-    if retain_index:
-        features.index = orig_index
-        # And don't bother to sort -- user must be doing something special.
+    if not retain_index:
+        linked = pandas_sort(linked, ['particle', t_column]
+                           ).reset_index(drop=True)
     else:
-        pandas_sort(features, ['particle', t_column], inplace=True)
-        features.reset_index(drop=True, inplace=True)
-    return features
+        linked = linked.reindex(features.index)
+
+    # Order columns as in original DataFrame, then 'particle', then
+    # any other new columns (i.e. diagnostics)
+    return linked.reindex(columns=list(features.columns) + ['particle'] +
+                          list(set(linked.columns) - set(features.columns) -
+                               {'particle',}))
 
 
 def link_df_iter(features, search_range, memory=0,

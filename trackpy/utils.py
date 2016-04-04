@@ -17,14 +17,7 @@ import yaml
 
 import trackpy
 
-# Set is_pandas_since_016 for use elsewhere.
-# Pandas >= 0.16.0 lets us check if a DataFrame is a view.
-try:
-    is_pandas_since_016 = (LooseVersion(pd.__version__) >=
-                           LooseVersion('0.16.0'))
-except ValueError:  # Probably a development version
-    is_pandas_since_016 = True
-
+# Pandas 0.17 makes some API changes.
 try:
     is_pandas_since_017 = (LooseVersion(pd.__version__) >=
                            LooseVersion('0.17.0'))
