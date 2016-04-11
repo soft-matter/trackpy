@@ -395,7 +395,7 @@ ptraj3d = plot_traj3d
 def annotate(centroids, image, circle_size=None, color=None,
              invert=False, ax=None, split_category=None, split_thresh=None,
              imshow_style={}, plot_style={}):
-    """Mark identified features with white circles.
+    """Mark identified features with circles.
 
     Parameters
     ----------
