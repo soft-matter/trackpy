@@ -10,8 +10,9 @@ from scipy import ndimage
 from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
-                            scalefactor_to_gamut)
+                            scale_to_gamut, scalefactor_to_gamut)
 from .utils import record_meta, validate_tuple, cKDTree
+from .find import grey_dilation
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -22,15 +23,6 @@ from .feature_numba import (_numba_refine_2D, _numba_refine_2D_c,
                             _numba_refine_2D_c_a, _numba_refine_3D)
 
 logger = logging.getLogger(__name__)
-
-
-def percentile_threshold(image, percentile):
-    """Find grayscale threshold based on distribution in image."""
-
-    not_black = image[np.nonzero(image)]
-    if len(not_black) == 0:
-        return np.nan
-    return np.percentile(not_black, percentile)
 
 
 def minmass_version_change(raw_image, old_minmass, preprocess=True,
@@ -100,38 +92,9 @@ def local_maxima(image, radius, percentile=64, margin=None):
     margin : zone of exclusion at edges of image. Defaults to radius.
             A smarter value is set by locate().
     """
-    if margin is None:
-        margin = radius
-    if not np.issubdtype(image.dtype, np.integer):
-        factor = 255 / image.max()
-        image = (factor * image.clip(min=0.)).astype(np.uint8)
-
-    ndim = image.ndim
-    # Compute a threshold based on percentile.
-    threshold = percentile_threshold(image, percentile)
-    if np.isnan(threshold):
-        warnings.warn("Image is completely black.", UserWarning)
-        return np.empty((0, ndim))
-
-    # The intersection of the image with its dilation gives local maxima.
-    footprint = binary_mask(radius, ndim)
-    dilation = ndimage.grey_dilation(image, footprint=footprint,
-                                     mode='constant')
-    maxima = np.vstack(np.where((image == dilation) & (image > threshold))).T
-    if not np.size(maxima) > 0:
-        warnings.warn("Image contains no local maxima.", UserWarning)
-        return np.empty((0, ndim))
-
-    # Do not accept peaks near the edges.
-    shape = np.array(image.shape)
-    near_edge = np.any((maxima < margin) | (maxima > (shape - margin - 1)), 1)
-    maxima = maxima[~near_edge]
-    if not np.size(maxima) > 0:
-        warnings.warn("All local maxima were in the margins.", UserWarning)
-
-    # Return coords in as a numpy array shaped so it can be passed directly
-    # to the DataFrame constructor.
-    return maxima
+    warnings.warn("Local_maxima will be deprecated: please use routines in "
+                  "trackpy.find", DeprecationWarning)
+    return grey_dilation(image, [r * 2 + 1 for r in radius], percentile, margin)
 
 
 def estimate_mass(image, radius, coord):
@@ -598,7 +561,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     #   - Invalid output of the bandpass step ("smoothing_size")
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
                     zip(radius, separation, smoothing_size)])
-    coords = local_maxima(image, radius, percentile, margin)
+    coords = grey_dilation(image, radius, percentile, margin)
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:
