@@ -44,7 +44,7 @@ def where_close(pos, separation, intensity=None):
         if np.any(edge_cases):
             index_0 = index_0[edge_cases]
             index_1 = index_1[edge_cases]
-            to_drop[edge_cases] = np.where(np.sum(pos_rescaled[index_0], 1) <
+            to_drop[edge_cases] = np.where(np.sum(pos_rescaled[index_0], 1) >
                                            np.sum(pos_rescaled[index_1], 1),
                                            index_1, index_0)
     return np.unique(to_drop)

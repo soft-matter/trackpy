@@ -10,9 +10,10 @@ from scipy import ndimage
 from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
-                            scale_to_gamut, scalefactor_to_gamut)
-from .utils import record_meta, validate_tuple, cKDTree
-from .find import grey_dilation
+                            scalefactor_to_gamut)
+from .utils import record_meta, validate_tuple
+from .find import grey_dilation, where_close
+
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -257,28 +258,10 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
     if np.all(np.greater(separation, 0)):
         mass_index = image.ndim  # i.e., index of the 'mass' column
-        while True:
-            # Rescale positions, so that pairs are identified below a distance
-            # of 1. Do so every iteration (room for improvement?)
-            positions = results[:, :mass_index]/list(reversed(separation))
-            mass = results[:, mass_index]
-            duplicates = cKDTree(positions, 30).query_pairs(1)
-            if len(duplicates) == 0:
-                break
-            to_drop = []
-            for p0, p1 in duplicates:
-                # Drop the dimmer one.
-                m0, m1 = mass[p0], mass[p1]
-                if m0 < m1:
-                    to_drop.append(p0)
-                elif m0 > m1:
-                    to_drop.append(p1)
-                else:
-                    # Rare corner case: a tie!
-                    # Break ties by sorting by sum of coordinates, to avoid
-                    # any randomness resulting from cKDTree returning a set.
-                    to_drop.append([p0, p1][np.argmin(np.sum(positions.take([p0, p1], 0), 1))])
-            results = np.delete(results, to_drop, 0)
+        positions = results[:, :mass_index]
+        mass = results[:, mass_index]
+        to_drop = where_close(positions, list(reversed(separation)), mass)
+        results = np.delete(results, to_drop, 0)
 
     return results
 
