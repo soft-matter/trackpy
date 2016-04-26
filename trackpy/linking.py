@@ -1040,9 +1040,8 @@ class Linker(object):
                 p.forward_cands = []
 
             # Sort out what can go to what.
-            if len(cur_level) > 0 and len(prev_hash) > 0:
-                assign_candidates(cur_level, prev_hash, self.search_range,
-                                  self.neighbor_strategy)
+            assign_candidates(cur_level, prev_hash, self.search_range,
+                              self.neighbor_strategy)
 
             # sort the candidate lists by distance
             for p in cur_set:
@@ -1233,15 +1232,18 @@ def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
                     p.back_cands.append((wp, d))
                     wp.forward_cands.append((p, d))
     elif neighbor_strategy == 'KDTree':
-        hashpts = prev_hash.points
-        cur_coords = np.array([x.pos for x in cur_level])
-        dists, inds = prev_hash.kdtree.query(cur_coords, 10, distance_upper_bound=search_range)
-        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, p in enumerate(cur_level):
-            for j in range(nn[i]):
-                wp = hashpts[inds[i, j]]
-                p.back_cands.append((wp, dists[i, j]))
-                wp.forward_cands.append((p, dists[i, j]))
+        # kdtree.query() would raise exception on empty level.
+        if len(cur_level) and len(prev_hash):
+            cur_coords = np.array([x.pos for x in cur_level])
+            hashpts = prev_hash.points
+            dists, inds = prev_hash.kdtree.query(cur_coords, 10,
+                                                 distance_upper_bound=search_range)
+            nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
+            for i, p in enumerate(cur_level):
+                for j in range(nn[i]):
+                    wp = hashpts[inds[i, j]]
+                    p.back_cands.append((wp, dists[i, j]))
+                    wp.forward_cands.append((p, dists[i, j]))
 
 
 class SubnetOversizeException(Exception):
