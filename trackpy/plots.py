@@ -42,8 +42,6 @@ def make_axes(func):
     def wrapper(*args, **kwargs):
         import matplotlib.pyplot as plt
         if kwargs.get('ax') is None:
-            if hasattr(plt.gca(), 'zaxis'):
-                plt.clf()  # clear plot when plot is 3d
             kwargs['ax'] = plt.gca()
             show_plot = True
         else:
@@ -84,10 +82,13 @@ def make_axes3d(func):
 
         if kwargs.get('ax') is None:
             if not hasattr(plt.gca(), 'zaxis'):
-                plt.clf()  # clear plot when plot is 3d
-            kwargs['ax'] = plt.gca()
+                plt.figure()  # initialize new Fig when current axis is not 3d
+            kwargs['ax'] = plt.gca(projection='3d')
             show_plot = True
         else:
+            if not hasattr(plt.gca(), 'zaxis'):
+                raise ValueError("The provided axis object is not 3d. Please "
+                                 "consult the mplot3d documentation.")
             show_plot = False
 
         # Delete legend keyword so remaining ones can be passed to plot().
