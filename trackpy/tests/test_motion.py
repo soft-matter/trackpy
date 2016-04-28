@@ -32,6 +32,7 @@ def conformity(df):
 
 
 def add_drift(df, drift):
+    df = df.copy()
     df['x'] = df['x'].add(drift['x'], fill_value=0)
     df['y'] = df['y'].add(drift['y'], fill_value=0)
     return df
