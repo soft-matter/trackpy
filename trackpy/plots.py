@@ -45,16 +45,24 @@ def make_axes(func):
             if hasattr(plt.gca(), 'zaxis'):
                 plt.clf()  # clear plot when plot is 3d
             kwargs['ax'] = plt.gca()
-            # Delete legend keyword so remaining ones can be passed to plot().
-            legend = kwargs.pop('legend', False)
-            result = func(*args, **kwargs)
-            handles, labels = kwargs['ax'].get_legend_handles_labels()
-            if legend and len(labels) > 0:
-                plt.legend(handles, labels, loc='best')
-            plt.show()
-            return result
+            show_plot = True
         else:
-            return func(*args, **kwargs)
+            show_plot = False
+
+        # Delete legend keyword so remaining ones can be passed to plot().
+        legend = kwargs.pop('legend', False)
+
+        result = func(*args, **kwargs)
+
+        if legend:
+            handles, labels = kwargs['ax'].get_legend_handles_labels()
+            if len(labels) > 0:
+                kwargs['ax'].legend(handles, labels, loc='best')
+
+        if show_plot:
+            plt.show()
+
+        return result
     return wrapper
 
 
@@ -76,23 +84,26 @@ def make_axes3d(func):
 
         if kwargs.get('ax') is None:
             if not hasattr(plt.gca(), 'zaxis'):
-                plt.clf()  # clear plot when plot is 2d
-            kwargs['ax'] = plt.gca(projection='3d')
-            # Delete legend keyword so remaining ones can be passed to plot().
-            try:
-                legend = kwargs['legend']
-            except KeyError:
-                legend = None
-            else:
-                del kwargs['legend']
-            result = func(*args, **kwargs)
-            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or
-                    legend is False):
-                plt.legend(loc='best')
-            plt.show()
-            return result
+                plt.clf()  # clear plot when plot is 3d
+            kwargs['ax'] = plt.gca()
+            show_plot = True
         else:
-            return func(*args, **kwargs)
+            show_plot = False
+
+        # Delete legend keyword so remaining ones can be passed to plot().
+        legend = kwargs.pop('legend', False)
+
+        result = func(*args, **kwargs)
+
+        if legend:
+            handles, labels = kwargs['ax'].get_legend_handles_labels()
+            if len(labels) > 0:
+                kwargs['ax'].legend(handles, labels, loc='best')
+
+        if show_plot:
+            plt.show()
+
+        return result
     return wrapper
 
 
