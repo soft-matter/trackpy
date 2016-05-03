@@ -5,16 +5,16 @@ matrix:
   include:
     # "Legacy" environments: oldest supported versions, without and with numba
     - python: "2.7"
-      env: DEPS="numpy=1.8.2 scipy=0.12.0 matplotlib=1.3 pillow==2.1 pandas=0.13.0 scikit-image=0.9 pyyaml pytables pyfftw"
+      env: DEPS="numpy=1.8.2 scipy=0.12.0 matplotlib=1.3 pillow==2.1 pandas=0.13.0 scikit-image=0.9 pyyaml pytables pyfftw" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="numpy=1.8.2 scipy=0.13.3 matplotlib=1.3 pillow==2.5.1 pandas=0.13.0 scikit-image=0.9 pyyaml numba=0.13.4 pytables pyfftw"
+      env: DEPS="numpy=1.8.2 scipy=0.13.3 matplotlib=1.3 pillow==2.5.1 pandas=0.13.0 scikit-image=0.9 pyyaml numba=0.13.4 pytables pyfftw" BUILD_DOCS=false
     # "Recommended" environments: More recent versions, for Py2 and Py3.
     - python: "2.7"
-      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==2.9 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw"
+      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==2.9 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==3.0 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw"
+      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==3.0 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=false
     - python: "3.5"
-      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba"
+      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba ipython sphinx numpydoc"  BUILD_DOCS=true
 
 install:
   # See:
@@ -26,6 +26,7 @@ install:
   - conda config --add channels soft-matter
   - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
+  - if [ $BUILD_DOCS == true ]; then pip install sphinx_bootstrap_theme; fi
   # for debugging...
   - echo $PATH
   - which python
@@ -39,4 +40,27 @@ before_install:
   - ./miniconda.sh -b -p /home/travis/mc
   - export PATH=/home/travis/mc/bin:$PATH
 
-script: nosetests --nologcapture -a '!slow'
+script:
+  - nosetests --nologcapture -a '!slow'
+  - if [ $BUILD_DOCS == true ]; then make html --directory=./doc; fi
+
+after_success:
+    - cd $TRAVIS_BUILD_DIR
+    - |
+      if [[ $TRAVIS_PULL_REQUEST == false && $TRAVIS_REPO_SLUG == 'soft-matter/trackpy' && $BUILD_DOCS == true && $TRAVIS_BRANCH == 'master' ]]; then
+        echo "Uploading documentation"
+        openssl aes-256-cbc -K $encrypted_23ba5de49536_key -iv $encrypted_23ba5de49536_iv -in soft-matter-docs-deploy.enc -out soft-matter-docs-deploy -d
+        eval `ssh-agent -s`
+        chmod 600 soft-matter-docs-deploy
+        ssh-add soft-matter-docs-deploy
+        git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
+        cd doc-repo/trackpy/dev
+        git rm -rf *
+        cp -R /home/travis/build/soft-matter/trackpy/doc/build/html/. .
+        git config --global user.email "Travis@nomail"
+        git config --global user.name "Travis"
+        git config --global push.default simple
+        git add .
+        git commit -m "Docs build of trackpy commit $TRAVIS_COMMIT"
+        git push --set-upstream origin master
+      fi
