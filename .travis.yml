@@ -42,10 +42,18 @@ before_install:
 
 script:
   - nosetests --nologcapture -a '!slow'
-  - if [ $BUILD_DOCS == true ]; then make html --directory=./doc; fi
+  - |
+    if [ $BUILD_DOCS == true ]; then
+      cd /home/travis/build/soft-matter
+      git clone https://github.com/soft-matter/trackpy-examples.git
+      cd /home/travis/build/soft-matter/trackpy/doc
+      make notebook
+      make html
+    fi
+
 
 after_success:
-    - cd $TRAVIS_BUILD_DIR
+    - cd /home/travis/build/soft-matter
     - |
       if [[ $TRAVIS_PULL_REQUEST == false && $TRAVIS_REPO_SLUG == 'soft-matter/trackpy' && $BUILD_DOCS == true && $TRAVIS_BRANCH == 'master' ]]; then
         echo "Uploading documentation"
@@ -56,7 +64,7 @@ after_success:
         git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
         cd doc-repo/trackpy/dev
         git rm -rf *
-        cp -R /home/travis/build/soft-matter/trackpy/doc/build/html/. .
+        cp -R /home/travis/build/soft-matter/trackpy/doc/_build/html/. .
         git config --global user.email "Travis@nomail"
         git config --global user.name "Travis"
         git config --global push.default simple
