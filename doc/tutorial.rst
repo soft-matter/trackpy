@@ -9,13 +9,13 @@ Basic Usage
 .. toctree::
    :maxdepth: 2
 
-   tutorial/walkthrough
-   tutorial/prediction
-   tutorial/tracking-3d
-   tutorial/uncertainty
-   tutorial/subnets
-   tutorial/adaptive-search
-   tutorial/linking-diagnostics
+   Walkthrough <tutorial/walkthrough>
+   Prediction (Linking) <tutorial/prediction>
+   Tracking in 3D <tutorial/tracking-3d>
+   Uncertainty Estimation <tutorial/uncertainty>
+   Advanced Linking <tutorial/subnets>
+   Adaptive Linking <tutorial/adaptive-search>
+   Linking Diagnostics <tutorial/linking-diagnostics>
 
 Processing Large Data Sets
 --------------------------
@@ -23,13 +23,13 @@ Processing Large Data Sets
 .. toctree::
    :maxdepth: 2
 
-   tutorial/on-disk
-   tutorial/performance
-   tutorial/parallel-locate
+   Streaming <tutorial/on-disk>
+   Performance <tutorial/performance>
+   Parallelized Feature Finding <tutorial/parallel-locate>
 
 Extending & Customizing Trackpy
 -------------------------------
 .. toctree::
    :maxdepth: 2
 
-   tutorial/custom-feature-detection
+   Bubble Tracking in Foams <tutorial/custom-feature-detection>

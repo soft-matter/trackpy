@@ -1,14 +1,12 @@
 NOTEBOOK_DIR = ../../../trackpy-examples/notebooks
-notebooks:
+FILES := $(patsubst $(NOTEBOOK_DIR)/%,%, $(wildcard $(NOTEBOOK_DIR)/*.ipynb))
 
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/walkthrough.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/on-disk.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/prediction.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/tracking-3d.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/uncertainty.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/performance.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/parallel-locate.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/custom-feature-detection.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/subnets.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/adaptive-search.ipynb
-	ipython nbconvert --to rst $(NOTEBOOK_DIR)/linking-diagnostics.ipynb
+notebooks:
+	# run the nbconvert and output an html to current directory
+	# write an .rst file so that sphinx will include the .html
+	# the first line is a title, which is necessary for it to be included in the Sphinx toctree
+	@- $(foreach FILE, $(FILES), \
+	    jupyter nbconvert --to html $(NOTEBOOK_DIR)/$(FILE) --output $(CURDIR)/$(FILE:.ipynb=.html); \
+	    echo -e '$(FILE:.ipynb=)\n------------------------------------------------\n.. raw:: html\n    :file: '$(FILE:.ipynb=.html) > $(FILE:.ipynb=.rst); \
+	)
+
