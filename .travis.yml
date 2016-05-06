@@ -63,15 +63,18 @@ after_success:
         eval `ssh-agent -s`
         chmod 600 soft-matter-docs-deploy
         ssh-add soft-matter-docs-deploy
-        cd ..
-        git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
-        cd doc-repo/trackpy
-        git rm -rf ./dev
-        mv $TRAVIS_BUILD_DIR/doc/_build/html ./dev
         git config --global user.email "Travis@nomail"
         git config --global user.name "Travis"
         git config --global push.default simple
-        git add .
+        cd ..
+        git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
+        cd doc-repo/trackpy
+        git checkout --orphan temp_branch
+        git rm -rf ./dev
+        mv $TRAVIS_BUILD_DIR/doc/_build/html ./dev
+        git add -A
         git commit -m "Docs build of trackpy commit $TRAVIS_COMMIT"
-        git push --set-upstream origin master
+        git branch -D master
+        git branch -m master
+        git push --set-upstream origin master --force
       fi
