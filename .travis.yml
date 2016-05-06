@@ -72,6 +72,9 @@ after_success:
         git checkout --orphan temp_branch
         git rm -rf ./dev
         mv $TRAVIS_BUILD_DIR/doc/_build/html ./dev
+        if [ -n "$TRAVIS_TAG" ]; then
+          cp -R dev $TRAVIS_TAG;
+        fi
         git add -A
         git commit -m "Docs build of trackpy commit $TRAVIS_COMMIT"
         git branch -D master
