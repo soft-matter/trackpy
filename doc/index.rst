@@ -88,17 +88,17 @@ the `github repository <https://github.com/soft-matter/trackpy>`_.
 .. toctree::
    :maxdepth: 1
 
-   tutorial/walkthrough
-   tutorial/prediction
-   tutorial/tracking-3d
-   tutorial/uncertainty
-   tutorial/subnets
-   tutorial/adaptive-search
-   tutorial/on-disk
-   tutorial/performance
-   tutorial/linking-diagnostics
-   tutorial/parallel-locate
-   tutorial/custom-feature-detection
+   Walkthrough <tutorial/walkthrough>
+   Prediction (Linking) <tutorial/prediction>
+   Tracking in 3D <tutorial/tracking-3d>
+   Uncertainty Estimation <tutorial/uncertainty>
+   Advanced Linking <tutorial/subnets>
+   Adaptive Linking <tutorial/adaptive-search>
+   Streaming <tutorial/on-disk>
+   Performance <tutorial/performance>
+   Linking Diagnostics <tutorial/linking-diagnostics>
+   Parallelized Feature Finding <tutorial/parallel-locate>
+   Bubble Tracking in Foams <tutorial/custom-feature-detection>
 
 .. raw:: html
 
