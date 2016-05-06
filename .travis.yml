@@ -65,9 +65,9 @@ after_success:
         ssh-add soft-matter-docs-deploy
         cd ..
         git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
-        cd doc-repo/trackpy/dev
-        git rm -rf *
-        cp -R $TRAVIS_BUILD_DIR/doc/_build/html/. .
+        cd doc-repo/trackpy
+        git rm -rf ./dev
+        mv $TRAVIS_BUILD_DIR/doc/_build/html ./dev
         git config --global user.email "Travis@nomail"
         git config --global user.name "Travis"
         git config --global push.default simple
