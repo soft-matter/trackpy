@@ -544,7 +544,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     #   - Invalid output of the bandpass step ("smoothing_size")
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
                     zip(radius, separation, smoothing_size)])
-    coords = grey_dilation(image, radius, percentile, margin)
+    coords = grey_dilation(image, separation, percentile, margin)
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:
