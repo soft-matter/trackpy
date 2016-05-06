@@ -93,7 +93,7 @@ def grey_dilation(image, separation, percentile=64, margin=None):
         return np.empty((0, ndim))
 
     # Find the smallest box that fits inside the ellipse given by separation
-    size = [int(s / np.sqrt(ndim)) for s in separation]
+    size = [int(2 * s / np.sqrt(ndim)) for s in separation]
 
     # The intersection of the image with its dilation gives local maxima.
     dilation = ndimage.grey_dilation(image, size, mode='constant')
@@ -124,8 +124,9 @@ def grey_dilation_legacy(image, radius, percentile=64, margin=None):
 
     Parameters
     ----------
-    radius : integer definition of "local" in "local maxima"
-    percentile : chooses minimum grayscale value for a local maximum
+    radius : the radius of the circular grey dilation kernel, half the minimum
+        separation between maxima
+    percentile : chooses minimum greyscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to radius.
             A smarter value is set by locate().
     """
