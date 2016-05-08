@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from numpy.testing import (assert_almost_equal, assert_allclose,
-                           assert_array_less)
+                           assert_array_less, assert_equal)
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_produces_warning)
@@ -51,6 +51,12 @@ def sort_positions(actual, expected):
         raise AssertionError("Position sorting failed. At least one feature is "
                              "very far from where it should be.")
     return deviations, actual[argsort][0]
+
+
+def assert_coordinates_close(actual, expected, atol):
+    assert_equal(len(actual), len(expected))
+    _, sorted_actual = sort_positions(actual, expected)
+    assert_allclose(sorted_actual, expected, atol)
 
 
 class OldMinmass(unittest.TestCase):
