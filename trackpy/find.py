@@ -27,7 +27,7 @@ def where_close(pos, separation, intensity=None):
     # Rescale positions, so that pairs are identified below a distance
     # of 1.
     pos_rescaled = pos / separation
-    duplicates = cKDTree(pos_rescaled, 30).query_pairs(1)
+    duplicates = cKDTree(pos_rescaled, 30).query_pairs(1 - 1e-7)
     if len(duplicates) == 0:
         return []
     index_0 = np.fromiter((x[0] for x in duplicates), dtype=int)
@@ -67,15 +67,23 @@ def percentile_threshold(image, percentile):
     return np.percentile(not_black, percentile)
 
 
-def grey_dilation(image, separation, percentile=64, margin=None):
+def grey_dilation(image, separation, percentile=64, margin=None,
+                  precise=True):
     """Find local maxima whose brightness is above a given percentile.
 
     Parameters
     ----------
+    image : ndarray
+        For best performance, provide an integer-type array. If the type is not
+        of integer-type, the image will be normalized and coerced to uint8.
     separation : minimum separation between maxima
     percentile : chooses minimum grayscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to separation.
             A smarter value is set by locate().
+    precise : boolean
+        Determines whether there will be an extra filtering step discarding
+        features that are too close. Degrades performance. Because of the square
+        kernel used, too many features are returned when False. Default True.
     """
     if not np.issubdtype(image.dtype, np.integer):
         factor = 255 / image.max()
@@ -114,24 +122,24 @@ def grey_dilation(image, separation, percentile=64, margin=None):
         return np.empty((0, ndim))
 
     # Remove local maxima that are too close to each other
-    pos = drop_close(pos, separation, image[maxima][~near_edge])
+    if precise:
+        pos = drop_close(pos, separation, image[maxima][~near_edge])
 
     return pos
 
 
-def grey_dilation_legacy(image, radius, percentile=64, margin=None):
+def grey_dilation_legacy(image, separation, percentile=64, margin=None):
     """Find local maxima whose brightness is above a given percentile.
 
     Parameters
     ----------
-    radius : the radius of the circular grey dilation kernel, half the minimum
-        separation between maxima
+    separation : minimum separation between maxima
     percentile : chooses minimum greyscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to radius.
             A smarter value is set by locate().
     """
     if margin is None:
-        margin = radius
+        margin = separation
 
     ndim = image.ndim
     # Compute a threshold based on percentile.
@@ -143,7 +151,7 @@ def grey_dilation_legacy(image, radius, percentile=64, margin=None):
     # The intersection of the image with its dilation gives local maxima.
     if not np.issubdtype(image.dtype, np.integer):
         raise TypeError("Perform dilation on exact (i.e., integer) data.")
-    footprint = binary_mask(radius, ndim)
+    footprint = binary_mask(separation, ndim)
     dilation = ndimage.grey_dilation(image, footprint=footprint,
                                      mode='constant')
     maxima = np.vstack(np.where((image == dilation) & (image > threshold))).T

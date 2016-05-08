@@ -82,20 +82,23 @@ def minmass_version_change(raw_image, old_minmass, preprocess=True,
 
 def local_maxima(image, radius, percentile=64, margin=None):
     """Find local maxima whose brightness is above a given percentile.
+    This function has been deprecated. Please use the routines in trackpy.find,
+    with the minimum separation between features as second argument.
 
     Parameters
     ----------
     image : ndarray
         For best performance, provide an integer-type array. If the type is not
         of integer-type, the image will be normalized and coerced to uint8.
-    radius : integer definition of "local" in "local maxima"
+    radius : the radius of the circular grey dilation kernel, which is the
+        minimum separation between maxima
     percentile : chooses minimum grayscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to radius.
             A smarter value is set by locate().
     """
     warnings.warn("Local_maxima will be deprecated: please use routines in "
                   "trackpy.find", DeprecationWarning)
-    return grey_dilation(image, [r * 2 + 1 for r in radius], percentile, margin)
+    return grey_dilation(image, radius, percentile, margin)
 
 
 def estimate_mass(image, radius, coord):
@@ -544,7 +547,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     #   - Invalid output of the bandpass step ("smoothing_size")
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
                     zip(radius, separation, smoothing_size)])
-    coords = grey_dilation(image, separation, percentile, margin)
+    # Find features with minimum separation distance of `diameter`. This enables
+    # detection of small features close to large, bright features using the
+    # `maxsize` argument.
+    coords = grey_dilation(image, diameter, percentile, margin, precise=False)
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:
