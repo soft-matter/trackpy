@@ -392,10 +392,10 @@ def plot_traj3d(*args, **kwargs):
 ptraj3d = plot_traj3d
 
 @make_axes
-def annotate(centroids, image, circle_size=None, color=None,
+def annotate(centroids, image, circle_size=None, label=False, color=None,
              invert=False, ax=None, split_category=None, split_thresh=None,
-             imshow_style={}, plot_style={}):
-    """Mark identified features with white circles.
+             imshow_style={}, plot_style={}, label_style={}):
+    """Mark identified features with circles.
 
     Parameters
     ----------
@@ -404,6 +404,8 @@ def annotate(centroids, image, circle_size=None, color=None,
     circle_size : Deprecated.
         This will be removed in a future version of trackpy.
         Use `plot_style={'markersize': ...}` instead.
+    label : boolean, optional
+        Set to True to write particle ID or row numbers next to markers.
     color : single matplotlib color or a list of multiple colors
         default None
     invert : If you give a filepath as the image, specify whether to invert
@@ -419,6 +421,8 @@ def annotate(centroids, image, circle_size=None, color=None,
         the `Axes.imshow(...)` command the displays the image
     plot_style : dictionary of keyword arguments passed through to
         the `Axes.plot(...)` command that marks the features
+    label_style : dictionary of keyword arguments passed through to 
+        the `Axes.annotate(...)` command that labels the features
 
     Returns
     -------
@@ -504,6 +508,14 @@ def annotate(centroids, image, circle_size=None, color=None,
         _plot_style.update(markeredgecolor=color[-1])
         ax.plot(centroids['x'][high], centroids['y'][high],
                 **_plot_style)
+                
+    if label:
+        if 'particle' in centroids.columns:
+            for (i, row) in centroids.iterrows():
+                ax.annotate(str(row.particle), (row.x, row.y), **label_style)
+        else:
+            for (i, row) in centroids.iterrows():
+                ax.annotate(str(i), (row.x, row.y), **label_style)
     return ax
 
 
