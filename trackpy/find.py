@@ -9,7 +9,6 @@ from scipy import ndimage
 from scipy.spatial import cKDTree
 
 from .utils import validate_tuple
-
 from .masks import binary_mask
 
 logger = logging.getLogger(__name__)
@@ -67,8 +66,7 @@ def percentile_threshold(image, percentile):
     return np.percentile(not_black, percentile)
 
 
-def grey_dilation(image, separation, percentile=64, margin=None,
-                  precise=True):
+def grey_dilation(image, separation, percentile=64, margin=None, precise=True):
     """Find local maxima whose brightness is above a given percentile.
 
     Parameters
@@ -76,14 +74,23 @@ def grey_dilation(image, separation, percentile=64, margin=None,
     image : ndarray
         For best performance, provide an integer-type array. If the type is not
         of integer-type, the image will be normalized and coerced to uint8.
-    separation : minimum separation between maxima
-    percentile : chooses minimum grayscale value for a local maximum
-    margin : zone of exclusion at edges of image. Defaults to separation.
-            A smarter value is set by locate().
-    precise : boolean
-        Determines whether there will be an extra filtering step discarding
-        features that are too close. Degrades performance. Because of the square
-        kernel used, too many features are returned when False. Default True.
+    separation : number or tuple of numbers
+        Minimum separation between maxima. See precise for more information.
+    percentile : float in range of [0,100], optional
+        Features must have a peak brighter than pixels in this percentile.
+        This helps eliminate spurious peaks. Default 64.
+    margin : integer or tuple of integers, optional
+        Zone of exclusion at edges of image. Default is ``separation / 2``.
+    precise : boolean, optional
+        Determines whether there will be an extra filtering step (``drop_close``)
+        discarding features that are too close. Degrades performance.
+        Because of the square kernel used, too many features are returned when
+        precise=False. Default True.
+
+    See Also
+    --------
+    drop_close : removes features that are too close to brighter features
+    grey_dilation_legacy : local maxima finding routine used until trackpy v0.3
     """
     if not np.issubdtype(image.dtype, np.integer):
         factor = 255 / image.max()
@@ -100,7 +107,7 @@ def grey_dilation(image, separation, percentile=64, margin=None,
         warnings.warn("Image is completely black.", UserWarning)
         return np.empty((0, ndim))
 
-    # Find the smallest box that fits inside the ellipse given by separation
+    # Find the largest box that fits inside the ellipse given by separation
     size = [int(2 * s / np.sqrt(ndim)) for s in separation]
 
     # The intersection of the image with its dilation gives local maxima.
@@ -137,6 +144,10 @@ def grey_dilation_legacy(image, separation, percentile=64, margin=None):
     percentile : chooses minimum greyscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to radius.
             A smarter value is set by locate().
+
+    See Also
+    --------
+    grey_dilation : faster local maxima finding routine
     """
     if margin is None:
         margin = separation

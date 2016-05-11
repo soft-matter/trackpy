@@ -79,6 +79,23 @@ class TestFindGreyDilation(unittest.TestCase):
             f = grey_dilation(im, (11, 21))
             assert_coordinates_close(f, pos[1:], atol=1)
 
+    def test_float_image(self):
+        separation = 20
+        angle = 45
+        im = np.zeros((128, 128), dtype=np.float64)
+        pos = [[64, 64], [64 + separation * np.sin(angle/180*np.pi),
+                          64 + separation * np.cos(angle/180*np.pi)]]
+
+        # setup features: features with equal signal will always be
+        # detected by a grey dilation, so make them unequal
+        draw_feature(im, pos[0], 15, 240)
+        draw_feature(im, pos[1], 15, 250)
+
+        # find both of them
+        f = grey_dilation(im, separation - 1, precise=False)
+        assert_coordinates_close(f, pos, atol=1)
+
+
 
 class TestFindGreyDilationLegacy(unittest.TestCase):
     def test_separation(self):

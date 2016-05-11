@@ -528,21 +528,21 @@ class CommonFeatureIdentificationTests(object):
 
         # filter on mass
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
-                           minmass=6500)[cols]
+                           minmass=6500, separation=10)[cols]
         actual = pandas_sort(actual, cols)
         expected = pandas_sort(DataFrame([pos2, pos4], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
-                           maxsize=3.0)[cols]
+                           maxsize=3.0, separation=10)[cols]
         actual = pandas_sort(actual, cols)
         expected = pandas_sort(DataFrame([pos1, pos3], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on both mass and size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
-                           minmass=600, maxsize=4.0)[cols]
+                           minmass=600, maxsize=4.0, separation=10)[cols]
         actual = pandas_sort(actual, cols)
         expected = pandas_sort(DataFrame([pos1, pos4], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)

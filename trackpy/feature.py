@@ -547,10 +547,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     #   - Invalid output of the bandpass step ("smoothing_size")
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
                     zip(radius, separation, smoothing_size)])
-    # Find features with minimum separation distance of `diameter`. This enables
-    # detection of small features close to large, bright features using the
-    # `maxsize` argument.
-    coords = grey_dilation(image, diameter, percentile, margin, precise=False)
+    # Find features with minimum separation distance of `separation`. This
+    # excludes detection of small features close to large, bright features
+    # using the `maxsize` argument.
+    coords = grey_dilation(image, separation, percentile, margin, precise=False)
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:
