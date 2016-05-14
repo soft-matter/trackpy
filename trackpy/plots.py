@@ -42,24 +42,25 @@ def make_axes(func):
     def wrapper(*args, **kwargs):
         import matplotlib.pyplot as plt
         if kwargs.get('ax') is None:
-            if hasattr(plt.gca(), 'zaxis'):
-                plt.clf()  # clear plot when plot is 3d
             kwargs['ax'] = plt.gca()
-            # Delete legend keyword so remaining ones can be passed to plot().
-            try:
-                legend = kwargs['legend']
-            except KeyError:
-                legend = None
-            else:
-                del kwargs['legend']
-            result = func(*args, **kwargs)
-            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or
-                    legend is False):
-                plt.legend(loc='best')
-            plt.show()
-            return result
+            show_plot = True
         else:
-            return func(*args, **kwargs)
+            show_plot = False
+
+        # Delete legend keyword so remaining ones can be passed to plot().
+        legend = kwargs.pop('legend', False)
+
+        result = func(*args, **kwargs)
+
+        if legend:
+            handles, labels = kwargs['ax'].get_legend_handles_labels()
+            if len(labels) > 0:
+                kwargs['ax'].legend(handles, labels, loc='best')
+
+        if show_plot:
+            plt.show()
+
+        return result
     return wrapper
 
 
@@ -81,30 +82,36 @@ def make_axes3d(func):
 
         if kwargs.get('ax') is None:
             if not hasattr(plt.gca(), 'zaxis'):
-                plt.clf()  # clear plot when plot is 2d
+                plt.figure()  # initialize new Fig when current axis is not 3d
             kwargs['ax'] = plt.gca(projection='3d')
-            # Delete legend keyword so remaining ones can be passed to plot().
-            try:
-                legend = kwargs['legend']
-            except KeyError:
-                legend = None
-            else:
-                del kwargs['legend']
-            result = func(*args, **kwargs)
-            if not (kwargs['ax'].get_legend_handles_labels() == ([], []) or
-                    legend is False):
-                plt.legend(loc='best')
-            plt.show()
-            return result
+            show_plot = True
         else:
-            return func(*args, **kwargs)
+            if not hasattr(plt.gca(), 'zaxis'):
+                raise ValueError("The provided axis object is not 3d. Please "
+                                 "consult the mplot3d documentation.")
+            show_plot = False
+
+        # Delete legend keyword so remaining ones can be passed to plot().
+        legend = kwargs.pop('legend', False)
+
+        result = func(*args, **kwargs)
+
+        if legend:
+            handles, labels = kwargs['ax'].get_legend_handles_labels()
+            if len(labels) > 0:
+                kwargs['ax'].legend(handles, labels, loc='best')
+
+        if show_plot:
+            plt.show()
+
+        return result
     return wrapper
 
 
 def make_fig(func):
     """See make_axes."""
     import matplotlib.pyplot as plt
-    wraps(func)
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if 'fig' not in kwargs:
             kwargs['fig'] = plt.gcf()
@@ -113,6 +120,14 @@ def make_fig(func):
         else:
             return func(*args, **kwargs)
     return wrapper
+
+
+def invert_yaxis(ax):
+    """Inverts the y-axis of an axis object."""
+    bottom, top = ax.get_ylim()
+    if top > bottom:
+        ax.set_ylim(top, bottom, auto=None)
+    return ax
 
 
 def _plot(ax, coords, pos_columns, **plot_style):
@@ -139,7 +154,6 @@ def _plot(ax, coords, pos_columns, **plot_style):
         return ax.plot(coords[pos_columns[0]], coords[pos_columns[1]],
                        zs=coords[pos_columns[2]], **plot_style)
     elif len(pos_columns) == 2:
-        ax.invert_yaxis()
         return ax.plot(coords[pos_columns[0]], coords[pos_columns[1]],
                        **plot_style)
 
@@ -165,6 +179,7 @@ def _set_labels(ax, label_format, pos_columns):
     ax.set_ylabel(label_format.format(pos_columns[1]))
     if hasattr(ax, 'set_zlabel') and len(pos_columns) > 2:
         ax.set_zlabel(label_format.format(pos_columns[2]))
+
 
 @make_axes
 def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
@@ -215,7 +230,7 @@ def scatter(centroids, mpp=None, cmap=None, ax=None, pos_columns=None,
             _set_labels(ax, r'{} [\xb5m]', pos_columns)
 
     _plot(ax, centroids, pos_columns, **_plot_style)
-    return ax
+    return invert_yaxis(ax)
 
 
 @make_axes3d
@@ -346,7 +361,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
             ax.text(*coord.tolist(), s="%d" % particle_id,
                     horizontalalignment='center',
                     verticalalignment='center')
-    return ax
+    return invert_yaxis(ax)
 
 ptraj = plot_traj  # convenience alias
 
@@ -475,7 +490,6 @@ def annotate(centroids, image, circle_size=None, color=None,
         ax.imshow(image, **_imshow_style)
     ax.set_xlim(-0.5, image.shape[1] - 0.5)
     ax.set_ylim(-0.5, image.shape[0] - 0.5)
-    ax.invert_yaxis()
 
     if split_category is None:
         if np.size(color) > 1:
@@ -504,7 +518,7 @@ def annotate(centroids, image, circle_size=None, color=None,
         _plot_style.update(markeredgecolor=color[-1])
         ax.plot(centroids['x'][high], centroids['y'][high],
                 **_plot_style)
-    return ax
+    return invert_yaxis(ax)
 
 
 def annotate3d(centroids, image, **kwargs):
