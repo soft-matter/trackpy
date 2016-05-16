@@ -495,13 +495,13 @@ def velocity_corr(t, frame1, frame2):
 
 
 def theta_entropy(pos, bins=24, plot=True):
-    """Plot the distrbution of directions and return its Shannon entropy.
+    """Plot the distribution of directions and return its Shannon entropy.
 
     Parameters
     ----------
     pos : DataFrame with columns x and y, indexed by frame
     bins : number of equally-spaced bins in distribution. Default 24.
-    plot : plot direction historgram if True
+    plot : plot direction histogram if True
 
     Returns
     -------
