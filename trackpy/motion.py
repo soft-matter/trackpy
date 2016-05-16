@@ -4,7 +4,7 @@ import six
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from scipy.spatial import cKDTree
+from warnings import warn
 
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
@@ -558,39 +558,7 @@ def min_rolling_theta_entropy(pos, window=24, bins=24):
     return pd.rolling_apply(direction.dropna(), window, f).min()
 
 
-def proximity(features, pos_columns=None):
-    """Find the distance to each feature's nearest neighbor.
-
-    Parameters
-    ----------
-    features : DataFrame
-    pos_columns : list of column names
-        ['x', 'y'] by default
-
-    Returns
-    -------
-    proximity : DataFrame
-        distance to each particle's nearest neighbor,
-        indexed by particle if 'particle' column is present in input
-
-    Examples
-    --------
-    Find the proximity of each particle to its nearest neighbor in every frame.
-
-    >>> prox = t.groupby('frame').apply(proximity).reset_index()
-    >>> avg_prox = prox.groupby('particle')['proximity'].mean()
-
-    And filter the trajectories...
-
-    >>> particle_nos = avg_prox[avg_prox > 20].index
-    >>> t_filtered = t[t['particle'].isin(particle_nos)]
-    """
-    if pos_columns is None:
-        pos_columns = ['x', 'y']
-    leaf_size = max(1, int(np.round(np.log10(len(features)))))
-    tree = cKDTree(features[pos_columns].copy(), leaf_size)
-    proximity = tree.query(tree.data, 2)[0][:, 1]
-    result = DataFrame({'proximity': proximity})
-    if 'particle' in features:
-        result.set_index(features['particle'], inplace=True)
-    return result
+def proximity(*args, **kwargs):
+    warn('This function has been moved to `trackpy.static', DeprecationWarning)
+    from trackpy.static import proximity
+    return proximity(*args, **kwargs)

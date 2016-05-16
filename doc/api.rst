@@ -27,12 +27,23 @@ the same underlying code, but :func:`~trackpy.linking.link_df_iter` streams
 through large data sets one frame at a time. See the tutorial on large data
 sets for more.
 
+Static Analysis
+---------------
+
+.. autosummary::
+    :toctree: generated/
+
+    proximity
+    pair_correlation_2d
+    pair_correlation_3d
+
 Motion Analysis
 ---------------
 
 .. autosummary::
     :toctree: generated/
 
+    msd
     imsd
     emsd
     compute_drift
@@ -41,7 +52,6 @@ Motion Analysis
     relate_frames
     velocity_corr
     direction_corr
-    proximity
     is_typical
     diagonal_size
     filter_stubs
