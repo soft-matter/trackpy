@@ -101,7 +101,7 @@ class _RecentVelocityPredict(NullPredict):
             self.recent_frames.append(pframe)
             dt = 1. # Avoid dividing by zero
         else: # Not the first frame
-            dt = (self.recent_frames[-1][self.t_column].values[0] -
+            dt = float(self.recent_frames[-1][self.t_column].values[0] -
                  self.recent_frames[0][self.t_column].values[0])
 
         # Compute velocity field
