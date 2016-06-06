@@ -598,7 +598,7 @@ def link_df(features, search_range, memory=0,
             if len(labels) > len(features[features[t_column] == frame_no]):
                 raise UnknownLinkingError("There are more labels than "
                                           "particles to be labeled in Frame "
-                                          "%d".format(frame_no))
+                                          "{}.".format(frame_no))
         features['particle'].update(labels)
         if diagnostics:
             _add_diagnostic_columns(features, level)
@@ -731,13 +731,13 @@ def link_df_iter(features, search_range, memory=0,
             _verify_integrity(frame_no, labels)
             # additional checks particular to link_df_iter
             if not all(frame_no == source_features[t_column].values):
-                raise UnknownLinkingError("The features passed for Frame %d "
+                raise UnknownLinkingError(("The features passed for Frame {} "
                                           "do not all share the same frame "
-                                          "number.".format(frame_no))
+                                          "number.").format(frame_no))
             if len(labels) > len(features):
                 raise UnknownLinkingError("There are more labels than "
                                           "particles to be labeled in Frame "
-                                           "%d".format(frame_no))
+                                           "{}.".format(frame_no))
         features['particle'].update(labels)
         if diagnostics:
             _add_diagnostic_columns(features, labeled_level)
@@ -834,11 +834,11 @@ class UnknownLinkingError(Exception):
 def _verify_integrity(frame_no, labels):
     if labels.duplicated().sum() > 0:
         raise UnknownLinkingError(
-            "There are two particles with the same label in Frame %d.".format(
+            "There are two particles with the same label in Frame {}.".format(
                 frame_no))
     if np.any(labels < 0):
         raise UnknownLinkingError("Some particles were not labeled "
-                                  "in Frame %d.".format(frame_no))
+                                  "in Frame {}.".format(frame_no))
 
 
 def link_iter(levels, search_range, memory=0,
