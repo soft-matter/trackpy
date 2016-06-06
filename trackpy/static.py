@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from scipy.spatial import cKDTree
 import numpy as np
+from pandas import DataFrame
 from warnings import warn
 
 # Maximum number of elements in the array of all distances.
@@ -10,11 +11,48 @@ from warnings import warn
 MAX_ARRAY_SIZE = 1e8
 
 
+def proximity(features, pos_columns=None):
+    """Find the distance to each feature's nearest neighbor.
+
+    Parameters
+    ----------
+    features : DataFrame
+    pos_columns : list of column names
+        ['x', 'y'] by default
+
+    Returns
+    -------
+    proximity : DataFrame
+        distance to each particle's nearest neighbor,
+        indexed by particle if 'particle' column is present in input
+
+    Examples
+    --------
+    Find the proximity of each particle to its nearest neighbor in every frame.
+
+    >>> prox = t.groupby('frame').apply(proximity).reset_index()
+    >>> avg_prox = prox.groupby('particle')['proximity'].mean()
+
+    And filter the trajectories...
+
+    >>> particle_nos = avg_prox[avg_prox > 20].index
+    >>> t_filtered = t[t['particle'].isin(particle_nos)]
+    """
+    if pos_columns is None:
+        pos_columns = ['x', 'y']
+    leaf_size = max(1, int(np.round(np.log10(len(features)))))
+    tree = cKDTree(features[pos_columns].copy(), leaf_size)
+    proximity = tree.query(tree.data, 2)[0][:, 1]
+    result = DataFrame({'proximity': proximity})
+    if 'particle' in features:
+        result.set_index(features['particle'], inplace=True)
+    return result
+
+
 def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
                         ndensity=None, boundary=None, handle_edge=True,
                         max_rel_ndensity=10):
-    """
-    Calculate the pair correlation function in 2 dimensions.
+    """Calculate the pair correlation function in 2 dimensions.
 
     Parameters
     ----------
@@ -113,8 +151,7 @@ def pair_correlation_2d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
 def pair_correlation_3d(feat, cutoff, fraction=1., dr=.5, p_indices=None,
                         ndensity=None, boundary=None, handle_edge=True,
                         max_rel_ndensity=10):
-    """
-    Calculate the pair correlation function in 3 dimensions.
+    """Calculate the pair correlation function in 3 dimensions.
 
     Parameters
     ----------
