@@ -317,7 +317,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     ndim = image.ndim
     isotropic = np.all(radius[1:] == radius[:-1])
     mask = binary_mask(radius, ndim)
-    slices = [[slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
+    slices = [[slice(int(round(c - rad)), int(round(c + rad + 1)))
+               for c, rad in zip(coord, radius)]
               for coord in coords]
 
     # Declare arrays that we will fill iteratively through loop.
@@ -361,18 +362,19 @@ def _refine(raw_image, image, radius, coords, max_iterations,
                 upper_bound = np.array(image.shape) - 1 - radius
                 new_coord = np.clip(new_coord, radius, upper_bound).astype(int)
                 # Update slice to shifted position.
-                rect = [slice(c - rad, c + rad + 1)
+                rect = [slice(int(round(c - rad)), int(round(c + rad + 1)))
                         for c, rad in zip(new_coord, radius)]
                 neighborhood = mask*image[rect]
 
             # If we're off by less than half a pixel, interpolate.
             else:
-                # Here, coord is a float. We are off the grid.
-                neighborhood = ndimage.shift(neighborhood, -off_center,
-                                             order=2, mode='constant', cval=0)
-                new_coord = coord + off_center
-                # Disallow any whole-pixels moves on future iterations.
-                allow_moves = False
+                break
+                # # Here, coord is a float. We are off the grid.
+                # neighborhood = ndimage.shift(neighborhood, -off_center,
+                #                              order=2, mode='constant', cval=0)
+                # new_coord = coord + off_center
+                # # Disallow any whole-pixels moves on future iterations.
+                # allow_moves = False
 
             cm_n = _safe_center_of_mass(neighborhood, radius, ogrid)  # neighborhood
             cm_i = cm_n - radius + new_coord  # image coords
