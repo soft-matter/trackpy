@@ -316,7 +316,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 
     ndim = image.ndim
     isotropic = np.all(radius[1:] == radius[:-1])
-    mask = binary_mask(radius, ndim)
+    mask = binary_mask(radius, ndim).astype(np.uint8)
     slices = [[slice(int(round(c - rad)), int(round(c + rad + 1)))
                for c, rad in zip(coord, radius)]
               for coord in coords]
