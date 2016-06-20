@@ -665,9 +665,8 @@ class CommonFeatureIdentificationTests(object):
         locate_diameter = 21
         N = 200
         noise_expectation = np.array([1/2., np.sqrt(1/12.)])  # average, stdev
-
+        expected, image = draw_array(N, draw_diameter, bitdepth=12)
         for n, noise in enumerate([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]):
-            expected, image = draw_array(N, draw_diameter, bitdepth=12)
             noise_level = int((2**12 - 1) * noise)
             image_noisy = image + np.array(np.random.randint(0, noise_level,
                                                              image.shape),
