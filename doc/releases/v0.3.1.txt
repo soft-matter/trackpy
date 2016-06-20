@@ -16,6 +16,8 @@ Enhancements
 Bug Fixes
 ~~~~~~~~~
 
+- Bug in the python refinement code was solved: feature finding with `engine='python'` is now more accurate.  (:issue:`#377`)
+
 - Error in `subtract_drift` is solved (:issue:`#351`)
 
 - Legends are disabled by default in plotting (:issue:`#357`)
