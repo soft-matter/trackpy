@@ -18,7 +18,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.artificial import (draw_feature, draw_spots, draw_point,
+from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array,
                                 gen_nonoverlapping_locations)
 from trackpy.utils import pandas_sort
                                 
@@ -48,6 +48,9 @@ def compare(shape, count, radius, noise_level, engine):
 def sort_positions(actual, expected):
     tree = cKDTree(actual)
     deviations, argsort = tree.query([expected])
+    if len(set(range(len(actual))) - set(argsort[0])) > 0:
+        raise AssertionError("Position sorting failed. At least one feature is "
+                             "very far from where it should be.")
     return deviations, actual[argsort][0]
 
 
@@ -654,24 +657,17 @@ class CommonFeatureIdentificationTests(object):
         # background average and standard deviation can be estimated within 1%
         # accuracy.
 
-        # The (absolute) tolerance for ep in this test is 0.05 pixels.
+        # The (relative) tolerance for ep in this test is 10% pixels.
         # Parameters are tweaked so that there is no deviation due to a too
-        # small mask size. Signal/noise ratios up to 50% are tested.
+        # small mask size. Noise/signal ratios up to 50% are tested.
         self.check_skip()
-        draw_diameter = 21
-        locate_diameter = 15
+        draw_diameter = 27
+        locate_diameter = 21
         N = 200
-        shape = (512, 513)
         noise_expectation = np.array([1/2., np.sqrt(1/12.)])  # average, stdev
 
-        # Generate feature locations and make the image
-        expected = gen_nonoverlapping_locations(shape, N, draw_diameter,
-                                                locate_diameter)
-        expected = expected + np.random.random(expected.shape)
-        N = expected.shape[0]
-        image = draw_spots(shape, expected, draw_diameter, bitdepth=12)
-
         for n, noise in enumerate([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]):
+            expected, image = draw_array(N, draw_diameter, bitdepth=12)
             noise_level = int((2**12 - 1) * noise)
             image_noisy = image + np.array(np.random.randint(0, noise_level,
                                                              image.shape),
@@ -682,7 +678,7 @@ class CommonFeatureIdentificationTests(object):
 
             _, actual = sort_positions(f[['y', 'x']].values, expected)
             rms_dev = np.sqrt(np.mean(np.sum((actual-expected)**2, 1)))
-            assert_allclose(rms_dev, f['ep'].mean(), atol=0.05)
+            assert_allclose(rms_dev, f['ep'].mean(), rtol=0.1)
 
             # Additionally test the measured noise
             actual_noise = tp.uncertainty.measure_noise(image, image_noisy,
