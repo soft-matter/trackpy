@@ -441,6 +441,15 @@ class CommonFeatureIdentificationTests(object):
         assert len(f_nc.columns) == 3
         assert_allclose(f_c.values[:, :3], f_nc.values)
 
+    def test_nocharacterize_a(self):
+        pos = gen_nonoverlapping_locations((200, 300), 9, 5)
+        image = draw_spots((200, 300), pos, (3, 5))
+        f_c = tp.locate(image, (3, 5), engine=self.engine, characterize=True)
+        f_nc = tp.locate(image, (3, 5), engine=self.engine, characterize=False)
+
+        assert len(f_nc.columns) == 3
+        assert_allclose(f_c.values[:, :3], f_nc.values)
+
     def test_multiple_simple_sparse(self):
         self.check_skip()
         actual, expected = compare((200, 300), 4, 2, noise_level=0,
