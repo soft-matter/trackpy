@@ -666,7 +666,7 @@ class CommonFeatureIdentificationTests(object):
         # background average and standard deviation can be estimated within 1%
         # accuracy.
 
-        # The (relative) tolerance for ep in this test is 10% pixels.
+        # The tolerance for ep in this test is 0.005 px.
         # Parameters are tweaked so that there is no deviation due to a too
         # small mask size. Noise/signal ratios up to 50% are tested.
         self.check_skip()
@@ -686,7 +686,7 @@ class CommonFeatureIdentificationTests(object):
 
             _, actual = sort_positions(f[['y', 'x']].values, expected)
             rms_dev = np.sqrt(np.mean(np.sum((actual-expected)**2, 1)))
-            assert_allclose(rms_dev, f['ep'].mean(), rtol=0.1)
+            assert_allclose(rms_dev, f['ep'].mean(), atol=0.005)
 
             # Additionally test the measured noise
             actual_noise = tp.uncertainty.measure_noise(image, image_noisy,
