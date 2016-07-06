@@ -176,8 +176,43 @@ def draw_spots(shape, positions, diameter, noise_level=0, bitdepth=8,
     else:
         raise ValueError('Bitdepth should be <= 32')
     np.random.seed(0)
-    image = np.random.randint(0, noise_level + 1, shape).astype(internaldtype)
+    image = np.zeros(shape, dtype=internaldtype)
+    if noise_level > 0:
+        image += np.random.randint(0, noise_level + 1,
+                                   shape).astype(internaldtype)
     for pos in positions:
         draw_feature(image, pos, diameter, max_value=2**bitdepth - 1,
                      feat_func=feat_func, ecc=ecc, **kwargs)
     return image.clip(0, 2**bitdepth - 1).astype(dtype)
+
+
+def draw_array(N, diameter, separation=None, ndim=2, **kwargs):
+    """ Generates an image with an array of features. Each feature has a random
+    offset of +- 0.5 pixel.
+
+    Parameters
+    ----------
+    N : int
+        the number of features
+    diameter : number or tuple
+        the sizes of the box that will be used per feature. The actual feature
+        'size' is determined by feat_func and kwargs given to feat_func.
+    separation : number or tuple
+        the desired separation between features
+    kwargs : see draw_spots
+
+    See also
+    --------
+    draw_spots
+    """
+    diameter = validate_tuple(diameter, ndim)
+    if separation is None:
+        separation = tuple([d * 2 for d in diameter])
+    margin = separation
+    Nsqrt = int(N**(1/ndim) + 0.9999)
+    pos = np.meshgrid(*[np.arange(0, s * Nsqrt, s) for s in separation],
+                      indexing='ij')
+    pos = np.array([p.ravel() for p in pos], dtype=np.float).T[:N] + margin
+    pos += (np.random.random(pos.shape) - 0.5)  #randomize subpixel location
+    shape = tuple(np.max(pos, axis=0).astype(np.int) + margin)
+    return pos, draw_spots(shape, pos, diameter, **kwargs)

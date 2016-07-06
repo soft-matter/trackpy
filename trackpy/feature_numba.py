@@ -6,9 +6,9 @@ from .try_numba import try_numba_autojit
 
 
 @try_numba_autojit(nopython=True)
-def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
-                     max_iterations, shift_thresh, break_thresh,
-                     shapeY, shapeX, maskY, maskX, N_mask, results):
+def _numba_refine_2D(image, radiusY, radiusX, coords, N, max_iterations,
+                     shift_thresh, shapeY, shapeX, maskY, maskX, N_mask,
+                     results):
     # Column indices into the 'results' array
     MASS_COL = 2
 
@@ -16,82 +16,16 @@ def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
     upper_boundX = shapeX - radiusX - 1
 
     for feat in range(N):
-        # Define the circular neighborhood of (x, y).
+        # coord is an integer.
         coordY = coords[feat, 0]
         coordX = coords[feat, 1]
-        cm_nY = 0.
-        cm_nX = 0.
-        squareY = int(round(coordY)) - radiusY
-        squareX = int(round(coordX)) - radiusX
-        mass_ = 0.0
-        for i in range(N_mask):
-            px = image[squareY + maskY[i],
-                       squareX + maskX[i]]
-            cm_nY += px*maskY[i]
-            cm_nX += px*maskX[i]
-            mass_ += px
-
-        cm_nY /= mass_
-        cm_nX /= mass_
-        cm_iY = cm_nY - radiusY + coordY
-        cm_iX = cm_nX - radiusX + coordX
-        allow_moves = True
         for iteration in range(max_iterations):
-            off_centerY = cm_nY - radiusY
-            off_centerX = cm_nX - radiusX
-            if (abs(off_centerY) < break_thresh and
-                abs(off_centerX) < break_thresh):
-                break  # Go to next feature
-
-            # If we're off by more than half a pixel in any direction, move.
-            do_move = False
-            if allow_moves and (abs(off_centerY) > shift_thresh or
-                                abs(off_centerX) > shift_thresh):
-                do_move = True
-
-            if do_move:
-                # In here, coord is an integer.
-                new_coordY = int(round(coordY))
-                new_coordX = int(round(coordX))
-                oc = off_centerY
-                if oc > shift_thresh:
-                    new_coordY += 1
-                elif oc < - shift_thresh:
-                    new_coordY -= 1
-                oc = off_centerX
-                if oc > shift_thresh:
-                    new_coordX += 1
-                elif oc < - shift_thresh:
-                    new_coordX -= 1
-                # Don't move outside the image!
-                if new_coordY < radiusY:
-                    new_coordY = radiusY
-                if new_coordX < radiusX:
-                    new_coordX = radiusX
-                if new_coordY > upper_boundY:
-                    new_coordY = upper_boundY  
-                if new_coordX > upper_boundX:
-                    new_coordX = upper_boundX
-                # Update slice to shifted position.
-                squareY = new_coordY - radiusY
-                squareX = new_coordX - radiusX
-                cm_nY = 0.
-                cm_nX = 0.
-
-            # If we're off by less than half a pixel, interpolate.
-            else:
-                break
-                # TODO Implement this for numba.
-                # Remember to zero cm_n somewhere in here.
-                # Here, coord is a float. We are off the grid.
-                # neighborhood = ndimage.shift(neighborhood, -off_center,
-                #                              order=2, mode='constant', cval=0)
-                # new_coord = np.float_(coord) + off_center
-                # Disallow any whole-pixels moves on future iterations.
-                # allow_moves = False
-
-            # cm_n was re-zeroed above in an unrelated loop
-            mass_ = 0.
+            # Define the circular neighborhood of (x, y).
+            cm_nY = 0.
+            cm_nX = 0.
+            squareY = coordY - radiusY
+            squareX = coordX - radiusX
+            mass_ = 0.0
             for i in range(N_mask):
                 px = image[squareY + maskY[i],
                            squareX + maskX[i]]
@@ -101,31 +35,49 @@ def _numba_refine_2D(raw_image, image, radiusY, radiusX, coords, N,
 
             cm_nY /= mass_
             cm_nX /= mass_
-            cm_iY = cm_nY - radiusY + new_coordY
-            cm_iX = cm_nX - radiusX + new_coordX
-            coordY = new_coordY
-            coordX = new_coordX
+            cm_iY = cm_nY - radiusY + coordY
+            cm_iX = cm_nX - radiusX + coordX
+
+            off_centerY = cm_nY - radiusY
+            off_centerX = cm_nX - radiusX
+            if (abs(off_centerY) < shift_thresh and
+                abs(off_centerX) < shift_thresh):
+                break  # Go to next feature
+
+            # If we're off by more than half a pixel in any direction, move.
+            oc = off_centerY
+            if oc > shift_thresh:
+                coordY += 1
+            elif oc < - shift_thresh:
+                coordY -= 1
+            oc = off_centerX
+            if oc > shift_thresh:
+                coordX += 1
+            elif oc < - shift_thresh:
+                coordX -= 1
+            # Don't move outside the image!
+            if coordY < radiusY:
+                coordY = radiusY
+            if coordX < radiusX:
+                coordX = radiusX
+            if coordY > upper_boundY:
+                coordY = upper_boundY
+            if coordX > upper_boundX:
+                coordX = upper_boundX
 
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
         results[feat, 0] = cm_iX
         results[feat, 1] = cm_iY
 
         # Characterize the neighborhood of our final centroid.
-        mass_ = 0.
-        for i in range(N_mask):
-            px = image[squareY + maskY[i],
-                       squareX + maskX[i]]
-            mass_ += px
-
         results[feat, MASS_COL] = mass_
 
     return 0  # Unused
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
-                      max_iterations, shift_thresh, break_thresh,
-                      shapeY, shapeX, maskY,
-                      maskX, N_mask, r2_mask, cmask, smask, results):
+                       max_iterations, shift_thresh, shapeY, shapeX, maskY,
+                       maskX, N_mask, r2_mask, cmask, smask, results):
     # Column indices into the 'results' array
     MASS_COL = 2
     RG_COL = 3
@@ -137,82 +89,17 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
     upper_boundX = shapeX - radiusX - 1
 
     for feat in range(N):
-        # Define the circular neighborhood of (x, y).
+        # coord is an integer.
         coordY = coords[feat, 0]
         coordX = coords[feat, 1]
-        cm_nY = 0.
-        cm_nX = 0.
-        squareY = int(round(coordY)) - radiusY
-        squareX = int(round(coordX)) - radiusX
-        mass_ = 0.0
-        for i in range(N_mask):
-            px = image[squareY + maskY[i],
-                       squareX + maskX[i]]
-            cm_nY += px*maskY[i]
-            cm_nX += px*maskX[i]
-            mass_ += px
 
-        cm_nY /= mass_
-        cm_nX /= mass_
-        cm_iY = cm_nY - radiusY + coordY
-        cm_iX = cm_nX - radiusX + coordX
-        allow_moves = True
         for iteration in range(max_iterations):
-            off_centerY = cm_nY - radiusY
-            off_centerX = cm_nX - radiusX
-            if (abs(off_centerY) < break_thresh and
-                abs(off_centerX) < break_thresh):
-                break  # Go to next feature
-
-            # If we're off by more than half a pixel in any direction, move.
-            do_move = False
-            if allow_moves and (abs(off_centerY) > shift_thresh or
-                                abs(off_centerX) > shift_thresh):
-                do_move = True
-
-            if do_move:
-                # In here, coord is an integer.
-                new_coordY = int(round(coordY))
-                new_coordX = int(round(coordX))
-                oc = off_centerY
-                if oc > shift_thresh:
-                    new_coordY += 1
-                elif oc < - shift_thresh:
-                    new_coordY -= 1
-                oc = off_centerX
-                if oc > shift_thresh:
-                    new_coordX += 1
-                elif oc < - shift_thresh:
-                    new_coordX -= 1
-                # Don't move outside the image!
-                if new_coordY < radiusY:
-                    new_coordY = radiusY
-                if new_coordX < radiusX:
-                    new_coordX = radiusX
-                if new_coordY > upper_boundY:
-                    new_coordY = upper_boundY  
-                if new_coordX > upper_boundX:
-                    new_coordX = upper_boundX
-                # Update slice to shifted position.
-                squareY = new_coordY - radiusY
-                squareX = new_coordX - radiusX
-                cm_nY = 0.
-                cm_nX = 0.
-
-            # If we're off by less than half a pixel, interpolate.
-            else:
-                break
-                # TODO Implement this for numba.
-                # Remember to zero cm_n somewhere in here.
-                # Here, coord is a float. We are off the grid.
-                # neighborhood = ndimage.shift(neighborhood, -off_center,
-                #                              order=2, mode='constant', cval=0)
-                # new_coord = np.float_(coord) + off_center
-                # Disallow any whole-pixels moves on future iterations.
-                # allow_moves = False
-
-            # cm_n was re-zeroed above in an unrelated loop
-            mass_ = 0.
+            # Define the circular neighborhood of (x, y).
+            cm_nY = 0.
+            cm_nX = 0.
+            squareY = coordY - radiusY
+            squareX = coordX - radiusX
+            mass_ = 0.0
             for i in range(N_mask):
                 px = image[squareY + maskY[i],
                            squareX + maskX[i]]
@@ -222,17 +109,40 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
 
             cm_nY /= mass_
             cm_nX /= mass_
-            cm_iY = cm_nY - radiusY + new_coordY
-            cm_iX = cm_nX - radiusX + new_coordX
-            coordY = new_coordY
-            coordX = new_coordX
+            cm_iY = cm_nY - radiusY + coordY
+            cm_iX = cm_nX - radiusX + coordX
+
+            off_centerY = cm_nY - radiusY
+            off_centerX = cm_nX - radiusX
+            if (abs(off_centerY) < shift_thresh and
+                abs(off_centerX) < shift_thresh):
+                break  # Go to next feature
+
+            oc = off_centerY
+            if oc > shift_thresh:
+                coordY += 1
+            elif oc < - shift_thresh:
+                coordY -= 1
+            oc = off_centerX
+            if oc > shift_thresh:
+                coordX += 1
+            elif oc < - shift_thresh:
+                coordX -= 1
+            # Don't move outside the image!
+            if coordY < radiusY:
+                coordY = radiusY
+            if coordX < radiusX:
+                coordX = radiusX
+            if coordY > upper_boundY:
+                coordY = upper_boundY
+            if coordX > upper_boundX:
+                coordX = upper_boundX
 
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
         results[feat, 0] = cm_iX
         results[feat, 1] = cm_iY
 
         # Characterize the neighborhood of our final centroid.
-        mass_ = 0.
         raw_mass_ = 0.
         Rg_ = 0.
         ecc1 = 0.
@@ -242,8 +152,6 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
         for i in range(N_mask):
             px = image[squareY + maskY[i],
                        squareX + maskX[i]]
-            mass_ += px
-
             Rg_ += r2_mask[i]*px
             ecc1 += cmask[i]*px
             ecc2 += smask[i]*px
@@ -263,10 +171,9 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
-                        max_iterations, shift_thresh, break_thresh,
-                        shapeY, shapeX, maskY,
-                        maskX, N_mask, y2_mask, x2_mask, cmask, smask,
-                        results):
+                         max_iterations, shift_thresh, shapeY, shapeX, maskY,
+                         maskX, N_mask, y2_mask, x2_mask, cmask, smask,
+                         results):
     # Column indices into the 'results' array
     MASS_COL = 2
     RGX_COL = 3
@@ -279,82 +186,17 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
     upper_boundX = shapeX - radiusX - 1
 
     for feat in range(N):
-        # Define the circular neighborhood of (x, y).
+        # coord is an integer.
         coordY = coords[feat, 0]
         coordX = coords[feat, 1]
-        cm_nY = 0.
-        cm_nX = 0.
-        squareY = int(round(coordY)) - radiusY
-        squareX = int(round(coordX)) - radiusX
-        mass_ = 0.0
-        for i in range(N_mask):
-            px = image[squareY + maskY[i],
-                       squareX + maskX[i]]
-            cm_nY += px*maskY[i]
-            cm_nX += px*maskX[i]
-            mass_ += px
 
-        cm_nY /= mass_
-        cm_nX /= mass_
-        cm_iY = cm_nY - radiusY + coordY
-        cm_iX = cm_nX - radiusX + coordX
-        allow_moves = True
         for iteration in range(max_iterations):
-            off_centerY = cm_nY - radiusY
-            off_centerX = cm_nX - radiusX
-            if (abs(off_centerY) < break_thresh and
-                abs(off_centerX) < break_thresh):
-                break  # Go to next feature
-
-            # If we're off by more than half a pixel in any direction, move.
-            do_move = False
-            if allow_moves and (abs(off_centerY) > shift_thresh or
-                                abs(off_centerX) > shift_thresh):
-                do_move = True
-
-            if do_move:
-                # In here, coord is an integer.
-                new_coordY = int(round(coordY))
-                new_coordX = int(round(coordX))
-                oc = off_centerY
-                if oc > shift_thresh:
-                    new_coordY += 1
-                elif oc < - shift_thresh:
-                    new_coordY -= 1
-                oc = off_centerX
-                if oc > shift_thresh:
-                    new_coordX += 1
-                elif oc < - shift_thresh:
-                    new_coordX -= 1
-                # Don't move outside the image!
-                if new_coordY < radiusY:
-                    new_coordY = radiusY
-                if new_coordX < radiusX:
-                    new_coordX = radiusX
-                if new_coordY > upper_boundY:
-                    new_coordY = upper_boundY  
-                if new_coordX > upper_boundX:
-                    new_coordX = upper_boundX
-                # Update slice to shifted position.
-                squareY = new_coordY - radiusY
-                squareX = new_coordX - radiusX
-                cm_nY = 0.
-                cm_nX = 0.
-
-            # If we're off by less than half a pixel, interpolate.
-            else:
-                break
-                # TODO Implement this for numba.
-                # Remember to zero cm_n somewhere in here.
-                # Here, coord is a float. We are off the grid.
-                # neighborhood = ndimage.shift(neighborhood, -off_center,
-                #                              order=2, mode='constant', cval=0)
-                # new_coord = np.float_(coord) + off_center
-                # Disallow any whole-pixels moves on future iterations.
-                # allow_moves = False
-
-            # cm_n was re-zeroed above in an unrelated loop
-            mass_ = 0.
+            # Define the circular neighborhood of (x, y).
+            cm_nY = 0.
+            cm_nX = 0.
+            squareY = coordY - radiusY
+            squareX = coordX - radiusX
+            mass_ = 0.0
             for i in range(N_mask):
                 px = image[squareY + maskY[i],
                            squareX + maskX[i]]
@@ -364,10 +206,36 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
 
             cm_nY /= mass_
             cm_nX /= mass_
-            cm_iY = cm_nY - radiusY + new_coordY
-            cm_iX = cm_nX - radiusX + new_coordX
-            coordY = new_coordY
-            coordX = new_coordX
+            cm_iY = cm_nY - radiusY + coordY
+            cm_iX = cm_nX - radiusX + coordX
+
+            off_centerY = cm_nY - radiusY
+            off_centerX = cm_nX - radiusX
+            if (abs(off_centerY) < shift_thresh and
+                abs(off_centerX) < shift_thresh):
+                break  # Go to next feature
+
+            # If we're off by more than half a pixel in any direction, move.
+            oc = off_centerY
+            if oc > shift_thresh:
+                coordY += 1
+            elif oc < - shift_thresh:
+                coordY -= 1
+            oc = off_centerX
+            if oc > shift_thresh:
+                coordX += 1
+            elif oc < - shift_thresh:
+                coordX -= 1
+            # Don't move outside the image!
+            if coordY < radiusY:
+                coordY = radiusY
+            if coordX < radiusX:
+                coordX = radiusX
+            if coordY > upper_boundY:
+                coordY = upper_boundY
+            if coordX > upper_boundX:
+                coordX = upper_boundX
+            # Update slice to shifted position.
 
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
         results[feat, 0] = cm_iX
@@ -408,10 +276,9 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
-                     max_iterations, shift_thresh, break_thresh,
-                     characterize, shapeZ, shapeY, shapeX,
-                     maskZ, maskY, maskX, N_mask, r2_mask, z2_mask, y2_mask,
-                     x2_mask, results):
+                     max_iterations, shift_thresh, characterize, shapeZ, shapeY,
+                     shapeX, maskZ, maskY, maskX, N_mask, r2_mask, z2_mask,
+                     y2_mask, x2_mask, results):
     # Column indices into the 'results' array
     MASS_COL = 3
     isotropic = (radiusX == radiusY and radiusX == radiusZ)
@@ -433,104 +300,20 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
     upper_boundX = shapeX - radiusX - 1
 
     for feat in range(N):
-        # Define the neighborhood of (x, y, z).
+        # coord is an integer.
         coordZ = coords[feat, 0]
         coordY = coords[feat, 1]
         coordX = coords[feat, 2]
-        cm_nZ = 0.
-        cm_nY = 0.
-        cm_nX = 0.
-        squareZ = int(round(coordZ)) - radiusZ
-        squareY = int(round(coordY)) - radiusY
-        squareX = int(round(coordX)) - radiusX
-        mass_ = 0.0
-        for i in range(N_mask):
-            px = image[squareZ + maskZ[i],
-                       squareY + maskY[i],
-                       squareX + maskX[i]]
-            cm_nZ += px*maskZ[i]
-            cm_nY += px*maskY[i]
-            cm_nX += px*maskX[i]
-            mass_ += px
 
-        cm_nZ /= mass_
-        cm_nY /= mass_
-        cm_nX /= mass_
-        cm_iZ = cm_nZ - radiusZ + coordZ
-        cm_iY = cm_nY - radiusY + coordY
-        cm_iX = cm_nX - radiusX + coordX
-        allow_moves = True
         for iteration in range(max_iterations):
-            off_centerZ = cm_nZ - radiusZ
-            off_centerY = cm_nY - radiusY
-            off_centerX = cm_nX - radiusX
-            if (abs(off_centerZ) < break_thresh and
-                abs(off_centerY) < break_thresh and
-                abs(off_centerX) < break_thresh):
-                break  # Go to next feature
-
-            # If we're off by more than half a pixel in any direction, move.
-            do_move = False
-            if allow_moves and (abs(off_centerZ) > shift_thresh or
-                                abs(off_centerY) > shift_thresh or
-                                abs(off_centerX) > shift_thresh):
-                do_move = True
-
-            if do_move:
-                # In here, coord is an integer.
-                new_coordZ = int(round(coordZ))
-                new_coordY = int(round(coordY))
-                new_coordX = int(round(coordX))
-                oc = off_centerZ
-                if oc > shift_thresh:
-                    new_coordZ += 1
-                elif oc < - shift_thresh:
-                    new_coordZ -= 1
-                oc = off_centerY
-                if oc > shift_thresh:
-                    new_coordY += 1
-                elif oc < - shift_thresh:
-                    new_coordY -= 1
-                oc = off_centerX
-                if oc > shift_thresh:
-                    new_coordX += 1
-                elif oc < - shift_thresh:
-                    new_coordX -= 1
-                # Don't move outside the image!
-                if new_coordZ < radiusZ:
-                    new_coordZ = radiusZ
-                if new_coordY < radiusY:
-                    new_coordY = radiusY
-                if new_coordX < radiusX:
-                    new_coordX = radiusX
-                if new_coordZ > upper_boundZ:
-                    new_coordZ = upper_boundZ  
-                if new_coordY > upper_boundY:
-                    new_coordY = upper_boundY  
-                if new_coordX > upper_boundX:
-                    new_coordX = upper_boundX
-                # Update slice to shifted position.
-                squareZ = new_coordZ - radiusZ
-                squareY = new_coordY - radiusY
-                squareX = new_coordX - radiusX
-                cm_nZ = 0.
-                cm_nY = 0.
-                cm_nX = 0.
-
-            # If we're off by less than half a pixel, interpolate.
-            else:
-                break
-                # TODO Implement this for numba.
-                # Remember to zero cm_n somewhere in here.
-                # Here, coord is a float. We are off the grid.
-                # neighborhood = ndimage.shift(neighborhood, -off_center,
-                #                              order=2, mode='constant', cval=0)
-                # new_coord = np.float_(coord) + off_center
-                # Disallow any whole-pixels moves on future iterations.
-                # allow_moves = False
-
-            # cm_n was re-zeroed above in an unrelated loop
-            mass_ = 0.
+            # Define the neighborhood of (x, y, z).
+            cm_nZ = 0.
+            cm_nY = 0.
+            cm_nX = 0.
+            squareZ = int(round(coordZ)) - radiusZ
+            squareY = int(round(coordY)) - radiusY
+            squareX = int(round(coordX)) - radiusX
+            mass_ = 0.0
             for i in range(N_mask):
                 px = image[squareZ + maskZ[i],
                            squareY + maskY[i],
@@ -543,12 +326,43 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
             cm_nZ /= mass_
             cm_nY /= mass_
             cm_nX /= mass_
-            cm_iZ = cm_nZ - radiusZ + new_coordZ
-            cm_iY = cm_nY - radiusY + new_coordY
-            cm_iX = cm_nX - radiusX + new_coordX
-            coordZ = new_coordZ
-            coordY = new_coordY
-            coordX = new_coordX
+            cm_iZ = cm_nZ - radiusZ + coordZ
+            cm_iY = cm_nY - radiusY + coordY
+            cm_iX = cm_nX - radiusX + coordX
+
+            off_centerZ = cm_nZ - radiusZ
+            off_centerY = cm_nY - radiusY
+            off_centerX = cm_nX - radiusX
+            if (abs(off_centerZ) < shift_thresh and
+                abs(off_centerY) < shift_thresh and
+                abs(off_centerX) < shift_thresh):
+                break  # Go to next feature
+
+            if off_centerZ > shift_thresh:
+                coordZ += 1
+            elif off_centerZ < - shift_thresh:
+                coordZ -= 1
+            if off_centerY > shift_thresh:
+                coordY += 1
+            elif off_centerY < - shift_thresh:
+                coordY -= 1
+            if off_centerX > shift_thresh:
+                coordX += 1
+            elif off_centerX < - shift_thresh:
+                coordX -= 1
+            # Don't move outside the image!
+            if coordZ < radiusZ:
+                coordZ = radiusZ
+            if coordY < radiusY:
+                coordY = radiusY
+            if coordX < radiusX:
+                coordX = radiusX
+            if coordZ > upper_boundZ:
+                coordZ = upper_boundZ
+            if coordY > upper_boundY:
+                coordY = upper_boundY
+            if coordX > upper_boundX:
+                coordX = upper_boundX
 
         # matplotlib and ndimage have opposite conventions for xy <-> yx.
         results[feat, 0] = cm_iX
@@ -556,7 +370,6 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
         results[feat, 2] = cm_iZ
 
         # Characterize the neighborhood of our final centroid.
-        mass_ = 0.
         raw_mass_ = 0.
         Rg_ = 0.
         RgZ = 0.
@@ -565,17 +378,12 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
         signal_ = 0.
 
         if not characterize:
-            for i in range(N_mask):
-                px = image[squareZ + maskZ[i],
-                           squareY + maskY[i],
-                           squareX + maskX[i]]
-                mass_ += px
+            pass
         elif isotropic:
             for i in range(N_mask):
                 px = image[squareZ + maskZ[i],
                            squareY + maskY[i],
                            squareX + maskX[i]]
-                mass_ += px
 
                 Rg_ += r2_mask[i]*px
                 raw_mass_ += raw_image[squareZ + maskZ[i],
@@ -589,7 +397,6 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
                 px = image[squareZ + maskZ[i],
                            squareY + maskY[i],
                            squareX + maskX[i]]
-                mass_ += px
 
                 RgZ += z2_mask[i]*px
                 RgY += y2_mask[i]*px
