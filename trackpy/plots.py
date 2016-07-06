@@ -644,12 +644,9 @@ def subpx_bias(f, pos_columns=None):
 @make_axes
 def fit(data, fits, inverted_model=False, logx=False, logy=False, ax=None,
         **kwargs):
-    import matplotlib.pyplot as plt
-
     data = data.dropna()
     x, y = data.index.values.astype('float64'), data.values
-    datalines = plt.plot(x, y, 'o', label=data.name, **kwargs)
-    ax = datalines[0].get_axes()
+    datalines = ax.plot(x, y, 'o', label=data.name, **kwargs)
     if logx:
         ax.set_xscale('log')
     if logy:
