@@ -7,6 +7,7 @@ import functools
 import re
 import sys
 import warnings
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
 
@@ -288,3 +289,21 @@ if is_pandas_since_017:
     pandas_sort = _pandas_sort_post_017
 else:
     pandas_sort = _pandas_sort_pre_017
+
+@contextmanager
+def dataframe_reindex(df, column):
+    """Temporarily replace the index with `column`."""
+    old_index = df.index
+    df.set_index(column, drop=False, inplace=True)
+    yield df
+    df.set_index(old_index, drop=True)
+
+@contextmanager
+def dataframe_add_index(df, column):
+    """Add `column` as an extra index column, yielding a MultiIndex."""
+    if column in df.index.names:
+        yield df
+    else:
+        df.set_index(column, drop=False, inplace=True, append=True)
+        yield df
+        df.set_index(df.index.droplevel(column), drop=True, inplace=True)
