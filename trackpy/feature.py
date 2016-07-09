@@ -194,6 +194,9 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         warnings.warn("break_threshold will be deprecated: shift_threshold is"
                       "the only parameter that determines when to shift the"
                       "mask.")
+    if max_iterations <= 0:
+        warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
+        max_iterations = 1
     # ensure that radius is tuple of integers, for direct calls to refine()
     radius = validate_tuple(radius, image.ndim)
     separation = validate_tuple(separation, image.ndim)

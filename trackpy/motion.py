@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 
+import warnings
 from warnings import warn
-from .utils import dataframe_add_index
+from .utils import pandas_sort
 
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
@@ -71,10 +72,13 @@ def _msd_N(N, t):
 
 
 def _msd_iter(pos, lagtimes):
-    for lt in lagtimes:
-        diff = pos[lt:] - pos[:-lt]
-        yield np.concatenate((np.nanmean(diff, axis=0),
-                              np.nanmean(diff**2, axis=0)))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        for lt in lagtimes:
+            diff = pos[lt:] - pos[:-lt]
+            yield np.concatenate((np.nanmean(diff, axis=0),
+                                  np.nanmean(diff**2, axis=0)))
+
 
 
 def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
@@ -269,7 +273,8 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
 
 
 def subtract_drift(traj, drift=None, inplace=False):
-    """Return a copy of particle trajectores with the overall drift subtracted out.
+    """Return a copy of particle trajectories with the overall drift subtracted
+    out.
 
     Parameters
     ----------
@@ -285,10 +290,10 @@ def subtract_drift(traj, drift=None, inplace=False):
         drift = compute_drift(traj)
     if not inplace:
         traj = traj.copy()
-    with dataframe_add_index(traj, 'frame') as df:
-        for col in drift.columns:
-            df[col] = traj[col].sub(drift[col], fill_value=0,
-                                    level=df.index.names.index('frame'))
+    traj.set_index('frame', inplace=True, drop=False)
+    traj.sort_index(inplace=True)
+    for col in drift.columns:
+        traj[col] = traj[col].sub(drift[col], fill_value=0, level='frame')
     return traj
 
 

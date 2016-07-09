@@ -31,6 +31,10 @@ def conformity(df):
     return pandas_sort(df, by=['frame', 'particle'])
 
 
+def assert_traj_equal(t1, t2):
+    return assert_frame_equal(conformity(t1), conformity(t2))
+
+
 def add_drift(df, drift):
     df = df.copy()
     df['x'] = df['x'].add(drift['x'], fill_value=0)
@@ -47,6 +51,7 @@ class TestDrift(unittest.TestCase):
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
+        self.dead_still.sort_index(by=['frame', 'particle'], inplace=True)
 
         P = 1000 # particles
         A = 0.00001 # step amplitude
@@ -94,11 +99,11 @@ class TestDrift(unittest.TestCase):
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
         actual = tp.subtract_drift(self.dead_still, drift)
-        assert_frame_equal(actual, self.dead_still)
+        assert_traj_equal(actual, self.dead_still)
         actual = tp.subtract_drift(self.many_walks, drift)
-        assert_frame_equal(actual, self.many_walks)
+        assert_traj_equal(actual, self.many_walks)
         actual = tp.subtract_drift(self.steppers, drift)
-        assert_frame_equal(actual, self.steppers)
+        assert_traj_equal(actual, self.steppers)
 
     def test_subtract_constant_drift(self):
         N = 10
@@ -109,11 +114,11 @@ class TestDrift(unittest.TestCase):
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
         actual = tp.subtract_drift(add_drift(self.dead_still, drift), drift)
-        assert_frame_equal(actual, self.dead_still)
+        assert_traj_equal(actual, self.dead_still)
         actual = tp.subtract_drift(add_drift(self.many_walks, drift), drift)
-        assert_frame_equal(actual, self.many_walks)
+        assert_traj_equal(actual, self.many_walks)
         actual = tp.subtract_drift(add_drift(self.steppers, drift), drift)
-        assert_frame_equal(actual, self.steppers)
+        assert_traj_equal(actual, self.steppers)
 
 
 class TestMSD(unittest.TestCase):
