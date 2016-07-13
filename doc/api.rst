@@ -56,8 +56,8 @@ Motion Analysis
     diagonal_size
     filter_stubs
     filter_clusters
-    theta_entropy
-    min_rolling_theta_entropy
+    motion.theta_entropy
+    motion.min_rolling_theta_entropy
 
 Prediction Framework
 --------------------

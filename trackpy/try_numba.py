@@ -6,6 +6,7 @@ import sys
 import inspect
 from warnings import warn
 import logging
+from distutils.version import LooseVersion
 
 
 def _hush_llvm():
@@ -32,8 +33,7 @@ except ImportError:
                "functions, you must install numba.")
 else:
     v = numba.__version__
-    major, minor, micro = v.split('.')
-    if major == '0' and minor == '12' and micro == '0':
+    if LooseVersion(v) == LooseVersion('0.12.0'):
         # Importing numba code will take forever. Disable numba.
         message = ("Trackpy does not support numba 0.12.0. "
                    "Version {0} is currently installed. Trackpy will run "
