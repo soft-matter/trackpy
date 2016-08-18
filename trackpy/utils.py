@@ -13,6 +13,7 @@ from distutils.version import LooseVersion
 
 import pandas as pd
 import numpy as np
+import scipy
 from scipy import stats
 import yaml
 
@@ -31,6 +32,22 @@ try:
                            LooseVersion('0.17.0'))
 except ValueError:  # Probably a development version
     is_pandas_since_017 = True
+
+
+# Wrap the scipy cKDTree to work around a bug in scipy 0.18.0
+try:
+    is_scipy_018 = LooseVersion(scipy.__version__) == LooseVersion('0.18.0')
+except ValueError:  # Probably a development version
+    is_scipy_018 = False
+
+
+if is_scipy_018:
+    from scipy.spatial import KDTree as cKDTree
+    warnings.warn("Due to a bug in Scipy 0.18.0, the (faster) cKDTree cannot"
+                  "be used. Using KDTree. For better performance, upgrade or"
+                  "downgrade scipy.")
+else:
+    from scipy.spatial import cKDTree
 
 
 def fit_powerlaw(data, plot=True, **kwargs):

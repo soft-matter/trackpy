@@ -10,11 +10,10 @@ import functools
 from collections import deque
 
 import numpy as np
-from scipy.spatial import cKDTree
 import pandas as pd
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
-from .utils import is_pandas_since_016, pandas_sort
+from .utils import is_pandas_since_016, pandas_sort, cKDTree
 
 logger = logging.getLogger(__name__)
 

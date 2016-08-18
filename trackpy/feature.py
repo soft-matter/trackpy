@@ -7,11 +7,10 @@ import logging
 import numpy as np
 import pandas as pd
 from scipy import ndimage
-from scipy.spatial import cKDTree
 from pandas import DataFrame
 
 from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
-from .utils import record_meta, validate_tuple
+from .utils import record_meta, validate_tuple, cKDTree
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
