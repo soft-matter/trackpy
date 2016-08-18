@@ -20,9 +20,8 @@ import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array,
                                 gen_nonoverlapping_locations)
-from trackpy.utils import pandas_sort
-                                
-from scipy.spatial import cKDTree
+from trackpy.utils import pandas_sort, cKDTree
+
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
