@@ -43,8 +43,8 @@ except ValueError:  # Probably a development version
 
 if is_scipy_018:
     from scipy.spatial import KDTree as cKDTree
-    warnings.warn("Due to a bug in Scipy 0.18.0, the (faster) cKDTree cannot"
-                  "be used. Using KDTree. For better performance, upgrade or"
+    warnings.warn("Due to a bug in Scipy 0.18.0, the (faster) cKDTree cannot "
+                  "be used. For better linking performance, upgrade or "
                   "downgrade scipy.")
 else:
     from scipy.spatial import cKDTree
