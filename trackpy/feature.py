@@ -403,7 +403,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
-           filter_before=True, filter_after=True,
+           filter_before=None, filter_after=None,
            characterize=True, engine='auto'):
     """Locate Gaussian-like blobs of some approximate size in an image.
 
@@ -491,13 +491,22 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
 
     """
+    if invert:
+        warnings.warn("The invert argument will be deprecated. Use a PIMS "
+                      "pipeline for this.", DeprecationWarning)
+    if filter_before is not None:
+        warnings.warn("The filter_before argument will be deprecated as it "
+                      "does not improve performance. Features are featured "
+                      "after refine.", DeprecationWarning) # see GH issue #141
+    if filter_after is not None:
+        warnings.warn("The filter_after argument will be deprecated: it is "
+                      "always on, unless minmass = None and maxsize = None.",
+                      DeprecationWarning)
+
     # Validate parameters and set defaults.
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
     ndim = len(shape)
-    if filter_before is None:
-        # TODO smarter perf optimization, see GH issue #141
-        filter_before = False
 
     diameter = validate_tuple(diameter, ndim)
     diameter = tuple([int(x) for x in diameter])
@@ -524,6 +533,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     noise_size = validate_tuple(noise_size, ndim)
 
+    if minmass is None:
+        minmass = 0
+
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim
@@ -537,16 +549,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         else:
             threshold = 1
 
-    if minmass is None:
-        if is_float_image:
-            minmass = 1.
-        else:
-            minmass = 100
-
     # Invert the image if necessary
     if invert:
-        warnings.warn("The invert argument will be deprecated. Use a PIMS "
-                      "pipeline for this.", DeprecationWarning)
         raw_image = invert_image(raw_image)
 
     # Determine `image`: the image to find the local maxima on. For optimal
@@ -599,29 +603,6 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if count_maxima == 0:
         return DataFrame(columns=columns)
 
-    # Proactively filter based on estimated mass/size before
-    # refining positions.
-    if filter_before:
-        approx_mass = np.empty(count_maxima)  # initialize to avoid appending
-        for i in range(count_maxima):
-            approx_mass[i] = estimate_mass(image, radius, coords[i])
-        condition = approx_mass > minmass * scale_factor
-        if maxsize is not None:
-            approx_size = np.empty(count_maxima)
-            for i in range(count_maxima):
-                approx_size[i] = estimate_size(image, radius, coords[i],
-                                               approx_mass[i])
-            condition &= approx_size < maxsize
-        coords = coords[condition]
-    count_qualified = coords.shape[0]
-
-    if count_qualified == 0:
-        warnings.warn("No maxima survived mass- and size-based prefiltering. "
-                      "Be advised that the mass computation was changed from "
-                      "version 0.2.4 to 0.3.0. See the documentation and the "
-                      "convenience function minmass_version_change.")
-        return DataFrame(columns=columns)
-
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine(raw_image, image, radius, coords,
                             separation=separation, max_iterations=max_iterations,
@@ -632,15 +613,11 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if characterize:
         refined_coords[:, SIGNAL_COLUMN_INDEX] *= 1. / scale_factor
 
-    # Filter again, using final ("exact") mass -- and size, if set.
-    exact_mass = refined_coords[:, MASS_COLUMN_INDEX]
-    if filter_after:
-        condition = exact_mass > minmass
-        if maxsize is not None:
-            exact_size = refined_coords[:, SIZE_COLUMN_INDEX]
-            condition &= exact_size < maxsize
-        refined_coords = refined_coords[condition]
-        exact_mass = exact_mass[condition]  # used below by topn
+    # Filter on mass and size, if set.
+    condition = refined_coords[:, MASS_COLUMN_INDEX] > minmass
+    if maxsize is not None:
+        condition &= refined_coords[:, SIZE_COLUMN_INDEX] < maxsize
+    refined_coords = refined_coords[condition]
     count_qualified = refined_coords.shape[0]
 
     if count_qualified == 0:
@@ -651,12 +628,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         return DataFrame(columns=columns)
 
     if topn is not None and count_qualified > topn:
+        mass = refined_coords[:, MASS_COLUMN_INDEX]
         if topn == 1:
             # special case for high performance and correct shape
-            refined_coords = refined_coords[np.argmax(exact_mass)]
+            refined_coords = refined_coords[np.argmax(mass)]
             refined_coords = refined_coords.reshape(1, -1)
         else:
-            refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
+            refined_coords = refined_coords[np.argsort(mass)][-topn:]
 
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).

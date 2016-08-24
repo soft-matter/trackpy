@@ -512,7 +512,7 @@ class CommonFeatureIdentificationTests(object):
         image = np.zeros(dims, dtype=np.uint8)
         pos1 = np.array([15, 20])
         pos2 = np.array([40, 40])
-        pos3 = np.array([25, 45])
+        pos3 = np.array([25, 50])
         pos4 = np.array([35, 15])
 
         draw_feature(image, pos1, 15)
