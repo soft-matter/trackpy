@@ -11,27 +11,99 @@ from .utils import validate_tuple
 from .masks import gaussian_kernel
 
 
-def bandpass(image, lshort, llong, threshold=None, truncate=4):
-    """Remove noise and background variation.
+def lowpass(image, sigma=1, truncate=4):
+    """Remove noise by convolving with a Gaussian.
 
-    Convolve with a Gaussian to remove short-wavelength noise and subtract out
-    long-wavelength variations, retaining features of intermediate scale.
+    Convolve with a Gaussian to remove short-wavelength noise.
 
-    This implementation relies on scipy.ndimage.filters.gaussian_filter, and it
-    is the fastest way known to the authors of performing a bandpass in
+    The lowpass implementation relies on scipy.ndimage.filters.gaussian_filter,
+    and it is the fastest way known to the authors of performing a bandpass in
     Python.
 
     Parameters
     ----------
     image : ndarray
-    lshort : small-scale cutoff (noise)
-    llong : large-scale cutoff
-    for both lshort and llong:
-        give a tuple value for different sizes per dimension
-        give int value for same value for all dimensions
-        when 2*lshort >= llong, no noise filtering is applied
+    sigma : number or tuple, optional
+        Size of the gaussian kernel with which the image is convolved.
+        Provide a tuple for different sizes per dimension. Default 1.
+    truncate : number, optional
+        Determines the truncation size of the convolution kernel. Default 4.
+
+    Returns
+    -------
+    result : array
+        the processed image, as float
+
+    See Also
+    --------
+    bandpass
+    """
+    sigma = validate_tuple(sigma, image.ndim)
+    result = np.array(image, dtype=np.float)
+    for axis, _sigma in enumerate(sigma):
+        if _sigma > 0:
+            correlate1d(result, gaussian_kernel(_sigma, truncate), axis,
+                        output=result, mode='constant', cval=0.0)
+    return result
+
+
+def boxcar(image, size):
+    """Compute a rolling (boxcar) average of an image.
+
+    The kernel is square or rectangular.
+
+    Parameters
+    ----------
+    image : ndarray
+    size : number or tuple
+        Size of rolling average (square or rectangular kernel) filter. Should
+        be larger than the particle diameter.
+        Provide a tuple for different sizes per dimension.
+
+    Returns
+    -------
+    result : array
+        the rolling average image
+
+    See Also
+    --------
+    bandpass
+    """
+    size = validate_tuple(size, image.ndim)
+    result = image.copy()
+    for axis, _size in enumerate(size):
+        if _size > 1:
+            uniform_filter1d(result, _size, axis, output=result,
+                             mode='nearest', cval=0)
+    return result
+
+
+def bandpass(image, lshort, llong, threshold=None, truncate=4):
+    """Remove noise and background variation.
+
+    Convolve with a Gaussian to remove short-wavelength noise and subtract out
+    long-wavelength variations by subtracting a running average. This retains
+    features of intermediate scale.
+
+    The lowpass implementation relies on scipy.ndimage.filters.gaussian_filter,
+    and it is the fastest way known to the authors of performing a bandpass in
+    Python.
+
+    Parameters
+    ----------
+    image : ndarray
+    lshort : number or tuple
+        Size of the gaussian kernel with which the image is convolved.
+        Provide a tuple for different sizes per dimension.
+    llong : integer or tuple
+        Half the size of rolling average (square or rectangular kernel) filter.
+        Should be larger than the particle diameter. When llong <= 2*lshort,
+        an error is raised.
+        Provide a tuple for different sizes per dimension.
     threshold : float or integer
         By default, 1 for integer images and 1/256. for float images.
+    truncate : number, optional
+        Determines the truncation size of the gaussian kernel. Default 4.
 
     Returns
     -------
@@ -40,7 +112,7 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
 
     See Also
     --------
-    legacy_bandpass, legacy_bandpass_fftw
+    lowpass, boxcar, legacy_bandpass, legacy_bandpass_fftw
     """
     lshort = validate_tuple(lshort, image.ndim)
     llong = validate_tuple(llong, image.ndim)
@@ -52,16 +124,9 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
             threshold = 1
         else:
             threshold = 1/256.
-    boxcar = image.copy()
-    result = np.array(image, dtype=np.float)
-    for axis, (sigma, smoothing) in enumerate(zip(lshort, llong)):
-        if smoothing > 1:
-            uniform_filter1d(boxcar, 2*smoothing+1, axis, output=boxcar,
-                             mode='nearest', cval=0)
-        if sigma > 0:
-            correlate1d(result, gaussian_kernel(sigma, truncate), axis,
-                        output=result, mode='constant', cval=0.0)
-    result -= boxcar
+    background = boxcar(image, [x * 2 + 1 for x in llong])
+    result = lowpass(image, lshort, truncate)
+    result -= background
     return np.where(result > threshold, result, 0)
 
 
