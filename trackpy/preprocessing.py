@@ -130,6 +130,46 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
     return np.where(result > threshold, result, 0)
 
 
+def invert_image(raw_image, max_value=None):
+    """Invert the image.
+
+    Use this to convert dark features on a bright background to bright features
+    on a dark background.
+
+    Parameters
+    ----------
+    image : ndarray
+    max_value : number
+        The maximum value of the image. Optional. If not given, this will is
+        (for integers) the highest possible value and (for floats) 1.
+
+    Returns
+    -------
+    inverted image
+    """
+    if max_value is None:
+        if np.issubdtype(raw_image.dtype, np.integer):
+            max_value = np.iinfo(raw_image.dtype).max
+        else:
+            # To avoid degrading performance, assume gamut is zero to one.
+            # Have you ever encountered an image of unnormalized floats?
+            max_value = 1.
+
+    # It is tempting to do this in place, but if it is called multiple
+    # times on the same image, chaos reigns.
+    if np.issubdtype(raw_image.dtype, np.integer):
+        result = raw_image ^ max_value
+    else:
+        result = max_value - raw_image
+    return result
+
+
+def normalize_to_int(image, dtype):
+    max_value = np.iinfo(dtype).max
+    scale_factor = max_value / image.max()
+    return scale_factor, (scale_factor * image.clip(min=0.)).astype(dtype)
+
+
 # Below are two older implementations of bandpass. Formerly, they were lumped
 # into one function, ``bandpass``, that used pyfftw if it was available and
 # numpy otherwise. Now there are separate functions for the pyfftw and numpy

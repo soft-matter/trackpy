@@ -9,7 +9,8 @@ import pandas as pd
 from scipy import ndimage
 from pandas import DataFrame
 
-from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
+from .preprocessing import (bandpass, normalize_to_int, invert_image,
+                            scalefactor_to_gamut)
 from .utils import record_meta, validate_tuple, cKDTree
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
@@ -91,6 +92,9 @@ def local_maxima(image, radius, percentile=64, margin=None):
 
     Parameters
     ----------
+    image : ndarray
+        For best performance, provide an integer-type array. If the type is not
+        of integer-type, the image will be normalized and coerced to uint8.
     radius : integer definition of "local" in "local maxima"
     percentile : chooses minimum grayscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to radius.
@@ -98,6 +102,9 @@ def local_maxima(image, radius, percentile=64, margin=None):
     """
     if margin is None:
         margin = radius
+    if not np.issubdtype(image.dtype, np.integer):
+        factor = 255 / image.max()
+        image = (factor * image.clip(min=0.)).astype(np.uint8)
 
     ndim = image.ndim
     # Compute a threshold based on percentile.
@@ -107,8 +114,6 @@ def local_maxima(image, radius, percentile=64, margin=None):
         return np.empty((0, ndim))
 
     # The intersection of the image with its dilation gives local maxima.
-    if not np.issubdtype(image.dtype, np.integer):
-        raise TypeError("Perform dilation on exact (i.e., integer) data.")
     footprint = binary_mask(radius, ndim)
     dilation = ndimage.grey_dilation(image, footprint=footprint,
                                      mode='constant')
@@ -486,7 +491,6 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
 
     """
-
     # Validate parameters and set defaults.
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
@@ -505,6 +509,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if (not isotropic) and (maxsize is not None):
         raise ValueError("Filtering by size is not available for anisotropic "
                          "features.")
+
+    is_float_image = not np.issubdtype(raw_image.dtype, np.integer)
 
     if separation is None:
         separation = tuple([x + 1 for x in diameter])
@@ -525,41 +531,37 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
                       "If it is actually a {1}-dimensional color image, "
                       "convert it to grayscale first.".format(dim, dim-1))
 
+    if threshold is None:
+        if is_float_image:
+            threshold = 1/256.
+        else:
+            threshold = 1
+
     if minmass is None:
-        if np.issubdtype(raw_image.dtype, np.integer):
-            minmass = 100
-        else:
+        if is_float_image:
             minmass = 1.
-
-    # Determine `image`: the image to find the local maxima on
-    if preprocess:
-        if invert:
-            # It is tempting to do this in place, but if it is called multiple
-            # times on the same image, chaos reigns.
-            if np.issubdtype(raw_image.dtype, np.integer):
-                max_value = np.iinfo(raw_image.dtype).max
-                raw_image = raw_image ^ max_value
-            else:
-                # To avoid degrading performance, assume gamut is zero to one.
-                # Have you ever encountered an image of unnormalized floats?
-                raw_image = 1 - raw_image
-        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
-
-        # Coerce the image into integer type. Rescale to fill dynamic range.
-        if np.issubdtype(raw_image.dtype, np.integer):
-            dtype = raw_image.dtype
         else:
-            dtype = np.uint8
-        scale_factor = scalefactor_to_gamut(image, dtype)
-        image = scale_to_gamut(image, dtype, scale_factor)
-    elif np.issubdtype(raw_image.dtype, np.integer):
-        # Do nothing when image is already of integer type
-        scale_factor = 1.
-        image = raw_image
+            minmass = 100
+
+    # Invert the image if necessary
+    if invert:
+        warnings.warn("The invert argument will be deprecated. Use a PIMS "
+                      "pipeline for this.", DeprecationWarning)
+        raw_image = invert_image(raw_image)
+
+    # Determine `image`: the image to find the local maxima on. For optimal
+    # performance, coerce its datatype to unsigned integer.
+    if preprocess:
+        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
+        if is_float_image:
+            scale_factor, image = normalize_to_int(image, np.uint8)
+        else:
+            scale_factor, image = normalize_to_int(image, raw_image.dtype)
     else:
-        # Coerce the image into uint8 type. Rescale to fill dynamic range.
-        scale_factor = scalefactor_to_gamut(raw_image, np.uint8)
-        image = scale_to_gamut(raw_image, np.uint8, scale_factor)
+        if is_float_image:
+            scale_factor, image = normalize_to_int(raw_image, np.uint8)
+        else:
+            scale_factor, image = 1., raw_image
 
     # Set up a DataFrame for the final results.
     if image.ndim < 4:
