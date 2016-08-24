@@ -422,12 +422,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : float
-        The minimum integrated brightness.
-        Default is 100 for integer images and 1 for float images, but a good
-        value is often much higher. This is a crucial parameter for eliminating
-        spurious features.
+    minmass : float, optional
+        The minimum integrated brightness. This is a crucial parameter for
+        eliminating spurious features.
+        Recommended minimum values are 100 for integer images and 1 for float
+        images. Defaults to 0 (no filtering).
         .. warning:: The mass value is changed since v0.3.0
+        .. warning:: The default behaviour of minmass has changed since v0.4.0
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -437,12 +438,14 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
     smoothing_size : float or tuple
-        Size of boxcar smoothing, in pixels
+        Half size of boxcar smoothing, in pixels
         Default is diameter. May be a tuple, see diameter for details.
     threshold : float
         Clip bandpass result below this value.
         Default, None, defers to default settings of the bandpass function.
     invert : boolean
+        This will be deprecated. Use an appropriate PIMS pipeline to invert a
+        Frame or FramesSequence.
         Set to True if features are darker than background. False by default.
     percentile : float
         Features must have a peak brighter than pixels in this
@@ -455,12 +458,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
-        Use minmass (and maxsize, if set) to eliminate spurious features
-        based on their estimated mass and size before refining position.
-        Default (None) defers to trackpy, to optimize for performance.
+        Filtering before is deprecated.
     filter_after : boolean
-        Use final characterizations of mass and size to eliminate spurious
-        features. True by default.
+        This parameter will be deprecated: use minmass and maxsize.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
