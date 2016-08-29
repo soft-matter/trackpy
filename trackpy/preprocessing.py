@@ -166,19 +166,25 @@ def invert_image(raw_image, max_value=None):
     return result
 
 
-def normalize_to_int(image, dtype):
-    """Convert the image to integer and normalize.
+def convert_to_int(image, dtype='uint8'):
+    """Convert the image to integer and normalize if applicable.
+
+    Does nothing if the image is already of integer type.
 
     Parameters
     ----------
     image : ndarray
     dtype : numpy dtype
-        Dtype to convert to. Must be integer-subdtype
+        dtype to convert to. If the image is already of integer type, this
+        argument is ignored. Must be integer-subdtype. Default 'uint8'.
 
     Returns
     -------
     tuple of (scale_factor, image)
     """
+    if np.issubdtype(image.dtype, np.integer):
+        # Do nothing, image is already of integer type.
+        return 1., image
     max_value = np.iinfo(dtype).max
     scale_factor = max_value / image.max()
     return scale_factor, (scale_factor * image.clip(min=0.)).astype(dtype)

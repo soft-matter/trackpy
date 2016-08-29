@@ -9,7 +9,7 @@ import pandas as pd
 from scipy import ndimage
 from pandas import DataFrame
 
-from .preprocessing import (bandpass, normalize_to_int, invert_image,
+from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import record_meta, validate_tuple, cKDTree
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
@@ -554,19 +554,19 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if invert:
         raw_image = invert_image(raw_image)
 
-    # Determine `image`: the image to find the local maxima on. For optimal
-    # performance, coerce its datatype to unsigned integer.
+    # Determine `image`: the image to find the local maxima on.
     if preprocess:
         image = bandpass(raw_image, noise_size, smoothing_size, threshold)
-        if is_float_image:
-            scale_factor, image = normalize_to_int(image, np.uint8)
-        else:
-            scale_factor, image = normalize_to_int(image, raw_image.dtype)
     else:
-        if is_float_image:
-            scale_factor, image = normalize_to_int(raw_image, np.uint8)
-        else:
-            scale_factor, image = 1., raw_image
+        image = raw_image
+
+    # For optimal performance, performance, coerce the image dtype to integer.
+    if is_float_image:  # For float images, assume bitdepth of 8.
+        dtype = np.uint8
+    else:   # For integer images, take original dtype
+        dtype = raw_image.dtype
+    # Normalize_to_int does nothing if image is already of integer type.
+    scale_factor, image = convert_to_int(image, dtype)
 
     # Set up a DataFrame for the final results.
     if image.ndim < 4:
