@@ -101,7 +101,9 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
         an error is raised.
         Provide a tuple for different sizes per dimension.
     threshold : float or integer
-        By default, 1 for integer images and 1/256. for float images.
+        Clip bandpass result below this value. Thresholding is done on the
+        already background-subtracted image.
+        By default, 1 for integer images and 1/255 for float images.
     truncate : number, optional
         Determines the truncation size of the gaussian kernel. Default 4.
 
@@ -123,11 +125,11 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
         if np.issubdtype(image.dtype, np.integer):
             threshold = 1
         else:
-            threshold = 1/256.
+            threshold = 1/255.
     background = boxcar(image, [x * 2 + 1 for x in llong])
     result = lowpass(image, lshort, truncate)
     result -= background
-    return np.where(result > threshold, result, 0)
+    return np.where(result >= threshold, result, 0)
 
 
 def invert_image(raw_image, max_value=None):
@@ -165,6 +167,18 @@ def invert_image(raw_image, max_value=None):
 
 
 def normalize_to_int(image, dtype):
+    """Convert the image to integer and normalize.
+
+    Parameters
+    ----------
+    image : ndarray
+    dtype : numpy dtype
+        Dtype to convert to. Must be integer-subdtype
+
+    Returns
+    -------
+    tuple of (scale_factor, image)
+    """
     max_value = np.iinfo(dtype).max
     scale_factor = max_value / image.max()
     return scale_factor, (scale_factor * image.clip(min=0.)).astype(dtype)

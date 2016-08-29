@@ -441,8 +441,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         Half size of boxcar smoothing, in pixels
         Default is diameter. May be a tuple, see diameter for details.
     threshold : float
-        Clip bandpass result below this value.
-        Default, None, defers to default settings of the bandpass function.
+        Clip bandpass result below this value. Thresholding is done on the
+        already background-subtracted image.
+        By default, 1 for integer images and 1/255 for float images.
     invert : boolean
         This will be deprecated. Use an appropriate PIMS pipeline to invert a
         Frame or FramesSequence.
@@ -545,7 +546,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     if threshold is None:
         if is_float_image:
-            threshold = 1/256.
+            threshold = 1/255.
         else:
             threshold = 1
 
