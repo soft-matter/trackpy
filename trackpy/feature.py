@@ -195,9 +195,9 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         Print the offset on each loop and display final neighborhood image.
     """
     if break_thresh is not None:
-        warnings.warn("break_threshold will be deprecated: shift_threshold is"
+        warnings.warn("break_threshold has been deprecated: shift_threshold is"
                       "the only parameter that determines when to shift the"
-                      "mask.")
+                      "mask.", DeprecationWarning)
     if max_iterations <= 0:
         warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
         max_iterations = 1
@@ -459,9 +459,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
-        Filtering before is deprecated.
+        Filtering before has been deprecated.
     filter_after : boolean
-        This parameter will be deprecated: use minmass and maxsize.
+        This parameter has been deprecated: use minmass and maxsize.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
@@ -494,13 +494,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     """
     if invert:
         warnings.warn("The invert argument will be deprecated. Use a PIMS "
-                      "pipeline for this.", DeprecationWarning)
+                      "pipeline for this.", PendingDeprecationWarning)
     if filter_before is not None:
-        warnings.warn("The filter_before argument will be deprecated as it "
-                      "does not improve performance. Features are featured "
-                      "after refine.", DeprecationWarning) # see GH issue #141
+        raise ValueError("The filter_before argument has been deprecated as it "
+                         "does not improve performance. Features are featured "
+                         "after refine.") # see GH issue #141
     if filter_after is not None:
-        warnings.warn("The filter_after argument will be deprecated: it is "
+        warnings.warn("The filter_after argument has been deprecated: it is "
                       "always on, unless minmass = None and maxsize = None.",
                       DeprecationWarning)
 
