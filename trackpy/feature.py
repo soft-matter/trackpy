@@ -9,7 +9,8 @@ import pandas as pd
 from scipy import ndimage
 from pandas import DataFrame
 
-from .preprocessing import bandpass, scale_to_gamut, scalefactor_to_gamut
+from .preprocessing import (bandpass, convert_to_int, invert_image,
+                            scalefactor_to_gamut)
 from .utils import record_meta, validate_tuple, cKDTree
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
@@ -91,6 +92,9 @@ def local_maxima(image, radius, percentile=64, margin=None):
 
     Parameters
     ----------
+    image : ndarray
+        For best performance, provide an integer-type array. If the type is not
+        of integer-type, the image will be normalized and coerced to uint8.
     radius : integer definition of "local" in "local maxima"
     percentile : chooses minimum grayscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to radius.
@@ -98,6 +102,9 @@ def local_maxima(image, radius, percentile=64, margin=None):
     """
     if margin is None:
         margin = radius
+    if not np.issubdtype(image.dtype, np.integer):
+        factor = 255 / image.max()
+        image = (factor * image.clip(min=0.)).astype(np.uint8)
 
     ndim = image.ndim
     # Compute a threshold based on percentile.
@@ -107,8 +114,6 @@ def local_maxima(image, radius, percentile=64, margin=None):
         return np.empty((0, ndim))
 
     # The intersection of the image with its dilation gives local maxima.
-    if not np.issubdtype(image.dtype, np.integer):
-        raise TypeError("Perform dilation on exact (i.e., integer) data.")
     footprint = binary_mask(radius, ndim)
     dilation = ndimage.grey_dilation(image, footprint=footprint,
                                      mode='constant')
@@ -190,9 +195,9 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
         Print the offset on each loop and display final neighborhood image.
     """
     if break_thresh is not None:
-        warnings.warn("break_threshold will be deprecated: shift_threshold is"
+        warnings.warn("break_threshold has been deprecated: shift_threshold is"
                       "the only parameter that determines when to shift the"
-                      "mask.")
+                      "mask.", DeprecationWarning)
     if max_iterations <= 0:
         warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
         max_iterations = 1
@@ -398,7 +403,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
 def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
-           filter_before=True, filter_after=True,
+           filter_before=None, filter_after=None,
            characterize=True, engine='auto'):
     """Locate Gaussian-like blobs of some approximate size in an image.
 
@@ -417,12 +422,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : float
-        The minimum integrated brightness.
-        Default is 100 for integer images and 1 for float images, but a good
-        value is often much higher. This is a crucial parameter for eliminating
-        spurious features.
+    minmass : float, optional
+        The minimum integrated brightness. This is a crucial parameter for
+        eliminating spurious features.
+        Recommended minimum values are 100 for integer images and 1 for float
+        images. Defaults to 0 (no filtering).
         .. warning:: The mass value is changed since v0.3.0
+        .. warning:: The default behaviour of minmass has changed since v0.4.0
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -432,12 +438,15 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
     smoothing_size : float or tuple
-        Size of boxcar smoothing, in pixels
+        Half size of boxcar smoothing, in pixels
         Default is diameter. May be a tuple, see diameter for details.
     threshold : float
-        Clip bandpass result below this value.
-        Default, None, defers to default settings of the bandpass function.
+        Clip bandpass result below this value. Thresholding is done on the
+        already background-subtracted image.
+        By default, 1 for integer images and 1/255 for float images.
     invert : boolean
+        This will be deprecated. Use an appropriate PIMS pipeline to invert a
+        Frame or FramesSequence.
         Set to True if features are darker than background. False by default.
     percentile : float
         Features must have a peak brighter than pixels in this
@@ -450,12 +459,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
-        Use minmass (and maxsize, if set) to eliminate spurious features
-        based on their estimated mass and size before refining position.
-        Default (None) defers to trackpy, to optimize for performance.
+        Filtering before has been deprecated.
     filter_after : boolean
-        Use final characterizations of mass and size to eliminate spurious
-        features. True by default.
+        This parameter has been deprecated: use minmass and maxsize.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
@@ -486,14 +492,22 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
 
     """
+    if invert:
+        warnings.warn("The invert argument will be deprecated. Use a PIMS "
+                      "pipeline for this.", PendingDeprecationWarning)
+    if filter_before is not None:
+        raise ValueError("The filter_before argument has been deprecated as it "
+                         "does not improve performance. Features are featured "
+                         "after refine.") # see GH issue #141
+    if filter_after is not None:
+        warnings.warn("The filter_after argument has been deprecated: it is "
+                      "always on, unless minmass = None and maxsize = None.",
+                      DeprecationWarning)
 
     # Validate parameters and set defaults.
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
     ndim = len(shape)
-    if filter_before is None:
-        # TODO smarter perf optimization, see GH issue #141
-        filter_before = False
 
     diameter = validate_tuple(diameter, ndim)
     diameter = tuple([int(x) for x in diameter])
@@ -505,6 +519,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if (not isotropic) and (maxsize is not None):
         raise ValueError("Filtering by size is not available for anisotropic "
                          "features.")
+
+    is_float_image = not np.issubdtype(raw_image.dtype, np.integer)
 
     if separation is None:
         separation = tuple([x + 1 for x in diameter])
@@ -518,6 +534,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     noise_size = validate_tuple(noise_size, ndim)
 
+    if minmass is None:
+        minmass = 0
+
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim
@@ -525,41 +544,29 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
                       "If it is actually a {1}-dimensional color image, "
                       "convert it to grayscale first.".format(dim, dim-1))
 
-    if minmass is None:
-        if np.issubdtype(raw_image.dtype, np.integer):
-            minmass = 100
+    if threshold is None:
+        if is_float_image:
+            threshold = 1/255.
         else:
-            minmass = 1.
+            threshold = 1
 
-    # Determine `image`: the image to find the local maxima on
+    # Invert the image if necessary
+    if invert:
+        raw_image = invert_image(raw_image)
+
+    # Determine `image`: the image to find the local maxima on.
     if preprocess:
-        if invert:
-            # It is tempting to do this in place, but if it is called multiple
-            # times on the same image, chaos reigns.
-            if np.issubdtype(raw_image.dtype, np.integer):
-                max_value = np.iinfo(raw_image.dtype).max
-                raw_image = raw_image ^ max_value
-            else:
-                # To avoid degrading performance, assume gamut is zero to one.
-                # Have you ever encountered an image of unnormalized floats?
-                raw_image = 1 - raw_image
         image = bandpass(raw_image, noise_size, smoothing_size, threshold)
-
-        # Coerce the image into integer type. Rescale to fill dynamic range.
-        if np.issubdtype(raw_image.dtype, np.integer):
-            dtype = raw_image.dtype
-        else:
-            dtype = np.uint8
-        scale_factor = scalefactor_to_gamut(image, dtype)
-        image = scale_to_gamut(image, dtype, scale_factor)
-    elif np.issubdtype(raw_image.dtype, np.integer):
-        # Do nothing when image is already of integer type
-        scale_factor = 1.
-        image = raw_image
     else:
-        # Coerce the image into uint8 type. Rescale to fill dynamic range.
-        scale_factor = scalefactor_to_gamut(raw_image, np.uint8)
-        image = scale_to_gamut(raw_image, np.uint8, scale_factor)
+        image = raw_image
+
+    # For optimal performance, performance, coerce the image dtype to integer.
+    if is_float_image:  # For float images, assume bitdepth of 8.
+        dtype = np.uint8
+    else:   # For integer images, take original dtype
+        dtype = raw_image.dtype
+    # Normalize_to_int does nothing if image is already of integer type.
+    scale_factor, image = convert_to_int(image, dtype)
 
     # Set up a DataFrame for the final results.
     if image.ndim < 4:
@@ -597,29 +604,6 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if count_maxima == 0:
         return DataFrame(columns=columns)
 
-    # Proactively filter based on estimated mass/size before
-    # refining positions.
-    if filter_before:
-        approx_mass = np.empty(count_maxima)  # initialize to avoid appending
-        for i in range(count_maxima):
-            approx_mass[i] = estimate_mass(image, radius, coords[i])
-        condition = approx_mass > minmass * scale_factor
-        if maxsize is not None:
-            approx_size = np.empty(count_maxima)
-            for i in range(count_maxima):
-                approx_size[i] = estimate_size(image, radius, coords[i],
-                                               approx_mass[i])
-            condition &= approx_size < maxsize
-        coords = coords[condition]
-    count_qualified = coords.shape[0]
-
-    if count_qualified == 0:
-        warnings.warn("No maxima survived mass- and size-based prefiltering. "
-                      "Be advised that the mass computation was changed from "
-                      "version 0.2.4 to 0.3.0. See the documentation and the "
-                      "convenience function minmass_version_change.")
-        return DataFrame(columns=columns)
-
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine(raw_image, image, radius, coords,
                             separation=separation, max_iterations=max_iterations,
@@ -630,15 +614,11 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if characterize:
         refined_coords[:, SIGNAL_COLUMN_INDEX] *= 1. / scale_factor
 
-    # Filter again, using final ("exact") mass -- and size, if set.
-    exact_mass = refined_coords[:, MASS_COLUMN_INDEX]
-    if filter_after:
-        condition = exact_mass > minmass
-        if maxsize is not None:
-            exact_size = refined_coords[:, SIZE_COLUMN_INDEX]
-            condition &= exact_size < maxsize
-        refined_coords = refined_coords[condition]
-        exact_mass = exact_mass[condition]  # used below by topn
+    # Filter on mass and size, if set.
+    condition = refined_coords[:, MASS_COLUMN_INDEX] > minmass
+    if maxsize is not None:
+        condition &= refined_coords[:, SIZE_COLUMN_INDEX] < maxsize
+    refined_coords = refined_coords[condition]
     count_qualified = refined_coords.shape[0]
 
     if count_qualified == 0:
@@ -649,12 +629,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         return DataFrame(columns=columns)
 
     if topn is not None and count_qualified > topn:
+        mass = refined_coords[:, MASS_COLUMN_INDEX]
         if topn == 1:
             # special case for high performance and correct shape
-            refined_coords = refined_coords[np.argmax(exact_mass)]
+            refined_coords = refined_coords[np.argmax(mass)]
             refined_coords = refined_coords.reshape(1, -1)
         else:
-            refined_coords = refined_coords[np.argsort(exact_mass)][-topn:]
+            refined_coords = refined_coords[np.argsort(mass)][-topn:]
 
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
