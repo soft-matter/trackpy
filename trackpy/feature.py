@@ -6,7 +6,6 @@ import logging
 
 import numpy as np
 import pandas as pd
-from scipy import ndimage
 from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
@@ -82,7 +81,7 @@ def minmass_version_change(raw_image, old_minmass, preprocess=True,
 
 def local_maxima(image, radius, percentile=64, margin=None):
     """Find local maxima whose brightness is above a given percentile.
-    This function has been deprecated. Please use the routines in trackpy.find,
+    This function will be deprecated. Please use the routines in trackpy.find,
     with the minimum separation between features as second argument.
 
     Parameters
@@ -97,7 +96,7 @@ def local_maxima(image, radius, percentile=64, margin=None):
             A smarter value is set by locate().
     """
     warnings.warn("Local_maxima will be deprecated: please use routines in "
-                  "trackpy.find", DeprecationWarning)
+                  "trackpy.find", PendingDeprecationWarning)
     return grey_dilation(image, radius, percentile, margin)
 
 

@@ -159,9 +159,11 @@ def grey_dilation_legacy(image, separation, percentile=64, margin=None):
         warnings.warn("Image is completely black.", UserWarning)
         return np.empty((0, ndim))
 
-    # The intersection of the image with its dilation gives local maxima.
     if not np.issubdtype(image.dtype, np.integer):
-        raise TypeError("Perform dilation on exact (i.e., integer) data.")
+        factor = 255 / image.max()
+        image = (factor * image.clip(min=0.)).astype(np.uint8)
+
+    # The intersection of the image with its dilation gives local maxima
     footprint = binary_mask(separation, ndim)
     dilation = ndimage.grey_dilation(image, footprint=footprint,
                                      mode='constant')
