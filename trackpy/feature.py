@@ -6,12 +6,13 @@ import logging
 
 import numpy as np
 import pandas as pd
-from scipy import ndimage
 from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
-from .utils import record_meta, validate_tuple, cKDTree
+from .utils import record_meta, validate_tuple
+from .find import grey_dilation, where_close
+
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -22,15 +23,6 @@ from .feature_numba import (_numba_refine_2D, _numba_refine_2D_c,
                             _numba_refine_2D_c_a, _numba_refine_3D)
 
 logger = logging.getLogger(__name__)
-
-
-def percentile_threshold(image, percentile):
-    """Find grayscale threshold based on distribution in image."""
-
-    not_black = image[np.nonzero(image)]
-    if len(not_black) == 0:
-        return np.nan
-    return np.percentile(not_black, percentile)
 
 
 def minmass_version_change(raw_image, old_minmass, preprocess=True,
@@ -89,49 +81,23 @@ def minmass_version_change(raw_image, old_minmass, preprocess=True,
 
 def local_maxima(image, radius, percentile=64, margin=None):
     """Find local maxima whose brightness is above a given percentile.
+    This function will be deprecated. Please use the routines in trackpy.find,
+    with the minimum separation between features as second argument.
 
     Parameters
     ----------
     image : ndarray
         For best performance, provide an integer-type array. If the type is not
         of integer-type, the image will be normalized and coerced to uint8.
-    radius : integer definition of "local" in "local maxima"
+    radius : the radius of the circular grey dilation kernel, which is the
+        minimum separation between maxima
     percentile : chooses minimum grayscale value for a local maximum
     margin : zone of exclusion at edges of image. Defaults to radius.
             A smarter value is set by locate().
     """
-    if margin is None:
-        margin = radius
-    if not np.issubdtype(image.dtype, np.integer):
-        factor = 255 / image.max()
-        image = (factor * image.clip(min=0.)).astype(np.uint8)
-
-    ndim = image.ndim
-    # Compute a threshold based on percentile.
-    threshold = percentile_threshold(image, percentile)
-    if np.isnan(threshold):
-        warnings.warn("Image is completely black.", UserWarning)
-        return np.empty((0, ndim))
-
-    # The intersection of the image with its dilation gives local maxima.
-    footprint = binary_mask(radius, ndim)
-    dilation = ndimage.grey_dilation(image, footprint=footprint,
-                                     mode='constant')
-    maxima = np.vstack(np.where((image == dilation) & (image > threshold))).T
-    if not np.size(maxima) > 0:
-        warnings.warn("Image contains no local maxima.", UserWarning)
-        return np.empty((0, ndim))
-
-    # Do not accept peaks near the edges.
-    shape = np.array(image.shape)
-    near_edge = np.any((maxima < margin) | (maxima > (shape - margin - 1)), 1)
-    maxima = maxima[~near_edge]
-    if not np.size(maxima) > 0:
-        warnings.warn("All local maxima were in the margins.", UserWarning)
-
-    # Return coords in as a numpy array shaped so it can be passed directly
-    # to the DataFrame constructor.
-    return maxima
+    warnings.warn("Local_maxima will be deprecated: please use routines in "
+                  "trackpy.find", PendingDeprecationWarning)
+    return grey_dilation(image, radius, percentile, margin)
 
 
 def estimate_mass(image, radius, coord):
@@ -294,28 +260,10 @@ def refine(raw_image, image, radius, coords, separation=0, max_iterations=10,
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
     if np.all(np.greater(separation, 0)):
         mass_index = image.ndim  # i.e., index of the 'mass' column
-        while True:
-            # Rescale positions, so that pairs are identified below a distance
-            # of 1. Do so every iteration (room for improvement?)
-            positions = results[:, :mass_index]/list(reversed(separation))
-            mass = results[:, mass_index]
-            duplicates = cKDTree(positions, 30).query_pairs(1)
-            if len(duplicates) == 0:
-                break
-            to_drop = []
-            for p0, p1 in duplicates:
-                # Drop the dimmer one.
-                m0, m1 = mass[p0], mass[p1]
-                if m0 < m1:
-                    to_drop.append(p0)
-                elif m0 > m1:
-                    to_drop.append(p1)
-                else:
-                    # Rare corner case: a tie!
-                    # Break ties by sorting by sum of coordinates, to avoid
-                    # any randomness resulting from cKDTree returning a set.
-                    to_drop.append([p0, p1][np.argmin(np.sum(positions.take([p0, p1], 0), 1))])
-            results = np.delete(results, to_drop, 0)
+        positions = results[:, :mass_index]
+        mass = results[:, mass_index]
+        to_drop = where_close(positions, list(reversed(separation)), mass)
+        results = np.delete(results, to_drop, 0)
 
     return results
 
@@ -598,7 +546,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     #   - Invalid output of the bandpass step ("smoothing_size")
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
                     zip(radius, separation, smoothing_size)])
-    coords = local_maxima(image, radius, percentile, margin)
+    # Find features with minimum separation distance of `separation`. This
+    # excludes detection of small features close to large, bright features
+    # using the `maxsize` argument.
+    coords = grey_dilation(image, separation, percentile, margin, precise=False)
     count_maxima = coords.shape[0]
 
     if count_maxima == 0:

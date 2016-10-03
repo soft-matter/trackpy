@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from numpy.testing import (assert_almost_equal, assert_allclose,
-                           assert_array_less)
+                           assert_array_less, assert_equal)
 from numpy.testing.decorators import slow
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_produces_warning)
@@ -51,6 +51,12 @@ def sort_positions(actual, expected):
         raise AssertionError("Position sorting failed. At least one feature is "
                              "very far from where it should be.")
     return deviations, actual[argsort][0]
+
+
+def assert_coordinates_close(actual, expected, atol):
+    assert_equal(len(actual), len(expected))
+    _, sorted_actual = sort_positions(actual, expected)
+    assert_allclose(sorted_actual, expected, atol)
 
 
 class OldMinmass(unittest.TestCase):
@@ -522,21 +528,21 @@ class CommonFeatureIdentificationTests(object):
 
         # filter on mass
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
-                           minmass=6500)[cols]
+                           minmass=6500, separation=10)[cols]
         actual = pandas_sort(actual, cols)
         expected = pandas_sort(DataFrame([pos2, pos4], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
-                           maxsize=3.0)[cols]
+                           maxsize=3.0, separation=10)[cols]
         actual = pandas_sort(actual, cols)
         expected = pandas_sort(DataFrame([pos1, pos3], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)
 
         # filter on both mass and size
         actual = tp.locate(image, 15, engine=self.engine, preprocess=False,
-                           minmass=600, maxsize=4.0)[cols]
+                           minmass=600, maxsize=4.0, separation=10)[cols]
         actual = pandas_sort(actual, cols)
         expected = pandas_sort(DataFrame([pos1, pos4], columns=cols), cols)
         assert_allclose(actual, expected, atol=PRECISION)

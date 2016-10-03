@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import warnings
 
+from .find import percentile_threshold, grey_dilation
 from .motion import msd, imsd, emsd, compute_drift, subtract_drift, \
            proximity, vanhove, relate_frames, velocity_corr, \
            direction_corr, is_typical, diagonal_size
@@ -15,7 +16,7 @@ from .linking import HashTable, TreeFinder, Point, PointND, \
            SubnetOversizeException, link, link_df, link_iter, \
            link_df_iter, strip_diagnostics
 from .filtering import filter_stubs, filter_clusters, filter
-from .feature import locate, batch, percentile_threshold, local_maxima, \
+from .feature import locate, batch, local_maxima, \
            refine, estimate_mass, estimate_size, minmass_version_change
 from .preprocessing import bandpass
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
