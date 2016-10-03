@@ -407,7 +407,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
-        Filtering before has been deprecated.
+        filter_before is no longer supported as it does not improve performance.
     filter_after : boolean
         This parameter has been deprecated: use minmass and maxsize.
     characterize : boolean
@@ -444,9 +444,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         warnings.warn("The invert argument will be deprecated. Use a PIMS "
                       "pipeline for this.", PendingDeprecationWarning)
     if filter_before is not None:
-        raise ValueError("The filter_before argument has been deprecated as it "
-                         "does not improve performance. Features are featured "
-                         "after refine.") # see GH issue #141
+        raise ValueError("The filter_before argument is no longer supported as "
+                         "it does not improve performance. Features are "
+                         "filtered after refine.") # see GH issue #141
     if filter_after is not None:
         warnings.warn("The filter_after argument has been deprecated: it is "
                       "always on, unless minmass = None and maxsize = None.",
@@ -664,9 +664,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     filter_before : boolean
-        Use minmass (and maxsize, if set) to eliminate spurious features
-        based on their estimated mass and size before refining position.
-        Default (None) defers to trackpy, to optimize for performance.
+        filter_before is no longer supported as it does not improve performance.
     filter_after : boolean
         Use final characterizations of mass and size to eliminate spurious
         features. True by default.
