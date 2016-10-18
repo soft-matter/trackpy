@@ -9,7 +9,6 @@ import warnings
 import logging
 
 from ..utils import validate_tuple
-from ..find import where_close
 from ..masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 
@@ -157,14 +156,6 @@ def center_of_mass(raw_image, image, radius, coords, separation=0, max_iteration
                                  y2_mask, x2_mask, cmask, smask, results)
     else:
         raise ValueError("Available engines are 'python' and 'numba'")
-
-    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    if np.all(np.greater(separation, 0)):
-        mass_index = image.ndim  # i.e., index of the 'mass' column
-        positions = results[:, :mass_index]
-        mass = results[:, mass_index]
-        to_drop = where_close(positions, list(reversed(separation)), mass)
-        results = np.delete(results, to_drop, 0)
 
     return results
 

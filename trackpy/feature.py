@@ -11,9 +11,8 @@ from pandas import DataFrame
 from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import record_meta, validate_tuple
-from .find import grey_dilation
+from .find import grey_dilation, where_close
 from .refine import center_of_mass
-
 from .masks import binary_mask, N_binary_mask, r_squared_mask
 from .uncertainty import _static_error, measure_noise
 import trackpy  # to get trackpy.__version__
@@ -364,6 +363,14 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
                                     separation=separation,
                                     max_iterations=max_iterations,
                                     engine=engine, characterize=characterize)
+
+    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
+    if np.all(np.greater(separation, 0)):
+        positions = refined_coords[:, :MASS_COLUMN_INDEX]
+        mass = refined_coords[:, MASS_COLUMN_INDEX]
+        to_drop = where_close(positions, list(reversed(separation)), mass)
+        refined_coords = np.delete(refined_coords, to_drop, 0)
+
     # mass and signal values has to be corrected due to the rescaling
     # raw_mass was obtained from raw image; size and ecc are scale-independent
     refined_coords[:, MASS_COLUMN_INDEX] *= 1. / scale_factor
