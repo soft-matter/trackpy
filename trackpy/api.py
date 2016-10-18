@@ -17,7 +17,7 @@ from .linking import HashTable, TreeFinder, Point, PointND, \
            link_df_iter, strip_diagnostics
 from .filtering import filter_stubs, filter_clusters, filter
 from .feature import locate, batch, local_maxima, \
-           refine, estimate_mass, estimate_size, minmass_version_change
+           estimate_mass, estimate_size, minmass_version_change
 from .preprocessing import bandpass
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
