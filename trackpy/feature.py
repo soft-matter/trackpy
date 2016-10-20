@@ -12,7 +12,7 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import record_meta, validate_tuple
 from .find import grey_dilation, where_close
-from .refine import center_of_mass
+from .refine import refine_com
 from .masks import binary_mask, N_binary_mask, r_squared_mask
 from .uncertainty import _static_error, measure_noise
 import trackpy  # to get trackpy.__version__
@@ -148,7 +148,7 @@ def refine(*args, **kwargs):
     """
     warnings.warn("trackpy.feature.refine will be deprecated: please use routines in "
                   "trackpy.refine", PendingDeprecationWarning)
-    return center_of_mass(*args, **kwargs)
+    return refine_com(*args, **kwargs)
 
 
 def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
@@ -359,10 +359,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = center_of_mass(raw_image, image, radius, coords,
-                                    separation=separation,
-                                    max_iterations=max_iterations,
-                                    engine=engine, characterize=characterize)
+    refined_coords = refine_com(raw_image, image, radius, coords,
+                                separation=separation,
+                                max_iterations=max_iterations,
+                                engine=engine, characterize=characterize)
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
     if np.all(np.greater(separation, 0)):

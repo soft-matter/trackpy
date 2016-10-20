@@ -24,9 +24,9 @@ def _safe_center_of_mass(x, radius, grids):
     return np.array([(x * grids[dim]).sum() / normalizer
                     for dim in range(x.ndim)])
 
-def center_of_mass(raw_image, image, radius, coords, separation=0, max_iterations=10,
-                   engine='auto', shift_thresh=0.6, break_thresh=None,
-                   characterize=True, walkthrough=False):
+def refine_com(raw_image, image, radius, coords, separation=0, max_iterations=10,
+               engine='auto', shift_thresh=0.6, break_thresh=None,
+               characterize=True, walkthrough=False):
     """Find the center of mass of a bright feature starting from an estimate.
 
     Characterize the neighborhood of a local maximum, and iteratively

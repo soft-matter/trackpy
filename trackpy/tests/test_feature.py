@@ -21,7 +21,7 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array,
                                 gen_nonoverlapping_locations)
 from trackpy.utils import pandas_sort, cKDTree
-from trackpy.refine import center_of_mass
+from trackpy.refine import refine_com
 
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
@@ -740,23 +740,23 @@ class CommonFeatureIdentificationTests(object):
         draw_feature(image, pos, 15)
 
         guess = np.array([[6, 13]])
-        actual = center_of_mass(image, image, 6, guess,characterize=False,
-                                 engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com(image, image, 6, guess,characterize=False,
+                            engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 12]])
-        actual = center_of_mass(image, image, 6, guess, characterize=False,
-                                engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com(image, image, 6, guess, characterize=False,
+                            engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 14]])
-        actual = center_of_mass(image, image, 6, guess, characterize=False,
-                                engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com(image, image, 6, guess, characterize=False,
+                            engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[6, 12]])
-        actual = center_of_mass(image, image, 6, guess, characterize=False,
-                                engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com(image, image, 6, guess, characterize=False,
+                            engine=self.engine)[:, :2][:, ::-1]
         assert_allclose(actual, expected, atol=0.1)
 
     def test_uncertainty_failure(self):
