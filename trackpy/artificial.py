@@ -66,8 +66,12 @@ def draw_feature(image, position, size, max_value=None, feat_func='gauss',
         eccentricity of feature, defined only in 2D. Identical to setting
         diameter to (diameter / (1 - ecc), diameter * (1 - ecc))
     mask_diameter :
-        defines the box that will be drawn on. Default 8 * size.
+        defines the box that will be drawn on. Default 4 * size.
     kwargs : keyword arguments are passed to feat_func
+
+    See also
+    --------
+    draw_spots
     """
     if len(position) != image.ndim:
         raise ValueError("Number of position coordinates should match image"
@@ -83,7 +87,7 @@ def draw_feature(image, position, size, max_value=None, feat_func='gauss',
                              " not defined.")
         size = (size[0] / (1 - ecc), size[1] * (1 - ecc))
     if mask_diameter is None:
-        mask_diameter = tuple([s * 8 for s in size])
+        mask_diameter = tuple([s * 4 for s in size])
     else:
         mask_diameter = validate_tuple(mask_diameter, image.ndim)
     if max_value is None:
@@ -144,8 +148,7 @@ def gen_nonoverlapping_locations(shape, count, separation, margin=0):
     return eliminate_overlapping_locations(positions, separation)
 
 
-def draw_spots(shape, positions, diameter, noise_level=0, bitdepth=8,
-               feat_func=feat_gauss, ecc=None, **kwargs):
+def draw_spots(shape, positions, size, noise_level=0, bitdepth=8, **kwargs):
     """ Generates an image with features at given positions. A feature with
     position x will be centered around pixel x. In other words, the origin of
     the output image is located at the center of pixel (0, 0).
@@ -156,20 +159,18 @@ def draw_spots(shape, positions, diameter, noise_level=0, bitdepth=8,
         the shape of the produced image
     positions : iterable of tuples
         an iterable of positions
-    diameter : number or tuple
-        the sizes of the box that will be used per feature. The actual feature
-        'size' is determined by feat_func and kwargs given to feat_func.
+    size : number
+        the size of the feature (meaning depends on feature, for feat_gauss,
+        it is the radius of gyration)
     noise_level : int, default: 0
         white noise will be generated up to this level
     bitdepth : int, default: 8
         the desired bitdepth of the image (<=32 bits)
-    feat_func : function, default: feat_gauss
-        function f(r) that takes an ndarray of radius values
-        and returns intensity values <= 1
-    ecc : positive number, optional
-        eccentricity of feature, defined only in 2D. Identical to setting
-        diameter to (diameter / (1 - ecc), diameter * (1 - ecc))
-    kwargs : keyword arguments are passed to feat_func
+    kwargs : keyword arguments are passed to draw_feature
+
+    See also
+    --------
+    draw_feature
     """
     if bitdepth <= 8:
         dtype = np.uint8
@@ -188,12 +189,11 @@ def draw_spots(shape, positions, diameter, noise_level=0, bitdepth=8,
         image += np.random.randint(0, noise_level + 1,
                                    shape).astype(internaldtype)
     for pos in positions:
-        draw_feature(image, pos, diameter, max_value=2**bitdepth - 1,
-                     feat_func=feat_func, ecc=ecc, **kwargs)
+        draw_feature(image, pos, size, max_value=2**bitdepth - 1, **kwargs)
     return image.clip(0, 2**bitdepth - 1).astype(dtype)
 
 
-def draw_array(N, diameter, separation=None, ndim=2, **kwargs):
+def draw_array(N, size, separation=None, ndim=2, **kwargs):
     """ Generates an image with an array of features. Each feature has a random
     offset of +- 0.5 pixel.
 
@@ -201,20 +201,21 @@ def draw_array(N, diameter, separation=None, ndim=2, **kwargs):
     ----------
     N : int
         the number of features
-    diameter : number or tuple
-        the sizes of the box that will be used per feature. The actual feature
-        'size' is determined by feat_func and kwargs given to feat_func.
+    size : number
+        the size of the feature (meaning depends on feature, for feat_gauss,
+        it is the radius of gyration)
     separation : number or tuple
         the desired separation between features
-    kwargs : see draw_spots
+    kwargs : keyword arguments are passed to draw_spots
 
     See also
     --------
     draw_spots
+    draw_feature
     """
-    diameter = validate_tuple(diameter, ndim)
+    size = validate_tuple(size, ndim)
     if separation is None:
-        separation = tuple([d * 2 for d in diameter])
+        separation = tuple([sz * 8 for sz in size])
     margin = separation
     Nsqrt = int(N**(1/ndim) + 0.9999)
     pos = np.meshgrid(*[np.arange(0, s * Nsqrt, s) for s in separation],
@@ -222,7 +223,7 @@ def draw_array(N, diameter, separation=None, ndim=2, **kwargs):
     pos = np.array([p.ravel() for p in pos], dtype=np.float).T[:N] + margin
     pos += (np.random.random(pos.shape) - 0.5)  #randomize subpixel location
     shape = tuple(np.max(pos, axis=0).astype(np.int) + margin)
-    return pos, draw_spots(shape, pos, diameter, **kwargs)
+    return pos, draw_spots(shape, pos, size, **kwargs)
 
 
 def rot_2d(angle):
