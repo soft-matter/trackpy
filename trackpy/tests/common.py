@@ -2,7 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from numpy.testing import assert_allclose, assert_equal, assert_array_equal
 from pandas.util.testing import assert_frame_equal
-from trackpy.utils import cKDTree
+from trackpy.utils import cKDTree, pandas_sort
 
 
 def sort_positions(actual, expected):
@@ -22,8 +22,8 @@ def assert_coordinates_close(actual, expected, atol):
 
 def assert_traj_equal(actual, expected, pos_atol=1):
     assert_equal(len(actual), len(expected))
-    actual = actual.sort_values(['frame']).reset_index(drop=True)
-    expected = expected.sort_values(['frame']).reset_index(drop=True)
+    actual = pandas_sort(actual, 'frame').reset_index(drop=True)
+    expected = pandas_sort(expected, 'frame').reset_index(drop=True)
     actual_order = []
     for frame_no in expected['frame'].unique():
         actual_f = actual[actual['frame'] == frame_no]

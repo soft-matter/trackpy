@@ -10,11 +10,10 @@ from trackpy.preprocessing import lowpass, bandpass
 from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
                                 draw_cluster, SimulatedImage)
 from trackpy.refine.least_squares import dimer, trimer, tetramer, dimer_global
+from trackpy.refine._fitfunc import FitFunctions, vect_from_params
 from trackpy.tests.common import assert_coordinates_close
-from nose import SkipTest
-
-from clustertracking.fitfunc import FitFunctions, vect_from_params
 from scipy.optimize.slsqp import approx_jacobian
+from nose import SkipTest
 
 
 EPSILON = 1E-7
