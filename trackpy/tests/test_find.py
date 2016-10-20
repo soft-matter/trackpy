@@ -6,7 +6,7 @@ import numpy as np
 
 import trackpy as tp
 from trackpy.artificial import draw_feature
-from trackpy.tests.test_feature import assert_coordinates_close
+from trackpy.tests.common import assert_coordinates_close
 from trackpy.find import grey_dilation, grey_dilation_legacy
 from pandas.util.testing import assert_produces_warning
 
@@ -20,8 +20,8 @@ class TestFindGreyDilation(unittest.TestCase):
 
             # setup features: features with equal signal will always be
             # detected by a grey dilation, so make them unequal
-            draw_feature(im, pos[0], 15, 240)
-            draw_feature(im, pos[1], 15, 250)
+            draw_feature(im, pos[0], 3, 240)
+            draw_feature(im, pos[1], 3, 250)
 
             # find both of them
             f = grey_dilation(im, separation - 1, precise=False)
@@ -48,8 +48,8 @@ class TestFindGreyDilation(unittest.TestCase):
 
             # setup features: features with equal signal will always be
             # detected by a grey dilation, so make them unequal
-            draw_feature(im, pos[0], 15, 240)
-            draw_feature(im, pos[1], 15, 250)
+            draw_feature(im, pos[0], 3, 240)
+            draw_feature(im, pos[1], 3, 250)
 
             # find both of them
             f = grey_dilation(im, separation - 1)
@@ -68,8 +68,8 @@ class TestFindGreyDilation(unittest.TestCase):
 
             # setup features: features with equal signal will always be
             # detected by a grey dilation, so make them unequal
-            draw_feature(im, pos[0], 15, 240)
-            draw_feature(im, pos[1], 15, 250)
+            draw_feature(im, pos[0], 3, 240)
+            draw_feature(im, pos[1], 3, 250)
 
             # find both of them
             f = grey_dilation(im, (9, 19))
@@ -88,8 +88,8 @@ class TestFindGreyDilation(unittest.TestCase):
 
         # setup features: features with equal signal will always be
         # detected by a grey dilation, so make them unequal
-        draw_feature(im, pos[0], 15, 240)
-        draw_feature(im, pos[1], 15, 250)
+        draw_feature(im, pos[0], 3, 240)
+        draw_feature(im, pos[1], 3, 250)
 
         # find both of them
         f = grey_dilation(im, separation - 1, precise=False)
@@ -107,8 +107,8 @@ class TestFindGreyDilationLegacy(unittest.TestCase):
 
             # setup features: features with equal signal will always be
             # detected by grey_dilation_legacy, so make them unequal
-            draw_feature(im, pos[0], 15, 240)
-            draw_feature(im, pos[1], 15, 250)
+            draw_feature(im, pos[0], 3, 240)
+            draw_feature(im, pos[1], 3, 250)
 
             # find both of them
             f = grey_dilation_legacy(im, separation - 1)

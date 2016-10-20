@@ -13,7 +13,7 @@ from ..utils import (guess_pos_columns, validate_tuple, is_isotropic,
                      obtain_size_columns, RefineException, ReaderCached,
                      catch_keyboard_interrupt)
 from ._fitfunc import FitFunctions, vect_to_params, vect_from_params
-from .center_of_mass import center_of_mass as refine_com
+from .center_of_mass import refine_com
 
 try:
     from numdifftools import Hessian

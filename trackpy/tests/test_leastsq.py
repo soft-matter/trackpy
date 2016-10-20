@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from numpy.testing import assert_allclose
 from trackpy.utils import validate_tuple
-from trackpy.refine import center_of_mass as refine_com
-from trackpy.refine import refine_leastsq
+from trackpy.refine import refine_com, refine_leastsq
 from trackpy.preprocessing import lowpass, bandpass
 from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
                                 draw_cluster, SimulatedImage)
@@ -892,7 +891,7 @@ class TestFit_ring3D_a(RefineTsts, unittest.TestCase):
 
 class TestMultiple(unittest.TestCase):
     shape = (256, 256)
-    pos_err = 7
+    pos_err = 3
     diameter = 21
     separation = 24
     def setUp(self):

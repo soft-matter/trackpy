@@ -8,19 +8,15 @@ import warnings
 
 import nose
 import numpy as np
-import pandas as pd
-from pandas import DataFrame, Series
-from numpy.testing import (assert_almost_equal, assert_allclose,
-                           assert_array_less, assert_equal)
-from numpy.testing.decorators import slow
-from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_produces_warning)
+from pandas import DataFrame
+from numpy.testing import assert_allclose
+from pandas.util.testing import assert_produces_warning
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array,
                                 gen_nonoverlapping_locations)
-from trackpy.utils import pandas_sort, cKDTree
+from trackpy.utils import pandas_sort
 from trackpy.refine import refine_com
 from trackpy.tests.common import sort_positions
 
