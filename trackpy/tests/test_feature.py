@@ -22,6 +22,7 @@ from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array
                                 gen_nonoverlapping_locations)
 from trackpy.utils import pandas_sort, cKDTree
 from trackpy.refine import refine_com
+from trackpy.tests.common import sort_positions
 
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
@@ -43,21 +44,6 @@ def compare(shape, count, radius, noise_level, engine):
     actual = pandas_sort(f[cols], cols)
     expected = pandas_sort(DataFrame(pos, columns=cols), cols)
     return actual, expected
-
-
-def sort_positions(actual, expected):
-    tree = cKDTree(actual)
-    deviations, argsort = tree.query([expected])
-    if len(set(range(len(actual))) - set(argsort[0])) > 0:
-        raise AssertionError("Position sorting failed. At least one feature is "
-                             "very far from where it should be.")
-    return deviations, actual[argsort][0]
-
-
-def assert_coordinates_close(actual, expected, atol):
-    assert_equal(len(actual), len(expected))
-    _, sorted_actual = sort_positions(actual, expected)
-    assert_allclose(sorted_actual, expected, atol)
 
 
 class OldMinmass(unittest.TestCase):

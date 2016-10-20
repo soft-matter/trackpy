@@ -306,3 +306,77 @@ if is_pandas_since_017:
     pandas_sort = _pandas_sort_post_017
 else:
     pandas_sort = _pandas_sort_pre_017
+
+
+class RefineException(Exception):
+    pass
+
+
+def guess_pos_columns(f):
+    if 'z' in f:
+        pos_columns = ['z', 'y', 'x']
+    else:
+        pos_columns = ['y', 'x']
+    return pos_columns
+
+
+def obtain_size_columns(isotropic, pos_columns=None):
+    if isotropic:
+        size_columns = ['size']
+    else:
+        size_columns = ['size_{}'.format(p) for p in pos_columns]
+    return size_columns
+
+
+def default_pos_columns(ndim):
+    return ['z', 'y', 'x'][-ndim:]
+
+
+def default_size_columns(ndim, isotropic):
+    if isotropic:
+        size_columns = ['size']
+    else:
+        size_columns = ['size_z', 'size_y', 'size_x'][-ndim:]
+    return size_columns
+
+
+def is_isotropic(value):
+    if hasattr(value, '__iter__'):
+        return np.all(value[1:] == value[:-1])
+    else:
+        return True
+
+
+class ReaderCached(object):
+    def __init__(self, reader):
+        self.reader = reader
+        self._cache = None
+        self._cache_i = None
+
+    def __getitem__(self, i):
+        if self._cache_i == i:
+            return self._cache.copy()
+        else:
+            value = self.reader[i]
+            self._cache = value.copy()
+            return value
+
+    def __repr__(self):
+        return repr(self.reader) + "\nWrapped in ReaderCached"
+
+    def __getattr__(self, attr):
+        return getattr(self.reader, attr)
+
+
+def catch_keyboard_interrupt(gen, logger=None):
+    running = True
+    gen = iter(gen)
+    while running:
+        try:
+            yield next(gen)
+        except KeyboardInterrupt:
+            if logger is not None:
+                logger.warn('KeyboardInterrupt')
+            running = False
+        else:
+            pass
