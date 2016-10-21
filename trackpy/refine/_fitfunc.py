@@ -197,9 +197,11 @@ function_templates = dict(gauss=dict(params=[], func=gauss_func,
                                      continuous=True),
                           ring=dict(params=['thickness'], func=ring_func,
                                     dfunc=ring_dfunc,
-                                    default=dict(thickness=0.5)),
+                                    default=dict(thickness=0.5),
+                                    continuous=False),
                           disc=dict(params=['disc_size'], func=disc_func,
-                                    default=dict(disc_size=0.5)),
+                                    default=dict(disc_size=0.5),
+                                    continuous=True),
                           inv_series=dict(func=inv_series_func,
                                           continuous=True))
 

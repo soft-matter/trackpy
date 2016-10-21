@@ -378,5 +378,7 @@ def catch_keyboard_interrupt(gen, logger=None):
             if logger is not None:
                 logger.warn('KeyboardInterrupt')
             running = False
+        except StopIteration:
+            running = False
         else:
             pass

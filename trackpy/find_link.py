@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 from six.moves import range
+import warnings
 import logging
 import itertools
 from collections import deque
@@ -479,7 +480,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
             continue
         features.append(f_frame)
 
-    features = pd.concat(features, ignore_index=False, copy=False)
+    features = pd.concat(features, ignore_index=False)
     return features
 
 
@@ -957,8 +958,10 @@ def _find_link_iter(reader, search_range, separation, diameter=None, memory=0,
     image = next(reader_iter)
     image_proc = proc_func(image)
 
-    coords = grey_dilation(image_proc, separation, percentile, margin,
-                           precise=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        coords = grey_dilation(image_proc, separation, percentile, margin,
+                               precise=True)
     if before_link is not None:
         coords = before_link(coords=coords, reader=reader, image=image,
                              image_proc=image_proc,
