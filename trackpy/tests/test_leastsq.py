@@ -4,17 +4,18 @@ import unittest
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_allclose
+from trackpy import quiet
 from trackpy.utils import validate_tuple
 from trackpy.refine import refine_com, refine_leastsq
-from trackpy.preprocessing import lowpass, bandpass
 from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
                                 draw_cluster, SimulatedImage)
-from trackpy.refine.least_squares import dimer, trimer, tetramer, dimer_global
-from trackpy.refine._fitfunc import FitFunctions, vect_from_params
+from trackpy.refine.least_squares import (dimer, trimer, tetramer, dimer_global,
+                                          FitFunctions, vect_from_params)
 from trackpy.tests.common import assert_coordinates_close
 from scipy.optimize.slsqp import approx_jacobian
 from nose import SkipTest
 
+quiet()
 
 EPSILON = 1E-7
 ATOL = 0.001
@@ -55,7 +56,7 @@ class RefineTsts(object):
     size_rtol_perfect = 0.01
     size_rtol_imperfect = 0.5    # accounting for 10% of noise
     train_rtol = 0.05
-    bounds = dict(signal=(20, 2000), size=(.9, 9))
+    bounds = dict(signal=(20, 2000), size_rel=10)
 
     @classmethod
     def setUpClass(cls):
@@ -74,8 +75,6 @@ class RefineTsts(object):
         else:
             cls.size_columns = ['size_z', 'size_y', 'size_x'][-cls.ndim:]
         cls.names = cls.pos_columns + ['signal'] + cls.size_columns
-        # cls.rtol = [None] * len(cls.im.pos_columns)
-        # cls.atol = [0.1] * len(cls.im.pos_columns)
         cls.bounds = dict()
         if not hasattr(cls, 'param_mode'):
             cls.param_mode = dict(signal='var', size='const')
@@ -89,7 +88,7 @@ class RefineTsts(object):
             raise SkipTest()
 
     def get_image(self, noise=0, signal_dev=0., size_dev=0., separation=None,
-                  denoise_size=None, smoothing_size=None, N=None):
+                  N=None):
         if N is None:
             N = self.repeats
         if separation is None:
@@ -124,18 +123,11 @@ class RefineTsts(object):
             image = image + np.random.poisson(noise, shape)
             if image.max() <= 255:
                 image = image.astype(np.uint8)
-            if smoothing_size is not None and denoise_size is None:
-                raise ValueError('Cannot do smoothing without denoising')
-            if smoothing_size is not None:
-                image = bandpass(image, denoise_size, smoothing_size)
-            elif denoise_size is not None:
-                image = lowpass(image, denoise_size)
 
         return image, (pos, signal, size)
 
     def get_image_clusters(self, cluster_size, hard_radius=1., noise=0,
-                           signal_dev=0, size_dev=0, denoise_size=None,
-                           smoothing_size=None, angle=None):
+                           signal_dev=0, size_dev=0, angle=None):
         N = self.repeats
         separation = [int(sep + 2 * hard_radius * s)
                       for (sep, s) in zip(self.separation, self.size)]
@@ -184,12 +176,6 @@ class RefineTsts(object):
             image = image + np.random.poisson(noise, shape)
             if image.max() <= 255:
                 image = image.astype(np.uint8)
-            if smoothing_size is not None and denoise_size is None:
-                raise ValueError('Cannot do smoothing without denoising')
-            if smoothing_size is not None:
-                image = bandpass(image, denoise_size, smoothing_size)
-            elif denoise_size is not None:
-                image = lowpass(image, denoise_size)
 
         return image, (coords, signal, size), (pos, angles)
 
@@ -250,18 +236,6 @@ class RefineTsts(object):
             expected_rot = rot_func(expected_pos[cluster] - center, angle) + center
             pos_diff_rot[n] = (actual_rot - expected_rot).ravel()
         return pos_diff_rot
-    #
-    # def sort(self, actual, expected_pos):
-    #     return actual
-    #     pos, signal, size, pos_err = actual
-    #     tree = cKDTree(pos)
-    #     deviations, argsort = tree.query(expected_pos)
-    #     if len(set(range(len(pos))) - set(argsort)) > 0:
-    #         raise AssertionError("Position sorting failed. At least one feature is "
-    #                              "very far from where it should be.")
-    #     if pos_err is not None:
-    #         pos_err = pos_err[argsort]
-    #     return pos[argsort], signal[argsort], size[argsort], pos_err
 
     def gen_p0_coords(self, expected_pos, pos_diff):
         # generate random points in a box
@@ -298,10 +272,6 @@ class RefineTsts(object):
             result['pos_err_mean'] = np.mean(pos_err)
             print(self._testMethodName, result['pos_err_mean'] - result['pos'],
                   100 * (result['pos_err_mean'] / result['pos'] - 1), '%')
-            # for col, _err in zip(self.pos_columns, pos_err.T):
-            #     result[col + '_err_mean'] = np.mean(_err)
-            #     result[col + '_err_accuracy'] = np.mean(_err) - result[col + '_rms']
-            #     result[col + '_err_precision'] = np.mean((_err - result[col + '_rms'])**2)**0.5
         # rms relative signal deviation
         result['signal'] = np.mean((1 - actual_signal / expected_signal)**2)**0.5
         # rms relative size deviation
@@ -365,36 +335,8 @@ class RefineTsts(object):
                 result[col] = _err
         return result
 
-    # def train(self, train_N=20):
-    #     pos_diff = 0.1
-    #
-    #     image, expected = self.get_image(noise=NOISE_IMPERFECT,
-    #                                      signal_dev=self.signal_dev,
-    #                                      size_dev=0, N=train_N,
-    #                                      separation=[d*4 for d in self.diameter])
-    #     expected_pos, expected_signal, expected_size = expected
-    #
-    #     p0_coords = self.gen_p0_coords(expected_pos, pos_diff)
-    #     # generate noisy size initial conditions
-    #     p0_size = np.array([self.size]) * np.random.uniform(1-self.size_dev,
-    #                                                         1+self.size_dev,
-    #                                                         (len(expected_pos), 1))
-    #
-    #     f0 = self.to_dataframe(p0_coords, self.signal, p0_size.T)
-    #
-    #     # the fit function should be updated such that it is defined everywhere
-    #     # in the ROI with arbitrary center location. this means that we need to
-    #     # double the fit mask size here
-    #     fit_diameter = tuple([d * 2 for d in self.diameter])
-    #
-    #     param_val = train_leastsq(f0, image, fit_diameter, self.diameter,
-    #                               self.fit_func, bounds=self.bounds)
-    #     return param_val
-
-
     def refine(self, pos_diff=None, signal_dev=None, size_dev=None, noise=None,
-               param_mode=None, denoise_size=None, smoothing_size=None,
-               **kwargs):
+               param_mode=None, **kwargs):
         """
         Parameters
         ----------
@@ -420,9 +362,7 @@ class RefineTsts(object):
         if noise is None:
             noise = self.noise
         # generate image with array of features and deviating signal and size
-        image, expected = self.get_image(noise, signal_dev, size_dev,
-                                         denoise_size=denoise_size,
-                                         smoothing_size=smoothing_size)
+        image, expected = self.get_image(noise, signal_dev, size_dev)
         expected_pos, expected_signal, expected_size = expected
         p0_pos = self.gen_p0_coords(expected_pos, pos_diff)
         f0 = self.to_dataframe(p0_pos, self.signal, self.size)
@@ -442,12 +382,11 @@ class RefineTsts(object):
         assert not np.any(np.isnan(actual['cost']))
 
         actual = self.from_dataframe(actual)
-       # actual = self.sort(actual, expected_pos)
         return self.compute_deviations(actual, expected)
 
 
     def refine_com(self, pos_diff=None, signal_dev=None, size_dev=None,
-                   noise=None, denoise_size=1, smoothing_size=None, **kwargs):
+                   noise=None, **kwargs):
         """
         Parameters
         ----------
@@ -469,23 +408,19 @@ class RefineTsts(object):
         if noise is None:
             noise = self.noise
         # generate image with array of features and deviating signal and size
-        image, expected = self.get_image(noise, signal_dev, size_dev,
-                                         denoise_size=denoise_size,
-                                         smoothing_size=smoothing_size)
+        image, expected = self.get_image(noise, signal_dev, size_dev)
         expected_pos, expected_signal, expected_size = expected
         p0_pos = self.gen_p0_coords(expected_pos, pos_diff)
 
         actual = refine_com(image, image, self.radius, p0_pos, **kwargs)
 
         actual = self.from_tp_ndarray(actual)
-        # actual = self.sort(actual, expected_pos)
         return self.compute_deviations(actual, expected)
 
 
     def refine_cluster(self, cluster_size, hard_radius, pos_diff=None,
                        signal_dev=None, size_dev=None, noise=None,
-                       param_mode=None, denoise_size=None, smoothing_size=None,
-                       angle=None, **kwargs):
+                       param_mode=None, angle=None, **kwargs):
         """
         Parameters
         ----------
@@ -514,10 +449,7 @@ class RefineTsts(object):
         image, expected, clusters = self.get_image_clusters(cluster_size,
                                                             hard_radius,
                                                             noise, signal_dev,
-                                                            size_dev,
-                                                            denoise_size,
-                                                            smoothing_size,
-                                                            angle)
+                                                            size_dev, angle)
         expected_pos, expected_signal, expected_size = expected
         expected_center, expected_angle = clusters
         p0_pos = self.gen_p0_coords(expected_pos, pos_diff)
@@ -538,7 +470,6 @@ class RefineTsts(object):
         assert np.all(actual['cluster_size'] <= cluster_size)
 
         actual = self.from_dataframe(actual)
-        # actual_pos, actual_signal, actual_size, pos_err = self.sort(actual, expected_pos)
         actual_pos, actual_signal, actual_size, pos_err = actual
         deviations = self.get_deviations(actual_pos, expected_pos, cluster_size,
                                          expected_center, expected_angle)
@@ -547,8 +478,7 @@ class RefineTsts(object):
 
     def refine_cluster_com(self, cluster_size, hard_radius, pos_diff=None,
                            signal_dev=None, size_dev=None, noise=None,
-                           denoise_size=1, smoothing_size=None, angle=None,
-                           **kwargs):
+                           angle=None, **kwargs):
         """
         Parameters
         ----------
@@ -573,10 +503,7 @@ class RefineTsts(object):
         image, expected, clusters = self.get_image_clusters(cluster_size,
                                                             hard_radius,
                                                             noise, signal_dev,
-                                                            size_dev,
-                                                            denoise_size,
-                                                            smoothing_size,
-                                                            angle)
+                                                            size_dev, angle)
         expected_pos, expected_signal, expected_size = expected
         expected_center, expected_angle = clusters
         p0_pos = self.gen_p0_coords(expected_pos, pos_diff)
@@ -584,18 +511,10 @@ class RefineTsts(object):
         actual = refine_com(image, image, self.radius, p0_pos, **kwargs)
 
         actual = self.from_tp_ndarray(actual)
-        # actual_pos, actual_signal, actual_size, pos_err = self.sort(actual, expected_pos)
         actual_pos, actual_signal, actual_size, pos_err = actual
         deviations = self.get_deviations(actual_pos, expected_pos, cluster_size,
                                          expected_center, expected_angle)
         return self.compute_deviations_cluster(actual, expected, deviations)
-
-    # def test_train(self):
-    #     param_val = self.train()
-    #     print(param_val)
-    #     for p in self.param_val:
-    #         self.assertLess(abs(1 - self.param_val[p] / param_val[p]),
-    #                         self.train_rtol)
 
     def test_perfect_com(self):
         # sanity check for test
@@ -1028,7 +947,7 @@ class TestFitFunctions(unittest.TestCase):
 
     def test_custom_no_jac(self):
         fit_function = dict(name='parabola', params=['a'],
-                            func=lambda r2, p: p[0]*r2)
+                            fun=lambda r2, p: p[0]*r2)
         ff = FitFunctions(fit_function, ndim=2, isotropic=True)
         params = np.random.random((1, len(ff.params))) * 10
         residual, jacobian = self.get_residual(ff, 1, params)
@@ -1036,15 +955,15 @@ class TestFitFunctions(unittest.TestCase):
 
     def test_custom_jac(self):
         fit_function = dict(name='parabola', params=['a'],
-                            func=lambda r2, p, ndim: p[0]*r2,
-                            dfunc=lambda r2, p, ndim: (p[0]*r2, [p[0], r2]))
+                            fun=lambda r2, p, ndim: p[0]*r2,
+                            dfun=lambda r2, p, ndim: (p[0]*r2, [p[0], r2]))
         self.compare_jacobian(fit_function, ndim=2, isotropic=True, n=1)
 
     def test_custom_jac2(self):
         fit_function = dict(name='parabola', params=['a', 'b', 'c'],
-                            func=lambda r2, p, ndim: p[0]*r2 + p[1]*r2**2 + p[2]*r2**3,
-                            dfunc=lambda r2, p, ndim: (p[0]*r2 + p[1]*r2**2 + p[2]*r2**3,
-                                                       [p[0] + 2*p[1]*r2 + 3*p[2]*r2**2, r2, r2**2, r2**3]))
+                            fun=lambda r2, p, ndim: p[0]*r2 + p[1]*r2**2 + p[2]*r2**3,
+                            dfun=lambda r2, p, ndim: (p[0]*r2 + p[1]*r2**2 + p[2]*r2**3,
+                                                      [p[0] + 2*p[1]*r2 + 3*p[2]*r2**2, r2, r2**2, r2**3]))
         self.compare_jacobian(fit_function, ndim=2, isotropic=True, n=1)
 
     def test_2D_gauss(self):
