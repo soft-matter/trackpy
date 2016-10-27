@@ -308,11 +308,8 @@ else:
     pandas_sort = _pandas_sort_pre_017
 
 
-class RefineException(Exception):
-    pass
-
-
 def guess_pos_columns(f):
+    """ Guess the position columns from a given feature DataFrame """
     if 'z' in f:
         pos_columns = ['z', 'y', 'x']
     else:
@@ -320,19 +317,13 @@ def guess_pos_columns(f):
     return pos_columns
 
 
-def obtain_size_columns(isotropic, pos_columns=None):
-    if isotropic:
-        size_columns = ['size']
-    else:
-        size_columns = ['size_{}'.format(p) for p in pos_columns]
-    return size_columns
-
-
 def default_pos_columns(ndim):
+    """ Sets the default position column names """
     return ['z', 'y', 'x'][-ndim:]
 
 
 def default_size_columns(ndim, isotropic):
+    """ Sets the default size column names """
     if isotropic:
         size_columns = ['size']
     else:
@@ -341,6 +332,7 @@ def default_size_columns(ndim, isotropic):
 
 
 def is_isotropic(value):
+    """ Determine whether all elements of a value are equal """
     if hasattr(value, '__iter__'):
         return np.all(value[1:] == value[:-1])
     else:
@@ -348,6 +340,7 @@ def is_isotropic(value):
 
 
 class ReaderCached(object):
+    """ Simple wrapper that provides cacheing of image readers """
     def __init__(self, reader):
         self.reader = reader
         self._cache = None
@@ -369,6 +362,7 @@ class ReaderCached(object):
 
 
 def catch_keyboard_interrupt(gen, logger=None):
+    """ A generator that stops on a KeyboardInterrupt """
     running = True
     gen = iter(gen)
     while running:

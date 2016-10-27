@@ -7,7 +7,7 @@ import unittest
 import pandas
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_array_less
-from trackpy.static import find_clusters
+from trackpy.static import cluster
 
 def _points_ring3D(r_edges, dr, n):
     """Returns x, y, z array of points comprising shells extending from r to
@@ -400,7 +400,7 @@ class TestFindClusters(unittest.TestCase):
         for sep in separation:
             pos = dummy_clusters(1, 10, sep)
             df = pos_to_df(pos)
-            df = find_clusters(df, sep)
+            df = cluster(df, sep)
             assert_equal(df['cluster_size'].values, len(pos[0]))
 
     def test_multiple_clusters_2D(self):
@@ -408,7 +408,7 @@ class TestFindClusters(unittest.TestCase):
         for number in numbers:
             pos = dummy_clusters(number, 10, 1)
             df = pos_to_df(pos)
-            df = find_clusters(df, 1)
+            df = cluster(df, 1)
             assert_equal(df['cluster'].nunique(), number)
 
     def test_single_cluster_3D(self):
@@ -416,7 +416,7 @@ class TestFindClusters(unittest.TestCase):
         for sep in separation:
             pos = dummy_clusters(1, 10, sep, 3)
             df = pos_to_df(pos)
-            df = find_clusters(df, sep)
+            df = cluster(df, sep)
             assert_equal(df['cluster_size'].values, len(pos[0]))
 
     def test_multiple_clusters_3D(self):
@@ -424,7 +424,7 @@ class TestFindClusters(unittest.TestCase):
         for number in numbers:
             pos = dummy_clusters(number, 10, 1, 3)
             df = pos_to_df(pos)
-            df = find_clusters(df, 1)
+            df = cluster(df, 1)
             assert_equal(df['cluster'].nunique(), number)
 
     def test_line_cluster(self):
@@ -434,24 +434,24 @@ class TestFindClusters(unittest.TestCase):
         for vec, sep in zip(ds, separation):
             pos = np.arange(10)[:, np.newaxis] * vec[np.newaxis, :] * sep
             df = pos_to_df([pos])
-            df = find_clusters(df, sep*1.1)
+            df = cluster(df, sep*1.1)
             assert_equal(df['cluster_size'].values, 10)
-            df = find_clusters(df, sep*0.9)
+            df = cluster(df, sep*0.9)
             assert_equal(df['cluster_size'].values, 1)
 
             df = pos_to_df([pos[::-1]])
-            df = find_clusters(df, sep*1.1)
+            df = cluster(df, sep*1.1)
             assert_equal(df['cluster_size'].values, 10)
-            df = find_clusters(df, sep*0.9)
+            df = cluster(df, sep*0.9)
             assert_equal(df['cluster_size'].values, 1)
 
             ind = np.arange(10)
             np.random.shuffle(ind)
             pos = ind[:, np.newaxis] * vec[np.newaxis, :] * sep
             df = pos_to_df([pos])
-            df = find_clusters(df, sep*1.1)
+            df = cluster(df, sep*1.1)
             assert_equal(df['cluster_size'].values, 10)
-            df = find_clusters(df, sep*0.9)
+            df = cluster(df, sep*0.9)
             assert_equal(df['cluster_size'].values, 1)
 
     def test_line_cluster_3D(self):
@@ -464,24 +464,24 @@ class TestFindClusters(unittest.TestCase):
         for vec, sep in zip(ds, separation):
             pos = np.arange(10)[:, np.newaxis] * vec[np.newaxis, :] * sep
             df = pos_to_df([pos])
-            df = find_clusters(df, sep*1.1)
+            df = cluster(df, sep*1.1)
             assert_equal(df['cluster_size'].values, 10)
-            df = find_clusters(df, sep*0.9)
+            df = cluster(df, sep*0.9)
             assert_equal(df['cluster_size'].values, 1)
 
             df = pos_to_df([pos[::-1]])
-            df = find_clusters(df, sep*1.1)
+            df = cluster(df, sep*1.1)
             assert_equal(df['cluster_size'].values, 10)
-            df = find_clusters(df, sep*0.9)
+            df = cluster(df, sep*0.9)
             assert_equal(df['cluster_size'].values, 1)
 
             ind = np.arange(10)
             np.random.shuffle(ind)
             pos = ind[:, np.newaxis] * vec[np.newaxis, :] * sep
             df = pos_to_df([pos])
-            df = find_clusters(df, sep*1.1)
+            df = cluster(df, sep*1.1)
             assert_equal(df['cluster_size'].values, 10)
-            df = find_clusters(df, sep*0.9)
+            df = cluster(df, sep*0.9)
             assert_equal(df['cluster_size'].values, 1)
 
 

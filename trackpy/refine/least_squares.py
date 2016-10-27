@@ -6,12 +6,11 @@ import warnings
 import numpy as np
 from scipy.optimize import minimize
 
-from ..static import find_clusters
+from ..static import cluster
 from ..masks import slice_image
 from ..utils import (guess_pos_columns, validate_tuple, is_isotropic,
-                     obtain_size_columns, RefineException, ReaderCached,
-                     catch_keyboard_interrupt, default_pos_columns,
-                     default_size_columns)
+                     ReaderCached, catch_keyboard_interrupt,
+                     default_pos_columns, default_size_columns)
 from .center_of_mass import refine_com
 
 try:
@@ -24,6 +23,10 @@ logger = logging.getLogger(__name__)
 MODE_DICT = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6,
              'const': 0, 'var': 1, 'global': 2, 'cluster': 3}
 # unimplemented modes: {'particle': 4, 'frame': 5}
+
+
+class RefineException(Exception):
+    pass
 
 
 def vect_from_params(params, modes, groups=None, operation=None):
@@ -736,7 +739,7 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
         constraints = dict()
 
     # makes a copy
-    f = find_clusters(f, separation, pos_columns, t_column)
+    f = cluster(f, separation, pos_columns, t_column)
 
     # Assign param_val to dataframe
     if param_val is not None:
@@ -919,7 +922,7 @@ def train_leastsq(f, reader, diameter, separation, fit_function,
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
     isotropic = is_isotropic(diameter)
-    size_columns = obtain_size_columns(isotropic, pos_columns)
+    size_columns = default_size_columns(ndim, isotropic)
 
     # first, refine using center-of-mass
     for frame_no, f_frame in f.groupby('frame'):

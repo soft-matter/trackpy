@@ -11,8 +11,7 @@ import numpy as np
 import pandas as pd
 from scipy import ndimage
 
-from .masks import (r_squared_mask, x_squared_masks, slice_image, mask_image,
-                    slice_pad)
+from .masks import r_squared_mask, x_squared_masks, slice_image, mask_image
 from .find import grey_dilation, drop_close
 from .utils import (default_pos_columns, is_isotropic, cKDTree,
                     catch_keyboard_interrupt, validate_tuple)
@@ -58,7 +57,7 @@ def characterize(coords, image, radius, isotropic=True, scale_factor=None):
         size_ax = tuple(range(1, ndim + 1))
         size = np.empty((len(coords), len(radius)))
     for i, coord in enumerate(coords):
-        im, origin = slice_pad(image, coord, radius)
+        im, origin = slice_image(coord, image, radius)
         im = mask_image(coord, im, radius, origin)
         _mass = np.sum(im)
         mass[i] = _mass
