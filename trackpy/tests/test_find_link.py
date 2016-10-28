@@ -3,9 +3,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-import os
 import itertools
-import warnings
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
@@ -13,36 +11,19 @@ import unittest
 import nose
 from numpy.testing import assert_equal
 
-from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.linking import PointND, Hash_table, SubnetOversizeException
-from trackpy.utils import pandas_sort, make_pandas_strict
 from trackpy import quiet
+from trackpy.try_numba import NUMBA_AVAILABLE
+from trackpy.linking import SubnetOversizeException
+from trackpy.utils import pandas_sort, make_pandas_strict
 from trackpy.artificial import CoordinateReader
 from trackpy.find_link import find_link
 from trackpy.tests.common import assert_traj_equal
+from trackpy.tests.test_link import random_walk, contracting_grid
 
 quiet()
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 make_pandas_strict()
-
-path, _ = os.path.split(os.path.abspath(__file__))
-path = os.path.join(path, 'data')
-
-
-# Call lambda function for a fresh copy each time.
-unit_steps = lambda: [[PointND(t, (x, 0))] for t, x in enumerate(range(5))]
-
-np.random.seed(0)
-random_x = np.random.randn(5).cumsum()
-random_x -= random_x.min()  # All x > 0
-max_disp = np.diff(random_x).max()
-random_walk_legacy = lambda: [[PointND(t, (x, 5))] 
-                              for t, x in enumerate(random_x)]
-
-
-def hash_generator(dims, box_size):
-    return lambda: Hash_table(dims, box_size)
 
 
 def _skip_if_no_numba():
@@ -50,33 +31,7 @@ def _skip_if_no_numba():
         raise nose.SkipTest('numba not installed. Skipping.')
 
 
-def random_walk(N):
-    return np.cumsum(np.random.randn(N))
-
-
-def contracting_grid():
-    """Two frames with a grid of 441 points.
-
-    In the second frame, the points contract, so that the outermost set
-    coincides with the second-outermost set in the previous frame.
-
-    This is a way to challenge (and/or stump) a subnet solver.
-    """
-    pts0x, pts0y = np.mgrid[-10:11,-10:11]
-    pts0 = pd.DataFrame(dict(x=pts0x.flatten()*2, y=pts0y.flatten()*2,
-                             frame=0))
-    pts1 = pts0.copy()
-    pts1.frame = 1
-    pts1.x = pts1.x * 0.9
-    pts1.y = pts1.y * 0.9
-    allpts = pd.concat([pts0, pts1], ignore_index=True)
-    allpts.x += 100  # Because BTree doesn't allow negative coordinates
-    allpts.y += 100
-    return allpts
-
-
 class FindZipTests(unittest.TestCase):
-    do_diagnostics = False  # Don't ask for diagnostic info from linker
     def setUp(self):
         self.linker_opts = dict()
 
@@ -92,8 +47,8 @@ class FindZipTests(unittest.TestCase):
     def test_two_isolated_steppers(self):
         N = 5
         Y = 25
-        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
-        # established and not arbitrary.
+        # Begin second feature one frame later than the first, so the particle
+        # labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
@@ -199,7 +154,7 @@ class FindZipTests(unittest.TestCase):
         assert_traj_equal(actual, expected)
 
     def test_copy(self):
-        """Check inplace/copy behavior of link_df, link_df_iter"""
+        """Check inplace/copy behavior of link_df """
         # One 1D stepper
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
@@ -213,7 +168,10 @@ class FindZipTests(unittest.TestCase):
 
     @nose.tools.raises(SubnetOversizeException)
     def test_oversize_fail(self):
-        self.link_df(contracting_grid(), search_range=2)
+        df = contracting_grid()
+        df['x'] *= 2
+        df['y'] *= 2
+        self.link_df(df, search_range=2)
 
     def link_df(self, f, search_range, *args, **kwargs):
         kwargs.update(self.linker_opts)
@@ -235,12 +193,11 @@ class FindZipTests(unittest.TestCase):
         result[['y', 'x']] /= separation
         return result
 
-
     def test_two_nearby_steppers(self):
         N = 5
         Y = 2
-        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
-        # established and not arbitrary.
+        # Begin second feature one frame later than the first, so the particle
+        # labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         f = pd.concat([a, b])
@@ -261,12 +218,11 @@ class FindZipTests(unittest.TestCase):
         actual = self.link_df(f1, 5)
         assert_traj_equal(actual, expected)
 
-
     def test_two_nearby_steppers_one_gapped(self):
         N = 5
         Y = 2
-        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
-        # established and not arbitrary.
+        # Begin second feature one frame later than the first, so the particle
+        # labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
