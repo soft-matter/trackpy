@@ -14,11 +14,11 @@ import nose
 from numpy.testing import assert_equal
 
 from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.linking import PointND, Hash_table
+from trackpy.linking import PointND, Hash_table, SubnetOversizeException
 from trackpy.utils import pandas_sort, make_pandas_strict
 from trackpy import quiet
 from trackpy.artificial import CoordinateReader
-from trackpy.find_link import find_link, SubnetOversizeException
+from trackpy.find_link import find_link
 from trackpy.tests.common import assert_traj_equal
 
 quiet()

@@ -5,7 +5,6 @@ from six.moves import range
 import warnings
 import logging
 import itertools
-from collections import deque
 
 import numpy as np
 import pandas as pd
@@ -17,369 +16,9 @@ from .utils import (default_pos_columns, is_isotropic, cKDTree,
                     catch_keyboard_interrupt, validate_tuple)
 from .preprocessing import bandpass
 from .refine import center_of_mass
+from .linking import Point, TrackUnstored, TreeFinder, SubnetLinker
 
 logger = logging.getLogger(__name__)
-
-
-def query_point(pos1, pos2, max_dist):
-    """ Return elements of pos2 that have at least one element of pos1 closer
-    than max_dist """
-    if is_isotropic(max_dist):
-        if hasattr(max_dist, '__iter__'):
-            max_dist = max_dist[0]
-        kdtree = cKDTree(pos2, 30)
-        found = kdtree.query_ball_point(pos1, max_dist)
-    else:
-        kdtree = cKDTree(pos2 / max_dist[np.newaxis, :], 30)
-        found = kdtree.query_ball_point(pos1 / max_dist[np.newaxis, :], 1.)
-
-    found = set([i for sl in found for i in sl])  # ravel
-    if len(found) == 0:
-        return
-    else:
-        return pos2[list(found)]
-
-
-def characterize(coords, image, radius, isotropic=True, scale_factor=None):
-    if scale_factor is None:
-        try:
-            scale_factor = image.metadata['scale_factor']
-        except (AttributeError, KeyError):
-            scale_factor = 1.
-    ndim = len(radius)
-    mass = np.empty(len(coords))
-    signal = np.empty(len(coords))
-    if isotropic:
-        rg_mask = r_squared_mask(radius, ndim)  # memoized
-        size = np.empty(len(coords))
-    else:
-        rg_mask = x_squared_masks(radius, ndim)  # memoized
-        size_ax = tuple(range(1, ndim + 1))
-        size = np.empty((len(coords), len(radius)))
-    for i, coord in enumerate(coords):
-        im, origin = slice_image(coord, image, radius)
-        im = mask_image(coord, im, radius, origin)
-        _mass = np.sum(im)
-        mass[i] = _mass
-        signal[i] = np.max(im)
-
-        if isotropic:
-            size[i] = np.sqrt(np.sum(rg_mask * im) / _mass)
-        else:
-            size[i] = np.sqrt(ndim * np.sum(rg_mask * im,
-                                            axis=size_ax) / _mass)
-
-    result = dict(mass=mass / scale_factor, signal=signal / scale_factor)
-    if isotropic:
-        result['size'] = size
-    else:
-        for _size, key in zip(size.T, ['size_z', 'size_y', 'size_x'][-ndim:]):
-            result[key] = _size
-    return result
-
-
-class SubnetOversizeException(Exception):
-    pass
-
-
-class TrackUnstored(object):
-    @classmethod
-    def set_counter(cls):
-        cls.counter = itertools.count()
-
-    def __init__(self, point=None):
-        self.id = next(self.counter)
-        if point is not None:
-            self.add_point(point)
-
-    def add_point(self, point):
-        point.add_to_track(self)
-
-    def incr_memory(self):
-        try:
-            self._remembered += 1
-        except AttributeError:
-            self._remembered = 1
-
-    def report_memory(self):
-        try:
-            m = self._remembered
-            del self._remembered
-            return m
-        except AttributeError:
-            return 0
-
-    def __repr__(self):
-        return "<%s %d>" % (self.__class__.__name__, self.indx)
-
-
-class PointND(object):
-    @classmethod
-    def set_counter(cls):
-        cls.counter = itertools.count()
-
-    def __init__(self, t, pos, id=None, extra_data=None):
-        self._track = None
-        self.uuid = next(self.counter)         # unique id for __hash__
-        self.t = t
-        self.pos = np.asarray(pos)
-        self.id = id
-        if extra_data is None:
-            self.extra_data = dict()
-        else:
-            self.extra_data = extra_data
-        self.back_cands = []
-        self.forward_cands = []
-        self.subnet = None
-        self.relocate_neighbors = []
-
-    def distance(self, other_point):
-        return np.sqrt(np.sum((self.pos - other_point.pos) ** 2))
-
-    def add_to_track(self, track):
-        if self._track is not None:
-            raise Exception("trying to add a particle already in a track")
-        self._track = track
-
-    def remove_from_track(self, track):
-        if self._track != track:
-            raise Exception("Point not associated with given track")
-        track.remove_point(self)
-
-    def in_track(self):
-        return self._track is not None
-
-    @property
-    def track(self):
-        return self._track
-
-
-class TreeFinder(object):
-    def __init__(self, points, search_range):
-        """Takes a list of particles.
-        """
-        self.ndim = len(search_range)
-        self.search_range = np.atleast_2d(search_range)
-        if not isinstance(points, list):
-            points = list(points)
-        self.points = points
-        self.rebuild()
-
-    def __len__(self):
-        return len(self.points)
-
-    def add_point(self, pt):
-        self.points.append(pt)
-        self._clean = False
-
-    def rebuild(self):
-        if len(self.points) == 0:
-            self._kdtree = None
-        else:
-            coords = _get_pcoords(self.points) / self.search_range
-            self._kdtree = cKDTree(coords, 15)
-        # This could be tuned
-        self._clean = True
-
-    @property
-    def kdtree(self):
-        if not self._clean:
-            self.rebuild()
-        return self._kdtree
-
-    @property
-    def coords(self):
-        if self._clean:
-            if self._kdtree is None:
-                return
-            else:
-                return self._kdtree.data * self.search_range
-        else:
-            return _get_pcoords(self.points)
-
-    @property
-    def coords_rescaled(self):
-        if self._clean:
-            if self._kdtree is None:
-                return
-            else:
-                return self._kdtree.data
-        else:
-            return _get_pcoords(self.points) / self.search_range
-
-    def to_dataframe(self):
-        coords = self.coords
-        if coords is None:
-            return
-        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
-                            index=[p.uuid for p in self.points])
-        for p in self.points:
-            data.loc[p.uuid, 'frame'] = p.t
-            data.loc[p.uuid, 'particle'] = p.track.id
-            for col in p.extra_data:
-                data.loc[p.uuid, col] = p.extra_data[col]
-        return data
-
-    def query_points(self, pos, max_dist_normed=1.):
-        if self.kdtree is None:
-            return
-        pos_norm = pos / self.search_range
-        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
-        found = set([i for sl in found for i in sl])  # ravel
-        if len(found) == 0:
-            return
-        else:
-            return self.coords[list(found)]
-
-
-class Subnets(object):
-    def __init__(self, source_hash, dest_hash, max_neighbors=10):
-        self.max_neighbors = max_neighbors
-        self.source_hash = source_hash
-        self.dest_hash = dest_hash
-        self.reset()
-        self.add_candidates()
-
-    def reset(self):
-        self._subnets = dict()
-        for p in self.source_hash.points:
-            p.forward_cands = []
-            p.subnet = None
-        for i, p in enumerate(self.dest_hash.points):
-            p.backward_cands = []
-            p.subnet = i
-            self._subnets[i] = set(), {p}
-
-    def add_candidates(self, source_hash=None, dest_hash=None):
-        if source_hash is None:
-            source_hash = self.source_hash
-        if dest_hash is None:
-            dest_hash = self.dest_hash
-        if len(source_hash.points) == 0 or len(dest_hash.points) == 0:
-            return
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
-                                               self.max_neighbors,
-                                               distance_upper_bound=1+1e-7)
-        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, p in enumerate(dest_hash.points):
-            for j in range(nn[i]):
-                wp = source_hash.points[inds[i, j]]
-                p.back_cands.append((wp, dists[i, j]))
-                wp.forward_cands.append((p, dists[i, j]))
-                self.update_subnets(wp, p)
-
-    def sort_candidates(self):
-        for p in self.source_hash.points:
-            p.forward_cands.sort(key=lambda x: x[1])
-        for p in self.dest_hash.points:
-            p.back_cands.sort(key=lambda x: x[1])
-
-    def add_dest_points(self, source_points, dest_points):
-        """Dest_hash should only contain new points"""
-        # TODO is kdtree really faster here than brute force ?
-        if len(dest_points) == 0:
-            return
-        source_hash = TreeFinder(source_points, self.source_hash.search_range)
-        dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
-                                               max(len(source_points), 2),
-                                               distance_upper_bound=1+1e-7)
-        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, dest in enumerate(dest_hash.points):
-            for j in range(nn[i]):
-                source = source_hash.points[inds[i, j]]
-                dest.back_cands.append((source, dists[i, j]))
-                source.forward_cands.append((dest, dists[i, j]))
-                # source particle always has a subnet, add the dest particle
-                self._subnets[source.subnet][1].add(dest)
-                dest.subnet = source.subnet
-
-        # sort candidates again because they might have changed
-        for p in source_hash.points:
-            p.forward_cands.sort(key=lambda x: x[1])
-        for p in dest_hash.points:
-            p.back_cands.sort(key=lambda x: x[1])
-
-    def update_subnets(self, source, dest):
-        i1 = source.subnet
-        i2 = dest.subnet
-        if i1 is None and i2 is None:
-            raise ValueError("No subnet for added destination particle")
-        if i1 == i2:  # if a and b are already in the same subnet, do nothing
-            return
-        if i1 is None:  # source did not belong to a subset before
-            # just add it
-            self._subnets[i2][0].add(source)
-            source.subnet = i2
-        elif i2 is None:  # dest did not belong to a subset before
-            # just add it
-            self._subnets[i1][1].add(dest)
-            dest.subnet = i1
-        else:   # source belongs to subset i1 before
-            # merge the subnets
-            self._subnets[i2][0].update(self._subnets[i1][0])
-            self._subnets[i2][1].update(self._subnets[i1][1])
-            # update the subnet identifiers per point
-            for p in itertools.chain(*self._subnets[i1]):
-                p.subnet = i2
-            # and delete the old source subnet
-            del self._subnets[i1]
-
-    def merge_lost_subnets(self):
-        """Merge subnets having lost particles, normally r = 2 * search range"""
-        # add source particles without any destination particle for relocation
-        if len(self._subnets) > 0:
-            counter = itertools.count(start=max(self._subnets) + 1)
-        else:
-            counter = itertools.count()
-        for p in self.source_hash.points:
-            if len(p.forward_cands) == 0:
-                subnet = next(counter)
-                self._subnets[subnet] = {p}, set()
-                p.subnet = subnet
-
-        # list subnets that have lost particles
-        lost_source = []
-        for key in self._subnets:
-            source, dest = self._subnets[key]
-            shortage = len(source) - len(dest)
-            if shortage > 0:
-                lost_source.extend(source)
-
-        if len(lost_source) == 0:
-            return
-        lost_hash = TreeFinder(lost_source, self.source_hash.search_range)
-        dists, inds = self.source_hash.kdtree.query(lost_hash.coords_rescaled,
-                                                    self.max_neighbors,
-                                                    distance_upper_bound=2+1e-7)
-        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, p in enumerate(lost_hash.points):
-            for j in range(nn[i]):
-                wp = self.source_hash.points[inds[i, j]]
-                i1, i2 = p.subnet, wp.subnet
-                if i1 != i2:
-                    if i2 > i1:
-                        i1, i2 = i2, i1
-                    self._subnets[i2][0].update(self._subnets[i1][0])
-                    self._subnets[i2][1].update(self._subnets[i1][1])
-                    # update the subnet identifiers per point
-                    for p in itertools.chain(*self._subnets[i1]):
-                        p.subnet = i2
-                    # and delete the old source subnet
-                    del self._subnets[i1]
-
-    def __iter__(self):
-        return (self._subnets[key] for key in self._subnets)
-
-    def lost(self):
-        return [p for p in self.source_hash.points if p.subnet is None]
-
-
-def _sort_key_spl_dpl(x):
-    if x[0] is not None:
-        return list(x[0].pos)
-    else:
-        return list(x[1].pos)
 
 
 def find_link(reader, search_range, separation, diameter=None, memory=0,
@@ -465,9 +104,9 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
 
     features = []
     proc_func = lambda x: bandpass(x, noise_size, smoothing_size, threshold)
-    generator = _find_link_iter(reader, search_range, separation, diameter,
-                                memory, percentile, minmass, proc_func,
-                                before_link, after_link)
+    generator = find_link_iter(reader, search_range, separation, diameter,
+                               memory, percentile, minmass, proc_func,
+                               before_link, after_link)
     for frame_no, f_frame in catch_keyboard_interrupt(generator, logger=logger):
         if f_frame is None:
             n_traj = 0
@@ -483,29 +122,463 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     return features
 
 
-def _build_level(coords, frame_no, extra_data=None):
-    if extra_data is None:
-        return [PointND(frame_no, pos) for pos in coords]
+def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
+                   percentile=64, minmass=0, proc_func=None, before_link=None,
+                   after_link=None):
+
+    shape = reader[0].shape
+    ndim = len(shape)
+
+    search_range = validate_tuple(search_range, ndim)
+    separation = validate_tuple(separation, ndim)
+    isotropic = is_isotropic(diameter)
+    if proc_func is None:
+        proc_func = lambda x: x
+
+    if diameter is None:
+        diameter = separation
     else:
-        return [PointND(frame_no, pos,
-                        extra_data={key: extra_data[key][i]
-                                    for key in extra_data})
+        diameter = validate_tuple(diameter, ndim)
+    radius = tuple([int(d // 2) for d in diameter])
+    # Define zone of exclusion at edges of image, avoiding
+    #   - Features with incomplete image data ("radius")
+    #   - Extended particles that cannot be explored during subpixel
+    #       refinement ("separation")
+    margin = tuple([max(diam // 2, sep // 2 - 1) for (diam, sep) in
+                    zip(diameter, separation)])
+
+    # Check whether the margins are not covering the complete image
+    if np.any([s <= 2*m for (s, m) in zip(shape, margin)]):
+        # Check whether the image looks suspiciously like a multichannel image.
+        if np.any([s <= 4 for s in shape]) and (ndim > 2):
+            raise ValueError('One of the image dimensions is very small. '
+                             'Please make sure that you are not using an RGB '
+                             'or other multichannel (color) image.')
+        else:
+            raise ValueError('The feature finding margins are larger than the '
+                             'image shape. Please use smaller radius, '
+                             'separation or smoothing_size.')
+
+    linker = FindLinker(search_range, separation, diameter, memory, minmass,
+                        percentile)
+
+    reader_iter = iter(reader)
+    image = next(reader_iter)
+    image_proc = proc_func(image)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        coords = grey_dilation(image_proc, separation, percentile, margin,
+                               precise=True)
+    if before_link is not None:
+        coords = before_link(coords=coords, reader=reader, image=image,
+                             image_proc=image_proc,
+                             diameter=diameter, separation=separation,
+                             search_range=search_range,
+                             margin=margin, minmass=minmass)
+    extra_data = characterize(coords, image, radius)
+    mask = extra_data['mass'] >= minmass
+    coords = coords[mask]
+    for key in extra_data:
+        extra_data[key] = extra_data[key][mask]
+    linker.init_level(coords, image.frame_no, extra_data)
+    features = linker.coords_df
+    if after_link is not None and features is not None:
+        features = after_link(features=features, reader=reader, image=image,
+                              image_proc=image_proc,
+                              diameter=diameter, separation=separation,
+                              search_range=search_range, margin=margin,
+                              minmass=minmass)
+        linker.coords_df = features  # for next iteration
+
+    yield image.frame_no, features
+
+    for image in reader_iter:
+        image_proc = proc_func(image)
+        coords = grey_dilation(image_proc, separation, percentile, margin,
+                               precise=True)
+        if before_link is not None:
+            coords = before_link(coords=coords, reader=reader, image=image,
+                                 image_proc=image_proc,
+                                 diameter=diameter, separation=separation,
+                                 search_range=search_range,
+                                 margin=margin, minmass=minmass)
+        extra_data = characterize(coords, image, radius)
+        mask = extra_data['mass'] >= minmass
+        coords = coords[mask]
+        for key in extra_data:
+            extra_data[key] = extra_data[key][mask]
+        linker.next_level(coords, image.frame_no, image=image_proc,
+                          extra_data=extra_data)
+        features = linker.coords_df
+        if after_link is not None and features is not None:
+            features = after_link(features=features, reader=reader, image=image,
+                                  image_proc=image_proc,
+                                  diameter=diameter, separation=separation,
+                                  search_range=search_range, margin=margin,
+                                  minmass=minmass)
+            linker.coords_df = features  # for next iteration
+        yield image.frame_no, features
+
+
+def characterize(coords, image, radius, scale_factor=None):
+    """ Characterize a single feature in an image. Returns a dictionary. """
+    if scale_factor is None:
+        try:
+            scale_factor = image.metadata['scale_factor']
+        except (AttributeError, KeyError):
+            scale_factor = 1.
+    ndim = len(radius)
+    mass = np.empty(len(coords))
+    signal = np.empty(len(coords))
+    isotropic = is_isotropic(radius)
+    if isotropic:
+        rg_mask = r_squared_mask(radius, ndim)  # memoized
+        size = np.empty(len(coords))
+    else:
+        rg_mask = x_squared_masks(radius, ndim)  # memoized
+        size_ax = tuple(range(1, ndim + 1))
+        size = np.empty((len(coords), len(radius)))
+    for i, coord in enumerate(coords):
+        im, origin = slice_image(coord, image, radius)
+        im = mask_image(coord, im, radius, origin)
+        _mass = np.sum(im)
+        mass[i] = _mass
+        signal[i] = np.max(im)
+
+        if isotropic:
+            size[i] = np.sqrt(np.sum(rg_mask * im) / _mass)
+        else:
+            size[i] = np.sqrt(ndim * np.sum(rg_mask * im,
+                                            axis=size_ax) / _mass)
+
+    result = dict(mass=mass / scale_factor, signal=signal / scale_factor)
+    if isotropic:
+        result['size'] = size
+    else:
+        for _size, key in zip(size.T, ['size_z', 'size_y', 'size_x'][-ndim:]):
+            result[key] = _size
+    return result
+
+
+class TrackFindLink(TrackUnstored):
+    """  Version of :class:`trackpy.linking.TrackUnstored` that is used for
+    find_link. """
+    @classmethod
+    def set_counter(cls):
+        cls.counter = itertools.count()
+
+    def __init__(self, point=None):
+        self.id = next(self.counter)
+        if point is not None:
+            self.add_point(point)
+
+
+class PointFindLink(Point):
+    """  Version of :class:`trackpy.linking.PointND` that is used for find_link.
+    """
+    @classmethod
+    def set_counter(cls):
+        cls.counter = itertools.count()
+
+    def __init__(self, t, pos, id=None, extra_data=None):
+        self._track = None
+        self.uuid = next(self.counter)         # unique id for __hash__
+        self.t = t
+        self.pos = np.asarray(pos)
+        self.id = id
+        if extra_data is None:
+            self.extra_data = dict()
+        else:
+            self.extra_data = extra_data
+        self.back_cands = []
+        self.forward_cands = []
+        self.subnet = None
+        self.relocate_neighbors = []
+
+    def distance(self, other_point):
+        return np.sqrt(np.sum((self.pos - other_point.pos) ** 2))
+
+
+class TreeFindLink(TreeFinder):
+    """ Extended version of trackpy.linking.TreeFinder that is used in
+    find_link """
+    def __init__(self, points, search_range):
+        self.ndim = len(search_range)
+        self.search_range = np.atleast_2d(search_range)
+        if not isinstance(points, list):
+            points = list(points)
+        self.points = points
+        self.rebuild()
+
+    def rebuild(self):
+        if len(self.points) == 0:
+            self._kdtree = None
+        else:
+            coords = _points_to_arr(self.points) / self.search_range
+            self._kdtree = cKDTree(coords, 15)
+        # This could be tuned
+        self._clean = True
+
+    @property
+    def coords(self):
+        if self._clean:
+            if self._kdtree is None:
+                return
+            else:
+                return self._kdtree.data * self.search_range
+        else:
+            return _points_to_arr(self.points)
+
+    @property
+    def coords_rescaled(self):
+        if self._clean:
+            if self._kdtree is None:
+                return
+            else:
+                return self._kdtree.data
+        else:
+            return _points_to_arr(self.points) / self.search_range
+
+    @property
+    def coords_df(self):
+        coords = self.coords
+        if coords is None:
+            return
+        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
+                            index=[p.uuid for p in self.points])
+        for p in self.points:
+            data.loc[p.uuid, 'frame'] = p.t
+            data.loc[p.uuid, 'particle'] = p.track.id
+            for col in p.extra_data:
+                data.loc[p.uuid, col] = p.extra_data[col]
+        return data
+
+    def query_points(self, pos, max_dist_normed=1.):
+        if self.kdtree is None:
+            return
+        pos_norm = pos / self.search_range
+        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
+        found = set([i for sl in found for i in sl])  # ravel
+        if len(found) == 0:
+            return
+        else:
+            return self.coords[list(found)]
+
+
+class Subnets(object):
+    """ Class that evaluates the possible links between two groups of features.
+
+    Candidates and subnet indices are stored inside the Point objects that are
+    inside the provided TreeFindLink objects.
+
+    Parameters
+    ----------
+    source_hash : TreeFindLink object
+        The hash of the first (source) frame
+    dest_hash : TreeFindLink object
+        The hash of the second (destination) frame
+    max_neighbors : int, optional
+        The maximum number of linking candidates for one feature. Default 10.
+
+    Attributes
+    ----------
+    subnets : dictionary
+        A dictonary, indexed by subnet index, that contains the subnets as a
+        tuple of sets. The first set contains the source points, the second
+        set contains the destination points. Iterate over this dictionary by
+        directly iterating over the Subnets object.
+    lost : list of points
+        Lists source points without linking candidates ('lost' features)
+    """
+    def __init__(self, source_hash, dest_hash, max_neighbors=10):
+        self.max_neighbors = max_neighbors
+        self.source_hash = source_hash
+        self.dest_hash = dest_hash
+        self.reset()
+        self.compute()
+
+    def reset(self):
+        """ Clear the subnets and candidates for all points in both frames """
+        self.subnets = dict()
+        for p in self.source_hash.points:
+            p.forward_cands = []
+            p.subnet = None
+        for i, p in enumerate(self.dest_hash.points):
+            p.backward_cands = []
+            p.subnet = i
+            self.subnets[i] = set(), {p}
+
+    def compute(self):
+        """ Evaluate the linking candidates and corresponding subnets """
+        source_hash = self.source_hash
+        dest_hash = self.dest_hash
+        if len(source_hash.points) == 0 or len(dest_hash.points) == 0:
+            return
+        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
+                                               self.max_neighbors,
+                                               distance_upper_bound=1+1e-7)
+        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
+        for i, p in enumerate(dest_hash.points):
+            for j in range(nn[i]):
+                wp = source_hash.points[inds[i, j]]
+                p.back_cands.append((wp, dists[i, j]))
+                wp.forward_cands.append((p, dists[i, j]))
+                self.assign_subnet(wp, p)
+
+    def assign_subnet(self, source, dest):
+        """ Assign source point and dest point to the same subnet """
+        i1 = source.subnet
+        i2 = dest.subnet
+        if i1 is None and i2 is None:
+            raise ValueError("No subnet for added destination particle")
+        if i1 == i2:  # if a and b are already in the same subnet, do nothing
+            return
+        if i1 is None:  # source did not belong to a subset before
+            # just add it
+            self.subnets[i2][0].add(source)
+            source.subnet = i2
+        elif i2 is None:  # dest did not belong to a subset before
+            # just add it
+            self.subnets[i1][1].add(dest)
+            dest.subnet = i1
+        else:   # source belongs to subset i1 before
+            # merge the subnets
+            self.subnets[i2][0].update(self.subnets[i1][0])
+            self.subnets[i2][1].update(self.subnets[i1][1])
+            # update the subnet identifiers per point
+            for p in itertools.chain(*self.subnets[i1]):
+                p.subnet = i2
+            # and delete the old source subnet
+            del self.subnets[i1]
+
+    def sort_candidates(self):
+        """ Order linking candidates in decreasing displacement distance """
+        for p in self.source_hash.points:
+            p.forward_cands.sort(key=lambda x: x[1])
+        for p in self.dest_hash.points:
+            p.back_cands.sort(key=lambda x: x[1])
+
+    def add_dest_points(self, source_points, dest_points):
+        """ Add destination points, evaluate candidates and subnets.
+
+        Parameters
+        ----------
+        source_points : iterable of points
+            Consider these points only as linking candidates. They should exist
+            already in Subnets.source_points.
+        dest_points : iterable of points
+            The destination points to add. They should be new.
+        """
+        # TODO is kdtree really faster here than brute force ?
+        if len(dest_points) == 0:
+            return
+        source_hash = TreeFindLink(source_points, self.source_hash.search_range)
+        dest_hash = TreeFindLink(dest_points, self.dest_hash.search_range)
+        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
+                                               max(len(source_points), 2),
+                                               distance_upper_bound=1+1e-7)
+        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
+        for i, dest in enumerate(dest_hash.points):
+            for j in range(nn[i]):
+                source = source_hash.points[inds[i, j]]
+                dest.back_cands.append((source, dists[i, j]))
+                source.forward_cands.append((dest, dists[i, j]))
+                # source particle always has a subnet, add the dest particle
+                self.subnets[source.subnet][1].add(dest)
+                dest.subnet = source.subnet
+
+        # sort candidates again because they might have changed
+        for p in source_hash.points:
+            p.forward_cands.sort(key=lambda x: x[1])
+        for p in dest_hash.points:
+            p.back_cands.sort(key=lambda x: x[1])
+
+    def merge_lost_subnets(self):
+        """ Merge subnets that have lost features and that are closer than
+        twice the search range together, in order to account for the possibility
+        that relocated points will join subnets together. """
+        # add source particles without any destination particle for relocation
+        if len(self.subnets) > 0:
+            counter = itertools.count(start=max(self.subnets) + 1)
+        else:
+            counter = itertools.count()
+        for p in self.source_hash.points:
+            if len(p.forward_cands) == 0:
+                subnet = next(counter)
+                self.subnets[subnet] = {p}, set()
+                p.subnet = subnet
+
+        # list subnets that have lost particles
+        lost_source = []
+        for key in self.subnets:
+            source, dest = self.subnets[key]
+            shortage = len(source) - len(dest)
+            if shortage > 0:
+                lost_source.extend(source)
+
+        if len(lost_source) == 0:
+            return
+        lost_hash = TreeFindLink(lost_source, self.source_hash.search_range)
+        dists, inds = self.source_hash.kdtree.query(lost_hash.coords_rescaled,
+                                                    self.max_neighbors,
+                                                    distance_upper_bound=2+1e-7)
+        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
+        for i, p in enumerate(lost_hash.points):
+            for j in range(nn[i]):
+                wp = self.source_hash.points[inds[i, j]]
+                i1, i2 = p.subnet, wp.subnet
+                if i1 != i2:
+                    if i2 > i1:
+                        i1, i2 = i2, i1
+                    self.subnets[i2][0].update(self.subnets[i1][0])
+                    self.subnets[i2][1].update(self.subnets[i1][1])
+                    # update the subnet identifiers per point
+                    for p in itertools.chain(*self.subnets[i1]):
+                        p.subnet = i2
+                    # and delete the old source subnet
+                    del self.subnets[i1]
+
+    def __iter__(self):
+        return (self.subnets[key] for key in self.subnets)
+
+    @property
+    def lost(self):
+        return [p for p in self.source_hash.points if p.subnet is None]
+
+
+def _sort_key_spl_dpl(x):
+    if x[0] is not None:
+        return list(x[0].pos)
+    else:
+        return list(x[1].pos)
+
+
+def _points_from_arr(coords, frame_no, extra_data=None):
+    """ Convert an ndarray of coordinates to a list of PointFindLink """
+    if extra_data is None:
+        return [PointFindLink(frame_no, pos) for pos in coords]
+    else:
+        return [PointFindLink(frame_no, pos,
+                              extra_data={key: extra_data[key][i]
+                                          for key in extra_data})
                 for i, pos in enumerate(coords)]
 
 
-def _get_pcoords(level):
+def _points_to_arr(level):
+    """ Convert a list of Points to an ndarray of coordinates """
     return np.array([p.pos for p in level])
 
 
-def recursive_linker_obj(s_sn, dest_size, max_size=30):
-    snl = SubnetLinker(s_sn, dest_size, max_size)
+def link_recursive(s_sn, dest_size, max_size=30):
+    snl = SubnetFindLinker(s_sn, dest_size, max_size)
     # In Python 3, we must convert to lists to return mutable collections.
     return [list(particles) for particles in zip(*snl.best_pairs)]
 
 
-class SubnetLinker(object):
-    """A helper class for implementing the Crocker-Grier tracking
-    algorithm.  This class handles the recursion code for the sub-net linking"""
+class SubnetFindLinker(SubnetLinker):
+    """A thin wrapper around trackpy.linking.SubnetLinker class that adds the
+    penelties for not linking."""
     def __init__(self, s_sn, dest_size, max_size=30):
         # add in penalty for not linking
         for _s in s_sn:
@@ -513,70 +586,48 @@ class SubnetLinker(object):
                 _s.forward_cands = [(None, 1.)]
             elif _s.forward_cands[-1][0] is not None:
                 _s.forward_cands.append((None, 1.))
-        self.s_sn = s_sn
-        self.search_range = 1.
-        self.max_size = max_size
-        self.s_lst = [s for s in s_sn]
-        self.s_lst.sort(key=lambda x: len(x.forward_cands))
-        self.MAX = len(self.s_lst)
-
-        self.max_links = min(self.MAX, dest_size)
-        self.best_pairs = None
-        self.cur_pairs = deque([])
-        self.best_sum = np.Inf
-        self.d_taken = set()
-        self.cur_sum = 0
-
-        if self.MAX > self.max_size:
-            raise SubnetOversizeException("Subnetwork contains %d points"
-                                          % self.MAX)
-        # do the computation
-        self.do_recur(0)
-
-    def do_recur(self, j):
-        cur_s = self.s_lst[j]
-        for cur_d, dist in cur_s.forward_cands:
-            tmp_sum = self.cur_sum + dist**2
-            if tmp_sum > self.best_sum:
-                # if we are already greater than the best sum, bail we
-                # can bail all the way out of this branch because all
-                # the other possible connections (including the null
-                # connection) are more expensive than the current
-                # connection, thus we can discard with out testing all
-                # leaves down this branch
-                return
-            if cur_d is not None and cur_d in self.d_taken:
-                # we have already used this destination point, bail
-                continue
-            # add this pair to the running list
-            self.cur_pairs.append((cur_s, cur_d))
-            # add the destination point to the exclusion list
-            if cur_d is not None:
-                self.d_taken.add(cur_d)
-            # update the current sum
-            self.cur_sum = tmp_sum
-            # buried base case
-            # if we have hit the end of s_lst and made it this far, it
-            # must be a better linking so save it.
-            if j + 1 == self.MAX:
-                tmp_sum = self.cur_sum + self.search_range**2 * (
-                    self.max_links - len(self.d_taken))
-                if tmp_sum < self.best_sum:
-                    self.best_sum = tmp_sum
-                    self.best_pairs = list(self.cur_pairs)
-            else:
-                # re curse!
-                self.do_recur(j + 1)
-            # remove this step from the working
-            self.cur_sum -= dist**2
-            if cur_d is not None:
-                self.d_taken.remove(cur_d)
-            self.cur_pairs.pop()
-        pass
+        super(SubnetFindLinker, self).__init__(s_sn, dest_size, 1., max_size)
 
 
 class Linker(object):
-    """See link_iter() for a description of parameters."""
+    """ Re-implementation of trackpy.linking.Linker for use in find_link.
+
+    Attributes
+    ----------
+    hash : TreeFindLink
+        The hash containing the points of the current level
+    mem_set : set of points
+    mem_history : list of sets of points
+    particle_ids : list
+        a list of track ids of the current hash
+    points : list of points
+        The points of the current hash.
+    coords : ndarray
+        The coordinates of the points of the current hash. It is possible to
+        write on this attribute if the number of coordinates stays constant.
+    coords_df : DataFrame
+        The coordinates of the points of the current hash. It is possible to
+        write on this attribute, changing positional coordinates only, if the
+        number of coordinates stays constant.
+    subnets : Subnets
+        Subnets object containing the subnets of the prev and current points.
+
+    Methods
+    -------
+    init_level(coords, t, extra_data)
+        creates the first level (frame): no linking is done
+    next_level(coords, t, extra_data)
+        Add a level, assign candidates and subnets, and apply the links.
+    update_hash(coords, t, extra_data)
+        Updates the hash: the previous hash is returned
+    assign_links()
+        Assign links between previous and current points (given by obj.subnets)
+        Returns a list of source particles and a list of destination particles
+        that are to be linked.
+    apply_links(spl, dpl)
+        Applies links between the source particle list (spl) and destination
+        particle list (dpl)
+    """
     # Largest subnet we will attempt to solve.
     MAX_SUB_NET_SIZE = 30
     # For adaptive search, subnet linking should fail much faster.
@@ -586,8 +637,8 @@ class Linker(object):
 
     def __init__(self, search_range, memory=0):
         self.memory = memory
-        self.track_cls = TrackUnstored
-        self.subnet_linker = recursive_linker_obj
+        self.track_cls = TrackFindLink
+        self.subnet_linker = link_recursive
         self.max_subnet_size = self.MAX_SUB_NET_SIZE
         self.subnet_counter = 0  # Unique ID for each subnet
         self.ndim = len(search_range)
@@ -610,13 +661,13 @@ class Linker(object):
             # re-create the forward_cands list
             m.forward_cands = []
 
-        self.hash = TreeFinder(_build_level(coords, t, extra_data),
-                               self.search_range)
+        self.hash = TreeFindLink(_points_from_arr(coords, t, extra_data),
+                                 self.search_range)
         return prev_hash
 
     def init_level(self, coords, t, extra_data=None):
-        PointND.set_counter()
-        TrackUnstored.set_counter()
+        PointFindLink.set_counter()
+        TrackFindLink.set_counter()
         self.mem_set = set()
         # Initialize memory with empty sets.
         self.mem_history = []
@@ -627,7 +678,7 @@ class Linker(object):
         # Assume everything in first level starts a Track.
         # Iterate over prev_level, not prev_set, because order -> track ID.
         for p in self.hash.points:
-            TrackUnstored(p)
+            TrackFindLink(p)
 
     @property
     def particle_ids(self):
@@ -644,10 +695,11 @@ class Linker(object):
             pnt.pos = coord
         self.hash._clean = False
 
-    def to_dataframe(self):
-        return self.hash.to_dataframe()
-
-    def set_dataframe(self, value):
+    @property
+    def coords_df(self):
+        return self.hash.coords_df
+    @coords_df.setter
+    def coords_df(self, value):
         if len(value) != len(self.hash.points):
             raise ValueError("Number of features has changed")
         self.coords = value[default_pos_columns(self.ndim)].values
@@ -660,10 +712,10 @@ class Linker(object):
         prev_hash = self.update_hash(coords, t, extra_data)
 
         self.subnets = Subnets(prev_hash, self.hash, self.MAX_NEIGHBORS)
-        spl, dpl = self.assign_links(prev_hash.points, self.hash.points)
+        spl, dpl = self.assign_links()
         self.apply_links(spl, dpl)
 
-    def assign_links(self, prev_points, cur_points):
+    def assign_links(self):
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
             # no backwards candidates
@@ -691,7 +743,7 @@ class Linker(object):
             dpl.extend(sn_dpl)
 
         # Leftovers
-        lost = self.subnets.lost()
+        lost = self.subnets.lost
         spl.extend(lost)
         dpl.extend([None] * len(lost))
 
@@ -707,7 +759,7 @@ class Linker(object):
                     self.mem_set.remove(sp)
             elif sp is None:
                 # if unclaimed destination particle, a track is born!
-                TrackUnstored(dp)
+                TrackFindLink(dp)
             elif dp is None:
                 # add the unmatched source particles to the new
                 # memory set
@@ -732,29 +784,47 @@ class Linker(object):
 
 
 class FindLinker(Linker):
-    """
-    diameter : integer or tuple
-        Size used in grey dilation: relocates maxima that are local within
-        diameter / 2. Relocate is done on masked images.
-    separation : float or tuple
-        The minimum distance between features, used in relocate, in pixels
-        will locate no features closer than ``separation`` to other features
-    search_range : float or tuple
-        The maximum distance features can move between frames, in pixels
-        will locate no features further than ``search_range`` from initial pos
-    """
-    # Largest subnet we will attempt to solve.
-    MAX_SUB_NET_SIZE = 30
-    # For adaptive search, subnet linking should fail much faster.
-    MAX_SUB_NET_SIZE_ADAPTIVE = 15
-    # Largest number of relocated particles to consider (per subnet)
-    MAX_RELOCATE_COORDS = 10
+    """ Linker that relocates lost features.
 
-    def __init__(self, diameter, separation, search_range, memory=0,
+    Newly found features are farther than ``separation`` from any other feature
+    in the current frame, closer than ``search_range`` to a feature in the
+    previous frame, and have minimum integrated intensity ``minmass`` in the
+    feature region (defined by ``diameter``).
+
+    Parameters
+    ----------
+    search_range : tuple
+        The maximum distance features can move between frames, in pixels.
+    separation : tuple
+        The minimum distance between features, in pixels.
+    diameter : tuple
+        Size used in the characterization of new features.
+    memory : int, optional
+        Default 0
+    minmass : number, optional
+        Minimum summed intensity (in the masked image) of relocated features.
+        Default 0.
+    percentile : number, optional
+        Precentile threshold used in local maxima finding. Default 64.
+
+    Methods
+    -------
+    next_level(coords, t, image, extra_data)
+        Link and relocate the next frame, using the extra parameter ``image``.
+    relocate(source_points, n)
+        Relocate ``n`` points close to source_points
+    get_relocate_candidates(source_points)
+        Obtain relacote coordinates of new features close to ``source_points``
+
+    See also
+    --------
+    Linker
+    """
+    def __init__(self, search_range, separation, diameter=None, memory=0,
                  minmass=0, percentile=64):
         super(FindLinker, self).__init__(search_range, memory=memory)
-        self.ndim = len(diameter)
-        self.isotropic = is_isotropic(diameter)
+        if diameter is None:
+            diameter = separation
         self.radius = tuple([int(d // 2) for d in diameter])
         self.separation = separation
         self.minmass = minmass  # in masked image
@@ -776,10 +846,8 @@ class FindLinker(Linker):
         # The big feature hashtable is normed to search_range. For performance,
         # we do not rebuild this large hashtable. apply the norm here and take
         # the largest value.
-        self.max_dist_in_slice = max([a / b for (a, b) in zip(bg_radius,
-                                                              self.search_range)])
-        self.double_search_range = [2 * sr for sr in self.search_range]
-
+        self.bg_radius = max([a / b for (a, b) in zip(bg_radius,
+                                                      self.search_range)])
         self.threshold = (None, None)
 
     def next_level(self, coords, t, image, extra_data=None):
@@ -793,8 +861,8 @@ class FindLinker(Linker):
             return set()
         else:
             n = min(n, len(candidates))
-            points = _build_level(candidates[:n], self.curr_t,
-                                  extra_data=extra_data)
+            points = _points_from_arr(candidates[:n], self.curr_t,
+                                      extra_data=extra_data)
         return set(points)
 
     def percentile_threshold(self, percentile):
@@ -809,7 +877,7 @@ class FindLinker(Linker):
         return threshold
 
     def get_relocate_candidates(self, source_points):
-        pos = _get_pcoords(source_points)
+        pos = _points_to_arr(source_points)
 
         # slice region around cluster
         im_unmasked, origin = slice_image(pos, self.image, self.slice_radius)
@@ -825,7 +893,7 @@ class FindLinker(Linker):
             return None, None
 
         # mask coords that were already found ('background')
-        background = self.hash.query_points(pos, self.max_dist_in_slice)
+        background = self.hash.query_points(pos, self.bg_radius)
         if background is not None:
             im_masked = mask_image(background, im_masked, self.separation,
                                    origin, invert=True)
@@ -844,8 +912,12 @@ class FindLinker(Linker):
         coords = np.vstack(np.where(maxima)).T
 
         # drop points that are further than search range from any initial point
-        coords = query_point(pos - origin, coords, self.search_range)
-        if coords is None:
+        max_dist = np.atleast_2d(self.search_range)
+        kdtree = cKDTree(coords / max_dist, 30)
+        found = kdtree.query_ball_point((pos - origin) / max_dist, 1.)
+        if len(found) > 0:
+            coords = coords[list(set([i for sl in found for i in sl]))]
+        else:
             return None, None
 
         # drop dimmer points that are closer than separation to each other
@@ -858,8 +930,7 @@ class FindLinker(Linker):
             scale_factor = self.image.metadata['scale_factor']
         except (AttributeError, KeyError):
             scale_factor = 1.
-        extra_data = characterize(coords, im_masked, self.radius,
-                                  self.isotropic, scale_factor)
+        extra_data = characterize(coords, im_masked, self.radius, scale_factor)
 
         mass = extra_data['mass']
         mask = np.argsort(mass)[::-1][:np.sum(mass >= self.minmass)]
@@ -867,7 +938,7 @@ class FindLinker(Linker):
             extra_data[key] = extra_data[key][mask]
         return coords[mask] + origin, extra_data
 
-    def assign_links(self, prev_points, cur_points):
+    def assign_links(self):
         self.subnets.merge_lost_subnets()
         self.subnets.sort_candidates()
         spl, dpl = [], []
@@ -910,102 +981,3 @@ class FindLinker(Linker):
                 dpl.extend(sn_dpl)
 
         return spl, dpl
-
-
-def _find_link_iter(reader, search_range, separation, diameter=None, memory=0,
-                    percentile=64, minmass=0, proc_func=None,
-                    before_link=None, after_link=None):
-
-    shape = reader[0].shape
-    ndim = len(shape)
-
-    search_range = validate_tuple(search_range, ndim)
-    separation = validate_tuple(separation, ndim)
-    isotropic = is_isotropic(diameter)
-    if proc_func is None:
-        proc_func = lambda x: x
-
-    if diameter is None:
-        diameter = separation
-    else:
-        diameter = validate_tuple(diameter, ndim)
-    radius = tuple([int(d // 2) for d in diameter])
-    # Define zone of exclusion at edges of image, avoiding
-    #   - Features with incomplete image data ("radius")
-    #   - Extended particles that cannot be explored during subpixel
-    #       refinement ("separation")
-    #   - Invalid output of the bandpass step ("smoothing_size")
-    margin = tuple([max(diam // 2, sep // 2 - 1) for (diam, sep) in
-                    zip(diameter, separation)])
-
-    # Check whether the margins are not covering the complete image
-    if np.any([s <= 2*m for (s, m) in zip(shape, margin)]):
-        # Check whether the image looks suspiciously like a multichannel image.
-        if np.any([s <= 4 for s in shape]) and (ndim > 2):
-            raise ValueError('One of the image dimensions is very small. '
-                             'Please make sure that you are not using an RGB '
-                             'or other multichannel (color) image.')
-        else:
-            raise ValueError('The feature finding margins are larger than the '
-                             'image shape. Please use smaller radius, '
-                             'separation or smoothing_size.')
-
-    linker = FindLinker(diameter, separation, search_range, memory, minmass,
-                        percentile)
-
-    reader_iter = iter(reader)
-    image = next(reader_iter)
-    image_proc = proc_func(image)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        coords = grey_dilation(image_proc, separation, percentile, margin,
-                               precise=True)
-    if before_link is not None:
-        coords = before_link(coords=coords, reader=reader, image=image,
-                             image_proc=image_proc,
-                             diameter=diameter, separation=separation,
-                             search_range=search_range,
-                             margin=margin, minmass=minmass)
-    extra_data = characterize(coords, image, radius, isotropic)
-    mask = extra_data['mass'] >= minmass
-    coords = coords[mask]
-    for key in extra_data:
-        extra_data[key] = extra_data[key][mask]
-    linker.init_level(coords, image.frame_no, extra_data)
-    features = linker.to_dataframe()
-    if after_link is not None and features is not None:
-        features = after_link(features=features, reader=reader, image=image,
-                              image_proc=image_proc,
-                              diameter=diameter, separation=separation,
-                              search_range=search_range, margin=margin,
-                              minmass=minmass)
-        linker.set_dataframe(features)  # for next iteration
-
-    yield image.frame_no, features
-
-    for image in reader_iter:
-        image_proc = proc_func(image)
-        coords = grey_dilation(image_proc, separation, percentile, margin,
-                               precise=True)
-        if before_link is not None:
-            coords = before_link(coords=coords, reader=reader, image=image,
-                                 image_proc=image_proc,
-                                 diameter=diameter, separation=separation,
-                                 search_range=search_range,
-                                 margin=margin, minmass=minmass)
-        extra_data = characterize(coords, image, radius, isotropic)
-        mask = extra_data['mass'] >= minmass
-        coords = coords[mask]
-        for key in extra_data:
-            extra_data[key] = extra_data[key][mask]
-        linker.next_level(coords, image.frame_no, image_proc, extra_data)
-        features = linker.to_dataframe()
-        if after_link is not None and features is not None:
-            features = after_link(features=features, reader=reader, image=image,
-                                  image_proc=image_proc,
-                                  diameter=diameter, separation=separation,
-                                  search_range=search_range, margin=margin,
-                                  minmass=minmass)
-            linker.set_dataframe(features)  # for next iteration
-        yield image.frame_no, features
