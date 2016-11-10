@@ -2,7 +2,242 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import numpy as np
-from .try_numba import try_numba_autojit
+import pandas as pd
+from ..try_numba import try_numba_autojit
+
+import warnings
+import logging
+
+from ..utils import validate_tuple
+from ..masks import (binary_mask, N_binary_mask, r_squared_mask,
+                    x_squared_masks, cosmask, sinmask)
+
+from ..try_numba import NUMBA_AVAILABLE
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_center_of_mass(x, radius, grids):
+    normalizer = x.sum()
+    if normalizer == 0:  # avoid divide-by-zero errors
+        return np.array(radius)
+    return np.array([(x * grids[dim]).sum() / normalizer
+                    for dim in range(x.ndim)])
+
+def center_of_mass(raw_image, image, radius, coords, separation=0, max_iterations=10,
+                   engine='auto', shift_thresh=0.6, break_thresh=None,
+                   characterize=True, walkthrough=False):
+    """Find the center of mass of a bright feature starting from an estimate.
+
+    Characterize the neighborhood of a local maximum, and iteratively
+    hone in on its center-of-brightness. Return its coordinates, integrated
+    brightness, size (Rg), eccentricity (0=circular), and signal strength.
+
+    Parameters
+    ----------
+    raw_image : array (any dimensions)
+        used for final characterization
+    image : array (any dimension)
+        processed image, used for locating center of mass
+    coord : array
+        estimated position
+    separation : float or tuple
+        Minimum separtion between features.
+        Default is 0. May be a tuple, see diameter for details.
+    max_iterations : integer
+        max number of loops to refine the center of mass, default 10
+    engine : {'python', 'numba'}
+        Numba is faster if available, but it cannot do walkthrough.
+    shift_thresh : float, optional
+        Default 0.6 (unit is pixels).
+        If the brightness centroid is more than this far off the mask center,
+        shift mask to neighboring pixel. The new mask will be used for any
+        remaining iterations.
+    break_thresh : float, optional
+        Deprecated
+    characterize : boolean, True by default
+        Compute and return mass, size, eccentricity, signal.
+    walkthrough : boolean, False by default
+        Print the offset on each loop and display final neighborhood image.
+    """
+    if break_thresh is not None:
+        warnings.warn("break_threshold has been deprecated: shift_threshold is"
+                      "the only parameter that determines when to shift the"
+                      "mask.", DeprecationWarning)
+    if max_iterations <= 0:
+        warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
+        max_iterations = 1
+    # ensure that radius is tuple of integers, for direct calls to refine()
+    radius = validate_tuple(radius, image.ndim)
+    separation = validate_tuple(separation, image.ndim)
+    # Main loop will be performed in separate function.
+    if engine == 'auto':
+        if NUMBA_AVAILABLE and image.ndim in [2, 3]:
+            engine = 'numba'
+        else:
+            engine = 'python'
+
+    # In here, coord is an integer. Make a copy, will not modify inplace.
+    coords = np.round(coords).astype(np.int)
+
+    if engine == 'python':
+        results = _refine(raw_image, image, radius, coords, max_iterations,
+                          shift_thresh, characterize, walkthrough)
+    elif engine == 'numba':
+        if not NUMBA_AVAILABLE:
+            warnings.warn("numba could not be imported. Without it, the "
+                          "'numba' engine runs very slow. Use the 'python' "
+                          "engine or install numba.", UserWarning)
+        if image.ndim not in [2, 3]:
+            raise NotImplementedError("The numba engine only supports 2D or 3D "
+                                      "images. You can extend it if you feel "
+                                      "like a hero.")
+        if walkthrough:
+            raise ValueError("walkthrough is not availabe in the numba engine")
+        # Do some extra prep in pure Python that can't be done in numba.
+        N = coords.shape[0]
+        mask = binary_mask(radius, image.ndim)
+        if image.ndim == 3:
+            if characterize:
+                if np.all(radius[1:] == radius[:-1]):
+                    results_columns = 8
+                else:
+                    results_columns = 10
+            else:
+                results_columns = 4
+            r2_mask = r_squared_mask(radius, image.ndim)[mask]
+            x2_masks = x_squared_masks(radius, image.ndim)
+            z2_mask = image.ndim * x2_masks[0][mask]
+            y2_mask = image.ndim * x2_masks[1][mask]
+            x2_mask = image.ndim * x2_masks[2][mask]
+            results = np.empty((N, results_columns), dtype=np.float64)
+            maskZ, maskY, maskX = np.asarray(np.asarray(mask.nonzero()),
+                                             dtype=np.int16)
+            _numba_refine_3D(np.asarray(raw_image), np.asarray(image),
+                             radius[0], radius[1], radius[2], coords, N,
+                             int(max_iterations), shift_thresh,
+                             characterize,
+                             image.shape[0], image.shape[1], image.shape[2],
+                             maskZ, maskY, maskX, maskX.shape[0],
+                             r2_mask, z2_mask, y2_mask, x2_mask, results)
+        elif not characterize:
+            mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), np.int16)
+            results = np.empty((N, 3), dtype=np.float64)
+            _numba_refine_2D(np.asarray(image), radius[0], radius[1], coords, N,
+                             int(max_iterations), shift_thresh,
+                             image.shape[0], image.shape[1],
+                             mask_coordsY, mask_coordsX, mask_coordsY.shape[0],
+                             results)
+        elif radius[0] == radius[1]:
+            mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), np.int16)
+            results = np.empty((N, 7), dtype=np.float64)
+            r2_mask = r_squared_mask(radius, image.ndim)[mask]
+            cmask = cosmask(radius)[mask]
+            smask = sinmask(radius)[mask]
+            _numba_refine_2D_c(np.asarray(raw_image), np.asarray(image),
+                               radius[0], radius[1], coords, N,
+                               int(max_iterations), shift_thresh,
+                               image.shape[0], image.shape[1], mask_coordsY,
+                               mask_coordsX, mask_coordsY.shape[0],
+                               r2_mask, cmask, smask, results)
+        else:
+            mask_coordsY, mask_coordsX = np.asarray(mask.nonzero(), np.int16)
+            results = np.empty((N, 8), dtype=np.float64)
+            x2_masks = x_squared_masks(radius, image.ndim)
+            y2_mask = image.ndim * x2_masks[0][mask]
+            x2_mask = image.ndim * x2_masks[1][mask]
+            cmask = cosmask(radius)[mask]
+            smask = sinmask(radius)[mask]
+            _numba_refine_2D_c_a(np.asarray(raw_image), np.asarray(image),
+                                 radius[0], radius[1], coords, N,
+                                 int(max_iterations), shift_thresh,
+                                 image.shape[0], image.shape[1], mask_coordsY,
+                                 mask_coordsX, mask_coordsY.shape[0],
+                                 y2_mask, x2_mask, cmask, smask, results)
+    else:
+        raise ValueError("Available engines are 'python' and 'numba'")
+
+    return results
+
+
+# (This is pure Python. A numba variant follows below.)
+def _refine(raw_image, image, radius, coords, max_iterations,
+            shift_thresh, characterize, walkthrough):
+    if not np.issubdtype(coords.dtype, np.int):
+        raise ValueError('The coords array should be of integer datatype')
+    ndim = image.ndim
+    isotropic = np.all(radius[1:] == radius[:-1])
+    mask = binary_mask(radius, ndim).astype(np.uint8)
+
+    # Declare arrays that we will fill iteratively through loop.
+    N = coords.shape[0]
+    final_coords = np.empty_like(coords, dtype=np.float64)
+    mass = np.empty(N, dtype=np.float64)
+    raw_mass = np.empty(N, dtype=np.float64)
+    if characterize:
+        if isotropic:
+            Rg = np.empty(N, dtype=np.float64)
+        else:
+            Rg = np.empty((N, len(radius)), dtype=np.float64)
+        ecc = np.empty(N, dtype=np.float64)
+        signal = np.empty(N, dtype=np.float64)
+
+    ogrid = np.ogrid[[slice(0, i) for i in mask.shape]]  # for center of mass
+    ogrid = [g.astype(float) for g in ogrid]
+
+    for feat, coord in enumerate(coords):
+        for iteration in range(max_iterations):
+            # Define the circular neighborhood of (x, y).
+            rect = [slice(c - r, c + r + 1) for c, r in zip(coord, radius)]
+            neighborhood = mask*image[rect]
+            cm_n = _safe_center_of_mass(neighborhood, radius, ogrid)
+            cm_i = cm_n - radius + coord  # image coords
+
+            off_center = cm_n - radius
+            logger.debug('off_center: %f', off_center)
+            if np.all(np.abs(off_center) < shift_thresh):
+                break  # Accurate enough.
+            # If we're off by more than half a pixel in any direction, move..
+            coord[off_center > shift_thresh] += 1
+            coord[off_center < -shift_thresh] -= 1
+            # Don't move outside the image!
+            upper_bound = np.array(image.shape) - 1 - radius
+            coord = np.clip(coord, radius, upper_bound).astype(int)
+
+        # matplotlib and ndimage have opposite conventions for xy <-> yx.
+        final_coords[feat] = cm_i[..., ::-1]
+
+        if walkthrough:
+            import matplotlib.pyplot as plt
+            plt.imshow(neighborhood)
+
+        # Characterize the neighborhood of our final centroid.
+        mass[feat] = neighborhood.sum()
+        if not characterize:
+            continue  # short-circuit loop
+        if isotropic:
+            Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
+                                      neighborhood) / mass[feat])
+        else:
+            Rg[feat] = np.sqrt(ndim * np.sum(x_squared_masks(radius, ndim) *
+                                             neighborhood,
+                                             axis=tuple(range(1, ndim + 1))) /
+                               mass[feat])[::-1]  # change order yx -> xy
+        # I only know how to measure eccentricity in 2D.
+        if ndim == 2:
+            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
+                                np.sum(neighborhood*sinmask(radius))**2)
+            ecc[feat] /= (mass[feat] - neighborhood[radius] + 1e-6)
+        else:
+            ecc[feat] = np.nan
+        signal[feat] = neighborhood.max()  # based on bandpassed image
+        raw_neighborhood = mask*raw_image[rect]
+        raw_mass[feat] = raw_neighborhood.sum()  # based on raw image
+
+    if not characterize:
+        return np.column_stack([final_coords, mass])
+    else:
+        return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
 
 
 @try_numba_autojit(nopython=True)
@@ -167,7 +402,7 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
         results[feat, RAW_MASS_COL] = raw_mass_
 
     return 0  # Unused
-    
+
 
 @try_numba_autojit(nopython=True)
 def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
