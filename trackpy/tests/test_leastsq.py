@@ -36,7 +36,7 @@ class RefineTsts(object):
     skip = False
     dtype = np.uint8
     signal = SIGNAL
-    repeats = 20
+    repeats = 10
     noise = NOISE_IMPERFECT
     pos_diff = 0.5  # in fraction of size
     train_params = []
@@ -698,11 +698,11 @@ class TestFit_gauss2D(RefineTsts, unittest.TestCase):
     fit_func = 'gauss'
 
 
-class TestFit_gauss2D_a(RefineTsts, unittest.TestCase):
-     size = SIZE_2D_ANISOTROPIC
-     ndim = 2
-     feat_func = 'gauss'
-     fit_func = 'gauss'
+# class TestFit_gauss2D_a(RefineTsts, unittest.TestCase):
+#      size = SIZE_2D_ANISOTROPIC
+#      ndim = 2
+#      feat_func = 'gauss'
+#      fit_func = 'gauss'
 
 
 class TestFit_gauss3D(RefineTsts, unittest.TestCase):
@@ -728,31 +728,31 @@ class TestFit_disc2D(RefineTsts, unittest.TestCase):
     fit_func = 'disc'
 
 
-class TestFit_disc2D_a(RefineTsts, unittest.TestCase):
-    size = SIZE_2D_ANISOTROPIC
-    ndim = 2
-    feat_func = 'disc'
-    feat_kwargs = dict(disc_size=DISC_SIZE)
-    param_val = feat_kwargs.copy()
-    fit_func = 'disc'
-
-
-class TestFit_disc3D(RefineTsts, unittest.TestCase):
-    size = SIZE_3D
-    ndim = 3
-    feat_func = 'disc'
-    feat_kwargs = dict(disc_size=DISC_SIZE)
-    param_val = feat_kwargs.copy()
-    fit_func = 'disc'
-
-
-class TestFit_disc3D_a(RefineTsts, unittest.TestCase):
-    size = SIZE_3D_ANISOTROPIC
-    ndim = 3
-    feat_func = 'disc'
-    feat_kwargs = dict(disc_size=DISC_SIZE)
-    param_val = feat_kwargs.copy()
-    fit_func = 'disc'
+# class TestFit_disc2D_a(RefineTsts, unittest.TestCase):
+#     size = SIZE_2D_ANISOTROPIC
+#     ndim = 2
+#     feat_func = 'disc'
+#     feat_kwargs = dict(disc_size=DISC_SIZE)
+#     param_val = feat_kwargs.copy()
+#     fit_func = 'disc'
+#
+#
+# class TestFit_disc3D(RefineTsts, unittest.TestCase):
+#     size = SIZE_3D
+#     ndim = 3
+#     feat_func = 'disc'
+#     feat_kwargs = dict(disc_size=DISC_SIZE)
+#     param_val = feat_kwargs.copy()
+#     fit_func = 'disc'
+#
+#
+# class TestFit_disc3D_a(RefineTsts, unittest.TestCase):
+#     size = SIZE_3D_ANISOTROPIC
+#     ndim = 3
+#     feat_func = 'disc'
+#     feat_kwargs = dict(disc_size=DISC_SIZE)
+#     param_val = feat_kwargs.copy()
+#     fit_func = 'disc'
 
 
 class TestFit_ring2D(RefineTsts, unittest.TestCase):
@@ -768,43 +768,43 @@ class TestFit_ring2D(RefineTsts, unittest.TestCase):
     size_dev = 0.05  #  5% of feature size
 
 
-class TestFit_ring2D_a(RefineTsts, unittest.TestCase):
-    size = SIZE_2D_ANISOTROPIC
-    ndim = 2
-    feat_func = 'ring'
-    feat_kwargs = dict(thickness=RING_THICKNESS)
-    param_val = feat_kwargs.copy()
-    fit_func = 'ring'
-    # as the rings are sharp features, large initial deviations in p0 may result
-    # in a failed convergence
-    pos_diff = 0.25  # 25% of feature radius
-    size_dev = 0.05  #  5% of feature size
-
-
-class TestFit_ring3D(RefineTsts, unittest.TestCase):
-    size = SIZE_3D
-    ndim = 3
-    feat_func = 'ring'
-    feat_kwargs = dict(thickness=RING_THICKNESS)
-    param_val = feat_kwargs.copy()
-    fit_func = 'ring'
-    # as the rings are sharp features, large initial deviations in p0 may result
-    # in a failed convergence
-    pos_diff = 0.25  # 25% of feature radius
-    size_dev = 0.05  #  5% of feature size
-
-
-class TestFit_ring3D_a(RefineTsts, unittest.TestCase):
-    size = SIZE_3D_ANISOTROPIC
-    ndim = 3
-    feat_func = 'ring'
-    feat_kwargs = dict(thickness=RING_THICKNESS)
-    param_val = feat_kwargs.copy()
-    fit_func = 'ring'
-    # as the rings are sharp features, large initial deviations in p0 may result
-    # in a failed convergence
-    pos_diff = 0.25  # 25% of feature radius
-    size_dev = 0.05  #  5% of feature size
+# class TestFit_ring2D_a(RefineTsts, unittest.TestCase):
+#     size = SIZE_2D_ANISOTROPIC
+#     ndim = 2
+#     feat_func = 'ring'
+#     feat_kwargs = dict(thickness=RING_THICKNESS)
+#     param_val = feat_kwargs.copy()
+#     fit_func = 'ring'
+#     # as the rings are sharp features, large initial deviations in p0 may result
+#     # in a failed convergence
+#     pos_diff = 0.25  # 25% of feature radius
+#     size_dev = 0.05  #  5% of feature size
+#
+#
+# class TestFit_ring3D(RefineTsts, unittest.TestCase):
+#     size = SIZE_3D
+#     ndim = 3
+#     feat_func = 'ring'
+#     feat_kwargs = dict(thickness=RING_THICKNESS)
+#     param_val = feat_kwargs.copy()
+#     fit_func = 'ring'
+#     # as the rings are sharp features, large initial deviations in p0 may result
+#     # in a failed convergence
+#     pos_diff = 0.25  # 25% of feature radius
+#     size_dev = 0.05  #  5% of feature size
+#
+#
+# class TestFit_ring3D_a(RefineTsts, unittest.TestCase):
+#     size = SIZE_3D_ANISOTROPIC
+#     ndim = 3
+#     feat_func = 'ring'
+#     feat_kwargs = dict(thickness=RING_THICKNESS)
+#     param_val = feat_kwargs.copy()
+#     fit_func = 'ring'
+#     # as the rings are sharp features, large initial deviations in p0 may result
+#     # in a failed convergence
+#     pos_diff = 0.25  # 25% of feature radius
+#     size_dev = 0.05  #  5% of feature size
 
 
 class TestMultiple(unittest.TestCase):
