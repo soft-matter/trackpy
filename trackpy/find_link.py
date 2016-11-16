@@ -16,7 +16,8 @@ from .utils import (default_pos_columns, is_isotropic, cKDTree,
                     catch_keyboard_interrupt, validate_tuple)
 from .preprocessing import bandpass
 from .refine import center_of_mass
-from .linking import Point, TrackUnstored, TreeFinder, SubnetLinker
+from .linking import (Point, TrackUnstored, TreeFinder, SubnetLinker,
+                      _points_to_arr)
 
 logger = logging.getLogger(__name__)
 
@@ -261,27 +262,11 @@ def characterize(coords, image, radius, scale_factor=None):
     return result
 
 
-class TrackFindLink(TrackUnstored):
-    """  Version of :class:`trackpy.linking.TrackUnstored` that is used for
-    find_link. """
-    @classmethod
-    def set_counter(cls):
-        cls.counter = itertools.count()
-
-    def __init__(self, point=None):
-        self.id = next(self.counter)
-        if point is not None:
-            self.add_point(point)
-
-
 class PointFindLink(Point):
     """  Version of :class:`trackpy.linking.PointND` that is used for find_link.
     """
-    @classmethod
-    def set_counter(cls):
-        cls.counter = itertools.count()
-
     def __init__(self, t, pos, id=None, extra_data=None):
+        super(PointFindLink, self).__init__()
         self._track = None
         self.uuid = next(self.counter)         # unique id for __hash__
         self.t = t
@@ -300,83 +285,17 @@ class PointFindLink(Point):
         return np.sqrt(np.sum((self.pos - other_point.pos) ** 2))
 
 
-class TreeFindLink(TreeFinder):
-    """ Extended version of trackpy.linking.TreeFinder that is used in
-    find_link """
-    def __init__(self, points, search_range):
-        self.ndim = len(search_range)
-        self.search_range = np.atleast_2d(search_range)
-        if not isinstance(points, list):
-            points = list(points)
-        self.points = points
-        self.rebuild()
-
-    def rebuild(self):
-        if len(self.points) == 0:
-            self._kdtree = None
-        else:
-            coords = _points_to_arr(self.points) / self.search_range
-            self._kdtree = cKDTree(coords, 15)
-        # This could be tuned
-        self._clean = True
-
-    @property
-    def coords(self):
-        if self._clean:
-            if self._kdtree is None:
-                return
-            else:
-                return self._kdtree.data * self.search_range
-        else:
-            return _points_to_arr(self.points)
-
-    @property
-    def coords_rescaled(self):
-        if self._clean:
-            if self._kdtree is None:
-                return
-            else:
-                return self._kdtree.data
-        else:
-            return _points_to_arr(self.points) / self.search_range
-
-    @property
-    def coords_df(self):
-        coords = self.coords
-        if coords is None:
-            return
-        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
-                            index=[p.uuid for p in self.points])
-        for p in self.points:
-            data.loc[p.uuid, 'frame'] = p.t
-            data.loc[p.uuid, 'particle'] = p.track.id
-            for col in p.extra_data:
-                data.loc[p.uuid, col] = p.extra_data[col]
-        return data
-
-    def query_points(self, pos, max_dist_normed=1.):
-        if self.kdtree is None:
-            return
-        pos_norm = pos / self.search_range
-        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
-        found = set([i for sl in found for i in sl])  # ravel
-        if len(found) == 0:
-            return
-        else:
-            return self.coords[list(found)]
-
-
 class Subnets(object):
     """ Class that evaluates the possible links between two groups of features.
 
     Candidates and subnet indices are stored inside the Point objects that are
-    inside the provided TreeFindLink objects.
+    inside the provided TreeFinder objects.
 
     Parameters
     ----------
-    source_hash : TreeFindLink object
+    source_hash : TreeFinder object
         The hash of the first (source) frame
-    dest_hash : TreeFindLink object
+    dest_hash : TreeFinder object
         The hash of the second (destination) frame
     max_neighbors : int, optional
         The maximum number of linking candidates for one feature. Default 10.
@@ -473,8 +392,8 @@ class Subnets(object):
         # TODO is kdtree really faster here than brute force ?
         if len(dest_points) == 0:
             return
-        source_hash = TreeFindLink(source_points, self.source_hash.search_range)
-        dest_hash = TreeFindLink(dest_points, self.dest_hash.search_range)
+        source_hash = TreeFinder(source_points, self.source_hash.search_range)
+        dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
         dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
                                                max(len(source_points), 2),
                                                distance_upper_bound=1+1e-7)
@@ -519,7 +438,7 @@ class Subnets(object):
 
         if len(lost_source) == 0:
             return
-        lost_hash = TreeFindLink(lost_source, self.source_hash.search_range)
+        lost_hash = TreeFinder(lost_source, self.source_hash.search_range)
         dists, inds = self.source_hash.kdtree.query(lost_hash.coords_rescaled,
                                                     self.max_neighbors,
                                                     distance_upper_bound=2+1e-7)
@@ -565,11 +484,6 @@ def _points_from_arr(coords, frame_no, extra_data=None):
                 for i, pos in enumerate(coords)]
 
 
-def _points_to_arr(level):
-    """ Convert a list of Points to an ndarray of coordinates """
-    return np.array([p.pos for p in level])
-
-
 def link_recursive(s_sn, dest_size, max_size=30):
     snl = SubnetFindLinker(s_sn, dest_size, max_size)
     # In Python 3, we must convert to lists to return mutable collections.
@@ -594,7 +508,7 @@ class Linker(object):
 
     Attributes
     ----------
-    hash : TreeFindLink
+    hash : TreeFinder
         The hash containing the points of the current level
     mem_set : set of points
     mem_history : list of sets of points
@@ -637,7 +551,7 @@ class Linker(object):
 
     def __init__(self, search_range, memory=0):
         self.memory = memory
-        self.track_cls = TrackFindLink
+        self.track_cls = TrackUnstored
         self.subnet_linker = link_recursive
         self.max_subnet_size = self.MAX_SUB_NET_SIZE
         self.subnet_counter = 0  # Unique ID for each subnet
@@ -661,13 +575,13 @@ class Linker(object):
             # re-create the forward_cands list
             m.forward_cands = []
 
-        self.hash = TreeFindLink(_points_from_arr(coords, t, extra_data),
-                                 self.search_range)
+        self.hash = TreeFinder(_points_from_arr(coords, t, extra_data),
+                               self.search_range)
         return prev_hash
 
     def init_level(self, coords, t, extra_data=None):
-        PointFindLink.set_counter()
-        TrackFindLink.set_counter()
+        PointFindLink.reset_counter()
+        TrackUnstored.reset_counter()
         self.mem_set = set()
         # Initialize memory with empty sets.
         self.mem_history = []
@@ -678,7 +592,7 @@ class Linker(object):
         # Assume everything in first level starts a Track.
         # Iterate over prev_level, not prev_set, because order -> track ID.
         for p in self.hash.points:
-            TrackFindLink(p)
+            TrackUnstored(p)
 
     @property
     def particle_ids(self):
@@ -759,7 +673,7 @@ class Linker(object):
                     self.mem_set.remove(sp)
             elif sp is None:
                 # if unclaimed destination particle, a track is born!
-                TrackFindLink(dp)
+                TrackUnstored(dp)
             elif dp is None:
                 # add the unmatched source particles to the new
                 # memory set
