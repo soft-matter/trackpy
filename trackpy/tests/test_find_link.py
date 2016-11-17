@@ -16,7 +16,7 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import SubnetOversizeException
 from trackpy.utils import pandas_sort, make_pandas_strict
 from trackpy.artificial import CoordinateReader
-from trackpy.find_link import find_link
+from trackpy.find_link import find_link, link_simple
 from trackpy.tests.common import assert_traj_equal
 from trackpy.tests.test_link import random_walk, contracting_grid
 
@@ -31,7 +31,7 @@ def _skip_if_no_numba():
         raise nose.SkipTest('numba not installed. Skipping.')
 
 
-class FindZipTests(unittest.TestCase):
+class SimpleLinkingTests(unittest.TestCase):
     def setUp(self):
         self.linker_opts = dict()
 
@@ -173,26 +173,6 @@ class FindZipTests(unittest.TestCase):
         df['y'] *= 2
         self.link_df(df, search_range=2)
 
-    def link_df(self, f, search_range, *args, **kwargs):
-        kwargs.update(self.linker_opts)
-        size = 3
-        separation = 10
-        f = f.copy()
-        f[['y', 'x']] *= separation
-        topleft = (f[['y', 'x']].min().values - 4 * separation).astype(np.int)
-        f[['y', 'x']] -= topleft
-        shape = (f[['y', 'x']].max().values + 4 * separation).astype(np.int)
-        reader = CoordinateReader(f, shape, size)
-        result = find_link(reader, diameter=15,
-                           search_range=search_range*separation,
-                           separation=separation,
-                           *args, **kwargs)
-        result['particle'] = result['particle'].astype(np.float64)
-        result = pandas_sort(result, ['particle', 'frame']).reset_index(drop=True)
-        result[['y', 'x']] += topleft
-        result[['y', 'x']] /= separation
-        return result
-
     def test_two_nearby_steppers(self):
         N = 5
         Y = 2
@@ -314,6 +294,31 @@ class FindZipTests(unittest.TestCase):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5, memory=1)
         assert_traj_equal(actual, expected)
+
+    def link_df(self, f, search_range, *args, **kwargs):
+        return link_simple(f, search_range, *args, **kwargs)
+
+
+class FindZipTests(SimpleLinkingTests):
+    def link_df(self, f, search_range, *args, **kwargs):
+        kwargs.update(self.linker_opts)
+        size = 3
+        separation = 10
+        f = f.copy()
+        f[['y', 'x']] *= separation
+        topleft = (f[['y', 'x']].min().values - 4 * separation).astype(np.int)
+        f[['y', 'x']] -= topleft
+        shape = (f[['y', 'x']].max().values + 4 * separation).astype(np.int)
+        reader = CoordinateReader(f, shape, size)
+        result = find_link(reader, diameter=15,
+                           search_range=search_range*separation,
+                           separation=separation,
+                           *args, **kwargs)
+        result['particle'] = result['particle'].astype(np.float64)
+        result = pandas_sort(result, ['particle', 'frame']).reset_index(drop=True)
+        result[['y', 'x']] += topleft
+        result[['y', 'x']] /= separation
+        return result
 
 
 class FindZipOneFailedFindTests(FindZipTests):

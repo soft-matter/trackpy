@@ -76,7 +76,7 @@ class TreeFinder(object):
     def coords(self):
         if self._clean:
             if self._kdtree is None:
-                return
+                return np.empty((0, self.ndim))
             else:
                 return self._kdtree.data * self.search_range
         else:
@@ -86,7 +86,7 @@ class TreeFinder(object):
     def coords_rescaled(self):
         if self._clean:
             if self._kdtree is None:
-                return
+                return np.empty((0, self.ndim))
             else:
                 return self._kdtree.data
         else:

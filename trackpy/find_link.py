@@ -12,15 +12,75 @@ from scipy import ndimage
 
 from .masks import slice_image, mask_image
 from .find import grey_dilation, drop_close
-from .utils import (default_pos_columns, is_isotropic, cKDTree,
-                    catch_keyboard_interrupt, validate_tuple)
+from .utils import (default_pos_columns, guess_pos_columns, is_isotropic,
+                    cKDTree, catch_keyboard_interrupt, validate_tuple,
+                    pandas_sort)
 from .preprocessing import bandpass
 from .refine import center_of_mass
-from .linking import (Point, TrackUnstored, TreeFinder, SubnetLinker,
+from .linking import (Point, TrackUnstored, TreeFinder, recursive_linker_obj,
                       _points_to_arr)
 from .feature import characterize
 
 logger = logging.getLogger(__name__)
+
+
+def coords_from_df(df, pos_columns, t_column):
+    """A generator that returns ndarrays of coords from a DataFrame.
+
+    Empty frames will be returned as empty arrays of shape (0, ndim)."""
+    ndim = len(pos_columns)
+    grouped = iter(df.groupby(t_column))  # groupby sorts by default
+
+    # get the first frame to learn first frame number
+    cur_frame, frame = next(grouped)
+    next_frame = int(cur_frame) + 1
+    yield frame[pos_columns].values
+
+    for frame_no, frame in grouped:
+        while next_frame < int(frame_no):
+            next_frame += 1
+            yield np.empty((0, ndim))
+
+        next_frame += 1
+        yield frame[pos_columns].values
+
+
+def link_simple_iter(coords_iter, search_range, memory=0):
+    if not hasattr(search_range, '__iter__'):
+        # We need to know the dimensionality of the image, but this information
+        # is not accessible at this point. Guess 2D and give a warning.
+        search_range = (search_range,) * 2
+        warnings.warn("In link_simple_iter, search_range should be given as a "
+                      "tuple with the same length as the number of dimensions in "
+                      "the image. We now assume the dimenionality to be 2D.")
+
+    # initialize the linker and yield the particle ids of the first frame
+    linker = Linker(search_range, memory)
+    linker.init_level(next(coords_iter), t=0)
+    yield linker.particle_ids
+
+    for t, coords in enumerate(coords_iter, start=1):
+        linker.next_level(coords, t)
+        for k, coord in enumerate(linker.coords):
+            np.testing.assert_allclose(coord, coords[k])
+        yield linker.particle_ids
+
+
+def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
+    if pos_columns is None:
+        pos_columns = guess_pos_columns(f)
+    ndim = len(pos_columns)
+    search_range = validate_tuple(search_range, ndim)
+
+    # we will have to sort on the t_column to allow for the iteration
+    f = pandas_sort(f, t_column)  # makes a copy
+    coords_iter = coords_from_df(f, pos_columns, t_column)
+    ids = []
+    for _ids in link_simple_iter(coords_iter, search_range, memory):
+        ids.extend(_ids)
+
+    f['particle'] = ids
+    return f
 
 
 def find_link(reader, search_range, separation, diameter=None, memory=0,
@@ -197,8 +257,10 @@ def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
 
     for image in reader_iter:
         image_proc = proc_func(image)
-        coords = grey_dilation(image_proc, separation, percentile, margin,
-                               precise=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            coords = grey_dilation(image_proc, separation, percentile, margin,
+                                   precise=True)
         if before_link is not None:
             coords = before_link(coords=coords, reader=reader, image=image,
                                  image_proc=image_proc,
@@ -445,25 +507,6 @@ def _points_from_arr(coords, frame_no, extra_data=None):
                 for i, pos in enumerate(coords)]
 
 
-def link_recursive(s_sn, dest_size, max_size=30):
-    snl = SubnetFindLinker(s_sn, dest_size, max_size)
-    # In Python 3, we must convert to lists to return mutable collections.
-    return [list(particles) for particles in zip(*snl.best_pairs)]
-
-
-class SubnetFindLinker(SubnetLinker):
-    """A thin wrapper around trackpy.linking.SubnetLinker class that adds the
-    penelties for not linking."""
-    def __init__(self, s_sn, dest_size, max_size=30):
-        # add in penalty for not linking
-        for _s in s_sn:
-            if len(_s.forward_cands) == 0:
-                _s.forward_cands = [(None, 1.)]
-            elif _s.forward_cands[-1][0] is not None:
-                _s.forward_cands.append((None, 1.))
-        super(SubnetFindLinker, self).__init__(s_sn, dest_size, 1., max_size)
-
-
 class Linker(object):
     """ Re-implementation of trackpy.linking.Linker for use in find_link.
 
@@ -513,7 +556,7 @@ class Linker(object):
     def __init__(self, search_range, memory=0):
         self.memory = memory
         self.track_cls = TrackUnstored
-        self.subnet_linker = link_recursive
+        self.subnet_linker = recursive_linker_obj
         self.max_subnet_size = self.MAX_SUB_NET_SIZE
         self.subnet_counter = 0  # Unique ID for each subnet
         self.ndim = len(search_range)
@@ -579,10 +622,6 @@ class Linker(object):
             raise ValueError("Number of features has changed")
         self.coords = value[default_pos_columns(self.ndim)].values
 
-    @property
-    def points(self):
-        return self.hash.points
-
     def next_level(self, coords, t, extra_data=None):
         prev_hash = self.update_hash(coords, t, extra_data)
 
@@ -605,7 +644,10 @@ class Linker(object):
                 spl.append(source_set.pop())
                 continue  # do next dest_set particle
 
-            sn_spl, sn_dpl = self.subnet_linker(source_set, len(dest_set))
+            # add in penalty for not linking
+            for _s in source_set:
+                _s.forward_cands.append((None, 1.))
+            sn_spl, sn_dpl = self.subnet_linker(source_set, len(dest_set), 1.)
 
             for dp in dest_set - set(sn_dpl):
                 # Unclaimed destination particle in subnet
@@ -840,7 +882,11 @@ class FindLinker(Linker):
                 for p in new_cands:
                     self.hash.add_point(p)
             else:
-                sn_spl, sn_dpl = self.subnet_linker(source_set, len(dest_set))
+                # add in penalty for not linking
+                for _s in source_set:
+                    _s.forward_cands.append((None, 1.))
+                sn_spl, sn_dpl = self.subnet_linker(source_set,
+                                                    len(dest_set), 1.)
                 sn_dpl_set = set(sn_dpl)
                 # claimed new destination particles
                 for p in new_cands & sn_dpl_set:

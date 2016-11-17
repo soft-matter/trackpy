@@ -21,6 +21,7 @@ from .feature import locate, batch, local_maxima, \
 from .preprocessing import bandpass
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
+from .find_link import link_simple, find_link
 from . import utils
 from . import artificial
 from .utils import handle_logging, ignore_logging, quiet
