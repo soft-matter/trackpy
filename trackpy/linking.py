@@ -157,7 +157,7 @@ class HashTable(object):
         self.cached_rrange = None
         self.strides = np.cumprod(
                            np.concatenate(([1], self.hash_dims[1:])))[::-1]
-        self._len = 0
+        self.points = []
 
     def get_region(self, point, rrange):
         '''
@@ -229,10 +229,10 @@ class HashTable(object):
             raise Hash_table.Out_of_hash_excpt("cord out of range")
         indx = int(sum(cord * self.strides))
         self.hash_table[indx].append(point)
-        self._len += 1
+        self.points.append(point)
 
     def __len__(self):
-        return self._len
+        return len(self.points)
 
 
 class TrackUnstored(object):
@@ -1139,6 +1139,12 @@ class Linker(object):
                 if sp is not None:
                     del sp.forward_cands
 
+            # TODO: Emit debug message with number of
+            # subnets in this level, numbers of new/remembered/lost particles
+
+            # yield the current level before we add the memory points to it
+            yield cur_level
+
             # set prev_hash to cur hash
             prev_hash = cur_hash
 
@@ -1168,11 +1174,6 @@ class Linker(object):
                     m.forward_cands = []
 
             prev_set = tmp_set
-
-            # TODO: Emit debug message with number of
-            # subnets in this level, numbers of new/remembered/lost particles
-
-            yield cur_level
 
     def _assign_links(self, dest_set, source_set, search_range):
         """Match particles in dest_set with source_set.
