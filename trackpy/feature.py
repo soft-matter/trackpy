@@ -10,10 +10,11 @@ from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
-from .utils import record_meta, validate_tuple
+from .utils import record_meta, validate_tuple, is_isotropic
 from .find import grey_dilation, where_close
 from .refine import refine_com
-from .masks import binary_mask, N_binary_mask, r_squared_mask
+from .masks import (binary_mask, N_binary_mask, r_squared_mask,
+                    x_squared_masks, mask_image, slice_image)
 from .uncertainty import _static_error, measure_noise
 import trackpy  # to get trackpy.__version__
 
@@ -571,3 +572,43 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             return pd.DataFrame(columns=list(features.columns) + ['frame'])
     else:
         return output
+
+
+def characterize(coords, image, radius, scale_factor=None):
+    """ Characterize a single feature in an image. Returns a dictionary. """
+    if scale_factor is None:
+        try:
+            scale_factor = image.metadata['scale_factor']
+        except (AttributeError, KeyError):
+            scale_factor = 1.
+    ndim = len(radius)
+    mass = np.empty(len(coords))
+    signal = np.empty(len(coords))
+    isotropic = is_isotropic(radius)
+    if isotropic:
+        rg_mask = r_squared_mask(radius, ndim)  # memoized
+        size = np.empty(len(coords))
+    else:
+        rg_mask = x_squared_masks(radius, ndim)  # memoized
+        size_ax = tuple(range(1, ndim + 1))
+        size = np.empty((len(coords), len(radius)))
+    for i, coord in enumerate(coords):
+        im, origin = slice_image(coord, image, radius)
+        im = mask_image(coord, im, radius, origin)
+        _mass = np.sum(im)
+        mass[i] = _mass
+        signal[i] = np.max(im)
+
+        if isotropic:
+            size[i] = np.sqrt(np.sum(rg_mask * im) / _mass)
+        else:
+            size[i] = np.sqrt(ndim * np.sum(rg_mask * im,
+                                            axis=size_ax) / _mass)
+
+    result = dict(mass=mass / scale_factor, signal=signal / scale_factor)
+    if isotropic:
+        result['size'] = size
+    else:
+        for _size, key in zip(size.T, ['size_z', 'size_y', 'size_x'][-ndim:]):
+            result[key] = _size
+    return result

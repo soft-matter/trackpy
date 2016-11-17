@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy import ndimage
 
-from .masks import r_squared_mask, x_squared_masks, slice_image, mask_image
+from .masks import slice_image, mask_image
 from .find import grey_dilation, drop_close
 from .utils import (default_pos_columns, is_isotropic, cKDTree,
                     catch_keyboard_interrupt, validate_tuple)
@@ -18,6 +18,7 @@ from .preprocessing import bandpass
 from .refine import center_of_mass
 from .linking import (Point, TrackUnstored, TreeFinder, SubnetLinker,
                       _points_to_arr)
+from .feature import characterize
 
 logger = logging.getLogger(__name__)
 
@@ -220,46 +221,6 @@ def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
                                   minmass=minmass)
             linker.coords_df = features  # for next iteration
         yield image.frame_no, features
-
-
-def characterize(coords, image, radius, scale_factor=None):
-    """ Characterize a single feature in an image. Returns a dictionary. """
-    if scale_factor is None:
-        try:
-            scale_factor = image.metadata['scale_factor']
-        except (AttributeError, KeyError):
-            scale_factor = 1.
-    ndim = len(radius)
-    mass = np.empty(len(coords))
-    signal = np.empty(len(coords))
-    isotropic = is_isotropic(radius)
-    if isotropic:
-        rg_mask = r_squared_mask(radius, ndim)  # memoized
-        size = np.empty(len(coords))
-    else:
-        rg_mask = x_squared_masks(radius, ndim)  # memoized
-        size_ax = tuple(range(1, ndim + 1))
-        size = np.empty((len(coords), len(radius)))
-    for i, coord in enumerate(coords):
-        im, origin = slice_image(coord, image, radius)
-        im = mask_image(coord, im, radius, origin)
-        _mass = np.sum(im)
-        mass[i] = _mass
-        signal[i] = np.max(im)
-
-        if isotropic:
-            size[i] = np.sqrt(np.sum(rg_mask * im) / _mass)
-        else:
-            size[i] = np.sqrt(ndim * np.sum(rg_mask * im,
-                                            axis=size_ax) / _mass)
-
-    result = dict(mass=mass / scale_factor, signal=signal / scale_factor)
-    if isotropic:
-        result['size'] = size
-    else:
-        for _size, key in zip(size.T, ['size_z', 'size_y', 'size_x'][-ndim:]):
-            result[key] = _size
-    return result
 
 
 class PointFindLink(Point):
