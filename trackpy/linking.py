@@ -955,7 +955,7 @@ def link_iter(levels, search_range, memory=0,
         search_range = (search_range,) * 2
         warn("In link and link_iter, search_range should be given as a "
              "tuple with the same length as the number of dimensions in "
-             "the image. We now assume the dimenionality to be 2D.")
+             "the image. We now assume the dimensionality to be 2D.")
     linker = Linker(search_range, memory=memory, neighbor_strategy=neighbor_strategy,
                  link_strategy=link_strategy, hash_size=hash_size,
                  box_size=box_size, predictor=predictor,

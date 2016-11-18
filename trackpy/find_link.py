@@ -52,7 +52,7 @@ def link_simple_iter(coords_iter, search_range, memory=0):
         search_range = (search_range,) * 2
         warnings.warn("In link_simple_iter, search_range should be given as a "
                       "tuple with the same length as the number of dimensions in "
-                      "the image. We now assume the dimenionality to be 2D.")
+                      "the image. We now assume the dimensionality to be 2D.")
 
     # initialize the linker and yield the particle ids of the first frame
     linker = Linker(search_range, memory)
@@ -290,8 +290,6 @@ class PointFindLink(Point):
     """
     def __init__(self, t, pos, id=None, extra_data=None):
         super(PointFindLink, self).__init__()
-        self._track = None
-        self.uuid = next(self.counter)         # unique id for __hash__
         self.t = t
         self.pos = np.asarray(pos)
         self.id = id
@@ -299,13 +297,10 @@ class PointFindLink(Point):
             self.extra_data = dict()
         else:
             self.extra_data = extra_data
-        self.back_cands = []
+        # self.back_cands = []
         self.forward_cands = []
         self.subnet = None
         self.relocate_neighbors = []
-
-    def distance(self, other_point):
-        return np.sqrt(np.sum((self.pos - other_point.pos) ** 2))
 
 
 class Subnets(object):
@@ -347,7 +342,7 @@ class Subnets(object):
             p.forward_cands = []
             p.subnet = None
         for i, p in enumerate(self.dest_hash.points):
-            p.backward_cands = []
+            # p.back_cands = []
             p.subnet = i
             self.subnets[i] = set(), {p}
 
@@ -364,7 +359,7 @@ class Subnets(object):
         for i, p in enumerate(dest_hash.points):
             for j in range(nn[i]):
                 wp = source_hash.points[inds[i, j]]
-                p.back_cands.append((wp, dists[i, j]))
+                # p.back_cands.append((wp, dists[i, j]))
                 wp.forward_cands.append((p, dists[i, j]))
                 self.assign_subnet(wp, p)
 
@@ -398,8 +393,8 @@ class Subnets(object):
         """ Order linking candidates in decreasing displacement distance """
         for p in self.source_hash.points:
             p.forward_cands.sort(key=lambda x: x[1])
-        for p in self.dest_hash.points:
-            p.back_cands.sort(key=lambda x: x[1])
+        #for p in self.dest_hash.points:
+            #p.back_cands.sort(key=lambda x: x[1])
 
     def add_dest_points(self, source_points, dest_points):
         """ Add destination points, evaluate candidates and subnets.
@@ -424,7 +419,7 @@ class Subnets(object):
         for i, dest in enumerate(dest_hash.points):
             for j in range(nn[i]):
                 source = source_hash.points[inds[i, j]]
-                dest.back_cands.append((source, dists[i, j]))
+                # dest.back_cands.append((source, dists[i, j]))
                 source.forward_cands.append((dest, dists[i, j]))
                 # source particle always has a subnet, add the dest particle
                 self.subnets[source.subnet][1].add(dest)
@@ -433,8 +428,8 @@ class Subnets(object):
         # sort candidates again because they might have changed
         for p in source_hash.points:
             p.forward_cands.sort(key=lambda x: x[1])
-        for p in dest_hash.points:
-            p.back_cands.sort(key=lambda x: x[1])
+        # for p in dest_hash.points:
+        #    p.back_cands.sort(key=lambda x: x[1])
 
     def merge_lost_subnets(self):
         """ Merge subnets that have lost features and that are closer than
@@ -682,11 +677,11 @@ class Linker(object):
                 # memory set
                 new_mem_set.add(sp)
 
-            # Clean up
-            if dp is not None:
-                del dp.back_cands
+            # # Clean up
+            # if dp is not None:
+            #     dp.back_cands = []
             if sp is not None:
-                del sp.forward_cands
+                sp.forward_cands = []
 
         # add in the memory points
         # store the current level for use in next loop
