@@ -389,13 +389,6 @@ class Subnets(object):
             # and delete the old source subnet
             del self.subnets[i1]
 
-    def sort_candidates(self):
-        """ Order linking candidates in decreasing displacement distance """
-        for p in self.source_hash.points:
-            p.forward_cands.sort(key=lambda x: x[1])
-        #for p in self.dest_hash.points:
-            #p.back_cands.sort(key=lambda x: x[1])
-
     def add_dest_points(self, source_points, dest_points):
         """ Add destination points, evaluate candidates and subnets.
 
@@ -639,8 +632,9 @@ class Linker(object):
                 spl.append(source_set.pop())
                 continue  # do next dest_set particle
 
-            # add in penalty for not linking
+            # sort candidates and add in penalty for not linking
             for _s in source_set:
+                _s.forward_cands.sort(key=lambda x: x[1])
                 _s.forward_cands.append((None, 1.))
             sn_spl, sn_dpl = self.subnet_linker(source_set, len(dest_set), 1.)
 
@@ -852,7 +846,6 @@ class FindLinker(Linker):
 
     def assign_links(self):
         self.subnets.merge_lost_subnets()
-        self.subnets.sort_candidates()
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
             shortage = len(source_set) - len(dest_set)
@@ -877,8 +870,9 @@ class FindLinker(Linker):
                 for p in new_cands:
                     self.hash.add_point(p)
             else:
-                # add in penalty for not linking
+                # sort candidates and add in penalty for not linking
                 for _s in source_set:
+                    _s.forward_cands.sort(key=lambda x: x[1])
                     _s.forward_cands.append((None, 1.))
                 sn_spl, sn_dpl = self.subnet_linker(source_set,
                                                     len(dest_set), 1.)
