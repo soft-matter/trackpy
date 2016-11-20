@@ -7,7 +7,8 @@ from .find import percentile_threshold, grey_dilation
 from .motion import msd, imsd, emsd, compute_drift, subtract_drift, \
            proximity, vanhove, relate_frames, velocity_corr, \
            direction_corr, is_typical, diagonal_size
-from .static import proximity, pair_correlation_2d, pair_correlation_3d
+from .static import proximity, pair_correlation_2d, pair_correlation_3d, \
+           cluster
 from .plots import annotate, annotate3d, plot_traj, ptraj, \
            plot_displacements, subpx_bias, mass_size, mass_ecc, \
            scatter, scatter3d, plot_traj3d, ptraj3d, plot_density_profile
@@ -22,6 +23,7 @@ from .preprocessing import bandpass
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
 from .find_link import link_simple, link_simple_iter, find_link, find_link_iter
+from .refine import refine_com, refine_leastsq
 from . import utils
 from . import artificial
 from .utils import handle_logging, ignore_logging, quiet

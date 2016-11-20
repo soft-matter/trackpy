@@ -27,7 +27,7 @@ Feature finding
 .. autosummary::
     :toctree: generated/
 
-    find.grey_dilation
+    grey_dilation
     find_link
 
 
@@ -59,10 +59,10 @@ Static Analysis
 .. autosummary::
     :toctree: generated/
 
-    proximity
-    pair_correlation_2d
-    pair_correlation_3d
-    cluster
+    static.proximity
+    static.pair_correlation_2d
+    static.pair_correlation_3d
+    static.cluster
 
 Motion Analysis
 ---------------
@@ -70,19 +70,19 @@ Motion Analysis
 .. autosummary::
     :toctree: generated/
 
-    msd
-    imsd
-    emsd
-    compute_drift
-    subtract_drift
-    vanhove
-    relate_frames
-    velocity_corr
-    direction_corr
-    is_typical
-    diagonal_size
-    filter_stubs
-    filter_clusters
+    motion.msd
+    motion.imsd
+    motion.emsd
+    motion.compute_drift
+    motion.subtract_drift
+    motion.vanhove
+    motion.relate_frames
+    motion.velocity_corr
+    motion.direction_corr
+    motion.is_typical
+    motion.diagonal_size
+    motion.filter_stubs
+    motion.filter_clusters
     motion.theta_entropy
     motion.min_rolling_theta_entropy
 
@@ -139,12 +139,12 @@ to executre these steps manually, you can.
 .. autosummary::
     :toctree: generated/
 
-    bandpass
-    lowpass
-    scale_to_gamut
-    percentile_threshold
-    invert_image
-    convert_to_int
+    find.percentile_threshold
+    preprocessing.bandpass
+    preprocessing.lowpass
+    preprocessing.scale_to_gamut
+    preprocessing.invert_image
+    preprocessing.convert_to_int
 
 Framewise Data Storage & Retrieval Interface
 --------------------------------------------
