@@ -502,15 +502,19 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
         function defined using a dictionary. Defaults to ``'gauss'``.
 
         The fit function is loosely defined as follows:
-        .. math:: F(r, A, \sigma, \vec{p}) = B + A f(r, \vec{p})
-        .. math:: r^2 = \frac{x - c_x}{\sigma_x}^2 + \frac{y - c_y}{\sigma_y}^2
+
+        .. math::
+
+            F(r, A, \\sigma, \\vec{p}) = B + A f(r, \\vec{p})
+
+            r^2 = \\frac{x - c_x}{\\sigma_x}^2 + \\frac{y - c_y}{\\sigma_y}^2
 
         In which :math:`r` denotes the reduced distance to the feature center,
         :math:`B` the background intensity of the image, :math:`A` ('signal')
-        the maximum value of the feature, :math:`\vec{p}` a list of extra model
-        parameters, :math:`\sigma` ('size') the radial distance from the feature
-        center at which the value of :math:`f(r)`f(r) has decayed to
-        :math:`1/e \approx 0.37`, and :math:`\vec{c}` the coordinate of the
+        the maximum value of the feature, :math:`\\vec{p}` a list of extra model
+        parameters, :math:`\\sigma` ('size') the radial distance from the feature
+        center at which the value of :math:`f(r)` has decayed to
+        :math:`1/e \\approx 0.37`, and :math:`\\vec{c}` the coordinate of the
         feature center.
 
         So ``size`` is smaller than the apparent radius of the feature.
@@ -522,61 +526,62 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
         - The ``'ring'`` model function is a displaced gaussian with parameter
           ``thickness``.
         - The ``inv_series_<number>`` model function is the inverse of an
-        even polynomial containing ``<number>`` parameters
-        (signal_mult / (1 + a r**2 + b r**4 + c r*2 + ...) ``signal_mult`` is
-        best chosen such that the maximum of the polynomial equals 1.
+          even polynomial containing ``<number>`` parameters
+          (signal_mult / (1 + a r**2 + b r**4 + c r*2 + ...) ``signal_mult`` is
+          best chosen such that the maximum of the polynomial equals 1.
 
         Define your own model function with a dictionary, containing:
-            params : list of str
-                List of custom parameter names. The list has the same length as
-                the ``p`` ndarray in ``fun`` and ``dfun``. It does not include
-                ``background``, ``signal``, or ``size``.
-            fun : callable
-                The image model function. It takes arguments ``(r2, p, ndim)``,
-                - ``r2`` is a 1d ndarray containing the squared reduced
-                   radial distances (see the above definition).
-                - ``p`` is an array of extra feature parameters
-                - ``ndim`` is the number of dimensions in the image
 
-                The function returns an ndarray of the same shape as ``r2``,
-                containing the feature intensity values up to a maximum of 1.
-            dfun : callable, optional
-                The analytical derivative of the image model function ``fun``.
-                The function takes the same arguments as ``fun``.
+        - params : list of str
+          List of custom parameter names. The list has the same length as
+          the ``p`` ndarray in ``fun`` and ``dfun``. It does not include
+          ``background``, ``signal``, or ``size``.
+        - fun : callable
+          The image model function. It takes arguments ``(r2, p, ndim)``.
 
-                It returns a length-two tuple, with the following elements:
-                1. (because of performance considerations)
-                   the image model function, exactly as returned by ``fun``
-                2. the partial derivatives of ``fun`` in each point ``r2`` as a
-                   list of 1d ndarrays. The first element is the derivative with
-                   respect to ``r2``, the following elements w.r.t. the custom
-                   shape parameters as defined in ``params``. Hence, the number
-                   of elements in this list is ``len(params) + 1``.
-            default : dict, optional
-                Default parameter values. For instance ``dict(thickness=0.2)``
-            continuous : boolean, optional
-                Default True. Set this to False if :math:`f(|r|)` is not
-                continuous at :math:`r = 0`. In that case, all pixels closer
-                than 1 pixel to the center will be ignored.
+          - ``r2`` is a 1d ndarray containing the squared reduced
+             radial distances (see the above definition).
+          - ``p`` is an array of extra feature parameters
+          - ``ndim`` is the number of dimensions in the image
+
+          The function returns an ndarray of the same shape as ``r2``,
+          containing the feature intensity values up to a maximum of 1.
+        - dfun : callable, optional
+          The analytical derivative of the image model function ``fun``.
+          The function takes the same arguments as ``fun``.
+
+          It returns a length-two tuple, with the following elements:
+
+          1. (because of performance considerations)
+             the image model function, exactly as returned by ``fun``
+          2. the partial derivatives of ``fun`` in each point ``r2`` as a
+             list of 1d ndarrays. The first element is the derivative with
+             respect to ``r2``, the following elements w.r.t. the custom
+             shape parameters as defined in ``params``. Hence, the number
+             of elements in this list is ``len(params) + 1``.
+
+        - default : dict, optional
+          Default parameter values. For instance ``dict(thickness=0.2)``
+        - continuous : boolean, optional
+          Default True. Set this to False if :math:`f(|r|)` is not
+          continuous at :math:`r = 0`. In that case, all pixels closer
+          than 1 pixel to the center will be ignored.
+
     param_mode : dict, optional
         For each parameter, define whether it should be optimized or be
         kept constant. This also allows for constraining parameters to be equal
         within each cluster or equal for all frames.
 
         Each parameter can have one of the following values:
-        ``'var'`` :
-            the parameter is allowed to vary for each feature independently
-        ``'const'`` :
-            the parameter is not allowed to vary
-        ``'cluster'`` :
-            the parameter is allowed to vary, but is equal
-            within each cluster
-        ``'global'`` :
-            the parameter is allowed to vary, but is equal for each feature
-        ``'frame'`` :
-            Not yet implemented
-        ``'particle'`` :
-            Not yet implemented
+
+        * ``'var'`` : the parameter is allowed to vary for each feature independently
+        * ``'const'`` : the parameter is not allowed to vary
+        * ``'cluster'`` : the parameter is allowed to vary, but is equal
+          within each cluster
+        * ``'global'`` : the parameter is allowed to vary, but is equal for
+          each feature
+        * ``'frame'`` : Not yet implemented
+        * ``'particle'`` : Not yet implemented
 
         Default values for position coordinates and signal is ``'var'``, for
         background ``'cluster'`` and for all others ``'const'``. Background
@@ -586,18 +591,19 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
     constraints : tuple of dicts, optional
         Provide constraints for the parameters that are optimized. Each
         constraint consists of a dictionary containing the following elements:
-        type : str
-            Constraint type: 'eq' for equality, which means that the constraint
-            function result is to be zero. 'ineq' for inequality, which means
-            that the constraint function result is to be greater than zero.
-        fun : callable
-            The function defining the constraint. The function is provided
-            a 3d ndarray with on the axes (<cluster>, <feature>, <parameter>)
-            parameters are (background, signal, <pos>, <size>, <other>).
-        args : sequence, optional
-            Extra arguments to be passed to the function.
-        cluster_size : integer
-            Size of the cluster to which the constraint applies
+
+        * type : str
+          Constraint type: 'eq' for equality, which means that the constraint
+          function result is to be zero. 'ineq' for inequality, which means
+          that the constraint function result is to be greater than zero.
+        * fun : callable
+          The function defining the constraint. The function is provided
+          a 3d ndarray with on the axes (<cluster>, <feature>, <parameter>)
+          parameters are (background, signal, <pos>, <size>, <other>).
+        * args : sequence, optional
+          Extra arguments to be passed to the function.
+        * cluster_size : integer
+          Size of the cluster to which the constraint applies
 
         The parameter array that is presented to the constraint function is
         slightly different from the 2D array of per-feature parameters used in
@@ -606,6 +612,7 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
 
         The 3D array of feature parameters that is presented to the constraint
         function is defined as follows:
+
         - Axis 0, the grouping axis, which  mostly has a length of 1, but in the
           case that the features that are optimized at once belong to different
           clusters (e.g. 1 image with 10 dimers) the length of this axis is the
@@ -614,13 +621,16 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
           of 10 dimers, this axis would have a size of 2.
         - Axis 2, the parameter axis, contains the parameters. The order is
           ``['background', 'signal', <pos>, <size>, <extra>]``
+
     bounds: dict
         Bounds on parameters, in the following forms:
-            - Absolute bounds ``{'x': [low, high]}``
-            - Difference bounds, one-sided ``{'x_abs': max_diff}``
-            - Difference bounds, two-sided ``{'x_abs': [max_diff_below, max_diff_above]}``
-            - Relative bounds, one-sided ``{'x_rel': max_fraction_below}``
-            - Relative bounds, two-sided ``{'x_rel': [max_fraction_below, max_fraction_above]}``
+
+        - Absolute bounds ``{'x': [low, high]}``
+        - Difference bounds, one-sided ``{'x_abs': max_diff}``
+        - Difference bounds, two-sided ``{'x_abs': [max_diff_below, max_diff_above]}``
+        - Relative bounds, one-sided ``{'x_rel': max_fraction_below}``
+        - Relative bounds, two-sided ``{'x_rel': [max_fraction_below, max_fraction_above]}``
+
         When the keyword `pos` is used, this will be distributed to all
         pos_columns (but direct values of each positions will have precedence)
         When the keyword `size` is used, this will be distributed to all sizes,
@@ -654,20 +664,20 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
         SLSQP makes it work best with this set around 100000. (which is Default)
     kwargs : optional
         other arguments are passed directly to scipy.minimize. Defaults are
-        ``dict(method='SLSQP', tol=1E-6,
-          options=dict(maxiter=100, disp=False))``
+        ``dict(method='SLSQP', tol=1E-6, options=dict(maxiter=100, disp=False))``
 
 
     Returns
     -------
-    DataFrame of refined coordinates.
-    added column 'cluster': the cluster id of the feature.
-    added column 'cluster_size': the size of the cluster to which the feature belongs
-    added column 'cost': root mean squared difference between the final fit and
-        the (preprocessed) image, in units of the cluster maximum value. If the
-        optimization fails, no error is raised feature fields are unchanged,
-        and this field becomes NaN.
-    addded columns of variable parameters ('x_std', etc.) (only if compute_error is true)
+    DataFrame of refined coordinates. Added columns:
+
+    * 'cluster': the cluster id of the feature.
+    * 'cluster_size': the size of the cluster to which the feature belongs
+    * 'cost': root mean squared difference between the final fit and
+      the (preprocessed) image, in units of the cluster maximum value. If the
+      optimization fails, no error is raised feature fields are unchanged,
+      and this field becomes NaN.
+    * (experimental) standard errors of variable parameters ('x_std', etc.) (only if compute_error is true)
 
     See also
     --------

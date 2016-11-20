@@ -81,10 +81,10 @@ Motion Analysis
     motion.direction_corr
     motion.is_typical
     motion.diagonal_size
-    motion.filter_stubs
-    motion.filter_clusters
     motion.theta_entropy
     motion.min_rolling_theta_entropy
+    filtering.filter_stubs
+    filtering.filter_clusters
 
 Prediction Framework
 --------------------

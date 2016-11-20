@@ -120,9 +120,9 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     separation : number or tuple
         minimum separation distance between features
     diameter : number or tuple, optional
-        feature diameter, used for characterization only. Default: separation.
+        feature diameter, used for characterization only. Default: ``separation``.
     memory : number, optional
-        number of frames that features are allowed to dissappear. Experimental.
+        number of frames that features are allowed to disappear. Experimental.
         Default 0.
     minmass : number, optional
         minimum integrated intensity (in masked image). Default 0.
@@ -131,7 +131,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
         reduction. Default 1.
     smoothing_size : number or tuple, optional
         Size of rolling average box for background subtraction.
-        By default, equals separation. This may introduce bias when refined on
+        By default, equals ``separation``. This may introduce bias when refined on
         the background subtracted image!
     threshold : number, optional
         Threshold value for image. Default None.
@@ -141,25 +141,38 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     before_link : function, optional
         This function is executed after the initial find of each frame, but
         but before the linking and relocating.
-        It should take the following arguments (or **kwargs):
-            coords, reader, image, image_proc, diameter, separation,
-            search_range, margin, minmass.
-        And it should return coords. coords is an ndarray containing the
-        initially found feature coordinates. image and reader are unprocessed.
-        image_proc is the processed image. Default None.
+        It should take the following arguments (or ``**kwargs``):
+
+        - ``coords``: `ndarray``containing the initially found feature coordinates
+        - ``reader``: unprocessed reader (for access to other frames)
+        - ``image``: unprocessed image
+        - ``image_proc``: the processed image
+        - ``diameter``
+        - ``separation``
+        - ``search_range``
+        - ``margin``
+        - ``minmass``
+
+        It should return an ndarray of the same shape as ``coords``.
     after_link : function, optional
         This function is executed after the find and link of each frame. It
         should not change the number of features.
-        It should take the following arguments (or **kwargs):
-            features, reader, image, image_proc, diameter, separation,
-            search_range, margin, minmass.
-        And it should return features. features is a DataFrame containing the
-        feature coordinates and characterization.
-        image and reader are unprocessed. image_proc is the processed image.
-        Default None.
+        It should take the following arguments (or ``**kwargs``):
+
+        - ``features``: a DataFrame containing the feature coordinates and characterization.
+        - ``reader``: unprocessed reader (for access to other frames)
+        - ``image``: unprocessed image
+        - ``image_proc``: the processed image
+        - ``diameter``
+        - ``separation``
+        - ``search_range``
+        - ``margin``
+        - ``minmass``
+
+        It should return a DataFrame like ``features``.
     refine : boolean, optional
         Convenience parameter to do center-of-mass refinement. Cannot be used
-        combined with an after_link function. Default False.
+        combined with an ``after_link`` function. Default False.
     """
     shape = reader[0].shape
     ndim = len(shape)
