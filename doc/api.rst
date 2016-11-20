@@ -4,15 +4,13 @@
 
 API reference
 =============
-
-Locating & Linking 
-------------------
-
-These functions acess the core functionality of trackpy:
+The core functionality of trackpy is grouped into three separate steps:
 
 1. Locating features in an image
-2. Locating features in a batch of many images
+2. Refining feature coordinates to obtain subpixel precision
 3. Identifying features through time, linking them into trajectories.
+
+Convenience functions for feature finding, refinement, and linking are readily available:
 
 .. autosummary::
     :toctree: generated/
@@ -20,7 +18,35 @@ These functions acess the core functionality of trackpy:
     locate
     batch
     link_df
+
+For more control on your tracking "pipeline", the following core functions are provided:
+
+
+Feature finding
+---------------
+.. autosummary::
+    :toctree: generated/
+
+    find.grey_dilation
+    find_link
+
+
+Coordinate refinement
+---------------------
+.. autosummary::
+    :toctree: generated/
+
+    refine_com
+    refine_leastsq
+
+Linking
+-------
+.. autosummary::
+    :toctree: generated/
+
+    link_df
     link_df_iter
+
 
 :func:`~trackpy.linking.link_df` and :func:`~trackpy.linking.link_df_iter` run
 the same underlying code, but :func:`~trackpy.linking.link_df_iter` streams
@@ -36,6 +62,7 @@ Static Analysis
     proximity
     pair_correlation_2d
     pair_correlation_3d
+    cluster
 
 Motion Analysis
 ---------------
@@ -100,16 +127,24 @@ These two are almost too simple to justify their existence -- just a convenient 
     mass_ecc
     mass_size
 
-Image Cleanup
--------------
+Image Conversion
+----------------
 
-By default, :func:`~trackpy.feature.locate` and :func:`~trackpy.feature.batch` apply a bandpass and a percentile-based threshold to the image(s) before finding features. (You can turn off this functionality using ``preprocess=False, percentile=0``.) In many cases, the default bandpass, which guesses good length scales from the ``diameter`` parameter, "just works." But if you want to executre these steps manually, you can.
+By default, :func:`~trackpy.feature.locate` applies a bandpass and a percentile-based
+threshold to the image(s) before finding features. You can turn off this functionality
+using ``preprocess=False, percentile=0``.) In many cases, the default bandpass, which
+guesses good length scales from the ``diameter`` parameter, "just works." But if you want
+to executre these steps manually, you can.
 
 .. autosummary::
     :toctree: generated/
 
     bandpass
+    lowpass
+    scale_to_gamut
     percentile_threshold
+    invert_image
+    convert_to_int
 
 Framewise Data Storage & Retrieval Interface
 --------------------------------------------
@@ -146,13 +181,12 @@ the logging level and attaches a logging handler that plays nicely with
 IPython notebooks. You can override this by calling `ignore_logging()` and
 configuring the logger however you like.
 
-.. autosummary:
+.. autosummary::
     :toctree: generated/
 
     quiet
     handle_logging
     ignore_logging
-`
 
 Utility functions
 -----------------
@@ -188,19 +222,6 @@ Trackpy implements the most intensive (read: slowest) parts of the core feature-
    disable_numba
 
 
-Intermediate Steps of Feature-Finding
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The key steps of the feature-finding algorithm are implemented as separate, modular functions. You can run them in sequence to inspect intermediate steps, or you can use them to roll your own variation on the algorithm.
-
-.. autosummary::
-    :toctree: generated/
-
-    local_maxima
-    refine
-    estimate_mass
-    estimate_size
-
 Low-Level Linking API
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -235,7 +256,11 @@ These functions may also be useful for rolling your own algorithms:
 
     masks.binary_mask
     masks.r_squared_mask
+    masks.x_squared_masks
     masks.cosmask
     masks.sinmask
     masks.theta_mask
+    masks.gaussian_kernel
+    masks.mask_image
+    masks.slice_image
 

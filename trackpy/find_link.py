@@ -46,37 +46,61 @@ def coords_from_df(df, pos_columns, t_column):
 
 
 def link_simple_iter(coords_iter, search_range, memory=0):
-    if not hasattr(search_range, '__iter__'):
-        # We need to know the dimensionality of the image, but this information
-        # is not accessible at this point. Guess 2D and give a warning.
-        search_range = (search_range,) * 2
-        warnings.warn("In link_simple_iter, search_range should be given as a "
-                      "tuple with the same length as the number of dimensions in "
-                      "the image. We now assume the dimensionality to be 2D.")
+    """Link an iterable of per-frame coordinates into trajectories.
+
+    Parameters
+    ----------
+    coords_iter : iterable of 2d numpy arrays
+    search_range : float or tuple
+    memory : integer
+
+    Returns
+    -------
+    yields tuples (index, list of particle ids)
+    """
+    # ensure that coords_iter is iterable
+    coords_iter = iter(coords_iter)
+    # take the first and obtain dimensionality
+    coords = next(coords_iter)
+    ndim = coords.shape[1]
+    search_range = validate_tuple(search_range, ndim)
 
     # initialize the linker and yield the particle ids of the first frame
     linker = Linker(search_range, memory)
-    linker.init_level(next(coords_iter), t=0)
-    yield linker.particle_ids
+    linker.init_level(coords, t=0)
+    yield 0, linker.particle_ids
 
     for t, coords in enumerate(coords_iter, start=1):
         linker.next_level(coords, t)
         for k, coord in enumerate(linker.coords):
             np.testing.assert_allclose(coord, coords[k])
-        yield linker.particle_ids
+        yield t, linker.particle_ids
 
 
 def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
+    """Link an DataFrame of coordinates into trajectories.
+
+    Parameters
+    ----------
+    f : DataFrame containing feature positions and frame indices
+    search_range : float or tuple
+    memory : integer, optional
+    pos_columns : list of str, optional
+    t_column : str, optional
+
+    Returns
+    -------
+    DataFrame with added column 'particle' containing trajectory labels"""
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
     ndim = len(pos_columns)
     search_range = validate_tuple(search_range, ndim)
 
-    # we will have to sort on the t_column to allow for the iteration
+    # sort on the t_column (coords_from_df does that anyway)
     f = pandas_sort(f, t_column)  # makes a copy
     coords_iter = coords_from_df(f, pos_columns, t_column)
     ids = []
-    for _ids in link_simple_iter(coords_iter, search_range, memory):
+    for i, _ids in link_simple_iter(coords_iter, search_range, memory):
         ids.extend(_ids)
 
     f['particle'] = ids

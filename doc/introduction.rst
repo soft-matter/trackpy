@@ -3,9 +3,10 @@
 Introduction to Trackpy
 -----------------------
 
-Trackpy is a package for finding blob-like features in video, tracking them
-through time,  and analyzing their trajectories. It implements and extends the
-widely-used Crocker--Grier algorithm in Python.
+Trackpy is a package for tracking blob-like features in video images, following them
+through time, and analyzing their trajectories. It started from a Python implementation
+of the widely-used Crocker--Grier algorithm and is currently in transition
+towards a general-purpose Python tracking library.
 
 There are many similar projects. (See table below.)
 Our implementation is distinguished by succinct and flexible usage,
@@ -21,26 +22,30 @@ Features
 
 Basics
 """"""
+Following the `widely-used particle tracking algorithm <http://www.physics.emory.edu/~weeks/idl/tracking.html>`__,
+we separate *tracking* into three separate steps. In the first step, *feature finding*
+initial feature coordinates are obtained from the images. Subsequently, sub-pixel precision
+is obtained in coordinate *refinement*. Finally, the coordaintes are *linked* in time yielding
+the feature trajectories.
 
-  * The `widely-used particle tracking algorithm <http://www.physics.emory.edu/~weeks/idl/tracking.html>`__
-    originally implemented by John Crocker and Eric Weeks in IDL is reimplemented
-    in Python. Wherever possible, existing tools from widely-used Python modules
-    are employed.
-  * This reimplemention is full-featured, including subpixel precision
-    verified with test cases.
-  * The module is actively used and tested on **Windows, Mac OSX, and Linux**,
-    and it uses only free, open-source software.
-  * Frames of video can be loaded from a **video file (AVI, MOV, etc.), a**
-    **multi-frame TIFF, or a directory of sequential images (TIFF,
-    PNG, JPG, etc.)**.
+  * The tracking algorithm originally implemented by John Crocker and Eric Weeks in IDL was
+    completely reimplemented in Python.
+  * A `flexible framework for least-squares fitting <https://arxiv.org/abs/1607.08819>`__
+    allows for sub-pixel refinement using any radial model function in 2D and 3D.
+  * Trackpy actively used and tested on **Windows, Mac OSX, and Linux**,
+    and it uses only **free, open-source** software.
+  * Frames of video are loaded via the sister project `PIMS <http://github.com/soft-matter/pims>`__
+    which enables reading of several types of **video files (AVI, MOV, etc.),
+    specialized formats (LEI, ND2, SEQ, CINE), multi-frame TIFF, or a directory of sequential
+    images (TIFF, PNG, JPG, etc.)**.
   * Results are given as DataFrames, high-performance spreadsheet-like objects
     from `Python pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__
     which can easily be saved to a **CSV file, Excel spreadsheet,
     SQL database, HDF5 file**, and more.
   * Particle trajectories can be
     characterized, grouped, and plotted using a suite of convenient functions.
-  * To verify correctness and stability, a **suite of 150+ tests reproduces
-    basic results**.
+  * To verify correctness and stability, a **suite of 500+ tests verifies basic results
+    on each trackpy update**.
 
 Special Capabilities
 """"""""""""""""""""
@@ -50,10 +55,12 @@ Special Capabilities
     can be read and saved to disk throughout.)
   * A **prediction framework** helps track particles in fluid flows,
     or other scenarios where velocity is correlated between time steps.
+  * Feature-finding optionally makes use of the **history of feature coordinates**
+    in a routine that combines linking and feature-finding.
   * Feature-finding and trajectory-linking works on **images with any number of dimensions**,
     making possible some creative applications.
   * **Uncertainty is estimated** following a method `described in this paper <http://dx.doi.org/10.1529/biophysj.104.042457>`__ by Savin and Doyle.
-  * **High-performance** components (numba acceleration and FFTW support) are used only if
+  * **High-performance** numba acceleration is used only if
     if available. Since these can be tricky to install on some machines,
     the code will automatically fall back on slower pure Python implementations
   * **Adaptive search** can prevent the tracking algorithm from failing
@@ -106,7 +113,8 @@ Core Contributors
   * **Nathan Keim** alternative trajectory-linking implementations, major
     speed-ups, prediction, adaptive search
   * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
-  * **Casper van der Wel** anisotropic (3D) feature-finding, 3D plotting and analyses
+  * **Casper van der Wel** anisotropic 3D feature-finding, plotting and analyses, framework
+    for least-squares refinement, combined linking and feature finding
 
 
 Support
