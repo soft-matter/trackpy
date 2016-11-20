@@ -1105,7 +1105,9 @@ class Linker(object):
                 p.back_cands = []
                 p.forward_cands = []
 
-            # Sort out what can go to what.
+            # Sort out what can go to what. This uses the search_range to
+            # rescale distances between particles in between 0 and 1. From here
+            # on, search_range = 1.
             assign_candidates(cur_hash, prev_hash, self.search_range,
                               self.neighbor_strategy)
 
@@ -1290,11 +1292,14 @@ class Linker(object):
 
 def assign_candidates(cur_hash, prev_hash, search_range, neighbor_strategy):
     if neighbor_strategy == 'BTree':
+        if not is_isotropic(search_range):
+            raise ValueError
+        search_range_1d = search_range[0]
         # (Tom's code)
         for p in cur_hash.points:
-            work_box = prev_hash.get_region(p, search_range[0])
+            work_box = prev_hash.get_region(p, search_range_1d)
             for wp in work_box:
-                d = p.distance(wp) / search_range[0]
+                d = p.distance(wp) / search_range_1d
                 if d < 1.:
                     p.back_cands.append((wp, d))
                     wp.forward_cands.append((p, d))
