@@ -682,6 +682,20 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
     See also
     --------
     FitFunctions, vect_from_params, vect_to_params, wrap_constraint
+
+    Notes
+    -----
+    This feature is a recent addition to trackpy that is still in its
+    experimental phase. Please report any issues you encounter on Github.
+
+    If you use this specific algorithm for your scientific publications, please
+    mention the accompanying publication [1]_
+
+    References
+    ----------
+    .. [1] van der Wel C., Kraft D.J. Automated tracking of colloidal clusters
+    with sub-pixel accuracy and precision. J. Phys. Condens. Mat. 29:44001 (2017)
+    DOI: http://dx.doi.org/10.1088/1361-648X/29/4/044001
     """
     _kwargs = dict(method='SLSQP', tol=1E-6,
                    options=dict(maxiter=100, disp=False))

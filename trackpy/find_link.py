@@ -173,6 +173,20 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     refine : boolean, optional
         Convenience parameter to do center-of-mass refinement. Cannot be used
         combined with an ``after_link`` function. Default False.
+
+    Notes
+    -----
+    This feature is a recent addition to trackpy that is still in its
+    experimental phase. Please report any issues you encounter on Github.
+
+    If you use this specific algorithm for your scientific publications, please
+    mention the accompanying publication [1]_
+
+    References
+    ----------
+    .. [1] van der Wel C., Kraft D.J. Automated tracking of colloidal clusters
+    with sub-pixel accuracy and precision. J. Phys. Condens. Mat. 29:44001 (2017)
+    DOI: http://dx.doi.org/10.1088/1361-648X/29/4/044001
     """
     shape = reader[0].shape
     ndim = len(shape)
