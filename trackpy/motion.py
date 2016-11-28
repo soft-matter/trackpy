@@ -233,7 +233,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
 
 
 def compute_drift(traj, smoothing=0, pos_columns=None):
-    """Return the ensemble drift, x(t).
+    """Return the ensemble drift, xy(t).
 
     Parameters
     ----------
@@ -248,8 +248,8 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
 
     Examples
     --------
-    >>> compute_drift(traj).plot() # Default smoothing usually smooths too much.
-    >>> compute_drift(traj, 0).plot() # not smoothed
+    >>> compute_drift(traj).plot()
+    >>> compute_drift(traj, 0, ['x', 'y']).plot() # not smoothed, equivalent to default.
     >>> compute_drift(traj, 15).plot() # Try various smoothing values.
     >>> drift = compute_drift(traj, 15) # Save good drift curves.
     >>> corrected_traj = subtract_drift(traj, drift) # Apply them.
