@@ -258,9 +258,9 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
         pos_columns = ['x', 'y']
     # the groupby...diff works only if the trajectory Dataframe is sorted along frame
     # I do here a copy because a "inplace=True" would sort the original "traj" which is perhaps unwanted/unexpected
-    traj = pandas_sort(traj,'frame')
+    traj = pandas_sort(traj, 'frame')
     # Probe by particle, take the difference between frames.
-    delta = traj.groupby('particle',sort=False).apply(lambda x :
+    delta = traj.groupby('particle', sort=False).apply(lambda x :
                                     x.set_index('frame', drop=False).diff())
     # Keep only deltas between frames that are consecutive.
     delta = delta[delta['frame'] == 1]
