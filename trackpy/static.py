@@ -1,8 +1,9 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-from .utils import cKDTree
+from .utils import cKDTree, guess_pos_columns
 import numpy as np
+import pandas as pd
 from pandas import DataFrame
 from warnings import warn
 
@@ -384,3 +385,112 @@ def area_3d_bounded(dist, pos, box):
     area[area < 10**-7 * dist**2] = np.nan
 
     return area
+
+
+class Clusters(object):
+    """ Class that clusters features."""
+    @classmethod
+    def from_pairs(cls, pairs, length):
+        clusters = cls(range(length))
+        for (a, b) in pairs:
+            clusters.add(a, b)
+        return clusters
+
+    @classmethod
+    def from_kdtree(cls, kdtree, separation):
+        pairs = kdtree.query_pairs(separation)
+        return cls.from_pairs(pairs, len(kdtree.data))
+
+    @classmethod
+    def from_coords(cls, coords, separation):
+        pairs = cKDTree(np.array(coords) / separation).query_pairs(1)
+        return cls.from_pairs(pairs, len(coords))
+
+    def __init__(self, indices):
+        self.clusters = {i: {i} for i in indices}
+        self.pos_ids = list(indices)
+
+    def __iter__(self):
+        return (list(self.clusters[k]) for k in self.clusters)
+
+    def add(self, a, b):
+        i1 = self.pos_ids[a]
+        i2 = self.pos_ids[b]
+        if i1 != i2:  # if a and b are already clustered, do nothing
+            self.clusters[i1] = self.clusters[i1].union(self.clusters[i2])
+            for f in self.clusters[i2]:
+                self.pos_ids[f] = i1
+            del self.clusters[i2]
+
+    @property
+    def cluster_size(self):
+        result = [None] * len(self.pos_ids)
+        for cluster in self:
+            for f in cluster:
+                result[f] = len(cluster)
+        return result
+
+
+def cluster_iter(f, separation, pos_columns=None, t_column='frame'):
+    """ Cluster features, returns generator iterating over frames.
+
+    Returns
+    -------
+    generator of:
+        frame_no
+        DataFrame with added cluster and cluster_size column
+
+    See also
+    --------
+    find_clusters
+    """
+    if pos_columns is None:
+        pos_columns = guess_pos_columns(f)
+
+    next_id = 0
+
+    for frame_no, f_frame in f.groupby(t_column):
+        clusters = Clusters.from_coords(f_frame[pos_columns].values, separation)
+        result = f_frame.copy()
+        result['cluster'] = clusters.pos_ids
+        result['cluster_size'] = clusters.cluster_size
+        result['cluster'] += next_id
+        next_id = result['cluster'].max() + 1
+        yield frame_no, result
+
+
+def cluster(f, separation, pos_columns=None, t_column='frame'):
+    """ Cluster features from one or several frames.
+
+    A cluster is defined as the largest group of features of which each feature
+    has at least one feature closer than ``separation``.
+
+    Parameters
+    ----------
+    f: DataFrame
+        pandas DataFrame containing pos_columns and t_column
+    separation: number or tuple
+        Separation distance below which particles are considered inside cluster
+    pos_columns: list of strings, optional
+        Column names that contain the position coordinates.
+        Defaults to ['y', 'x'] (or ['z', 'y', 'x'] if 'z' exists)
+    t_column: string
+        Column name containing the frame number (Default: 'frame')
+
+    Returns
+    -------
+    Copy of ``f`` with added "cluster" and "cluster_size" column
+    """
+    if t_column not in f:
+        f[t_column] = 0
+        remove_t_column = True
+    else:
+        remove_t_column = False
+
+    result = pd.concat((x[1] for x in cluster_iter(f, separation, pos_columns,
+                                                   t_column)))
+
+    if remove_t_column:
+        del f[t_column]
+
+    return result

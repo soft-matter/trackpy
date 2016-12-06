@@ -13,17 +13,25 @@ import numpy as np
 import pandas as pd
 
 from .try_numba import try_numba_autojit, NUMBA_AVAILABLE
-from .utils import is_pandas_since_016, pandas_sort, cKDTree
+from .utils import (is_pandas_since_016, pandas_sort, cKDTree, validate_tuple,
+                    is_isotropic, default_pos_columns)
 
 logger = logging.getLogger(__name__)
 
 
-class TreeFinder(object):
+def _points_to_arr(level):
+    """ Convert a list of Points to an ndarray of coordinates """
+    return np.array([p.pos for p in level])
 
-    def __init__(self, points):
-        """Takes a list of particles.
-        """
-        self.points = copy(points)
+
+class TreeFinder(object):
+    def __init__(self, points, search_range):
+        """Takes a list of particles."""
+        self.ndim = len(search_range)
+        self.search_range = np.atleast_2d(search_range)
+        if not isinstance(points, list):
+            points = list(points)
+        self.points = points
         self.rebuild()
 
     def __len__(self):
@@ -32,6 +40,12 @@ class TreeFinder(object):
     def add_point(self, pt):
         self.points.append(pt)
         self._clean = False
+
+    @property
+    def kdtree(self):
+        if not self._clean:
+            self.rebuild()
+        return self._kdtree
 
     def rebuild(self, coord_map=None):
         """Rebuilds tree from ``points`` attribute.
@@ -46,22 +60,62 @@ class TreeFinder(object):
         before tree is used for spatial queries again (i.e. when
         memory is turned on).
         """
-
         if coord_map is None:
-            coord_map = functools.partial(map, lambda x: x.pos)
-        coords = np.asarray(list(coord_map(self.points)))
+            coordmap_as_arr = _points_to_arr
+        else:
+            coordmap_as_arr = lambda x: np.asarray(list(coord_map(x)))
         if len(self.points) == 0:
             self._kdtree = None
         else:
+            coords = coordmap_as_arr(self.points) / self.search_range
             self._kdtree = cKDTree(coords, 15)
         # This could be tuned
         self._clean = True
 
     @property
-    def kdtree(self):
-        if not self._clean:
-            self.rebuild()
-        return self._kdtree
+    def coords(self):
+        if self._clean:
+            if self._kdtree is None:
+                return np.empty((0, self.ndim))
+            else:
+                return self._kdtree.data * self.search_range
+        else:
+            return _points_to_arr(self.points)
+
+    @property
+    def coords_rescaled(self):
+        if self._clean:
+            if self._kdtree is None:
+                return np.empty((0, self.ndim))
+            else:
+                return self._kdtree.data
+        else:
+            return _points_to_arr(self.points) / self.search_range
+
+    @property
+    def coords_df(self):
+        coords = self.coords
+        if coords is None:
+            return
+        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
+                            index=[p.uuid for p in self.points])
+        for p in self.points:
+            data.loc[p.uuid, 'frame'] = p.t
+            data.loc[p.uuid, 'particle'] = p.track.id
+            for col in p.extra_data:
+                data.loc[p.uuid, col] = p.extra_data[col]
+        return data
+
+    def query_points(self, pos, max_dist_normed=1.):
+        if self.kdtree is None:
+            return
+        pos_norm = pos / self.search_range
+        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
+        found = set([i for sl in found for i in sl])  # ravel
+        if len(found) == 0:
+            return
+        else:
+            return self.coords[list(found)]
 
 
 class HashTable(object):
@@ -103,7 +157,7 @@ class HashTable(object):
         self.cached_rrange = None
         self.strides = np.cumprod(
                            np.concatenate(([1], self.hash_dims[1:])))[::-1]
-        self._len = 0
+        self.points = []
 
     def get_region(self, point, rrange):
         '''
@@ -175,10 +229,10 @@ class HashTable(object):
             raise Hash_table.Out_of_hash_excpt("cord out of range")
         indx = int(sum(cord * self.strides))
         self.hash_table[indx].append(point)
-        self._len += 1
+        self.points.append(point)
 
     def __len__(self):
-        return self._len
+        return len(self.points)
 
 
 class TrackUnstored(object):
@@ -194,12 +248,13 @@ class TrackUnstored(object):
         The first feature in the track
 
     """
-    count = 0
+    @classmethod
+    def reset_counter(cls, c=0):
+        cls.counter = itertools.count(c)
 
     def __init__(self, point=None):
-        self.id = self.__class__.count
+        self.id = next(self.counter)
         self.indx = self.id  # redundant, but like trackpy
-        self.__class__.count += 1
         if point is not None:
             self.add_point(point)
 
@@ -226,10 +281,6 @@ class TrackUnstored(object):
         except AttributeError:
             return 0
 
-    @classmethod
-    def reset_counter(cls, c=0):
-        cls.count = c
-
     def __repr__(self):
         return "<%s %d>" % (self.__class__.__name__, self.indx)
 
@@ -248,8 +299,6 @@ class Track(TrackUnstored):
         The first feature in the track
 
     '''
-    count = 0
-
     def __init__(self, point=None):
         self.points = []
         super(Track, self).__init__(point)
@@ -305,12 +354,13 @@ class Point(object):
     :py:meth:`Point.__init__`.  (See :py:class:`~trackpy.linking.PointND` for
     example. )
     '''
-    count = 0
+    @classmethod
+    def reset_counter(cls, c=0):
+        cls.counter = itertools.count(c)
 
     def __init__(self):
         self._track = None
-        self.uuid = Point.count         # unique id for __hash__
-        Point.count += 1
+        self.uuid = next(self.counter)         # unique id for __hash__
 
     # def __eq__(self, other):
     #     return self.uuid == other.uuid
@@ -432,8 +482,8 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     ----------
     levels : iterable of iterables containing Points objects
         e.g., a list containing lists with the Points in each frame
-    search_range : float
-        the maximum distance features can move between frames
+    search_range : tuple
+        the maximum distance features can move between frames, per dimension
     hash_generator : a function that returns a HashTable
         only used if neighbor_strategy is set to 'BTree' (default)
     memory : integer
@@ -458,7 +508,6 @@ def link(levels, search_range, hash_generator, memory=0, track_cls=None,
     if isinstance(levels, pd.DataFrame):
         raise TypeError("Instead of link, use link_df, which accepts "
                         "pandas DataFrames.")
-
     if track_cls is None:
         track_cls = Track  # stores Points
     label_generator = link_iter(iter(levels), search_range, memory=memory,
@@ -550,6 +599,7 @@ def link_df(features, search_range, memory=0,
         pos_columns = ['x', 'y']
     if t_column is None:
         t_column = 'frame'
+    search_range = validate_tuple(search_range, len(pos_columns))
     if hash_size is None:
         MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
@@ -682,6 +732,7 @@ def link_df_iter(features, search_range, memory=0,
         pos_columns = ['x', 'y']
     if t_column is None:
         t_column = 'frame'
+    search_range = validate_tuple(search_range, len(pos_columns))
 
     # Group the DataFrame by time steps and make a 'level' out of each
     # one, using the index to keep track of Points.
@@ -771,6 +822,9 @@ def _build_level(frame, pos_columns, t_column, diagnostics=False):
         point_cls = PointNDDiagnostics
     else:
         point_cls = PointND
+    # This is the only chance to do this, as only here the point_cls is known.
+    if not hasattr(point_cls, 'counter'):
+        point_cls.reset_counter()
     return list(map(point_cls, frame[t_column],
                     frame[pos_columns].values, frame.index))
 
@@ -855,8 +909,8 @@ def link_iter(levels, search_range, memory=0,
     ----------
     levels : iterable of iterables containing Points objects
         e.g., a list containing lists with the Points in each frame
-    search_range : float
-        the maximum distance features can move between frames
+    search_range : tuple
+        the maximum distance features can move between frames, per dimension
     memory : integer
         the maximum number of frames during which a feature can vanish,
         then reppear nearby, and be considered the same particle. 0 by default.
@@ -895,6 +949,13 @@ def link_iter(levels, search_range, memory=0,
     cur_level : iterable of Point objects
         The labeled points at each level.
     """
+    if not hasattr(search_range, '__iter__'):
+        # We need to know the dimensionality of the image, but this information
+        # is not accessible at this point. Guess 2D and give a warning.
+        search_range = (search_range,) * 2
+        warn("In link and link_iter, search_range should be given as a "
+             "tuple with the same length as the number of dimensions in "
+             "the image. We now assume the dimensionality to be 2D.")
     linker = Linker(search_range, memory=memory, neighbor_strategy=neighbor_strategy,
                  link_strategy=link_strategy, hash_size=hash_size,
                  box_size=box_size, predictor=predictor,
@@ -919,6 +980,9 @@ class Linker(object):
         self.predictor = predictor
         self.adaptive_stop = adaptive_stop
         self.adaptive_step = adaptive_step
+        if track_cls is None:
+            track_cls = TrackUnstored  # does not store Points
+        track_cls.reset_counter()
         self.track_cls = track_cls
         self.hash_generator = hash_generator
         self.neighbor_strategy = neighbor_strategy
@@ -930,10 +994,8 @@ class Linker(object):
                 if hash_size is None:
                     raise ValueError("In 'BTree' mode, you must specify hash_size")
                 if box_size is None:
-                    box_size = search_range
+                    box_size = search_range[0]
             self.hash_generator = lambda: Hash_table(hash_size, box_size)
-        if self.track_cls is None:
-            self.track_cls = TrackUnstored  # does not store Points
 
         linkers = {'recursive': recursive_linker_obj,
                    'nonrecursive': nonrecursive_link,
@@ -950,8 +1012,13 @@ class Linker(object):
 
         if self.neighbor_strategy not in ['KDTree', 'BTree']:
             raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
+        if self.neighbor_strategy == 'BTree' and not is_isotropic(self.search_range):
+            raise ValueError("The neighbor_strategy 'BTree' cannot deal with "
+                             "anisotropic search ranges. Please use 'KDTree'.")
 
         if self.adaptive_stop is not None:
+            # adaptive_stop is a fraction of search range
+            self.adaptive_stop = self.adaptive_stop / np.min(self.search_range)
             if 1 * self.adaptive_stop <= 0:
                 raise ValueError("adaptive_stop must be positive.")
             self.max_subnet_size = self.MAX_SUB_NET_SIZE_ADAPTIVE
@@ -980,7 +1047,7 @@ class Linker(object):
             for p in prev_set:
                 prev_hash.add_point(p)
         elif self.neighbor_strategy == 'KDTree':
-            prev_hash = TreeFinder(prev_level)
+            prev_hash = TreeFinder(prev_level, self.search_range)
 
         for p in prev_set:
             p.forward_cands = []
@@ -1031,15 +1098,17 @@ class Linker(object):
                 for p in cur_set:
                     cur_hash.add_point(p)
             elif self.neighbor_strategy == 'KDTree':
-                cur_hash = TreeFinder(cur_level)
+                cur_hash = TreeFinder(cur_level, self.search_range)
 
             # Set up attributes for keeping track of possible connections.
             for p in cur_set:
                 p.back_cands = []
                 p.forward_cands = []
 
-            # Sort out what can go to what.
-            assign_candidates(cur_level, prev_hash, self.search_range,
+            # Sort out what can go to what. This uses the search_range to
+            # rescale distances between particles in between 0 and 1. From here
+            # on, search_range = 1.
+            assign_candidates(cur_hash, prev_hash, self.search_range,
                               self.neighbor_strategy)
 
             # sort the candidate lists by distance
@@ -1049,7 +1118,7 @@ class Linker(object):
                 p.forward_cands.sort(key=lambda x: x[1])
 
             # Note that this modifies cur_set, prev_set, but that's OK.
-            spl, dpl = self._assign_links(cur_set, prev_set, self.search_range)
+            spl, dpl = self._assign_links(cur_set, prev_set, search_range=1.)
 
             new_mem_set = set()
             for sp, dp in zip(spl, dpl):
@@ -1071,6 +1140,12 @@ class Linker(object):
                     del dp.back_cands
                 if sp is not None:
                     del sp.forward_cands
+
+            # TODO: Emit debug message with number of
+            # subnets in this level, numbers of new/remembered/lost particles
+
+            # yield the current level before we add the memory points to it
+            yield cur_level
 
             # set prev_hash to cur hash
             prev_hash = cur_hash
@@ -1101,11 +1176,6 @@ class Linker(object):
                     m.forward_cands = []
 
             prev_set = tmp_set
-
-            # TODO: Emit debug message with number of
-            # subnets in this level, numbers of new/remembered/lost particles
-
-            yield cur_level
 
     def _assign_links(self, dest_set, source_set, search_range):
         """Match particles in dest_set with source_set.
@@ -1220,25 +1290,28 @@ class Linker(object):
         return spl, dpl
 
 
-def assign_candidates(cur_level, prev_hash, search_range, neighbor_strategy):
+def assign_candidates(cur_hash, prev_hash, search_range, neighbor_strategy):
     if neighbor_strategy == 'BTree':
+        if not is_isotropic(search_range):
+            raise ValueError
+        search_range_1d = search_range[0]
         # (Tom's code)
-        for p in cur_level:
-            work_box = prev_hash.get_region(p, search_range)
+        for p in cur_hash.points:
+            work_box = prev_hash.get_region(p, search_range_1d)
             for wp in work_box:
-                d = p.distance(wp)
-                if d < search_range:
+                d = p.distance(wp) / search_range_1d
+                if d < 1.:
                     p.back_cands.append((wp, d))
                     wp.forward_cands.append((p, d))
     elif neighbor_strategy == 'KDTree':
         # kdtree.query() would raise exception on empty level.
-        if len(cur_level) and len(prev_hash):
-            cur_coords = np.array([x.pos for x in cur_level])
+        if len(cur_hash) and len(prev_hash):
+            cur_coords = cur_hash.coords_rescaled
             hashpts = prev_hash.points
             dists, inds = prev_hash.kdtree.query(cur_coords, 10,
-                                                 distance_upper_bound=search_range)
+                                                 distance_upper_bound=1+1e-7)
             nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-            for i, p in enumerate(cur_level):
+            for i, p in enumerate(cur_hash.points):
                 for j in range(nn[i]):
                     wp = hashpts[inds[i, j]]
                     p.back_cands.append((wp, dists[i, j]))

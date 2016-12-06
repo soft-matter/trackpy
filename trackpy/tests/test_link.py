@@ -17,8 +17,11 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.linking import PointND, link, Hash_table
-from trackpy.utils import is_pandas_since_016, pandas_sort
+from trackpy.linking import PointND, Hash_table
+from trackpy.utils import is_pandas_since_016, pandas_sort, validate_tuple
+
+# suppress logging messages
+tp.quiet()
 
 # Catch attempts to set values on an inadvertent copy of a Pandas object.
 tp.utils.make_pandas_strict()
@@ -332,7 +335,8 @@ class CommonTrackingTests(object):
 
     def link(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
-        return tp.link(*args, **kwargs)
+        return tp.link(args[0], validate_tuple(args[1], 2),
+                       *args[2:], **kwargs)
 
     def link_df(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
