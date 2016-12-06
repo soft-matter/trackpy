@@ -32,7 +32,7 @@ the feature trajectories.
     completely reimplemented in Python.
   * A `flexible framework for least-squares fitting <https://arxiv.org/abs/1607.08819>`__
     allows for sub-pixel refinement using any radial model function in 2D and 3D.
-  * Trackpy actively used and tested on **Windows, Mac OSX, and Linux**,
+  * Trackpy is actively used and tested on **Windows, Mac OSX, and Linux**,
     and it uses only **free, open-source** software.
   * Frames of video are loaded via the sister project `PIMS <http://github.com/soft-matter/pims>`__
     which enables reading of several types of **video files (AVI, MOV, etc.),
@@ -108,13 +108,13 @@ Thomas A Caswell             https://github.com/tacaswell/tracking           C++
 Core Contributors
 ^^^^^^^^^^^^^^^^^
 
+  * **Casper van der Wel** anisotropic 3D feature-finding, plotting and analyses, framework
+    for least-squares refinement, combined linking and feature finding
   * **Daniel Allan** feature-finding, uncertainty estimation,
     motion characterization and discrimination, plotting tools, tests
   * **Nathan Keim** alternative trajectory-linking implementations, major
     speed-ups, prediction, adaptive search
   * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
-  * **Casper van der Wel** anisotropic 3D feature-finding, plotting and analyses, framework
-    for least-squares refinement, combined linking and feature finding
 
 
 Support
