@@ -120,7 +120,9 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     separation : number or tuple
         minimum separation distance between features
     diameter : number or tuple, optional
-        feature diameter, used for characterization only. Default: ``separation``.
+        feature diameter, used for characterization only.
+        Also determines the margin (margin = diameter // 2).
+        Default: ``separation``.
     memory : number, optional
         number of frames that features are allowed to disappear. Experimental.
         Default 0.
@@ -253,12 +255,9 @@ def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
     else:
         diameter = validate_tuple(diameter, ndim)
     radius = tuple([int(d // 2) for d in diameter])
-    # Define zone of exclusion at edges of image, avoiding
-    #   - Features with incomplete image data ("radius")
-    #   - Extended particles that cannot be explored during subpixel
-    #       refinement ("separation")
-    margin = tuple([max(diam // 2, sep // 2 - 1) for (diam, sep) in
-                    zip(diameter, separation)])
+    # Define zone of exclusion at edges of image, avoiding features with
+    # incomplete image data ("radius")
+    margin = radius
 
     # Check whether the margins are not covering the complete image
     if np.any([s <= 2*m for (s, m) in zip(shape, margin)]):
@@ -756,6 +755,7 @@ class FindLinker(Linker):
         The minimum distance between features, in pixels.
     diameter : tuple
         Size used in the characterization of new features.
+        Also determines the margin (margin = diameter // 2).
     memory : int, optional
         Default 0
     minmass : number, optional
@@ -867,6 +867,14 @@ class FindLinker(Linker):
         if np.sum(maxima) == 0:   # no maxima
             return None, None
         coords = np.vstack(np.where(maxima)).T
+
+        # Do not accept peaks near the edges.
+        shape = np.array(self.image.shape)
+        near_edge = np.any((coords < self.radius) |
+                           (coords > (shape - self.radius - 1)), axis=1)
+        coords = coords[~near_edge]
+        if len(coords) == 0:
+            return None, None
 
         # drop points that are further than search range from any initial point
         max_dist = np.atleast_2d(self.search_range)
