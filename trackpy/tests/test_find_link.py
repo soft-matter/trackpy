@@ -390,6 +390,13 @@ class FindZipSpecialCases(unittest.TestCase):
         reader = CoordinateReader(f, shape, self.size)
         return find_link(reader, before_link=callback, **_kwargs)
 
+    def test_in_margin(self):
+        expected = DataFrame({'x': [12, 6], 'y': [12, 5],
+                              'frame': [0, 1], 'particle': [0, 0]})
+
+        actual = self.link(expected, shape=(24, 24))
+        assert_equal(len(actual), 1)
+
     def test_one(self):
         expected = DataFrame({'x': [8, 16], 'y': [16, 16],
                               'frame': [0, 1], 'particle': [0, 0]})

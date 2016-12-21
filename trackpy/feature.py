@@ -10,11 +10,12 @@ from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
-from .utils import record_meta, validate_tuple, is_isotropic
+from .utils import (record_meta, validate_tuple, is_isotropic,
+                    default_size_columns)
 from .find import grey_dilation, where_close
 from .refine import refine_com
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
-                    x_squared_masks, mask_image, slice_image)
+                    x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
 import trackpy  # to get trackpy.__version__
 
@@ -574,41 +575,54 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         return output
 
 
-def characterize(coords, image, radius, scale_factor=None):
-    """ Characterize a single feature in an image. Returns a dictionary. """
-    if scale_factor is None:
-        try:
-            scale_factor = image.metadata['scale_factor']
-        except (AttributeError, KeyError):
-            scale_factor = 1.
-    ndim = len(radius)
-    mass = np.empty(len(coords))
-    signal = np.empty(len(coords))
+def characterize(coords, image, radius, scale_factor=1.):
+    """ Characterize a 2d ndarray of coordinates. Returns a dictionary of 1d
+    ndarrays. If the feature region (partly) falls out of the image, then the
+    corresponding element in the characterized arrays will be NaN."""
+    shape = image.shape
+    N, ndim = coords.shape
+
+    radius = validate_tuple(radius, ndim)
     isotropic = is_isotropic(radius)
-    if isotropic:
-        rg_mask = r_squared_mask(radius, ndim)  # memoized
-        size = np.empty(len(coords))
-    else:
-        rg_mask = x_squared_masks(radius, ndim)  # memoized
-        size_ax = tuple(range(1, ndim + 1))
-        size = np.empty((len(coords), len(radius)))
-    for i, coord in enumerate(coords):
-        im, origin = slice_image(coord, image, radius)
-        im = mask_image(coord, im, radius, origin)
-        _mass = np.sum(im)
-        mass[i] = _mass
-        signal[i] = np.max(im)
 
+    # largely based on trackpy.refine.center_of_mass._refine
+    coords_i = np.round(coords).astype(np.int)
+    mass = np.full(N, np.nan)
+    signal = np.full(N, np.nan)
+    ecc = np.full(N, np.nan)
+
+    mask = binary_mask(radius, ndim).astype(np.uint8)
+    if isotropic:
+        Rg = np.full(len(coords), np.nan)
+    else:
+        Rg = np.full((len(coords), len(radius)), np.nan)
+
+    for feat, coord in enumerate(coords_i):
+        if np.any([c - r < 0 or c + r >= sh
+                   for c, r, sh in zip(coord, radius, shape)]):
+            continue
+        rect = [slice(c - r, c + r + 1) for c, r in zip(coord, radius)]
+        neighborhood = mask * image[rect]
+        mass[feat] = neighborhood.sum() / scale_factor
+        signal[feat] = neighborhood.max() / scale_factor
         if isotropic:
-            size[i] = np.sqrt(np.sum(rg_mask * im) / _mass)
+            Rg[feat] = np.sqrt(np.sum(r_squared_mask(radius, ndim) *
+                                      neighborhood) / mass[feat])
         else:
-            size[i] = np.sqrt(ndim * np.sum(rg_mask * im,
-                                            axis=size_ax) / _mass)
+            Rg[feat] = np.sqrt(ndim * np.sum(x_squared_masks(radius, ndim) *
+                                             neighborhood,
+                                             axis=tuple(range(1, ndim + 1))) /
+                               mass[feat])[::-1]  # change order yx -> xy
+        # I only know how to measure eccentricity in 2D.
+        if ndim == 2:
+            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
+                                np.sum(neighborhood*sinmask(radius))**2)
+            ecc[feat] /= (mass[feat] - neighborhood[radius] + 1e-6)
 
-    result = dict(mass=mass / scale_factor, signal=signal / scale_factor)
+    result = dict(mass=mass, signal=signal, ecc=ecc)
     if isotropic:
-        result['size'] = size
+        result['size'] = Rg
     else:
-        for _size, key in zip(size.T, ['size_z', 'size_y', 'size_x'][-ndim:]):
+        for _size, key in zip(Rg.T, default_size_columns(ndim, isotropic)):
             result[key] = _size
     return result
