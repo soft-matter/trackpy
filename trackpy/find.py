@@ -36,6 +36,7 @@ def where_close(pos, separation, intensity=None):
                            np.sum(pos_rescaled[index_1], 1),
                            index_1, index_0)
     else:
+        intensity = np.asarray(intensity)
         intensity_0 = intensity[index_0]
         intensity_1 = intensity[index_1]
         to_drop = np.where(intensity_0 > intensity_1, index_1, index_0)
