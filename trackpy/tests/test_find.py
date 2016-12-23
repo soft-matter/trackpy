@@ -1,16 +1,16 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-import unittest
 import numpy as np
 
 import trackpy as tp
 from trackpy.artificial import draw_feature
-from trackpy.tests.common import assert_coordinates_close
+from trackpy.tests.common import assert_coordinates_close, StrictTestCase
 from trackpy.find import grey_dilation, grey_dilation_legacy
 from pandas.util.testing import assert_produces_warning
 
-class TestFindGreyDilation(unittest.TestCase):
+
+class TestFindGreyDilation(StrictTestCase):
     def test_separation_fast(self):
         separation = 20
         for angle in np.arange(0, 360, 15):
@@ -97,7 +97,7 @@ class TestFindGreyDilation(unittest.TestCase):
 
 
 
-class TestFindGreyDilationLegacy(unittest.TestCase):
+class TestFindGreyDilationLegacy(StrictTestCase):
     def test_separation(self):
         separation = 20
         for angle in np.arange(0, 360, 15):

@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import range
 import os
-import unittest
 import warnings
 
 import nose
@@ -18,10 +17,9 @@ from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array
                                 gen_nonoverlapping_locations)
 from trackpy.utils import pandas_sort
 from trackpy.refine import refine_com
-from trackpy.tests.common import sort_positions
+from trackpy.tests.common import sort_positions, StrictTestCase
+from trackpy.preprocessing import invert_image
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-tp.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
@@ -42,7 +40,7 @@ def compare(shape, count, radius, noise_level, engine):
     return actual, expected
 
 
-class OldMinmass(unittest.TestCase):
+class OldMinmass(StrictTestCase):
     def check_skip(self):
         pass
     
@@ -768,14 +766,14 @@ class CommonFeatureIdentificationTests(object):
 
 
 class TestFeatureIdentificationWithVanillaNumpy(
-    CommonFeatureIdentificationTests, unittest.TestCase):
+    CommonFeatureIdentificationTests, StrictTestCase):
 
     def setUp(self):
         self.engine = 'python'
 
 
 class TestFeatureIdentificationWithNumba(
-    CommonFeatureIdentificationTests, unittest.TestCase):
+    CommonFeatureIdentificationTests, StrictTestCase):
 
     def setUp(self):
         self.engine = 'numba'

@@ -2,7 +2,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import functools
-import unittest
 import nose
 import warnings
 import os
@@ -13,11 +12,10 @@ from numpy.testing.decorators import slow
 import pandas
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
-import trackpy as tp 
+import trackpy as tp
+from trackpy.tests.common import StrictTestCase
 from pims import ImageSequence
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-tp.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
@@ -84,14 +82,14 @@ class FeatureSavingTester(object):
             os.remove(STORE_NAME)
 
 
-class TestPandasHDFStore(FeatureSavingTester, unittest.TestCase):
+class TestPandasHDFStore(FeatureSavingTester, StrictTestCase):
     def setUp(self):
         _skip_if_no_pytables()
         self.prepare()
         self.storage_class = tp.PandasHDFStore
 
 
-class TestPandasHDFStoreBig(FeatureSavingTester, unittest.TestCase):
+class TestPandasHDFStoreBig(FeatureSavingTester, StrictTestCase):
     def setUp(self):
         _skip_if_no_pytables()
         self.prepare()
@@ -145,7 +143,7 @@ class TestPandasHDFStoreBig(FeatureSavingTester, unittest.TestCase):
             os.remove(STORE_NAME)
 
 
-class TestPandasHDFStoreBigCompressed(FeatureSavingTester, unittest.TestCase):
+class TestPandasHDFStoreBigCompressed(FeatureSavingTester, StrictTestCase):
     def setUp(self):
         _skip_if_no_pytables()
         self.prepare()
@@ -154,7 +152,7 @@ class TestPandasHDFStoreBigCompressed(FeatureSavingTester, unittest.TestCase):
             fletcher32=True)
 
 
-class TestPandasHDFStoreSingleNode(FeatureSavingTester, unittest.TestCase):
+class TestPandasHDFStoreSingleNode(FeatureSavingTester, StrictTestCase):
     def setUp(self):
         _skip_if_no_pytables()
         self.prepare()
@@ -162,7 +160,7 @@ class TestPandasHDFStoreSingleNode(FeatureSavingTester, unittest.TestCase):
 
 
 class TestPandasHDFStoreSingleNodeCompressed(FeatureSavingTester,
-                                             unittest.TestCase):
+                                             StrictTestCase):
     def setUp(self):
         _skip_if_no_pytables()
         self.prepare()

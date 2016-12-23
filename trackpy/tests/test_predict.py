@@ -2,7 +2,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import functools
-import unittest
 
 import nose.tools
 import numpy as np
@@ -10,9 +9,8 @@ import pandas
 
 import trackpy
 from trackpy import predict
+from trackpy.tests.common import StrictTestCase
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-trackpy.utils.make_pandas_strict()
 
 def mkframe(n=1, Nside=3):
     xg, yg = np.mgrid[:Nside,:Nside]
@@ -33,7 +31,7 @@ def get_linked_lengths(frames, linker, *args, **kw):
 
 Nside_oversize = int(np.sqrt(100)) # Make subnet linker fail
 
-class BaselinePredictTests(unittest.TestCase):
+class BaselinePredictTests(StrictTestCase):
     def test_null_predict(self):
         """Make sure that a prediction of no motion does not interfere
         with normal tracking.
@@ -140,7 +138,7 @@ class VelocityPredictTests(object):
             assert np.all(d['particledf']['x_act'] == frames[i+1].x)
 
 
-class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
+class NearestVelocityPredictTests(VelocityPredictTests, StrictTestCase):
     def setUp(self):
         self.predict_class = predict.NearestVelocityPredict
         self.instrumented_predict_class = \
@@ -157,7 +155,7 @@ class NearestVelocityPredictTests(VelocityPredictTests, unittest.TestCase):
                                 pred.link_df_iter, 0.45)
         assert all(ll.values == 3)
 
-class DriftPredictTests(VelocityPredictTests, unittest.TestCase):
+class DriftPredictTests(VelocityPredictTests, StrictTestCase):
     def setUp(self):
         self.predict_class = predict.DriftPredict
         self.instrumented_predict_class = \
@@ -173,7 +171,7 @@ class DriftPredictTests(VelocityPredictTests, unittest.TestCase):
         assert all(ll.values == 3)
 
 
-class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
+class ChannelPredictXTests(VelocityPredictTests, StrictTestCase):
     def setUp(self):
         self.predict_class = functools.partial(
             predict.ChannelPredict,  3, minsamples=3)
@@ -200,13 +198,13 @@ class ChannelPredictXTests(VelocityPredictTests, unittest.TestCase):
         # with particle positions.
         pred = predict.ChannelPredict(1.1, minsamples=3,
                                       initial_profile_guess=initprof)
-        print(_shear_frame(1.))
+        # print(_shear_frame(1.))
         ll = get_linked_lengths((_shear_frame(0), _shear_frame(1.),
                                  _shear_frame(2), _shear_frame(3)),
                         pred.link_df_iter, 0.45)
         assert all(ll.values == 4)
 
-class ChannelPredictYTests(VelocityPredictTests, unittest.TestCase):
+class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
     def setUp(self):
         self.predict_class = functools.partial(
             predict.ChannelPredict, 3, 'y', minsamples=3)
@@ -222,4 +220,7 @@ class ChannelPredictYTests(VelocityPredictTests, unittest.TestCase):
             dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
 
 if __name__ == '__main__':
-    unittest.main()
+    import nose
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)
+

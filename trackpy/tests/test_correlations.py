@@ -1,20 +1,18 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-import unittest
 
 import nose
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_allclose
 from pandas import DataFrame, Series
+from trackpy.tests.common import StrictTestCase
 
 import trackpy as tp
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-tp.utils.make_pandas_strict()
 
-class TestCorrelations(unittest.TestCase):
+class TestCorrelations(StrictTestCase):
 
     def setUp(self):
         np.random.seed(0)

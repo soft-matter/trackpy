@@ -7,24 +7,16 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pandas import DataFrame, Series
-import unittest
+from pandas import DataFrame
 import nose
-from numpy.testing import assert_almost_equal, assert_allclose
-from numpy.testing.decorators import slow
-from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_almost_equal, assert_produces_warning)
+from pandas.util.testing import assert_frame_equal
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import PointND, Hash_table
 from trackpy.utils import is_pandas_since_016, pandas_sort, validate_tuple
+from trackpy.tests.common import StrictTestCase
 
-# suppress logging messages
-tp.quiet()
-
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-tp.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -353,7 +345,7 @@ class CommonTrackingTests(object):
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
 
-class TestOnce(unittest.TestCase):
+class TestOnce(StrictTestCase):
     # simple API tests that need only run on one engine
     def setUp(self):
         N = 5
@@ -677,7 +669,7 @@ class NumbaOnlyTests(SubnetNeededTests):
             assert 'diag_subnet_iterations' in self.diag.columns
 
 
-class TestKDTreeWithDropLink(CommonTrackingTests, unittest.TestCase):
+class TestKDTreeWithDropLink(CommonTrackingTests, StrictTestCase):
     def setUp(self):
         self.linker_opts = dict(link_strategy='drop',
                                 neighbor_strategy='KDTree')
@@ -701,13 +693,13 @@ class TestKDTreeWithDropLink(CommonTrackingTests, unittest.TestCase):
         assert set(with_subnet.particle) == set((0, 1, 2))
 
 
-class TestBTreeWithRecursiveLink(SubnetNeededTests, unittest.TestCase):
+class TestBTreeWithRecursiveLink(SubnetNeededTests, StrictTestCase):
     def setUp(self):
         self.linker_opts = dict(link_strategy='recursive',
                                 neighbor_strategy='BTree')
 
 
-class TestBTreeWithNonrecursiveLink(SubnetNeededTests, unittest.TestCase):
+class TestBTreeWithNonrecursiveLink(SubnetNeededTests, StrictTestCase):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive',
                                 neighbor_strategy='BTree')
@@ -717,7 +709,7 @@ class TestBTreeWithNonrecursiveLinkDiag(DiagnosticsTests, TestBTreeWithNonrecurs
     pass
 
 
-class TestKDTreeWithRecursiveLink(SubnetNeededTests, unittest.TestCase):
+class TestKDTreeWithRecursiveLink(SubnetNeededTests, StrictTestCase):
     def setUp(self):
         self.linker_opts = dict(link_strategy='recursive',
                                 neighbor_strategy='KDTree')
@@ -727,13 +719,13 @@ class TestKDTreeWithRecursiveLinkDiag(DiagnosticsTests, TestKDTreeWithRecursiveL
     pass
 
 
-class TestKDTreeWithNonrecursiveLink(SubnetNeededTests, unittest.TestCase):
+class TestKDTreeWithNonrecursiveLink(SubnetNeededTests, StrictTestCase):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive',
                                 neighbor_strategy='KDTree')
 
 
-class TestKDTreeWithNumbaLink(NumbaOnlyTests, unittest.TestCase):
+class TestKDTreeWithNumbaLink(NumbaOnlyTests, StrictTestCase):
     def setUp(self):
         _skip_if_no_numba()
         self.linker_opts = dict(link_strategy='numba',
@@ -744,7 +736,7 @@ class TestKDTreeWithNumbaLinkDiag(DiagnosticsTests, TestKDTreeWithNumbaLink):
     pass
 
 
-class TestBTreeWithNumbaLink(NumbaOnlyTests, unittest.TestCase):
+class TestBTreeWithNumbaLink(NumbaOnlyTests, StrictTestCase):
     def setUp(self):
         _skip_if_no_numba()
         self.linker_opts = dict(link_strategy='numba',

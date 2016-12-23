@@ -3,16 +3,16 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 import logging
-import unittest
 import warnings
 
 import pims
 import trackpy
 import trackpy.diag
+from trackpy.tests.common import StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
-class DiagTests(unittest.TestCase):
+class DiagTests(StrictTestCase):
     def test_performance_report(self):
         trackpy.diag.performance_report()
 
@@ -20,7 +20,7 @@ class DiagTests(unittest.TestCase):
         trackpy.diag.dependencies()
 
 
-class APITests(unittest.TestCase):
+class APITests(StrictTestCase):
     def test_pims_deprecation(self):
         """Using a pims class should work, but generate a warning.
 
@@ -39,7 +39,7 @@ class APITests(unittest.TestCase):
             assert len(w) == 1
 
 
-class LoggerTests(unittest.TestCase):
+class LoggerTests(StrictTestCase):
     def test_heirarchy(self):
         self.assertTrue(trackpy.linking.logger.parent is trackpy.logger)
         self.assertTrue(trackpy.feature.logger.parent is trackpy.logger)

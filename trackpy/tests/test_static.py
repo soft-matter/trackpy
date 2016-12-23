@@ -3,11 +3,12 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from trackpy.static import *
-import unittest
 import pandas
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_array_less
 from trackpy.static import cluster
+from trackpy.tests.common import StrictTestCase
+
 
 def _points_ring3D(r_edges, dr, n):
     """Returns x, y, z array of points comprising shells extending from r to
@@ -29,7 +30,7 @@ def _points_ring3D(r_edges, dr, n):
     return np.array(refx_all), np.array(refy_all), np.array(refz_all)
 
 
-class TestPairCorrelation(unittest.TestCase):
+class TestPairCorrelation(StrictTestCase):
 
 
     def test_correlation_2d_lattice(self):
@@ -183,7 +184,7 @@ class TestPairCorrelation(unittest.TestCase):
         return df
 
 
-class TestArcLenAndArea(unittest.TestCase):
+class TestArcLenAndArea(StrictTestCase):
     def setUp(self):
         self.N = 10  # some tests scale with N**2!
 
@@ -270,7 +271,7 @@ class TestArcLenAndArea(unittest.TestCase):
         assert_almost_equal(result[1:], result[:-1])
 
 
-class TestNormCircle(unittest.TestCase):
+class TestNormCircle(StrictTestCase):
     def setUp(self):
         self.R = np.random.random() * 100
         self.point = np.repeat([[self.R, self.R]], 4, axis=0)
@@ -314,7 +315,7 @@ class TestNormCircle(unittest.TestCase):
         assert_almost_equal(result, R*np.pi/2)
 
 
-class TestNormSphere(unittest.TestCase):
+class TestNormSphere(StrictTestCase):
     def setUp(self):
         self.R = np.random.random() * 100
         R = self.R
@@ -391,7 +392,7 @@ def pos_to_df(pos):
     return pd.DataFrame(pos_a, columns=pos_columns)
 
 
-class TestFindClusters(unittest.TestCase):
+class TestFindClusters(StrictTestCase):
     def setUp(self):
         self.N = 10
 

@@ -1,8 +1,10 @@
 from __future__ import division
 import nose
 from numpy.testing.utils import assert_allclose
-from trackpy.preprocessing import *
+from trackpy.preprocessing import (bandpass, legacy_bandpass,
+                                   legacy_bandpass_fftw)
 from trackpy.artificial import gen_nonoverlapping_locations, draw_spots
+from trackpy.tests.common import StrictTestCase
 
 
 pos = gen_nonoverlapping_locations((512, 512), 200, 20)

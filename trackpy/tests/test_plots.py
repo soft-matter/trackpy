@@ -1,5 +1,4 @@
 
-import unittest
 from numpy.testing.decorators import slow
 import os
 
@@ -10,13 +9,11 @@ from pandas import Series, DataFrame
 import trackpy
 from trackpy import plots
 from trackpy.utils import suppress_plotting, fit_powerlaw
-
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-trackpy.utils.make_pandas_strict()
+from trackpy.tests.common import StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
-class TestPlots(unittest.TestCase):
+class TestPlots(StrictTestCase):
     def setUp(self):
         self.sparse = pd.read_pickle(os.path.join(path, 'data', 
                                            'sparse_trajectories.df'))
