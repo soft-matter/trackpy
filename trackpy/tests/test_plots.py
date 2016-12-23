@@ -15,6 +15,8 @@ path, _ = os.path.split(os.path.abspath(__file__))
 
 class TestPlots(StrictTestCase):
     def setUp(self):
+        # older matplotlib may raise an invalid error
+        np.seterr(invalid='ignore')
         self.sparse = pd.read_pickle(os.path.join(path, 'data', 
                                            'sparse_trajectories.df'))
 
