@@ -170,7 +170,8 @@ def invert_image(raw_image, max_value=None):
 def convert_to_int(image, dtype='uint8'):
     """Convert the image to integer and normalize if applicable.
 
-    Does nothing if the image is already of integer type.
+    Clips all negative values to 0. Does nothing if the image is already
+    of integer type.
 
     Parameters
     ----------
@@ -187,7 +188,11 @@ def convert_to_int(image, dtype='uint8'):
         # Do nothing, image is already of integer type.
         return 1., image
     max_value = np.iinfo(dtype).max
-    scale_factor = max_value / image.max()
+    image_max = image.max()
+    if image_max == 0:  # protect against division by zero
+        scale_factor = 1.
+    else:
+        scale_factor = max_value / image_max
     return scale_factor, (scale_factor * image.clip(min=0.)).astype(dtype)
 
 
