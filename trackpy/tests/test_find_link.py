@@ -439,6 +439,9 @@ class FindLinkSpecialCases(StrictTestCase):
         _kwargs.update(kwargs)
         if remove is not None:
             callback_coords = f.loc[f['frame'] == 1, ['y', 'x']].values
+            remove = np.array(remove, dtype=np.int)
+            if np.any(remove < 0) or np.any(remove > len(callback_coords)):
+                raise RuntimeError('Invalid test: `remove` is out of bounds.')
             callback_coords = np.delete(callback_coords, remove, axis=0)
             def callback(image, coords, **unused_kwargs):
                 if image.frame_no == 1:
@@ -615,11 +618,6 @@ class FindLinkSpecialCases(StrictTestCase):
                                  'particle': [0, 1, 2, 3, 3]})
         actual = self.link(expected, shape=shape, remove=[0])
         assert_traj_equal(actual, expected)
-
-        for n in range(5):
-            for remove in itertools.combinations(range(4), n):
-                actual = self.link(expected, shape=shape, remove=remove)
-                assert_traj_equal(actual, expected)
 
     def test_multiple_lost_subnet(self):
         shape = (24, 48)
