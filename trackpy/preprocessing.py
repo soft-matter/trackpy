@@ -9,6 +9,7 @@ from scipy.ndimage.fourier import fourier_gaussian
 
 from .utils import validate_tuple
 from .masks import gaussian_kernel
+from pims import pipeline
 
 
 def lowpass(image, sigma=1, truncate=4):
@@ -131,7 +132,7 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
     result -= background
     return np.where(result >= threshold, result, 0)
 
-
+@pipeline
 def invert_image(raw_image, max_value=None):
     """Invert the image.
 
