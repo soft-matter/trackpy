@@ -389,19 +389,20 @@ class FitFunctions(object):
     def compute_bounds(self, bounds, params, groups=None):
         abs, diff, reldiff = bounds
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # compute the bounds: take the smallest bound possible
-            bound_low = np.nanmax([params - diff[0],          # abs. diff. bound
-                                   params / reldiff[0]],      # rel. diff. bound
-                                  axis=0)
-            # do the absolute bound seperately for proper array broadcasting
-            bound_low = np.fmax(bound_low, abs[0])
-            bound_low[np.isnan(bound_low)] = -np.inf
-            bound_high = np.nanmin([params + diff[1],
-                                    params * reldiff[1]], axis=0)
-            bound_high = np.fmin(bound_high, abs[1])
-            bound_high[np.isnan(bound_high)] = np.inf
+        with np.errstate(invalid='ignore'):  # for smooth comparison with np.nan
+            with warnings.catch_warnings():  # for nanmax of only-NaN slice
+                # compute the bounds: take the smallest bound possible
+                warnings.simplefilter("ignore", RuntimeWarning)
+                bound_low = np.nanmax([params - diff[0],      # abs. diff. bound
+                                       params / reldiff[0]],  # rel. diff. bound
+                                      axis=0)
+                # do the absolute bound seperately for proper array broadcasting
+                bound_low = np.fmax(bound_low, abs[0])
+                bound_low[np.isnan(bound_low)] = -np.inf
+                bound_high = np.nanmin([params + diff[1],
+                                        params * reldiff[1]], axis=0)
+                bound_high = np.fmin(bound_high, abs[1])
+                bound_high[np.isnan(bound_high)] = np.inf
         # transform to vector so that it aligns with the parameter vector
         # when parameters are concatenated into one value, take the bound
         # as broad as possible (using min and max operations)
