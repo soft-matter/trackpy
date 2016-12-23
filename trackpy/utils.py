@@ -375,3 +375,13 @@ def catch_keyboard_interrupt(gen, logger=None):
             running = False
         else:
             pass
+
+EXPONENT_EPS_FLOAT64 = np.log(np.finfo(np.float64).eps)
+def safe_exp(arr):
+    # Calculate exponent, dealing with NaN and Underflow warnings
+    result = np.zeros_like(arr)
+    result[np.isnan(arr)] = np.nan  # propagate NaNs
+    with np.errstate(invalid='ignore'):  # ignore comparison with NaN
+        mask = arr > EXPONENT_EPS_FLOAT64
+    result[mask] = np.exp(arr[mask])
+    return result

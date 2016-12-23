@@ -8,9 +8,8 @@ from scipy.optimize import minimize
 
 from ..static import cluster
 from ..masks import slice_image
-from ..utils import (guess_pos_columns, validate_tuple, is_isotropic,
-                     ReaderCached, catch_keyboard_interrupt,
-                     default_pos_columns, default_size_columns)
+from ..utils import (guess_pos_columns, validate_tuple, is_isotropic, safe_exp,
+                     ReaderCached, default_pos_columns, default_size_columns)
 from .center_of_mass import refine_com
 
 try:
@@ -1094,11 +1093,11 @@ def dr2_anisotropic_3d(mesh, p):
 
 
 def gauss_fun(r2, p, ndim):
-    return np.exp(-0.5*ndim*r2)
+    return safe_exp(-0.5*ndim*r2)
 
 
 def gauss_dfun(r2, p, ndim):
-    func = np.exp(-0.5*ndim*r2)
+    func = safe_exp(-0.5*ndim*r2)
     return func, [-0.5*ndim*func]
 
 
@@ -1110,22 +1109,22 @@ def disc_fun(r2, p, ndim):
     elif disc_size >= 1.:
         disc_size = 0.999
     mask = r2 > disc_size**2
-    result[mask] = np.exp(((r2[mask]**0.5 - disc_size)/(1 - disc_size))**2 *
-                          ndim/-2)
+    result[mask] = safe_exp(((r2[mask]**0.5 - disc_size)/(1 - disc_size))**2 *
+                            ndim/-2)
     return result
 
 
 def ring_fun(r2, p, ndim):
     t = p[0]
     r = r2**0.5
-    return np.exp(-0.5 * ndim * ((r - 1 + t)/t)**2)
+    return safe_exp(-0.5 * ndim * ((r - 1 + t)/t)**2)
 
 
 def ring_dfun(r2, p, ndim):
     t = p[0]
     r = r2**0.5
     num = r - 1 + t
-    func = np.exp(-0.5 * ndim * (num/t)**2)
+    func = safe_exp(-0.5 * ndim * (num/t)**2)
     return func, [func * (-0.5*ndim / (r*t**2)) * num,
                   func * ndim * (num**2/t**3 - num / t**2)]
 
