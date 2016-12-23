@@ -44,7 +44,7 @@ def coords_from_df(df, pos_columns, t_column):
         yield frame[pos_columns].values
 
 
-def link_simple_iter(coords_iter, search_range, memory=0):
+def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
     """Link an iterable of per-frame coordinates into trajectories.
 
     Parameters
@@ -52,6 +52,7 @@ def link_simple_iter(coords_iter, search_range, memory=0):
     coords_iter : iterable of 2d numpy arrays
     search_range : float or tuple
     memory : integer
+    predictor : predictor function; see 'predict' module
 
     Returns
     -------
@@ -65,7 +66,7 @@ def link_simple_iter(coords_iter, search_range, memory=0):
     search_range = validate_tuple(search_range, ndim)
 
     # initialize the linker and yield the particle ids of the first frame
-    linker = Linker(search_range, memory)
+    linker = Linker(search_range, memory, predictor=predictor)
     linker.init_level(coords, t=0)
     yield 0, linker.particle_ids
 
@@ -239,7 +240,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
 
 def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
                    percentile=64, minmass=0, proc_func=None, before_link=None,
-                   after_link=None):
+                   after_link=None, predictor=None):
 
     shape = reader[0].shape
     ndim = len(shape)
@@ -272,7 +273,7 @@ def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
                              'separation or smoothing_size.')
 
     linker = FindLinker(search_range, separation, diameter, memory, minmass,
-                        percentile)
+                        percentile, predictor=predictor)
 
     reader_iter = iter(reader)
     image = next(reader_iter)
@@ -591,8 +592,9 @@ class Linker(object):
     # Maximum number of candidates per particle
     MAX_NEIGHBORS = 10
 
-    def __init__(self, search_range, memory=0):
+    def __init__(self, search_range, memory=0, predictor=None):
         self.memory = memory
+        self.predictor = predictor
         self.track_cls = TrackUnstored
         self.subnet_linker = recursive_linker_obj
         self.max_subnet_size = self.MAX_SUB_NET_SIZE
@@ -616,6 +618,12 @@ class Linker(object):
             m.track.incr_memory()
             # re-create the forward_cands list
             m.forward_cands = []
+
+        # If prediction is enabled, we need to update the positions in prev_hash
+        # to where we think they'll be in the frame corresponding to 'coords'.
+        if self.predictor is not None:
+            targeted_predictor = functools.partial(self.predictor, t)
+            prev_hash.rebuild(coord_map=targeted_predictor) # Rewrite positions
 
         self.hash = TreeFinder(_points_from_arr(coords, t, extra_data),
                                self.search_range)
@@ -764,6 +772,7 @@ class FindLinker(Linker):
     percentile : number, optional
         Precentile threshold used in local maxima finding. Default 64.
 
+
     Methods
     -------
     next_level(coords, t, image, extra_data)
@@ -778,7 +787,7 @@ class FindLinker(Linker):
     Linker
     """
     def __init__(self, search_range, separation, diameter=None, memory=0,
-                 minmass=0, percentile=64):
+                 minmass=0, percentile=64, predictor=None):
         super(FindLinker, self).__init__(search_range, memory=memory)
         if diameter is None:
             diameter = separation
@@ -786,6 +795,7 @@ class FindLinker(Linker):
         self.separation = separation
         self.minmass = minmass  # in masked image
         self.percentile = percentile
+        self.predictor = predictor
 
         # For grey dilation: find the largest box that fits inside the ellipse
         # given by separation

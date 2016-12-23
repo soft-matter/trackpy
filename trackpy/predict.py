@@ -41,17 +41,27 @@ class NullPredict(object):
 
     (Equivalent to standard behavior of linker.)
     """
-    def link_df_iter(self, *args, **kw):
-        """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
+    def wrap(self, linking_fcn, *args, **kw):
+        """Wrapper for an arbitrary linking function that causes it to use this predictor.
+
+        The linking function must accept a 'predictor' keyword argument.
+
+        It must return an iterator of DataFrames, emitting a DataFrame
+        each time a frame is linked.
+        """
         if getattr(self, '_already_linked', False):
             warn('Perform tracking with a fresh predictor instance to avoid surprises.')
         self._already_linked = True
         kw['predictor'] = self.predict
         self.pos_columns = kw.get('pos_columns', ['x', 'y'])
         self.t_column = kw.get('t_column', 'frame')
-        for frame in linking.link_df_iter(*args, **kw):
+        for frame in linking_fcn(*args, **kw):
             self.observe(frame)
             yield frame
+
+    def link_df_iter(self, *args, **kw):
+        """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
+        return self.wrap(linking.link_df_iter, *args, **kw)
 
     def link_df(self, *args, **kw):
         """Wrapper for linking.link_df_iter() that causes it to use this predictor.
@@ -310,8 +320,8 @@ def instrumented(limit=None):
 
     limit : maximum number of recent frames to retain. If None, keep all.
 
-    Examples
-    --------
+    Example
+    -------
 
     >>> pred = instrumented()(ChannelPredict)(50, flow_axis='y')
     >>> pred.link_df_iter(...)
