@@ -812,7 +812,7 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
                              "per-trajectory optimization!")
 
     last_frame = None  # just for logging
-    for _, f_iter in catch_keyboard_interrupt(iterable, logger=logger):
+    for _, f_iter in iterable:
         # extract the initial parameters from the dataframe
         params = f_iter[ff.params].values
         if id_names is None:
