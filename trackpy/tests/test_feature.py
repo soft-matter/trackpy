@@ -101,7 +101,8 @@ class OldMinmass(StrictTestCase):
 
         new_minmass = tp.minmass_version_change(im, old_minmass, invert=True,
                                                 smoothing_size=self.tp_diameter)
-        f = tp.locate(im, self.tp_diameter, minmass=new_minmass, invert=True)
+
+        f = tp.locate(invert_image(im), self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
 
@@ -119,12 +120,12 @@ class CommonFeatureIdentificationTests(object):
         # simple "smoke" test to see if numba explodes
         dummy_image = np.random.randint(0, 100, SHAPE).astype(np.uint8)
         tp.locate(dummy_image, 5, engine=self.engine)
-        tp.locate(dummy_image, 5, invert=True, engine=self.engine)
+        tp.locate(invert_image(dummy_image), 5, engine=self.engine)
 
         # Check float types
         dummy_image = np.random.rand(*SHAPE)
         tp.locate(dummy_image, 5, engine=self.engine)
-        tp.locate(dummy_image, 5, invert=True, engine=self.engine)
+        tp.locate(invert_image(dummy_image), 5, engine=self.engine)
 
     def test_black_image(self):
         self.check_skip()

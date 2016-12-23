@@ -19,7 +19,7 @@ from .linking import HashTable, TreeFinder, Point, PointND, \
 from .filtering import filter_stubs, filter_clusters, filter
 from .feature import locate, batch, local_maxima, \
            estimate_mass, estimate_size, minmass_version_change
-from .preprocessing import bandpass
+from .preprocessing import bandpass, invert_image
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
 from .find_link import link_simple, link_simple_iter, find_link, find_link_iter

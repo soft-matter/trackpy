@@ -44,10 +44,10 @@ def _skip_if_no_pytables():
 class FeatureSavingTester(object):
     def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
-        self.v = ImageSequence(os.path.join(directory, '*.png'))
+        self.v = tp.invert_image(ImageSequence(os.path.join(directory, '*.png')))
         # mass depends on pixel dtype, which differs per reader
         minmass = self.v[0].max() * 2
-        self.PARAMS = {'diameter': 11, 'minmass': minmass, 'invert': True}
+        self.PARAMS = {'diameter': 11, 'minmass': minmass}
         self.expected = tp.batch(self.v[[0, 1]], engine='python', meta=False,
                                  **self.PARAMS)
 
