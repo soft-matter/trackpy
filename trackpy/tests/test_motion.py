@@ -47,7 +47,7 @@ class TestDrift(StrictTestCase):
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
-        self.dead_still.sort_index(by=['frame', 'particle'], inplace=True)
+        pandas_sort(self.dead_still, ['frame', 'particle'], inplace=True)
 
         P = 1000 # particles
         A = 0.00001 # step amplitude
