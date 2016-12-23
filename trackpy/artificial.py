@@ -166,7 +166,7 @@ def draw_spots(shape, positions, size, noise_level=0, bitdepth=8, **kwargs):
     else:
         raise ValueError('Bitdepth should be <= 32')
     np.random.seed(0)
-    image = np.zeros(shape, dtype=internaldtype)
+    image = np.zeros([int(s) for s in shape], dtype=internaldtype)
     if noise_level > 0:
         image += np.random.randint(0, noise_level + 1,
                                    shape).astype(internaldtype)

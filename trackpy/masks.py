@@ -118,7 +118,8 @@ def get_slice(coords, shape, radius):
     for i, sh, low, up in zip(range(ndim), shape, lower, upper):
         lower_bound_trunc = max(0, low)
         upper_bound_trunc = min(sh, up)
-        slices[i] = slice(lower_bound_trunc, upper_bound_trunc)
+        slices[i] = slice(int(round(lower_bound_trunc)),
+                          int(round(upper_bound_trunc)))
         origin[i] = lower_bound_trunc
     return slices, origin
 
