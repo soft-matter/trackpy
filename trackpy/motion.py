@@ -99,7 +99,8 @@ def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
 
     result = pd.DataFrame(_msd_iter(pos.values, lagtimes),
                           columns=result_columns, index=lagtimes)
-    result['msd'] = result[result_columns[-len(pos_columns):]].sum(1)
+    result['msd'] = result[result_columns[len(pos_columns):
+                                          2*len(pos_columns)]].sum(1)
     if detail:
         # effective number of measurements
         # approximately corrected with number of gaps
@@ -205,13 +206,22 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     fps : frames per second
     max_lagtime : intervals of frames out to which MSD is computed
         Default: 100
-    detail : Set to True to include <x>, <y>, <x^2>, <y^2>. Returns
-        only <r^2> by default.
+    detail : Set to True to include <x>, <y>, <x^2>, <y^2>,
+        N, and their biased weighted standard deviations in
+        the mean, <x>_std, <y>_std, <x^2>_std, <y^2>_std,
+        and msd_std.  Returns only <r^2> by default. If
+        pandas is out-of-date, the std columns may not be
+        calculated.
+    pos_columns : The names of the pos_columns in traj. If
+        None, pos_columns will be set to ['x','y'].
 
     Returns
     -------
     Series[msd, index=t] or, if detail=True,
-    DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
+
+    DataFrame([<x>, <y>, <x^2>, <y^2>, msd, N, <x>_std,
+               <y>_std, <x^2>_std, <y^2>_std, msd_std],
+               index=lagt)
 
     Notes
     -----
@@ -229,7 +239,24 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     # Here, rebuild it from the frame index.
     if not detail:
         return results.set_index('lagt')['msd']
-    return results
+
+    try:
+        # Calculation of biased weighted standard deviation
+        numerator = ((msds.subtract(results))**2).mul(msds['N'], axis=0).sum(level=1)
+        denominator = msds['N'].sum(level=1)
+        denominator -= 1    # Bessel's correction
+        variance = numerator.div(denominator, axis=0)
+        variance = variance.loc[:,:'msd']
+        std = np.sqrt(variance)
+        std.columns = std.columns + '_std'
+    
+        return results.join(std).set_index('lagt')
+
+    except TypeError:
+        # This error may arise if pandas is out of date:
+        #     Pandas 0.13.1 throws a TypeError.
+        #     Pandas 0.14.1 does not.
+        return results.set_index('lagt')
 
 
 def compute_drift(traj, smoothing=0, pos_columns=None):
