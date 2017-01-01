@@ -20,7 +20,7 @@ def mkframe(n=1, Nside=3):
             dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
 
 def link(frames, linker, *args, **kw):
-    defaults = {'neighbor_strategy': 'KDTree'}
+    defaults = {}
     defaults.update(kw)
     return pandas.concat(linker(frames,  *args, **defaults),
                        ignore_index=True)
@@ -31,7 +31,24 @@ def get_linked_lengths(frames, linker, *args, **kw):
 
 Nside_oversize = int(np.sqrt(100)) # Make subnet linker fail
 
-class BaselinePredictTests(StrictTestCase):
+class LinkWithPrediction(object):
+    def get_linker_iter(self, pred):
+        """Return the function that will perform linking with predictor 'pred'.
+        This lets us test multiple linking implementations.
+        """
+        return pred.link_df_iter
+
+    def get_linker(self, pred):
+        """Return the function that will perform linking with predictor 'pred'.
+        This lets us test multiple linking implementations.
+        """
+        return pred.link_df
+
+    def get_unwrapped_linker(self):
+        return trackpy.link_df_iter
+
+
+class BaselinePredictTests(LinkWithPrediction, StrictTestCase):
     def test_null_predict(self):
         """Make sure that a prediction of no motion does not interfere
         with normal tracking.
@@ -39,12 +56,13 @@ class BaselinePredictTests(StrictTestCase):
         # link_df_iter
         pred = predict.NullPredict()
         ll = get_linked_lengths((mkframe(0), mkframe(0.25)),
-                                pred.link_df_iter, 0.45)
+                                self.get_linker_iter(pred), 0.45)
         assert all(ll.values == 2)
 
         # link_df
         pred = predict.NullPredict()
-        ll_df = pred.link_df(pandas.concat((mkframe(0), mkframe(0.25))), 0.45)
+        ll_df = self.get_linker(pred)(pandas.concat((mkframe(0),
+                                                     mkframe(0.25))), 0.45)
         assert all(ll_df.groupby('particle').x.count().values == 2)
 
         # Make sure that keyword options are handled correctly
@@ -52,7 +70,8 @@ class BaselinePredictTests(StrictTestCase):
         features = pandas.concat((mkframe(0), mkframe(0.25)))
         features.rename(columns=lambda n: n + '_', inplace=True)
         pred = predict.NullPredict()
-        ll_df = pred.link_df(features, 0.45, t_column='frame_', pos_columns=['x_', 'y_'])
+        ll_df = self.get_linker(pred)(features, 0.45, t_column='frame_',
+                                      pos_columns=['x_', 'y_'])
         assert all(ll_df.groupby('particle').x_.count().values == 2)
 
     def test_predict_decorator(self):
@@ -60,14 +79,14 @@ class BaselinePredictTests(StrictTestCase):
         with normal tracking.
         """
         pred = predict.null_predict
-        pred_link = functools.partial(trackpy.link_df_iter, predictor=pred)
+        pred_link = functools.partial(self.get_unwrapped_linker(), predictor=pred)
         ll = get_linked_lengths((mkframe(0), mkframe(0.25)),
                                 pred_link, 0.45)
         assert all(ll.values == 2)
 
     def test_fail_predict(self):
         ll = get_linked_lengths((mkframe(0), mkframe(0.25), mkframe(0.65)),
-                                trackpy.link_df_iter, 0.45)
+                                self.get_unwrapped_linker(), 0.45)
         assert not all(ll.values == 2)
 
     @nose.tools.raises(trackpy.SubnetOversizeException)
@@ -75,13 +94,13 @@ class BaselinePredictTests(StrictTestCase):
         Nside = Nside_oversize
         ll = get_linked_lengths((mkframe(0, Nside),
                                  mkframe(0.25, Nside),
-                                 mkframe(0.75, Nside)), trackpy.link_df_iter, 1)
+                                 mkframe(0.75, Nside)), self.get_unwrapped_linker(), 1)
 
-class VelocityPredictTests(object):
+class VelocityPredictTests(LinkWithPrediction):
     def test_simple_predict(self):
         pred = self.predict_class()
         ll = get_linked_lengths((self.mkframe(0), self.mkframe(0.25), self.mkframe(0.65)),
-                                pred.link_df_iter, 0.45)
+                                self.get_linker_iter(pred), 0.45)
         assert all(ll.values == 3)
 
     def test_big_predict(self):
@@ -89,7 +108,7 @@ class VelocityPredictTests(object):
         pred = self.predict_class()
         ll = get_linked_lengths((self.mkframe(0, Nside), self.mkframe(0.25, Nside),
                                  self.mkframe(0.75, Nside)),
-                                pred.link_df_iter, 0.45)
+                                self.get_linker_iter(pred), 0.45)
         assert all(ll.values == 3)
 
     def test_predict_newparticles(self):
@@ -97,27 +116,27 @@ class VelocityPredictTests(object):
         pred = self.predict_class()
         ll = get_linked_lengths((self.mkframe(0), self.mkframe(0.25), self.mkframe(0.65, 4),
                                 self.mkframe(1.05, 4)),
-                                pred.link_df_iter, 0.45)
+                                self.get_linker_iter(pred), 0.45)
         assert not any(ll.values == 1)
 
     def test_predict_memory(self):
         pred = self.predict_class()
         frames = [self.mkframe(0), self.mkframe(0.25), self.mkframe(0.65),
                   self.mkframe(1.05), self.mkframe(1.45)]
-        ll = get_linked_lengths(frames, pred.link_df_iter, 0.45)
+        ll = get_linked_lengths(frames, self.get_linker_iter(pred), 0.45)
         assert all(ll.values == len(frames))
 
         # Knock out a particle. Make sure tracking fails.
         frames[3].x[5] = np.nan
         frames[3] = frames[3].dropna()
         pred = self.predict_class()
-        tr = link(frames, pred.link_df_iter, 0.45)
+        tr = link(frames, self.get_linker_iter(pred), 0.45)
         starts = tr.groupby('particle').frame.min()
         ends = tr.groupby('particle').frame.max()
         assert not all(ends - starts == 1.45)
 
         pred = self.predict_class()
-        tr = link(frames, pred.link_df_iter, 0.45, memory=1)
+        tr = link(frames, self.get_linker_iter(pred), 0.45, memory=1)
         starts = tr.groupby('particle').frame.min()
         ends = tr.groupby('particle').frame.max()
         assert all(ends - starts == 1.45), 'Prediction with memory fails.'
@@ -128,7 +147,7 @@ class VelocityPredictTests(object):
         Nside = Nside_oversize
         frames = (self.mkframe(0, Nside), self.mkframe(0.25, Nside),
                   self.mkframe(0.75, Nside))
-        ll = get_linked_lengths(frames, pred.link_df_iter, 0.45)
+        ll = get_linked_lengths(frames, self.get_linker_iter(pred), 0.45)
         assert all(ll.values == 3)
         diags = pred.dump()
         assert len(diags) == 2
@@ -152,7 +171,7 @@ class NearestVelocityPredictTests(VelocityPredictTests, StrictTestCase):
             initial_guess_vels=[(1., -1.)])
         ll = get_linked_lengths((self.mkframe(0), self.mkframe(1.),
                                  self.mkframe(2.)),
-                                pred.link_df_iter, 0.45)
+                                self.get_linker_iter(pred), 0.45)
         assert all(ll.values == 3)
 
 class DriftPredictTests(VelocityPredictTests, StrictTestCase):
@@ -167,7 +186,7 @@ class DriftPredictTests(VelocityPredictTests, StrictTestCase):
         pred = self.predict_class(initial_guess=(1., -1.))
         ll = get_linked_lengths((self.mkframe(0), self.mkframe(1.),
                                  self.mkframe(2.)),
-                                pred.link_df_iter, 0.45)
+                                self.get_linker_iter(pred), 0.45)
         assert all(ll.values == 3)
 
 
@@ -201,7 +220,7 @@ class ChannelPredictXTests(VelocityPredictTests, StrictTestCase):
         # print(_shear_frame(1.))
         ll = get_linked_lengths((_shear_frame(0), _shear_frame(1.),
                                  _shear_frame(2), _shear_frame(3)),
-                        pred.link_df_iter, 0.45)
+                        self.get_linker_iter(pred), 0.45)
         assert all(ll.values == 4)
 
 class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
@@ -218,6 +237,42 @@ class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
         dy = (n - 1) * np.sqrt(2)
         return pandas.DataFrame(
             dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
+
+
+## find_link prediction tests
+# Define a mixin that converts a normal prediction test class into one
+# that uses find_link.
+
+class FindLinkPredictTest(object):
+    def get_linker_iter(self, pred):
+        return functools.partial(pred.wrap, trackpy.link_simple_df_iter)
+
+    def get_linker(self, pred):
+        return functools.partial(pred.wrap_single, trackpy.link_simple_df_iter)
+
+    def get_unwrapped_linker(self):
+        return trackpy.link_simple_df_iter
+
+
+class FLBaselinePredictTests(FindLinkPredictTest, BaselinePredictTests):
+    pass
+
+
+class FLNearestVelocityPredictTests(FindLinkPredictTest, NearestVelocityPredictTests):
+    pass
+
+
+class FLDriftPredictTests(FindLinkPredictTest, DriftPredictTests):
+    pass
+
+
+class FLChannelPredictXTests(FindLinkPredictTest, ChannelPredictXTests):
+    pass
+
+
+class FLChannelPredictYTests(FindLinkPredictTest, ChannelPredictYTests):
+    pass
+
 
 if __name__ == '__main__':
     import nose
