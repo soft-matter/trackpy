@@ -46,8 +46,9 @@ class NullPredict(object):
 
         The linking function must accept a 'predictor' keyword argument.
 
-        It must return an iterator of DataFrames, emitting a DataFrame
-        each time a frame is linked.
+        The linking function must accept a 'predictor' keyword argument. It
+        must return an iterator of DataFrames, emitting a DataFrame each time
+        a frame is linked.
         """
         if getattr(self, '_already_linked', False):
             warn('Perform tracking with a fresh predictor instance to avoid surprises.')
@@ -58,6 +59,27 @@ class NullPredict(object):
         for frame in linking_fcn(*args, **kw):
             self.observe(frame)
             yield frame
+
+    def wrap_single(self, linking_fcn, *args, **kw):
+        """Wrapper for an arbitrary linking function that causes it to use this predictor.
+
+        This wrapper causes the linker to accept and return a single DataFrame
+        with coordinates for all frames. Because it wraps functions that use
+        iterators of DataFrames, it should not necessarily be considered a drop-in replacement
+        for another single-DataFrame linking function.
+
+        The linking function must accept a 'predictor' keyword argument. It
+        must return an iterator of DataFrames, emitting a DataFrame each time
+        a frame is linked.
+        """
+        # TODO: Properly handle empty frames by adopting more sophisticated
+        # logic in e.g. linking._gen_levels_df()
+        args = list(args)
+        features = args.pop(0)
+        if kw.get('t_column') is None:
+            kw['t_column'] = 'frame'
+        features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
+        return pd.concat(linking_fcn(*([features_iter, ] + args), **kw))
 
     def link_df_iter(self, *args, **kw):
         """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
@@ -71,12 +93,7 @@ class NullPredict(object):
         Note that this does not wrap linking.link_df(), and does not accept the same
         options as that function. However in most cases it is functionally equivalent.
         """
-        args = list(args)
-        features = args.pop(0)
-        if kw.get('t_column') is None:
-            kw['t_column'] = 'frame'
-        features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
-        return pd.concat(self.link_df_iter(*([features_iter, ] + args), **kw))
+        return self.wrap_single(linking.link_df_iter, *args, **kw)
 
     def observe(self, frame):
         """Examine the latest output of the linker, to update our predictions."""
