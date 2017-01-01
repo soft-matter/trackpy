@@ -22,7 +22,7 @@ from .feature import locate, batch, local_maxima, \
 from .preprocessing import bandpass, invert_image
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
-from .find_link import link_simple, link_simple_iter, find_link, find_link_iter
+from .find_link import link_simple, link_simple_iter, link_simple_df_iter, find_link, find_link_iter
 from .refine import refine_com, refine_leastsq
 from . import predict
 from . import utils

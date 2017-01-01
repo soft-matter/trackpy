@@ -4,7 +4,7 @@ import six
 from six.moves import range
 import warnings
 import logging
-import itertools
+import itertools, functools
 
 import numpy as np
 import pandas as pd
@@ -78,7 +78,7 @@ def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
 
 
 def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
-    """Link an DataFrame of coordinates into trajectories.
+    """Link a DataFrame of coordinates into trajectories.
 
     Parameters
     ----------
@@ -105,6 +105,45 @@ def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
 
     f['particle'] = ids
     return f
+
+
+def link_simple_df_iter(f_iter, search_range, memory=0,
+                        pos_columns=None, t_column='frame',
+                        predictor=None):
+    """Link an iterable of DataFrames into trajectories.
+
+    Parameters
+    ----------
+    f_iter : iterable of DataFrames with feature positions, frame indices
+    search_range : float or tuple
+    memory : integer, optional
+    pos_columns : list of str, optional
+    t_column : str, optional
+    predictor : predictor function; see 'predict' module
+
+    Yields
+    -------
+    DataFrames with added column 'particle' containing trajectory labels
+    """
+    if pos_columns is None:
+        # Get info about the first frame without processing it
+        f_iter, f_iter_dummy = itertools.tee(f_iter)
+        f0 = f_iter_dummy.next()
+        pos_columns = guess_pos_columns(f0)
+        del f_iter_dummy, f0
+    ndim = len(pos_columns)
+    search_range = validate_tuple(search_range, ndim)
+
+    f_iter, f_coords_iter = itertools.tee(f_iter)
+    coords_iter = (df[pos_columns].values for df in f_coords_iter)
+
+    ids_iter = (_ids for _i, _ids in
+        link_simple_iter(coords_iter, search_range, memory,
+                         predictor=predictor))
+    for df, ids in itertools.izip(f_iter, ids_iter):
+        df_linked = df.copy()
+        df_linked['particle'] = ids
+        yield df_linked
 
 
 def find_link(reader, search_range, separation, diameter=None, memory=0,
@@ -621,7 +660,7 @@ class Linker(object):
 
         # If prediction is enabled, we need to update the positions in prev_hash
         # to where we think they'll be in the frame corresponding to 'coords'.
-        if self.predictor is not None:
+        if prev_hash is not None and self.predictor is not None:
             targeted_predictor = functools.partial(self.predictor, t)
             prev_hash.rebuild(coord_map=targeted_predictor) # Rewrite positions
 
