@@ -230,8 +230,7 @@ def make_pandas_strict():
 
     Does nothing for Pandas versions before 0.13.0.
     """
-    major, minor, micro = pd.__version__.split('.')
-    if major == '0' and int(minor) >= 13:
+    if LooseVersion(pd.__version__) >= LooseVersion('0.13.0'):
         pd.set_option('mode.chained_assignment', 'raise')
 
 
