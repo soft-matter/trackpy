@@ -24,6 +24,7 @@ from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
 from .find_link import link_simple, link_simple_iter, find_link, find_link_iter
 from .refine import refine_com, refine_leastsq
+from . import predict
 from . import utils
 from . import artificial
 from .utils import handle_logging, ignore_logging, quiet
