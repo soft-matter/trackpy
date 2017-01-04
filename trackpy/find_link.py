@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-from six.moves import range
+from six.moves import range, zip
 import warnings
 import logging
 import itertools, functools
@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def coords_from_df(df, pos_columns, t_column):
-    """A generator that returns ndarrays of coords from a DataFrame.
+    """A generator that returns ndarrays of coords from a DataFrame. Assumes
+    t_column to be of integer type. Float-typed integers are also accepted.
 
     Empty frames will be returned as empty arrays of shape (0, ndim)."""
     ndim = len(pos_columns)
@@ -32,16 +33,30 @@ def coords_from_df(df, pos_columns, t_column):
 
     # get the first frame to learn first frame number
     cur_frame, frame = next(grouped)
-    next_frame = int(cur_frame) + 1
-    yield frame[pos_columns].values
+    cur_frame = int(cur_frame)
+    yield cur_frame, frame[pos_columns].values
+    cur_frame += 1
 
     for frame_no, frame in grouped:
-        while next_frame < int(frame_no):
-            next_frame += 1
-            yield np.empty((0, ndim))
+        frame_no = int(frame_no)
+        while cur_frame < frame_no:
+            yield cur_frame, np.empty((0, ndim))
+            cur_frame += 1
 
-        next_frame += 1
-        yield frame[pos_columns].values
+        yield cur_frame, frame[pos_columns].values
+        cur_frame += 1
+
+
+def coords_from_df_iter(df_iter, pos_columns, t_column):
+    """A generator that returns ndarrays of coords from a generator of
+    DataFrames. Also returns the first value of the t_column."""
+    ndim = len(pos_columns)
+
+    for df in df_iter:
+        if len(df) == 0:
+            yield None, np.empty((0, ndim))
+        else:
+            yield df[t_column].iloc[0], df[pos_columns].values
 
 
 def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
@@ -49,7 +64,7 @@ def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
 
     Parameters
     ----------
-    coords_iter : iterable of 2d numpy arrays
+    coords_iter : iterable or enumerated iterable of 2d numpy arrays
     search_range : float or tuple
     memory : integer
     predictor : predictor function; see 'predict' module
@@ -60,17 +75,26 @@ def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
     """
     # ensure that coords_iter is iterable
     coords_iter = iter(coords_iter)
-    # take the first and obtain dimensionality
-    coords = next(coords_iter)
+
+    # interpret the first element of the iterable
+    val = next(coords_iter)
+    if isinstance(val, np.ndarray):
+        # the iterable was not enumerated, so enumerate the remainder
+        coords_iter = enumerate(coords_iter, start=1)
+        t, coords = 0, val
+    else:
+        t, coords = val
+
+    #  obtain dimensionality
     ndim = coords.shape[1]
     search_range = validate_tuple(search_range, ndim)
 
     # initialize the linker and yield the particle ids of the first frame
     linker = Linker(search_range, memory, predictor=predictor)
-    linker.init_level(coords, t=0)
-    yield 0, linker.particle_ids
+    linker.init_level(coords, t)
+    yield t, linker.particle_ids
 
-    for t, coords in enumerate(coords_iter, start=1):
+    for t, coords in coords_iter:
         linker.next_level(coords, t)
         for k, coord in enumerate(linker.coords):
             np.testing.assert_allclose(coord, coords[k])
@@ -96,8 +120,14 @@ def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
     ndim = len(pos_columns)
     search_range = validate_tuple(search_range, ndim)
 
-    # sort on the t_column (coords_from_df does that anyway)
-    f = pandas_sort(f, t_column)  # makes a copy
+    # copy the dataframe
+    f = f.copy()
+    # coerce t_column to integer type
+    if not np.issubdtype(f[t_column].dtype, np.integer):
+        f[t_column] = f[t_column].astype(np.integer)
+    # sort on the t_column
+    pandas_sort(f, t_column, inplace=True)
+
     coords_iter = coords_from_df(f, pos_columns, t_column)
     ids = []
     for i, _ids in link_simple_iter(coords_iter, search_range, memory):
@@ -128,19 +158,19 @@ def link_simple_df_iter(f_iter, search_range, memory=0,
     if pos_columns is None:
         # Get info about the first frame without processing it
         f_iter, f_iter_dummy = itertools.tee(f_iter)
-        f0 = f_iter_dummy.next()
+        f0 = next(f_iter_dummy)
         pos_columns = guess_pos_columns(f0)
         del f_iter_dummy, f0
     ndim = len(pos_columns)
     search_range = validate_tuple(search_range, ndim)
 
     f_iter, f_coords_iter = itertools.tee(f_iter)
-    coords_iter = (df[pos_columns].values for df in f_coords_iter)
+    coords_iter = coords_from_df_iter(f_coords_iter, pos_columns, t_column)
 
     ids_iter = (_ids for _i, _ids in
         link_simple_iter(coords_iter, search_range, memory,
                          predictor=predictor))
-    for df, ids in itertools.izip(f_iter, ids_iter):
+    for df, ids in zip(f_iter, ids_iter):
         df_linked = df.copy()
         df_linked['particle'] = ids
         yield df_linked
