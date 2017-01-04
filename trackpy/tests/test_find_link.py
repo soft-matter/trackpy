@@ -14,7 +14,7 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import SubnetOversizeException
 from trackpy.utils import pandas_sort
 from trackpy.artificial import CoordinateReader
-from trackpy.find_link import find_link, link_simple
+from trackpy.find_link import find_link, link_simple, link_simple_iter, link_simple_df_iter
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 from trackpy.tests.test_link import random_walk, contracting_grid
 
@@ -34,7 +34,7 @@ class SimpleLinkingTests(StrictTestCase):
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         expected = f.copy()
         expected['particle'] = np.zeros(N)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
     def test_output_dtypes(self):
@@ -46,7 +46,7 @@ class SimpleLinkingTests(StrictTestCase):
         f['frame'] = f['frame'].astype(np.int)
         f['x'] = f['x'].astype(np.int)
         f['y'] = f['y'].astype(np.int)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
 
         # Particle column should be integer typed
         assert np.issubdtype(actual['particle'], np.int)
@@ -59,7 +59,7 @@ class SimpleLinkingTests(StrictTestCase):
         f['frame'] = f['frame'].astype(np.float)
         f['x'] = f['x'].astype(np.float)
         f['y'] = f['y'].astype(np.float)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
 
         # Particle column should be integer typed
         assert np.issubdtype(actual['particle'], np.int)
@@ -81,18 +81,18 @@ class SimpleLinkingTests(StrictTestCase):
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
+        actual = self.link(pandas_sort(f, 'frame'), 5)
         assert_traj_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
+        actual = self.link(f1, 5)
         assert_traj_equal(actual, expected)
 
     def test_two_isolated_steppers_one_gapped(self):
@@ -110,20 +110,20 @@ class SimpleLinkingTests(StrictTestCase):
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
         # link_df_iter() tests not performed, because hash_size is
         # not knowable from the first frame alone.
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
+        actual = self.link(pandas_sort(f, 'frame'), 5)
         assert_traj_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
+        actual = self.link(f1, 5)
         assert_traj_equal(actual, expected)
 
     def test_isolated_continuous_random_walks(self):
@@ -138,7 +138,7 @@ class SimpleLinkingTests(StrictTestCase):
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
         # Many 2D random walks
@@ -155,7 +155,7 @@ class SimpleLinkingTests(StrictTestCase):
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
     def test_start_at_frame_other_than_zero(self):
@@ -166,7 +166,7 @@ class SimpleLinkingTests(StrictTestCase):
                       'frame': FIRST_FRAME + np.arange(N)})
         expected = f.copy()
         expected['particle'] = np.zeros(N)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
     def test_blank_frame_no_memory(self):
@@ -176,7 +176,7 @@ class SimpleLinkingTests(StrictTestCase):
                       'frame': [0, 1, 2, 4, 5],
                       'particle': [0, 0, 0, 1, 1]})
         expected = f.copy()
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
     def test_copy(self):
@@ -188,7 +188,7 @@ class SimpleLinkingTests(StrictTestCase):
         expected['particle'] = np.zeros(N)
 
         # Should copy
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
         assert 'particle' not in f.columns
 
@@ -197,7 +197,7 @@ class SimpleLinkingTests(StrictTestCase):
         df = contracting_grid()
         df['x'] *= 2
         df['y'] *= 2
-        self.link_df(df, search_range=2)
+        self.link(df, search_range=2)
 
     def test_two_nearby_steppers(self):
         N = 5
@@ -210,18 +210,18 @@ class SimpleLinkingTests(StrictTestCase):
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
+        actual = self.link(pandas_sort(f, 'frame'), 5)
         assert_traj_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
+        actual = self.link(f1, 5)
         assert_traj_equal(actual, expected)
 
     def test_two_nearby_steppers_one_gapped(self):
@@ -237,18 +237,18 @@ class SimpleLinkingTests(StrictTestCase):
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
+        actual = self.link(pandas_sort(f, 'frame'), 5)
         assert_traj_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
+        actual = self.link(f1, 5)
         assert_traj_equal(actual, expected)
 
     def test_nearby_continuous_random_walks(self):
@@ -267,7 +267,7 @@ class SimpleLinkingTests(StrictTestCase):
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
         np.random.seed(0)
@@ -284,14 +284,14 @@ class SimpleLinkingTests(StrictTestCase):
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
+        actual = self.link(f1, 5)
         assert_traj_equal(actual, expected)
 
     def test_memory_on_one_gap(self):
@@ -307,23 +307,55 @@ class SimpleLinkingTests(StrictTestCase):
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
-        actual = self.link_df(f, 5, memory=1)
+        actual = self.link(f, 5, memory=1)
         assert_traj_equal(actual, expected)
 
         # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5, memory=1)
+        actual = self.link(pandas_sort(f, 'frame'), 5, memory=1)
         assert_traj_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5, memory=1)
+        actual = self.link(f1, 5, memory=1)
         assert_traj_equal(actual, expected)
 
-    def link_df(self, f, search_range, *args, **kwargs):
+    def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)
         return link_simple(f, search_range, *args, **kwargs)
+
+
+class SimpleLinkingTestsIter(SimpleLinkingTests):
+    def link(self, f, search_range, *args, **kwargs):
+
+        def f_iter(f, first_frame, last_frame):
+            """ link_iter requires an (optionally enumerated) generator of
+            ndarrays """
+            for t in range(first_frame, last_frame + 1):
+                f_filt = f[f['frame'] == t]
+                yield f_filt[['y', 'x']].values
+
+        res = f.copy()
+        res['particle'] = -1
+        for t, ids in link_simple_iter(f_iter(f, 0, int(f['frame'].max())),
+                                       search_range, *args, **kwargs):
+            res.loc[res['frame'] == t, 'particle'] = ids
+        return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
+
+
+class SimpleLinkingTestsDfIter(SimpleLinkingTests):
+    def link(self, f, search_range, *args, **kwargs):
+
+        def df_iter(f, first_frame, last_frame):
+            """ link_df_iter requires a generator of dataframes """
+            for t in range(first_frame, last_frame + 1):
+                yield f[f['frame'] == t]
+
+        res_iter = link_simple_df_iter(df_iter(f, 0, int(f['frame'].max())),
+                                       search_range, *args, **kwargs)
+        res = pd.concat(res_iter)
+        return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
 
 class FindLinkTests(SimpleLinkingTests):
@@ -339,7 +371,7 @@ class FindLinkTests(SimpleLinkingTests):
                        'frame': np.arange(N)})
         # Integer-typed input
         f['frame'] = f['frame'].astype(np.int)
-        actual = self.link_df(f, 5)
+        actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
         assert np.issubdtype(actual['particle'], np.int)
@@ -349,7 +381,7 @@ class FindLinkTests(SimpleLinkingTests):
         assert np.issubdtype(actual['x'], np.float)
         assert np.issubdtype(actual['y'], np.float)
 
-    def link_df(self, f, search_range, *args, **kwargs):
+    def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)
         size = 3
         separation = kwargs['separation']
@@ -377,7 +409,7 @@ class FindLinkTests(SimpleLinkingTests):
         expected['particle'] = np.zeros(N)
 
         # Should not raise
-        actual = self.link_df(f, 5.2, separation=9.5, diameter=15.2)
+        actual = self.link(f, 5.2, separation=9.5, diameter=15.2)
         assert_traj_equal(actual, expected)
 
 
