@@ -195,6 +195,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     if smoothing_size is None:
         smoothing_size = separation
     smoothing_size = validate_tuple(smoothing_size, ndim)
+    smoothing_size = tuple([int(s) for s in smoothing_size])
     separation = validate_tuple(separation, ndim)
     if diameter is None:
         diameter = separation
