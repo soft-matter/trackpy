@@ -25,14 +25,9 @@ for Applications > Utilities > Terminal. Type these commands:
 .. code-block:: bash
 
    conda update conda
-   conda install -c soft-matter trackpy
+   conda install -c conda-forge trackpy
 
-The above installs trackpy and all its requirements. Our tutorials also use
-the IPython notebook. To install that as well, type
-
-.. code-block:: bash
-
-    conda install ipython-notebook
+The above installs trackpy and all its requirements.
 
 3. Try it out!
 """"""""""""""
@@ -41,7 +36,9 @@ Finally, to try it out, type
 
 .. code-block:: bash
 
-    ipython notebook
+    jupyter notebook
+
+.. note::  For older Python versions, use ``ipython notebook``
 
 This will automatically open a browser tab, ready to interpret Python code.
 To get started, check out the links to tutorials at the top of this document.
@@ -61,7 +58,7 @@ run this in the command prompt:
 
 .. code-block:: bash
 
-    conda update -c soft-matter trackpy
+    conda update -c conda-forge trackpy
 
 Latest Version Under Development
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -71,12 +68,12 @@ Changes are thoroughly tested before being merged. If you want to use the
 latest features it should be safe to rely on the master branch.
 (The primary contributors do.)
 
-You can easily install a recent build from the
-soft-matter development channel on conda
+You can easily install a recent build by downloading the source from
+`Github <https://github.com/soft-matter/trackpy>`_:
 
 .. code-block:: bash
 
-    conda install -c soft-matter -c soft-matter/channel/dev trackpy
+    pip install https://github.com/soft-matter/trackpy/archive/master.zip
 
 If you plan to edit the code yourself, you should use git and pip as
 explained below.
@@ -100,54 +97,72 @@ but pip is also supported.
 
 Essential Dependencies:
 
-* Python 2.7, 3.3, or 3.4.
+* Python 2.7, 3.3, or newer
 * `setuptools <http://pythonhosted.org/setuptools/>`__
 * `six <http://pythonhosted.org/six/>`__ >=1.8
 * `numpy <http://www.scipy.org/>`__ >=1.7
-* `scipy <http://www.scipy.org/>`__ >=0.12.0
+* `scipy <http://www.scipy.org/>`__ >=0.12
 * `matplotlib <http://matplotlib.org/>`__
-* `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__ >=0.12.0
+* `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__ >=0.13
 * `pyyaml <http://pyyaml.org/>`__
 
 You will also need the image- and video-reader PIMS, which is, like trackpy
-itself, part of the github.com/soft-matter organization.
+itself, part of the github.com/soft-matter organization. The package is also
+available at conda-forge and PyPI, so installation works the same as
+with trackpy.
 
-* `PIMS <https://github.com/soft-matter/pims>`__
+Manual installation
+"""""""""""""""""""
 
-You can install PIMS from the soft-matter binstar channel using conda:
-
-.. code-block:: bash
-
-   conda install -c soft-matter pims
-
-or from PyPI using pip:
-
-.. code-block:: bash
-
-   pip install pims
-
-Or, if you plan to edit the code, you can install both packages manually:
+If you want to be able to edit the code yourself, you can install the package
+manually. First, make sure you have `git <https://git-scm.com/>`__ version
+management software installed. Go to a folder where you want to have your
+source code, then:
 
 .. code-block:: bash
-
-   git clone https://github.com/soft-matter/pims
-   pip install -e pims
 
    git clone https://github.com/soft-matter/trackpy
-   pip install -e trackpy
+   cd trackpy
+   python setup.py develop
 
-Optional Dependencies:
+We welcome any contribution to the trackpy source code, so feel free to send
+in Pull Requests on Github! To do so, make an account, fork
+`trackpy <https://github.com/soft-matter/trackpy>`__ and create a local copy
+using:
+
+.. code-block:: bash
+
+   git clone https://github.com/<your_account>/trackpy
+
+Now you have a local copy of the code which you can edit, but don't start
+editing right away as you are currently on the ``master`` branch. We think it
+is good practice to keep your ``master`` branch mirroring the upstream
+trackpy version, so first create a new branch and push it to the remote as
+follows:
+
+.. code-block:: bash
+
+   git branch fix-something
+   git push --set-upstream origin fix-something
+
+Now you can edit your code in any way you like, commit your changes, and push
+them again to the remote. If you are finished, make a pull request and one of the
+contributors will check and possibly merge your code into trackpy.
+See `here <https://git-scm.com/book/en/v1/Getting-Started>`__ for getting
+started using git.
+
+Optional Dependencies
+"""""""""""""""""""""
 
 * `PyTables <http://www.pytables.org/moin>`__ for saving results in an HDF5 file. 
       This is included with Anaconda.
 * `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. 
       This is included with Anaconda and Canopy. Installing it any other way is
       difficult; we recommend sticking with one of these. We support numba versions
-      >=0.13.4 (though 0.13.3 appears to work). We currently test on 0.17.
+      >=0.13.4 (though 0.13.3 appears to work).
 * `Pillow <https://pillow.readthedocs.org/>`__ or `PIL <http://www.pythonware.com/products/pil/>`__ for some display routines.
-      This is included with Anaconda. We do not support version 3.0.0.
+      This is included with Anaconda.
 
 PIMS has its own optional dependencies for reading various formats. You
 can read what you need for each format
-`here on PIMS' README <https://github.com/soft-matter/pims>`__.
-
+`here on PIMS' README <http://soft-matter.github.io/pims/stable>`__.
