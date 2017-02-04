@@ -44,6 +44,39 @@ class SimpleLinkingTests(unittest.TestCase):
         actual = self.link_df(f, 5)
         assert_traj_equal(actual, expected)
 
+    def test_output_dtypes(self):
+        N = 5
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
+                       'frame': np.arange(N)})
+
+        # Integer-typed input
+        f['frame'] = f['frame'].astype(np.int)
+        f['x'] = f['x'].astype(np.int)
+        f['y'] = f['y'].astype(np.int)
+        actual = self.link_df(f, 5)
+
+        # Particle column should be integer typed
+        assert np.issubdtype(actual['particle'], np.int)
+        # Preserve dtypes of frame, x, y
+        assert np.issubdtype(actual['frame'], np.int)
+        assert np.issubdtype(actual['x'], np.int)
+        assert np.issubdtype(actual['y'], np.int)
+
+        # Float-typed input
+        f['frame'] = f['frame'].astype(np.float)
+        f['x'] = f['x'].astype(np.float)
+        f['y'] = f['y'].astype(np.float)
+        actual = self.link_df(f, 5)
+
+        # Particle column should be integer typed
+        assert np.issubdtype(actual['particle'], np.int)
+
+        # Preserve dtypes of frame, x, y
+        assert np.issubdtype(actual['frame'], np.float)
+        assert np.issubdtype(actual['x'], np.float)
+        assert np.issubdtype(actual['y'], np.float)
+
+
     def test_two_isolated_steppers(self):
         N = 5
         Y = 25
@@ -296,34 +329,68 @@ class SimpleLinkingTests(unittest.TestCase):
         assert_traj_equal(actual, expected)
 
     def link_df(self, f, search_range, *args, **kwargs):
+        kwargs = dict(self.linker_opts, **kwargs)
         return link_simple(f, search_range, *args, **kwargs)
 
 
-class FindZipTests(SimpleLinkingTests):
+class FindLinkTests(SimpleLinkingTests):
+    def setUp(self):
+        super(FindLinkTests, self).setUp()
+        self.linker_opts['separation'] = 10
+        self.linker_opts['diameter'] = 15
+
+    def test_output_dtypes(self):
+        # Different behaviour than the SimpleLinkingTests, as features are added
+        N = 5
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
+                       'frame': np.arange(N)})
+        # Integer-typed input
+        f['frame'] = f['frame'].astype(np.int)
+        actual = self.link_df(f, 5)
+
+        # Particle and frame columns should be integer typed
+        assert np.issubdtype(actual['particle'], np.int)
+        assert np.issubdtype(actual['frame'], np.int)
+
+        # Position columns should be float typed
+        assert np.issubdtype(actual['x'], np.float)
+        assert np.issubdtype(actual['y'], np.float)
+
     def link_df(self, f, search_range, *args, **kwargs):
-        kwargs.update(self.linker_opts)
+        kwargs = dict(self.linker_opts, **kwargs)
         size = 3
-        separation = 10
+        separation = kwargs['separation']
         f = f.copy()
         f[['y', 'x']] *= separation
         topleft = (f[['y', 'x']].min().values - 4 * separation).astype(np.int)
         f[['y', 'x']] -= topleft
         shape = (f[['y', 'x']].max().values + 4 * separation).astype(np.int)
         reader = CoordinateReader(f, shape, size)
-        result = find_link(reader, diameter=15,
+        result = find_link(reader,
                            search_range=search_range*separation,
-                           separation=separation,
                            *args, **kwargs)
-        result['particle'] = result['particle'].astype(np.float64)
         result = pandas_sort(result, ['particle', 'frame']).reset_index(drop=True)
         result[['y', 'x']] += topleft
         result[['y', 'x']] /= separation
         return result
 
+    def test_args_dtype(self):
+        """Check whether find_link accepts float typed arguments"""
+        # One 1D stepper
+        N = 5
+        f = DataFrame(
+            {'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        expected = f.copy()
+        expected['particle'] = np.zeros(N)
 
-class FindZipOneFailedFindTests(FindZipTests):
+        # Should not raise
+        actual = self.link_df(f, 5.2, separation=9.5, diameter=15.2)
+        assert_traj_equal(actual, expected)
+
+
+class FindLinkOneFailedFindTests(FindLinkTests):
     def setUp(self):
-        super(FindZipOneFailedFindTests, self).setUp()
+        super(FindLinkOneFailedFindTests, self).setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
                           test_nearby_continuous_random_walks=10,
                           test_start_at_frame_other_than_zero=4,
@@ -341,9 +408,9 @@ class FindZipOneFailedFindTests(FindZipTests):
         self.linker_opts['before_link'] = callback
 
 
-class FindZipManyFailedFindTests(FindZipTests):
+class FindLinkManyFailedFindTests(FindLinkTests):
     def setUp(self):
-        super(FindZipManyFailedFindTests, self).setUp()
+        super(FindLinkManyFailedFindTests, self).setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
                           test_nearby_continuous_random_walks=10,
                           test_start_at_frame_other_than_zero=4,
@@ -362,8 +429,7 @@ class FindZipManyFailedFindTests(FindZipTests):
         self.linker_opts['before_link'] = callback
 
 
-class FindZipSpecialCases(unittest.TestCase):
-    # also, for paper images
+class FindLinkSpecialCases(unittest.TestCase):
     do_diagnostics = False  # Don't ask for diagnostic info from linker
     def setUp(self):
         self.linker_opts = dict()

@@ -99,6 +99,9 @@ class TreeFinder(object):
             return
         data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
                             index=[p.uuid for p in self.points])
+        # add placeholders to obtain columns with integer dtype
+        data['frame'] = -1
+        data['particle'] = -1
         for p in self.points:
             data.loc[p.uuid, 'frame'] = p.t
             data.loc[p.uuid, 'particle'] = p.track.id

@@ -16,7 +16,7 @@ from .utils import (default_pos_columns, guess_pos_columns, is_isotropic,
                     cKDTree, catch_keyboard_interrupt, validate_tuple,
                     pandas_sort)
 from .preprocessing import bandpass
-from .refine import center_of_mass
+from .refine import refine_com
 from .linking import (Point, TrackUnstored, TreeFinder, recursive_linker_obj,
                       _points_to_arr)
 from .feature import characterize
@@ -195,6 +195,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     if smoothing_size is None:
         smoothing_size = separation
     smoothing_size = validate_tuple(smoothing_size, ndim)
+    smoothing_size = tuple([int(s) for s in smoothing_size])
     separation = validate_tuple(separation, ndim)
     if diameter is None:
         diameter = separation
@@ -212,8 +213,8 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
             if len(coords) == 0:
                 return features
             # no separation filtering, because we use precise grey dilation
-            coords = center_of_mass(image, image, radius, coords, separation=0,
-                                    characterize=False)
+            coords = refine_com(image, image, radius, coords, separation=0,
+                                characterize=False)
             features[refine_columns] = coords
             return features
 
