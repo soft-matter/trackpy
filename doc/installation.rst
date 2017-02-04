@@ -126,7 +126,7 @@ source code, then:
    python setup.py develop
 
 We welcome any contribution to the trackpy source code, so feel free to send
-in Pull Requests on Github! To do so, make an account, fork
+in your contributions on Github! To do so, make an account, fork
 `trackpy <https://github.com/soft-matter/trackpy>`__ and create a local copy
 using:
 
@@ -146,9 +146,11 @@ follows:
    git push --set-upstream origin fix-something
 
 Now you can edit your code in any way you like, commit your changes, and push
-them again to the remote. If you are finished, make a pull request and one of the
-contributors will check and possibly merge your code into trackpy.
-See `here <https://git-scm.com/book/en/v1/Getting-Started>`__ for getting
+them again to the remote.
+
+Before sending in your code, please consult
+`our guidelines <https://github.com/soft-matter/trackpy/wiki/Information-for-contributors>`__.
+Also, see `here <https://git-scm.com/book/en/v1/Getting-Started>`__ for getting
 started using git.
 
 Optional Dependencies
