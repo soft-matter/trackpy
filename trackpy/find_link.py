@@ -16,7 +16,7 @@ from .utils import (default_pos_columns, guess_pos_columns, is_isotropic,
                     cKDTree, validate_tuple, pandas_sort)
 from .preprocessing import bandpass
 from .refine import refine_com
-from .linking import (Point, TrackUnstored, TreeFinder, recursive_linker_obj,
+from .linking import (Point, TrackUnstored, recursive_linker_obj,
                       _points_to_arr)
 from .feature import characterize
 
@@ -96,8 +96,6 @@ def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
 
     for t, coords in coords_iter:
         linker.next_level(coords, t)
-        for k, coord in enumerate(linker.coords):
-            np.testing.assert_allclose(coord, coords[k])
         yield t, linker.particle_ids
 
 
@@ -423,6 +421,117 @@ class PointFindLink(Point):
         self.relocate_neighbors = []
 
 
+def _default_coord_mapping(search_range, level):
+    """ Convert a list of Points to an ndarray of coordinates """
+    return _points_to_arr(level) / search_range
+
+
+def _wrap_predictor(predictor, t):
+    def coord_mapping(search_range, level):
+        return list(predictor(t, level)) / search_range
+    return coord_mapping
+
+
+class TreeFinder(object):
+    def __init__(self, points, search_range):
+        """Takes a list of particles."""
+        self.ndim = len(search_range)
+        self.search_range = np.atleast_2d(search_range)
+        if not isinstance(points, list):
+            points = list(points)
+        self.points = points
+        self.set_predictor(None)
+        self.rebuild()
+
+    def __len__(self):
+        return len(self.points)
+
+    def add_point(self, pt):
+        self.points.append(pt)
+        self._clean = False
+
+    def set_predictor(self, predictor, t=None):
+        """Sets a predictor to the TreeFinder
+
+        predictor : function, optional
+
+            Called with t and a list of N Point instances, returns their
+            "effective" locations, as an N x d array (or any iterable).
+            Used for prediction (see "predict" module).
+        """
+        if predictor is None:
+            self.coord_mapping = _default_coord_mapping
+        else:
+            self.coord_mapping = _wrap_predictor(predictor, t)
+        self._clean = False
+
+    @property
+    def kdtree(self):
+        if not self._clean:
+            self.rebuild()
+        return self._kdtree
+
+    def rebuild(self):
+        """Rebuilds tree from ``points`` attribute.
+
+        coord_map : function, optional
+
+            Called with a list of N Point instances, returns their
+            "effective" locations, as an N x d array (or list of tuples).
+            Used for prediction (see "predict" module).
+
+        rebuild() needs to be called after ``add_point()`` and
+        before tree is used for spatial queries again (i.e. when
+        memory is turned on).
+        """
+        self._clean = False
+        if len(self.points) == 0:
+            self._kdtree = None
+        else:
+            self._kdtree = cKDTree(self.coords_mapped, 15)
+        # This could be tuned
+        self._clean = True
+
+    @property
+    def coords(self):
+        return _points_to_arr(self.points)
+
+    @property
+    def coords_mapped(self):
+        if self._clean:
+            if self._kdtree is None:
+                return np.empty((0, self.ndim))
+            else:
+                return self._kdtree.data
+        else:
+            return self.coord_mapping(self.search_range, self.points)
+
+    @property
+    def coords_df(self):
+        coords = self.coords
+        if coords is None:
+            return
+        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
+                            index=[p.uuid for p in self.points])
+        for p in self.points:
+            data.loc[p.uuid, 'frame'] = p.t
+            data.loc[p.uuid, 'particle'] = p.track.id
+            for col in p.extra_data:
+                data.loc[p.uuid, col] = p.extra_data[col]
+        return data
+
+    def query_points(self, pos, max_dist_normed=1.):
+        if self.kdtree is None:
+            return
+        pos_norm = pos / self.search_range
+        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
+        found = set([i for sl in found for i in sl])  # ravel
+        if len(found) == 0:
+            return
+        else:
+            return self.coords[list(found)]
+
+
 class Subnets(object):
     """ Class that evaluates the possible links between two groups of features.
 
@@ -472,7 +581,7 @@ class Subnets(object):
         dest_hash = self.dest_hash
         if len(source_hash.points) == 0 or len(dest_hash.points) == 0:
             return
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
+        dists, inds = source_hash.kdtree.query(dest_hash.coords_mapped,
                                                self.max_neighbors,
                                                distance_upper_bound=1+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
@@ -525,7 +634,7 @@ class Subnets(object):
             return
         source_hash = TreeFinder(source_points, self.source_hash.search_range)
         dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
+        dists, inds = source_hash.kdtree.query(dest_hash.coords,
                                                max(len(source_points), 2),
                                                distance_upper_bound=1+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
@@ -570,7 +679,7 @@ class Subnets(object):
         if len(lost_source) == 0:
             return
         lost_hash = TreeFinder(lost_source, self.source_hash.search_range)
-        dists, inds = self.source_hash.kdtree.query(lost_hash.coords_rescaled,
+        dists, inds = self.source_hash.kdtree.query(lost_hash.coords,
                                                     self.max_neighbors,
                                                     distance_upper_bound=2+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
@@ -691,8 +800,7 @@ class Linker(object):
         # If prediction is enabled, we need to update the positions in prev_hash
         # to where we think they'll be in the frame corresponding to 'coords'.
         if prev_hash is not None and self.predictor is not None:
-            targeted_predictor = functools.partial(self.predictor, t)
-            prev_hash.rebuild(coord_map=targeted_predictor) # Rewrite positions
+            prev_hash.set_predictor(self.predictor, t)  # Rewrite positions
 
         self.hash = TreeFinder(_points_from_arr(coords, t, extra_data),
                                self.search_range)
