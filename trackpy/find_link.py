@@ -427,8 +427,16 @@ def _default_coord_mapping(search_range, level):
 
 
 def _wrap_predictor(predictor, t):
+    """ Create a function that maps coordinates using a predictor class."""
     def coord_mapping(search_range, level):
-        return list(predictor(t, level)) / search_range
+        # swap axes order (need to do inplace to preserve the Point attributes)
+        for p in level:
+            p.pos = p.pos[::-1]
+        result = np.array(list(predictor(t, level)))
+        for p in level:  # swap axes order back
+            p.pos = p.pos[::-1]
+        return result[:, ::-1] / search_range
+
     return coord_mapping
 
 
