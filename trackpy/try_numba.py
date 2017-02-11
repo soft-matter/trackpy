@@ -55,8 +55,8 @@ class RegisteredFunction(object):
             self.func_name = func.__name__
         except AttributeError:
             self.func_name = func.func_name
-        module_name = inspect.getmoduleinfo(
-            six.get_function_globals(func)['__file__']).name
+        module_name = inspect.getmodulename(
+            six.get_function_globals(func)['__file__'])
         module_name = '.'.join(['trackpy', module_name])
         self.module_name = module_name
         self.autojit_kw = autojit_kw
