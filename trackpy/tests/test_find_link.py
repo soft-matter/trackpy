@@ -41,34 +41,21 @@ class SimpleLinkingTests(StrictTestCase):
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                        'frame': np.arange(N)})
-
         # Integer-typed input
         f['frame'] = f['frame'].astype(np.int)
-        f['x'] = f['x'].astype(np.int)
-        f['y'] = f['y'].astype(np.int)
         actual = self.link(f, 5)
 
-        # Particle column should be integer typed
+        # Particle and frame columns should be integer typed
         assert np.issubdtype(actual['particle'], np.int)
-        # Preserve dtypes of frame, x, y
         assert np.issubdtype(actual['frame'], np.int)
-        assert np.issubdtype(actual['x'], np.int)
-        assert np.issubdtype(actual['y'], np.int)
 
         # Float-typed input
         f['frame'] = f['frame'].astype(np.float)
-        f['x'] = f['x'].astype(np.float)
-        f['y'] = f['y'].astype(np.float)
         actual = self.link(f, 5)
 
-        # Particle column should be integer typed
+        # Particle and frame columns should be integer typed
         assert np.issubdtype(actual['particle'], np.int)
-
-        # Preserve dtypes of frame, x, y
-        assert np.issubdtype(actual['frame'], np.float)
-        assert np.issubdtype(actual['x'], np.float)
-        assert np.issubdtype(actual['y'], np.float)
-
+        assert np.issubdtype(actual['frame'], np.int)
 
     def test_two_isolated_steppers(self):
         N = 5
@@ -332,9 +319,10 @@ class SimpleLinkingTestsIter(SimpleLinkingTests):
         def f_iter(f, first_frame, last_frame):
             """ link_iter requires an (optionally enumerated) generator of
             ndarrays """
-            for t in range(first_frame, last_frame + 1):
+            for t in np.arange(first_frame, last_frame + 1,
+                               dtype=f['frame'].dtype):
                 f_filt = f[f['frame'] == t]
-                yield f_filt[['y', 'x']].values
+                yield t, f_filt[['y', 'x']].values
 
         res = f.copy()
         res['particle'] = -1
@@ -342,6 +330,24 @@ class SimpleLinkingTestsIter(SimpleLinkingTests):
                                        search_range, *args, **kwargs):
             res.loc[res['frame'] == t, 'particle'] = ids
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
+
+    def test_output_dtypes(self):
+        N = 5
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
+                       'frame': np.arange(N)})
+        # Integer-typed input
+        f['frame'] = f['frame'].astype(np.int)
+        actual = self.link(f, 5)
+
+        # Particle and frame columns should be integer typed
+        assert np.issubdtype(actual['particle'], np.int)
+        assert np.issubdtype(actual['frame'], np.int)
+
+        # Float-typed input: frame column type is propagated in link_iter
+        f['frame'] = f['frame'].astype(np.float)
+        actual = self.link(f, 5)
+        assert np.issubdtype(actual['particle'], np.int)
+        assert np.issubdtype(actual['frame'], np.float)
 
 
 class SimpleLinkingTestsDfIter(SimpleLinkingTests):
@@ -357,15 +363,7 @@ class SimpleLinkingTestsDfIter(SimpleLinkingTests):
         res = pd.concat(res_iter)
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
-
-class FindLinkTests(SimpleLinkingTests):
-    def setUp(self):
-        super(FindLinkTests, self).setUp()
-        self.linker_opts['separation'] = 10
-        self.linker_opts['diameter'] = 15
-
     def test_output_dtypes(self):
-        # Different behaviour than the SimpleLinkingTests, as features are added
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                        'frame': np.arange(N)})
@@ -377,9 +375,18 @@ class FindLinkTests(SimpleLinkingTests):
         assert np.issubdtype(actual['particle'], np.int)
         assert np.issubdtype(actual['frame'], np.int)
 
-        # Position columns should be float typed
-        assert np.issubdtype(actual['x'], np.float)
-        assert np.issubdtype(actual['y'], np.float)
+        # Float-typed input: frame column type is propagated in link_df_iter
+        f['frame'] = f['frame'].astype(np.float)
+        actual = self.link(f, 5)
+        assert np.issubdtype(actual['particle'], np.int)
+        assert np.issubdtype(actual['frame'], np.float)
+
+
+class FindLinkTests(SimpleLinkingTests):
+    def setUp(self):
+        super(FindLinkTests, self).setUp()
+        self.linker_opts['separation'] = 10
+        self.linker_opts['diameter'] = 15
 
     def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)

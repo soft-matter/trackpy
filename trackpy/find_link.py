@@ -71,7 +71,7 @@ def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
 
     Returns
     -------
-    yields tuples (index, list of particle ids)
+    yields tuples (t, list of particle ids)
     """
     # ensure that coords_iter is iterable
     coords_iter = iter(coords_iter)
@@ -112,7 +112,8 @@ def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
 
     Returns
     -------
-    DataFrame with added column 'particle' containing trajectory labels"""
+    DataFrame with added column 'particle' containing trajectory labels.
+    The t_column (by default: 'frame') will be coerced to integer."""
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
     ndim = len(pos_columns)
@@ -517,10 +518,14 @@ class TreeFinder(object):
     @property
     def coords_df(self):
         coords = self.coords
-        if coords is None:
+        if len(coords) == 0:
             return
         data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
                             index=[p.uuid for p in self.points])
+
+        # add placeholders to obtain columns with integer dtype
+        data['frame'] = -1
+        data['particle'] = -1
         for p in self.points:
             data.loc[p.uuid, 'frame'] = p.t
             data.loc[p.uuid, 'particle'] = p.track.id
@@ -642,7 +647,7 @@ class Subnets(object):
             return
         source_hash = TreeFinder(source_points, self.source_hash.search_range)
         dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = source_hash.kdtree.query(dest_hash.coords,
+        dists, inds = source_hash.kdtree.query(dest_hash.coords_mapped,
                                                max(len(source_points), 2),
                                                distance_upper_bound=1+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
@@ -687,7 +692,7 @@ class Subnets(object):
         if len(lost_source) == 0:
             return
         lost_hash = TreeFinder(lost_source, self.source_hash.search_range)
-        dists, inds = self.source_hash.kdtree.query(lost_hash.coords,
+        dists, inds = self.source_hash.kdtree.query(lost_hash.coords_mapped,
                                                     self.max_neighbors,
                                                     distance_upper_bound=2+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
