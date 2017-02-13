@@ -244,24 +244,24 @@ class TestArcLenAndArea(StrictTestCase):
             assert_almost_equal(result[1:], result[:-1])
 
     def test_symmetry_circle_corner(self):
-        h0 = np.random.random(self.N)
-        h1 = np.random.random(self.N) * np.sqrt(1-h0**2)
         R = np.random.random(self.N) * 100
+        h0 = np.random.random(self.N) * R
+        h1 = np.random.random(self.N) * np.sqrt(R**2-h0**2)
         assert_almost_equal(circle_corner_arclen(h0, h1, R),
                             circle_corner_arclen(h1, h0, R))
 
     def test_symmetry_sphere_edge(self):
-        h0 = np.random.random(self.N)
-        h1 = np.random.random(self.N) * np.sqrt(1-h0**2)
         R = np.random.random(self.N) * 100
+        h0 = np.random.random(self.N) * R
+        h1 = np.random.random(self.N) * np.sqrt(R**2-h0**2)
         assert_almost_equal(sphere_edge_area(h0, h1, R),
                             sphere_edge_area(h1, h0, R))
 
     def test_symmetry_sphere_corner(self):
-        h0 = np.random.random(self.N)
-        h1 = np.random.random(self.N) * np.sqrt(1-h0**2)
-        h2 = np.random.random(self.N) * np.sqrt(1-h0**2-h1**2)
         R = np.random.random(self.N) * 100
+        h0 = np.random.random(self.N) * R
+        h1 = np.random.random(self.N) * np.sqrt(R**2-h0**2)
+        h2 = np.random.random(self.N) * np.sqrt(R**2-h0**2-h1**2)
         result = np.array([sphere_corner_area(h0, h1, h2, R),
                            sphere_corner_area(h1, h2, h0, R),
                            sphere_corner_area(h2, h0, h1, R),
