@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import functools
 
+from nose import SkipTest
 import nose.tools
 import numpy as np
 import pandas
@@ -10,6 +11,7 @@ import pandas
 import trackpy
 from trackpy import predict
 from trackpy.tests.common import StrictTestCase
+from .test_find_link import CoordinateReader
 
 
 def mkframe(n=1, Nside=3):
@@ -243,7 +245,7 @@ class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
 # Define a mixin that converts a normal prediction test class into one
 # that uses find_link.
 
-class FindLinkPredictTest(object):
+class LinkNewPredictTest(object):
     def get_linker_iter(self, pred):
         return functools.partial(pred.wrap, trackpy.link_simple_df_iter)
 
@@ -252,6 +254,113 @@ class FindLinkPredictTest(object):
 
     def get_unwrapped_linker(self):
         return trackpy.link_simple_df_iter
+
+
+class NewBaselinePredictTests(LinkNewPredictTest, BaselinePredictTests):
+    pass
+
+
+class NewNearestVelocityPredictTests(LinkNewPredictTest, NearestVelocityPredictTests):
+    pass
+
+
+class NewDriftPredictTests(LinkNewPredictTest, DriftPredictTests):
+    pass
+
+
+class NewChannelPredictXTests(LinkNewPredictTest, ChannelPredictXTests):
+    pass
+
+
+class NewChannelPredictYTests(LinkNewPredictTest, ChannelPredictYTests):
+    pass
+
+
+class FindLinkPredictTest(object):
+    def setUp(self):
+        self.linker_opts = dict(separation=10, diameter=15)
+
+    def get_linker_iter(self, pred):
+        def link_iter(f, search_range, *args, **kw):
+            kw = dict(self.linker_opts, **kw)
+            size = 3
+            separation = kw['separation']
+            f = f.copy()
+            f[['y', 'x']] *= separation
+            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
+                np.int)
+            f[['y', 'x']] -= topleft
+            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
+                np.int)
+            reader = CoordinateReader(f, shape, size)
+
+            kw['predictor'] = self.predict
+            pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
+            pred.t_column = kw.get('t_column', 'frame')
+
+            for i, frame in trackpy.find_link_iter(reader,
+                                                   search_range=search_range * separation,
+                                                   predictor=pred,
+                                                   *args, **kw):
+                self.observe(frame)
+                frame[['y', 'x']] += topleft
+                frame[['y', 'x']] /= separation
+
+                yield frame
+        return link_iter
+
+    def get_linker(self, pred):
+        def link(f, search_range, *args, **kw):
+            kw = dict(self.linker_opts, **kw)
+            size = 3
+            separation = kw['separation']
+            f = f.copy()
+            f[['y', 'x']] *= separation
+            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
+                np.int)
+            f[['y', 'x']] -= topleft
+            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
+                np.int)
+            reader = CoordinateReader(f, shape, size)
+
+            kw['predictor'] = self.predict
+            pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
+            pred.t_column = kw.get('t_column', 'frame')
+
+            f = trackpy.find_link(reader,
+                                  search_range=search_range * separation,
+                                  predictor=pred, *args, **kw)
+            f[['y', 'x']] += topleft
+            f[['y', 'x']] /= separation
+
+            return f
+        return link
+
+    def get_unwrapped_linker(self):
+        def link_iter(f, search_range, *args, **kw):
+            kw = dict(self.linker_opts, **kw)
+            size = 3
+            separation = kw['separation']
+            f = f.copy()
+            f[['y', 'x']] *= separation
+            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
+                np.int)
+            f[['y', 'x']] -= topleft
+            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
+                np.int)
+            reader = CoordinateReader(f, shape, size)
+
+            kw['predictor'] = self.predict
+
+            for i, frame in trackpy.find_link_iter(reader,
+                                                   search_range=search_range * separation,
+                                                   *args, **kw):
+                self.observe(frame)
+                frame[['y', 'x']] += topleft
+                frame[['y', 'x']] /= separation
+
+                yield frame
+        return link_iter
 
 
 class FLBaselinePredictTests(FindLinkPredictTest, BaselinePredictTests):
