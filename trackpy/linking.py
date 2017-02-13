@@ -73,16 +73,6 @@ class TreeFinder(object):
         self._clean = True
 
     @property
-    def coords(self):
-        if self._clean:
-            if self._kdtree is None:
-                return np.empty((0, self.ndim))
-            else:
-                return self._kdtree.data * self.search_range
-        else:
-            return _points_to_arr(self.points)
-
-    @property
     def coords_rescaled(self):
         if self._clean:
             if self._kdtree is None:
@@ -91,34 +81,6 @@ class TreeFinder(object):
                 return self._kdtree.data
         else:
             return _points_to_arr(self.points) / self.search_range
-
-    @property
-    def coords_df(self):
-        coords = self.coords
-        if coords is None:
-            return
-        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
-                            index=[p.uuid for p in self.points])
-        # add placeholders to obtain columns with integer dtype
-        data['frame'] = -1
-        data['particle'] = -1
-        for p in self.points:
-            data.loc[p.uuid, 'frame'] = p.t
-            data.loc[p.uuid, 'particle'] = p.track.id
-            for col in p.extra_data:
-                data.loc[p.uuid, col] = p.extra_data[col]
-        return data
-
-    def query_points(self, pos, max_dist_normed=1.):
-        if self.kdtree is None:
-            return
-        pos_norm = pos / self.search_range
-        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
-        found = set([i for sl in found for i in sl])  # ravel
-        if len(found) == 0:
-            return
-        else:
-            return self.coords[list(found)]
 
 
 class HashTable(object):
