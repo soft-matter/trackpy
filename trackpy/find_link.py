@@ -59,7 +59,7 @@ def coords_from_df_iter(df_iter, pos_columns, t_column):
             yield df[t_column].iloc[0], df[pos_columns].values
 
 
-def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
+def link_simple_iter(coords_iter, search_range, memory=0, **kwargs):
     """Link an iterable of per-frame coordinates into trajectories.
 
     Parameters
@@ -90,7 +90,7 @@ def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
     search_range = validate_tuple(search_range, ndim)
 
     # initialize the linker and yield the particle ids of the first frame
-    linker = Linker(search_range, memory, predictor=predictor)
+    linker = Linker(search_range, memory, **kwargs)
     linker.init_level(coords, t)
     yield t, linker.particle_ids
 
@@ -99,7 +99,8 @@ def link_simple_iter(coords_iter, search_range, memory=0, predictor=None):
         yield t, linker.particle_ids
 
 
-def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
+def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame',
+                **kwargs):
     """Link a DataFrame of coordinates into trajectories.
 
     Parameters
@@ -129,16 +130,16 @@ def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
 
     coords_iter = coords_from_df(f, pos_columns, t_column)
     ids = []
-    for i, _ids in link_simple_iter(coords_iter, search_range, memory):
+    for i, _ids in link_simple_iter(coords_iter, search_range,
+                                    memory, **kwargs):
         ids.extend(_ids)
 
     f['particle'] = ids
     return f
 
 
-def link_simple_df_iter(f_iter, search_range, memory=0,
-                        pos_columns=None, t_column='frame',
-                        predictor=None):
+def link_simple_df_iter(f_iter, search_range, memory=0, pos_columns=None,
+                        t_column='frame', **kwargs):
     """Link an iterable of DataFrames into trajectories.
 
     Parameters
@@ -167,8 +168,7 @@ def link_simple_df_iter(f_iter, search_range, memory=0,
     coords_iter = coords_from_df_iter(f_coords_iter, pos_columns, t_column)
 
     ids_iter = (_ids for _i, _ids in
-        link_simple_iter(coords_iter, search_range, memory,
-                         predictor=predictor))
+        link_simple_iter(coords_iter, search_range, memory, **kwargs))
     for df, ids in zip(f_iter, ids_iter):
         df_linked = df.copy()
         df_linked['particle'] = ids
