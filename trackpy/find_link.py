@@ -497,7 +497,8 @@ class TreeFinder(object):
         if len(self.points) == 0:
             self._kdtree = None
         else:
-            self._kdtree = cKDTree(self.coords_mapped, 15)
+            coords_mapped = self.coord_mapping(self.search_range, self.points)
+            self._kdtree = cKDTree(coords_mapped, 15)
         # This could be tuned
         self._clean = True
 
@@ -507,13 +508,12 @@ class TreeFinder(object):
 
     @property
     def coords_mapped(self):
-        if self._clean:
-            if self._kdtree is None:
-                return np.empty((0, self.ndim))
-            else:
-                return self._kdtree.data
+        if not self._clean:
+            self.rebuild()
+        if self._kdtree is None:
+            return np.empty((0, self.ndim))
         else:
-            return self.coord_mapping(self.search_range, self.points)
+            return self._kdtree.data
 
     @property
     def coords_df(self):
