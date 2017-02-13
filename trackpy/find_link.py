@@ -177,7 +177,8 @@ def link_simple_df_iter(f_iter, search_range, memory=0, pos_columns=None,
 
 def find_link(reader, search_range, separation, diameter=None, memory=0,
               minmass=0, noise_size=1, smoothing_size=None, threshold=None,
-              percentile=64, before_link=None, after_link=None, refine=False):
+              percentile=64, before_link=None, after_link=None, refine=False,
+              **kwargs):
     """Find and link features in an image sequence
 
     Parameters
@@ -290,7 +291,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     proc_func = lambda x: bandpass(x, noise_size, smoothing_size, threshold)
     generator = find_link_iter(reader, search_range, separation, diameter,
                                memory, percentile, minmass, proc_func,
-                               before_link, after_link)
+                               before_link, after_link, ** kwargs)
     for frame_no, f_frame in generator:
         if f_frame is None:
             n_traj = 0
@@ -308,7 +309,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
 
 def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
                    percentile=64, minmass=0, proc_func=None, before_link=None,
-                   after_link=None, predictor=None):
+                   after_link=None, **kwargs):
 
     shape = reader[0].shape
     ndim = len(shape)
@@ -341,7 +342,7 @@ def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
                              'separation or smoothing_size.')
 
     linker = FindLinker(search_range, separation, diameter, memory, minmass,
-                        percentile, predictor=predictor)
+                        percentile, **kwargs)
 
     reader_iter = iter(reader)
     image = next(reader_iter)
@@ -645,15 +646,16 @@ class Subnets(object):
         # TODO is kdtree really faster here than brute force ?
         if len(dest_points) == 0:
             return
-        source_hash = TreeFinder(source_points, self.source_hash.search_range)
-        dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_mapped,
-                                               max(len(source_points), 2),
-                                               distance_upper_bound=1+1e-7)
+        source_points = list(source_points)
+        source_coord = self.source_hash.coord_mapping(source_points)
+        new_dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
+        dists, inds = new_dest_hash.kdtree.query(source_coord,
+                                                 max(len(source_points), 2),
+                                                 distance_upper_bound=1+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, dest in enumerate(dest_hash.points):
+        for i, dest in enumerate(new_dest_hash.points):
             for j in range(nn[i]):
-                source = source_hash.points[inds[i, j]]
+                source = source_points[inds[i, j]]
                 # dest.back_cands.append((source, dists[i, j]))
                 source.forward_cands.append((dest, dists[i, j]))
                 # source particle always has a subnet, add the dest particle
@@ -661,7 +663,7 @@ class Subnets(object):
                 dest.subnet = source.subnet
 
         # sort candidates again because they might have changed
-        for p in source_hash.points:
+        for p in source_points:
             p.forward_cands.sort(key=lambda x: x[1])
         # for p in dest_hash.points:
         #    p.back_cands.sort(key=lambda x: x[1])
@@ -691,12 +693,11 @@ class Subnets(object):
 
         if len(lost_source) == 0:
             return
-        lost_hash = TreeFinder(lost_source, self.source_hash.search_range)
-        dists, inds = self.source_hash.kdtree.query(lost_hash.coords_mapped,
-                                                    self.max_neighbors,
+        lost_coords = self.source_hash.coord_mapping(lost_source)
+        dists, inds = self.source_hash.kdtree.query(lost_coords, self.max_neighbors,
                                                     distance_upper_bound=2+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, p in enumerate(lost_hash.points):
+        for i, p in enumerate(lost_source):
             for j in range(nn[i]):
                 wp = self.source_hash.points[inds[i, j]]
                 i1, i2 = p.subnet, wp.subnet
@@ -1012,8 +1013,8 @@ class FindLinker(Linker):
         self.curr_t = t
         super(FindLinker, self).next_level(coords, t, extra_data)
 
-    def relocate(self, source_points, n=1):
-        candidates, extra_data = self.get_relocate_candidates(source_points)
+    def relocate(self, pos, n=1):
+        candidates, extra_data = self.get_relocate_candidates(pos)
         if candidates is None:
             return set()
         else:
@@ -1033,8 +1034,9 @@ class FindLinker(Linker):
             self.threshold = (self.curr_t, threshold)
         return threshold
 
-    def get_relocate_candidates(self, source_points):
-        pos = _points_to_arr(source_points)
+    def get_relocate_candidates(self, pos):
+        # pos are the estimated locations of the features (ndarray N x ndim)
+        pos = np.atleast_2d(pos)
 
         # slice region around cluster
         im_unmasked, origin = slice_image(pos, self.image, self.slice_radius)
@@ -1109,7 +1111,14 @@ class FindLinker(Linker):
         for source_set, dest_set in self.subnets:
             shortage = len(source_set) - len(dest_set)
             if shortage > 0:
-                new_cands = self.relocate(source_set, shortage)
+                if self.predictor is not None:
+                    # lookup the predicted locations
+                    sh = self.subnets.source_hash
+                    pos = [c for c, p in zip(sh.coords_mapped,
+                                             sh.points) if p in source_set]
+                else:
+                    pos = [s.pos for s in source_set]
+                new_cands = self.relocate(pos, shortage)
                 self.subnets.add_dest_points(source_set, new_cands)
             else:
                 new_cands = set()
