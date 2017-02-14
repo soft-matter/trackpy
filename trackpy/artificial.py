@@ -469,17 +469,26 @@ class SimulatedImage(object):
 
 class CoordinateReader(FramesSequence):
     """Generate a FramesSquence that draws features at given coordinates"""
-    def __init__(self, f, shape, size, **kwargs):
+    def __init__(self, f, shape, size, t=None, **kwargs):
         self._f = f.copy()
         self.pos_columns = ['z', 'y', 'x'][-len(shape):]
         self.shape = shape
         self.size = size
         self.kwargs = kwargs
         self.im = SimulatedImage(shape, size, **self.kwargs)
-        self._len = int(f['frame'].max() + 1)
+        if t is None:
+            self._len = int(f['frame'].max() + 1)
+            self._inds = range(self._len)
+        else:
+            self._len = len(t)
+            self._inds = t
 
     def __len__(self):
         return self._len
+
+    def __iter__(self):
+        # this is actually a hack to get find_link working with float-typed indices
+        return (self.get_frame(i) for i in self._inds)
 
     def get_frame(self, ind):
         self.im.clear()

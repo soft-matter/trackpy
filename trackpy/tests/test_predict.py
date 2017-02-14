@@ -285,24 +285,24 @@ class FindLinkPredictTest(object):
             kw = dict(self.linker_opts, **kw)
             size = 3
             separation = kw['separation']
-            f = f.copy()
-            f[['y', 'x']] *= separation
+            # convert the iterable to a single DataFrame (OK for tests)
+            f = [_f for _f in f]
+            indices = [_f['frame'].iloc[0] for _f in f]
+            f = pandas.concat([_f for _f in f])
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 np.int)
             f[['y', 'x']] -= topleft
             shape = (f[['y', 'x']].max().values + 4 * separation).astype(
                 np.int)
-            reader = CoordinateReader(f, shape, size)
+            reader = CoordinateReader(f, shape, size, t=indices)
 
-            kw['predictor'] = self.predict
             pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
             pred.t_column = kw.get('t_column', 'frame')
 
-            for i, frame in trackpy.find_link_iter(reader,
+            for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
                                                    search_range=search_range * separation,
-                                                   predictor=pred,
                                                    *args, **kw):
-                self.observe(frame)
+                pred.observe(frame)
                 frame[['y', 'x']] += topleft
                 frame[['y', 'x']] /= separation
 
@@ -323,13 +323,16 @@ class FindLinkPredictTest(object):
                 np.int)
             reader = CoordinateReader(f, shape, size)
 
-            kw['predictor'] = self.predict
             pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
             pred.t_column = kw.get('t_column', 'frame')
 
-            f = trackpy.find_link(reader,
-                                  search_range=search_range * separation,
-                                  predictor=pred, *args, **kw)
+            f = []
+            for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
+                                                   search_range=search_range * separation,
+                                                   *args, **kw):
+                f.append(frame)
+
+            f = pandas.concat(f)
             f[['y', 'x']] += topleft
             f[['y', 'x']] /= separation
 
@@ -341,24 +344,23 @@ class FindLinkPredictTest(object):
             kw = dict(self.linker_opts, **kw)
             size = 3
             separation = kw['separation']
-            f = f.copy()
+            # convert the iterable to a single DataFrame (OK for tests)
+            f = [_f for _f in f]
+            indices = [_f['frame'].iloc[0] for _f in f]
+            f = pandas.concat([_f for _f in f])
             f[['y', 'x']] *= separation
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 np.int)
             f[['y', 'x']] -= topleft
             shape = (f[['y', 'x']].max().values + 4 * separation).astype(
                 np.int)
-            reader = CoordinateReader(f, shape, size)
-
-            kw['predictor'] = self.predict
+            reader = CoordinateReader(f, shape, size, t=indices)
 
             for i, frame in trackpy.find_link_iter(reader,
                                                    search_range=search_range * separation,
                                                    *args, **kw):
-                self.observe(frame)
                 frame[['y', 'x']] += topleft
                 frame[['y', 'x']] /= separation
-
                 yield frame
         return link_iter
 

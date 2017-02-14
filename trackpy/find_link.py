@@ -428,9 +428,9 @@ def _default_coord_mapping(search_range, level):
     return _points_to_arr(level) / search_range
 
 
-def _wrap_predictor(predictor, t):
+def _wrap_predictor(search_range, predictor, t):
     """ Create a function that maps coordinates using a predictor class."""
-    def coord_mapping(search_range, level):
+    def coord_mapping(level):
         # swap axes order (need to do inplace to preserve the Point attributes)
         for p in level:
             p.pos = p.pos[::-1]
@@ -470,9 +470,11 @@ class TreeFinder(object):
             Used for prediction (see "predict" module).
         """
         if predictor is None:
-            self.coord_mapping = _default_coord_mapping
+            self.coord_mapping = functools.partial(_default_coord_mapping,
+                                                   self.search_range)
         else:
-            self.coord_mapping = _wrap_predictor(predictor, t)
+            self.coord_mapping = _wrap_predictor(self.search_range,
+                                                 predictor, t)
         self._clean = False
 
     @property
@@ -498,7 +500,7 @@ class TreeFinder(object):
         if len(self.points) == 0:
             self._kdtree = None
         else:
-            coords_mapped = self.coord_mapping(self.search_range, self.points)
+            coords_mapped = self.coord_mapping(self.points)
             self._kdtree = cKDTree(coords_mapped, 15)
         # This could be tuned
         self._clean = True
@@ -653,9 +655,9 @@ class Subnets(object):
                                                  max(len(source_points), 2),
                                                  distance_upper_bound=1+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, dest in enumerate(new_dest_hash.points):
+        for i, source in enumerate(source_points):
             for j in range(nn[i]):
-                source = source_points[inds[i, j]]
+                dest = new_dest_hash.points[inds[i, j]]
                 # dest.back_cands.append((source, dists[i, j]))
                 source.forward_cands.append((dest, dists[i, j]))
                 # source particle always has a subnet, add the dest particle
