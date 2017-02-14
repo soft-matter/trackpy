@@ -8,9 +8,8 @@ from scipy.optimize import minimize
 
 from ..static import cluster
 from ..masks import slice_image
-from ..utils import (guess_pos_columns, validate_tuple, is_isotropic,
-                     ReaderCached, catch_keyboard_interrupt,
-                     default_pos_columns, default_size_columns)
+from ..utils import (guess_pos_columns, validate_tuple, is_isotropic, safe_exp,
+                     ReaderCached, default_pos_columns, default_size_columns)
 from .center_of_mass import refine_com
 
 try:
@@ -389,19 +388,20 @@ class FitFunctions(object):
     def compute_bounds(self, bounds, params, groups=None):
         abs, diff, reldiff = bounds
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # compute the bounds: take the smallest bound possible
-            bound_low = np.nanmax([params - diff[0],          # abs. diff. bound
-                                   params / reldiff[0]],      # rel. diff. bound
-                                  axis=0)
-            # do the absolute bound seperately for proper array broadcasting
-            bound_low = np.fmax(bound_low, abs[0])
-            bound_low[np.isnan(bound_low)] = -np.inf
-            bound_high = np.nanmin([params + diff[1],
-                                    params * reldiff[1]], axis=0)
-            bound_high = np.fmin(bound_high, abs[1])
-            bound_high[np.isnan(bound_high)] = np.inf
+        with np.errstate(invalid='ignore'):  # for smooth comparison with np.nan
+            with warnings.catch_warnings():  # for nanmax of only-NaN slice
+                # compute the bounds: take the smallest bound possible
+                warnings.simplefilter("ignore", RuntimeWarning)
+                bound_low = np.nanmax([params - diff[0],      # abs. diff. bound
+                                       params / reldiff[0]],  # rel. diff. bound
+                                      axis=0)
+                # do the absolute bound seperately for proper array broadcasting
+                bound_low = np.fmax(bound_low, abs[0])
+                bound_low[np.isnan(bound_low)] = -np.inf
+                bound_high = np.nanmin([params + diff[1],
+                                        params * reldiff[1]], axis=0)
+                bound_high = np.fmin(bound_high, abs[1])
+                bound_high[np.isnan(bound_high)] = np.inf
         # transform to vector so that it aligns with the parameter vector
         # when parameters are concatenated into one value, take the bound
         # as broad as possible (using min and max operations)
@@ -812,7 +812,7 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
                              "per-trajectory optimization!")
 
     last_frame = None  # just for logging
-    for _, f_iter in catch_keyboard_interrupt(iterable, logger=logger):
+    for _, f_iter in iterable:
         # extract the initial parameters from the dataframe
         params = f_iter[ff.params].values
         if id_names is None:
@@ -1093,11 +1093,11 @@ def dr2_anisotropic_3d(mesh, p):
 
 
 def gauss_fun(r2, p, ndim):
-    return np.exp(-0.5*ndim*r2)
+    return safe_exp(-0.5*ndim*r2)
 
 
 def gauss_dfun(r2, p, ndim):
-    func = np.exp(-0.5*ndim*r2)
+    func = safe_exp(-0.5*ndim*r2)
     return func, [-0.5*ndim*func]
 
 
@@ -1109,22 +1109,22 @@ def disc_fun(r2, p, ndim):
     elif disc_size >= 1.:
         disc_size = 0.999
     mask = r2 > disc_size**2
-    result[mask] = np.exp(((r2[mask]**0.5 - disc_size)/(1 - disc_size))**2 *
-                          ndim/-2)
+    result[mask] = safe_exp(((r2[mask]**0.5 - disc_size)/(1 - disc_size))**2 *
+                            ndim/-2)
     return result
 
 
 def ring_fun(r2, p, ndim):
     t = p[0]
     r = r2**0.5
-    return np.exp(-0.5 * ndim * ((r - 1 + t)/t)**2)
+    return safe_exp(-0.5 * ndim * ((r - 1 + t)/t)**2)
 
 
 def ring_dfun(r2, p, ndim):
     t = p[0]
     r = r2**0.5
     num = r - 1 + t
-    func = np.exp(-0.5 * ndim * (num/t)**2)
+    func = safe_exp(-0.5 * ndim * (num/t)**2)
     return func, [func * (-0.5*ndim / (r*t**2)) * num,
                   func * ndim * (num**2/t**3 - num / t**2)]
 

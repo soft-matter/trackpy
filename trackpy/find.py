@@ -10,6 +10,7 @@ from scipy.spatial import cKDTree
 
 from .utils import validate_tuple
 from .masks import binary_mask
+from .preprocessing import convert_to_int
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +94,8 @@ def grey_dilation(image, separation, percentile=64, margin=None, precise=True):
     drop_close : removes features that are too close to brighter features
     grey_dilation_legacy : local maxima finding routine used until trackpy v0.3
     """
-    if not np.issubdtype(image.dtype, np.integer):
-        factor = 255 / image.max()
-        image = (factor * image.clip(min=0.)).astype(np.uint8)
+    # convert to integer. does nothing if image is already of integer type
+    factor, image = convert_to_int(image, dtype=np.uint8)
 
     ndim = image.ndim
     separation = validate_tuple(separation, ndim)

@@ -538,7 +538,8 @@ def shannon_entropy(x, bins):
     """Compute the Shannon entropy of the distribution of x."""
     hist = np.histogram(x, bins)[0]
     hist = hist.astype('float64')/hist.sum()  # normalize probablity dist.
-    entropy = -np.sum(np.nan_to_num(hist*np.log(hist)))
+    with np.errstate(all='ignore'):
+        entropy = -np.sum(np.nan_to_num(hist*np.log(hist)))
     return entropy
 
 

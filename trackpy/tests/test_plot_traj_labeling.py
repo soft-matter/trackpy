@@ -1,23 +1,19 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-import unittest
 import os
 
 from numpy.testing.decorators import slow
 import pandas as pd
 
-import trackpy
 from trackpy import ptraj
 from trackpy.utils import suppress_plotting
-
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-trackpy.utils.make_pandas_strict()
+from trackpy.tests.common import StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-class TestLabeling(unittest.TestCase):
+class TestLabeling(StrictTestCase):
     def setUp(self):
         self.sparse = pd.read_pickle(os.path.join(path, 'data', 
                                            'sparse_trajectories.df'))

@@ -4,6 +4,7 @@ import six
 import numpy as np
 import pandas as pd
 from pims import Frame, FramesSequence
+from trackpy.find import drop_close
 from trackpy.utils import validate_tuple, cKDTree
 from trackpy.preprocessing import bandpass
 
@@ -118,25 +119,6 @@ def gen_random_locations(shape, count, margin=0):
     return np.array(pos).T
 
 
-def eliminate_overlapping_locations(f, separation):
-    """ Makes sure that no position is within `separation` from each other, by
-    deleting one of the that are to close to each other.
-    """
-    separation = validate_tuple(separation, f.shape[1])
-    assert np.greater(separation, 0).all()
-    # Rescale positions, so that pairs are identified below a distance of 1.
-    f = f / separation
-    while True:
-        duplicates = cKDTree(f, 30).query_pairs(1)
-        if len(duplicates) == 0:
-            break
-        to_drop = []
-        for pair in duplicates:
-            to_drop.append(pair[1])
-        f = np.delete(f, to_drop, 0)
-    return f * separation
-
-
 def gen_nonoverlapping_locations(shape, count, separation, margin=0):
     """ Generates `count` number of positions within `shape`, that have minimum
     distance `separation` from each other. The number of positions returned may
@@ -145,7 +127,7 @@ def gen_nonoverlapping_locations(shape, count, separation, margin=0):
     Margin may be tuple-valued.
     """
     positions = gen_random_locations(shape, count, margin)
-    return eliminate_overlapping_locations(positions, separation)
+    return drop_close(positions, separation)
 
 
 def draw_spots(shape, positions, size, noise_level=0, bitdepth=8, **kwargs):
@@ -184,7 +166,7 @@ def draw_spots(shape, positions, size, noise_level=0, bitdepth=8, **kwargs):
     else:
         raise ValueError('Bitdepth should be <= 32')
     np.random.seed(0)
-    image = np.zeros(shape, dtype=internaldtype)
+    image = np.zeros([int(s) for s in shape], dtype=internaldtype)
     if noise_level > 0:
         image += np.random.randint(0, noise_level + 1,
                                    shape).astype(internaldtype)
@@ -363,7 +345,7 @@ class SimulatedImage(object):
             margin = 0
         pos = gen_random_locations(self.shape, N, margin)
         if separation > 0:
-            pos = eliminate_overlapping_locations(pos, separation)
+            pos = drop_close(pos, separation)
         for p in pos:
             self.draw_feature(p)
         return pos
@@ -439,7 +421,7 @@ class SimulatedImage(object):
             margin = 0
         pos = gen_random_locations(self.shape, N, margin)
         if separation > 0:
-            pos = eliminate_overlapping_locations(pos, separation)
+            pos = drop_close(pos, separation)
 
         if self.ndim == 2:
             angles = np.random.uniform(0, 2*np.pi, N)

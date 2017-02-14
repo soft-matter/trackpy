@@ -426,9 +426,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=None, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
-          filter_before=None, filter_after=True,
-          characterize=True, engine='auto',
-          output=None, meta=None):
+          filter_before=None, filter_after=None, characterize=True,
+          engine='auto', output=None, meta=None):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -480,8 +479,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     filter_before : boolean
         filter_before is no longer supported as it does not improve performance.
     filter_after : boolean
-        Use final characterizations of mass and size to eliminate spurious
-        features. True by default.
+        This parameter has been deprecated: use minmass and maxsize.
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
@@ -532,8 +530,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
                      maxsize=maxsize, separation=separation,
                      noise_size=noise_size, smoothing_size=smoothing_size,
                      invert=invert, percentile=percentile, topn=topn,
-                     preprocess=preprocess, max_iterations=max_iterations,
-                     filter_before=filter_before, filter_after=filter_after)
+                     preprocess=preprocess, max_iterations=max_iterations)
 
     if meta:
         if isinstance(meta, six.string_types):

@@ -1,21 +1,18 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import unittest
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_allclose
-from trackpy import quiet
 from trackpy.utils import validate_tuple
 from trackpy.refine import refine_com, refine_leastsq
 from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
                                 draw_cluster, SimulatedImage)
 from trackpy.refine.least_squares import (dimer, trimer, tetramer, dimer_global,
                                           FitFunctions, vect_from_params)
-from trackpy.tests.common import assert_coordinates_close
+from trackpy.tests.common import assert_coordinates_close, StrictTestCase
 from scipy.optimize.slsqp import approx_jacobian
 from nose import SkipTest
 
-quiet()
 
 EPSILON = 1E-7
 ATOL = 0.001
@@ -60,6 +57,7 @@ class RefineTsts(object):
 
     @classmethod
     def setUpClass(cls):
+        super(RefineTsts, cls).setUpClass()
         cls.size = validate_tuple(cls.size, cls.ndim)
         if not hasattr(cls, 'diameter'):
             cls.diameter = tuple([int(s * 4) for s in cls.size])
@@ -691,35 +689,35 @@ class RefineTsts(object):
         self.assertLess(devs['pos'], self.precision_perfect)
 
 
-class TestFit_gauss2D(RefineTsts, unittest.TestCase):
+class TestFit_gauss2D(RefineTsts, StrictTestCase):
     size = SIZE_2D
     ndim = 2
     feat_func = 'gauss'
     fit_func = 'gauss'
 
 
-# class TestFit_gauss2D_a(RefineTsts, unittest.TestCase):
+# class TestFit_gauss2D_a(RefineTsts, StrictTestCase):
 #      size = SIZE_2D_ANISOTROPIC
 #      ndim = 2
 #      feat_func = 'gauss'
 #      fit_func = 'gauss'
 
 
-class TestFit_gauss3D(RefineTsts, unittest.TestCase):
+class TestFit_gauss3D(RefineTsts, StrictTestCase):
      size = SIZE_3D
      ndim = 3
      feat_func = 'gauss'
      fit_func = 'gauss'
 
 
-class TestFit_gauss3D_a(RefineTsts, unittest.TestCase):
+class TestFit_gauss3D_a(RefineTsts, StrictTestCase):
      size = SIZE_3D_ANISOTROPIC
      ndim = 3
      feat_func = 'gauss'
      fit_func = 'gauss'
 
 
-class TestFit_disc2D(RefineTsts, unittest.TestCase):
+class TestFit_disc2D(RefineTsts, StrictTestCase):
     size = SIZE_2D
     ndim = 2
     feat_func = 'disc'
@@ -728,7 +726,7 @@ class TestFit_disc2D(RefineTsts, unittest.TestCase):
     fit_func = 'disc'
 
 
-# class TestFit_disc2D_a(RefineTsts, unittest.TestCase):
+# class TestFit_disc2D_a(RefineTsts, StrictTestCase):
 #     size = SIZE_2D_ANISOTROPIC
 #     ndim = 2
 #     feat_func = 'disc'
@@ -737,7 +735,7 @@ class TestFit_disc2D(RefineTsts, unittest.TestCase):
 #     fit_func = 'disc'
 #
 #
-# class TestFit_disc3D(RefineTsts, unittest.TestCase):
+# class TestFit_disc3D(RefineTsts, StrictTestCase):
 #     size = SIZE_3D
 #     ndim = 3
 #     feat_func = 'disc'
@@ -746,7 +744,7 @@ class TestFit_disc2D(RefineTsts, unittest.TestCase):
 #     fit_func = 'disc'
 #
 #
-# class TestFit_disc3D_a(RefineTsts, unittest.TestCase):
+# class TestFit_disc3D_a(RefineTsts, StrictTestCase):
 #     size = SIZE_3D_ANISOTROPIC
 #     ndim = 3
 #     feat_func = 'disc'
@@ -755,7 +753,7 @@ class TestFit_disc2D(RefineTsts, unittest.TestCase):
 #     fit_func = 'disc'
 
 
-class TestFit_ring2D(RefineTsts, unittest.TestCase):
+class TestFit_ring2D(RefineTsts, StrictTestCase):
     size = SIZE_2D
     ndim = 2
     feat_func = 'ring'
@@ -768,7 +766,7 @@ class TestFit_ring2D(RefineTsts, unittest.TestCase):
     size_dev = 0.05  #  5% of feature size
 
 
-# class TestFit_ring2D_a(RefineTsts, unittest.TestCase):
+# class TestFit_ring2D_a(RefineTsts, StrictTestCase):
 #     size = SIZE_2D_ANISOTROPIC
 #     ndim = 2
 #     feat_func = 'ring'
@@ -781,7 +779,7 @@ class TestFit_ring2D(RefineTsts, unittest.TestCase):
 #     size_dev = 0.05  #  5% of feature size
 #
 #
-# class TestFit_ring3D(RefineTsts, unittest.TestCase):
+# class TestFit_ring3D(RefineTsts, StrictTestCase):
 #     size = SIZE_3D
 #     ndim = 3
 #     feat_func = 'ring'
@@ -794,7 +792,7 @@ class TestFit_ring2D(RefineTsts, unittest.TestCase):
 #     size_dev = 0.05  #  5% of feature size
 #
 #
-# class TestFit_ring3D_a(RefineTsts, unittest.TestCase):
+# class TestFit_ring3D_a(RefineTsts, StrictTestCase):
 #     size = SIZE_3D_ANISOTROPIC
 #     ndim = 3
 #     feat_func = 'ring'
@@ -807,7 +805,7 @@ class TestFit_ring2D(RefineTsts, unittest.TestCase):
 #     size_dev = 0.05  #  5% of feature size
 
 
-class TestMultiple(unittest.TestCase):
+class TestMultiple(StrictTestCase):
     shape = (256, 256)
     pos_err = 3
     diameter = 21
@@ -916,7 +914,7 @@ class TestMultiple(unittest.TestCase):
         assert_allclose(result['size'].values, 5.25, atol=1)
 
 
-class TestFitFunctions(unittest.TestCase):
+class TestFitFunctions(StrictTestCase):
     repeats = 100
     def get_residual(self, ff, n, params, groups=None):
         if groups is None:

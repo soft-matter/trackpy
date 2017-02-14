@@ -13,8 +13,7 @@ from scipy import ndimage
 from .masks import slice_image, mask_image
 from .find import grey_dilation, drop_close
 from .utils import (default_pos_columns, guess_pos_columns, is_isotropic,
-                    cKDTree, catch_keyboard_interrupt, validate_tuple,
-                    pandas_sort)
+                    cKDTree, validate_tuple, pandas_sort)
 from .preprocessing import bandpass
 from .refine import refine_com
 from .linking import (Point, TrackUnstored, TreeFinder, recursive_linker_obj,
@@ -223,7 +222,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     generator = find_link_iter(reader, search_range, separation, diameter,
                                memory, percentile, minmass, proc_func,
                                before_link, after_link)
-    for frame_no, f_frame in catch_keyboard_interrupt(generator, logger=logger):
+    for frame_no, f_frame in generator:
         if f_frame is None:
             n_traj = 0
         else:

@@ -1,14 +1,14 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import unittest
 import numpy as np
 
 from numpy.testing import assert_equal
 
 from trackpy.masks import slice_image, mask_image
+from trackpy.tests.common import StrictTestCase
 
 
-class TestSlicing(unittest.TestCase):
+class TestSlicing(StrictTestCase):
     def test_slicing_2D(self):
         im = np.empty((9, 9))
 
@@ -129,7 +129,7 @@ class TestSlicing(unittest.TestCase):
         assert_equal(origin, (2, 0, 2))
 
 
-class TestMasking(unittest.TestCase):
+class TestMasking(StrictTestCase):
     def test_masking_single_2D(self):
         im = np.ones((9, 9))
         radius = 1  # N pix is 5

@@ -3,11 +3,12 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from trackpy.static import *
-import unittest
 import pandas
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_array_less
 from trackpy.static import cluster
+from trackpy.tests.common import StrictTestCase
+
 
 def _points_ring3D(r_edges, dr, n):
     """Returns x, y, z array of points comprising shells extending from r to
@@ -29,7 +30,7 @@ def _points_ring3D(r_edges, dr, n):
     return np.array(refx_all), np.array(refy_all), np.array(refz_all)
 
 
-class TestPairCorrelation(unittest.TestCase):
+class TestPairCorrelation(StrictTestCase):
 
 
     def test_correlation_2d_lattice(self):
@@ -183,7 +184,7 @@ class TestPairCorrelation(unittest.TestCase):
         return df
 
 
-class TestArcLenAndArea(unittest.TestCase):
+class TestArcLenAndArea(StrictTestCase):
     def setUp(self):
         self.N = 10  # some tests scale with N**2!
 
@@ -243,24 +244,24 @@ class TestArcLenAndArea(unittest.TestCase):
             assert_almost_equal(result[1:], result[:-1])
 
     def test_symmetry_circle_corner(self):
-        h0 = np.random.random(self.N)
-        h1 = np.random.random(self.N) * np.sqrt(1-h0**2)
         R = np.random.random(self.N) * 100
+        h0 = np.random.random(self.N) * R
+        h1 = np.random.random(self.N) * np.sqrt(R**2-h0**2)
         assert_almost_equal(circle_corner_arclen(h0, h1, R),
                             circle_corner_arclen(h1, h0, R))
 
     def test_symmetry_sphere_edge(self):
-        h0 = np.random.random(self.N)
-        h1 = np.random.random(self.N) * np.sqrt(1-h0**2)
         R = np.random.random(self.N) * 100
+        h0 = np.random.random(self.N) * R
+        h1 = np.random.random(self.N) * np.sqrt(R**2-h0**2)
         assert_almost_equal(sphere_edge_area(h0, h1, R),
                             sphere_edge_area(h1, h0, R))
 
     def test_symmetry_sphere_corner(self):
-        h0 = np.random.random(self.N)
-        h1 = np.random.random(self.N) * np.sqrt(1-h0**2)
-        h2 = np.random.random(self.N) * np.sqrt(1-h0**2-h1**2)
         R = np.random.random(self.N) * 100
+        h0 = np.random.random(self.N) * R
+        h1 = np.random.random(self.N) * np.sqrt(R**2-h0**2)
+        h2 = np.random.random(self.N) * np.sqrt(R**2-h0**2-h1**2)
         result = np.array([sphere_corner_area(h0, h1, h2, R),
                            sphere_corner_area(h1, h2, h0, R),
                            sphere_corner_area(h2, h0, h1, R),
@@ -270,7 +271,7 @@ class TestArcLenAndArea(unittest.TestCase):
         assert_almost_equal(result[1:], result[:-1])
 
 
-class TestNormCircle(unittest.TestCase):
+class TestNormCircle(StrictTestCase):
     def setUp(self):
         self.R = np.random.random() * 100
         self.point = np.repeat([[self.R, self.R]], 4, axis=0)
@@ -314,7 +315,7 @@ class TestNormCircle(unittest.TestCase):
         assert_almost_equal(result, R*np.pi/2)
 
 
-class TestNormSphere(unittest.TestCase):
+class TestNormSphere(StrictTestCase):
     def setUp(self):
         self.R = np.random.random() * 100
         R = self.R
@@ -391,7 +392,7 @@ def pos_to_df(pos):
     return pd.DataFrame(pos_a, columns=pos_columns)
 
 
-class TestFindClusters(unittest.TestCase):
+class TestFindClusters(StrictTestCase):
     def setUp(self):
         self.N = 10
 

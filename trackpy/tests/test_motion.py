@@ -1,7 +1,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-import unittest
 
 import numpy as np
 import pandas as pd
@@ -11,10 +10,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal,
 
 import trackpy as tp
 from trackpy.utils import pandas_sort
-
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-tp.utils.make_pandas_strict()
-
+from trackpy.tests.common import StrictTestCase
 
 def random_walk(N):
     return np.cumsum(np.random.randn(N))
@@ -42,7 +38,7 @@ def add_drift(df, drift):
     return df
 
 
-class TestDrift(unittest.TestCase):
+class TestDrift(StrictTestCase):
     def setUp(self):
         N = 10
         Y = 1
@@ -51,7 +47,7 @@ class TestDrift(unittest.TestCase):
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.dead_still = conformity(pd.concat([a, b]))
-        self.dead_still.sort_index(by=['frame', 'particle'], inplace=True)
+        pandas_sort(self.dead_still, ['frame', 'particle'], inplace=True)
 
         P = 1000 # particles
         A = 0.00001 # step amplitude
@@ -121,7 +117,7 @@ class TestDrift(unittest.TestCase):
         assert_traj_equal(actual, self.steppers)
 
 
-class TestMSD(unittest.TestCase):
+class TestMSD(StrictTestCase):
     def setUp(self):
         N = 10
         Y = 1
@@ -192,7 +188,7 @@ class TestMSD(unittest.TestCase):
         assert_series_equal(np.round(actual), expected)
 
 
-class TestSpecial(unittest.TestCase):
+class TestSpecial(StrictTestCase):
     def setUp(self):
         N = 10
         Y = 1

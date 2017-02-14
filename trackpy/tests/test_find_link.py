@@ -7,23 +7,16 @@ import itertools
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-import unittest
 import nose
 from numpy.testing import assert_equal
 
-from trackpy import quiet
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking import SubnetOversizeException
-from trackpy.utils import pandas_sort, make_pandas_strict
+from trackpy.utils import pandas_sort
 from trackpy.artificial import CoordinateReader
 from trackpy.find_link import find_link, link_simple
-from trackpy.tests.common import assert_traj_equal
+from trackpy.tests.common import assert_traj_equal, StrictTestCase
 from trackpy.tests.test_link import random_walk, contracting_grid
-
-quiet()
-
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-make_pandas_strict()
 
 
 def _skip_if_no_numba():
@@ -31,7 +24,7 @@ def _skip_if_no_numba():
         raise nose.SkipTest('numba not installed. Skipping.')
 
 
-class SimpleLinkingTests(unittest.TestCase):
+class SimpleLinkingTests(StrictTestCase):
     def setUp(self):
         self.linker_opts = dict()
 
@@ -429,7 +422,8 @@ class FindLinkManyFailedFindTests(FindLinkTests):
         self.linker_opts['before_link'] = callback
 
 
-class FindLinkSpecialCases(unittest.TestCase):
+class FindLinkSpecialCases(StrictTestCase):
+    # also, for paper images
     do_diagnostics = False  # Don't ask for diagnostic info from linker
     def setUp(self):
         self.linker_opts = dict()
@@ -445,6 +439,9 @@ class FindLinkSpecialCases(unittest.TestCase):
         _kwargs.update(kwargs)
         if remove is not None:
             callback_coords = f.loc[f['frame'] == 1, ['y', 'x']].values
+            remove = np.array(remove, dtype=np.int)
+            if np.any(remove < 0) or np.any(remove > len(callback_coords)):
+                raise RuntimeError('Invalid test: `remove` is out of bounds.')
             callback_coords = np.delete(callback_coords, remove, axis=0)
             def callback(image, coords, **unused_kwargs):
                 if image.frame_no == 1:
@@ -621,11 +618,6 @@ class FindLinkSpecialCases(unittest.TestCase):
                                  'particle': [0, 1, 2, 3, 3]})
         actual = self.link(expected, shape=shape, remove=[0])
         assert_traj_equal(actual, expected)
-
-        for n in range(5):
-            for remove in itertools.combinations(range(4), n):
-                actual = self.link(expected, shape=shape, remove=remove)
-                assert_traj_equal(actual, expected)
 
     def test_multiple_lost_subnet(self):
         shape = (24, 48)

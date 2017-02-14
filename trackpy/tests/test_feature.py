@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import range
 import os
-import unittest
 import warnings
 
 import nose
@@ -18,10 +17,9 @@ from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array
                                 gen_nonoverlapping_locations)
 from trackpy.utils import pandas_sort
 from trackpy.refine import refine_com
-from trackpy.tests.common import sort_positions
+from trackpy.tests.common import sort_positions, StrictTestCase
+from trackpy.preprocessing import invert_image
 
-# Catch attempts to set values on an inadvertent copy of a Pandas object.
-tp.utils.make_pandas_strict()
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
@@ -42,7 +40,7 @@ def compare(shape, count, radius, noise_level, engine):
     return actual, expected
 
 
-class OldMinmass(unittest.TestCase):
+class OldMinmass(StrictTestCase):
     def check_skip(self):
         pass
     
@@ -103,7 +101,8 @@ class OldMinmass(unittest.TestCase):
 
         new_minmass = tp.minmass_version_change(im, old_minmass, invert=True,
                                                 smoothing_size=self.tp_diameter)
-        f = tp.locate(im, self.tp_diameter, minmass=new_minmass, invert=True)
+
+        f = tp.locate(invert_image(im), self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
 
@@ -121,12 +120,12 @@ class CommonFeatureIdentificationTests(object):
         # simple "smoke" test to see if numba explodes
         dummy_image = np.random.randint(0, 100, SHAPE).astype(np.uint8)
         tp.locate(dummy_image, 5, engine=self.engine)
-        tp.locate(dummy_image, 5, invert=True, engine=self.engine)
+        tp.locate(invert_image(dummy_image), 5, engine=self.engine)
 
         # Check float types
         dummy_image = np.random.rand(*SHAPE)
         tp.locate(dummy_image, 5, engine=self.engine)
-        tp.locate(dummy_image, 5, invert=True, engine=self.engine)
+        tp.locate(invert_image(dummy_image), 5, engine=self.engine)
 
     def test_black_image(self):
         self.check_skip()
@@ -768,14 +767,14 @@ class CommonFeatureIdentificationTests(object):
 
 
 class TestFeatureIdentificationWithVanillaNumpy(
-    CommonFeatureIdentificationTests, unittest.TestCase):
+    CommonFeatureIdentificationTests, StrictTestCase):
 
     def setUp(self):
         self.engine = 'python'
 
 
 class TestFeatureIdentificationWithNumba(
-    CommonFeatureIdentificationTests, unittest.TestCase):
+    CommonFeatureIdentificationTests, StrictTestCase):
 
     def setUp(self):
         self.engine = 'numba'

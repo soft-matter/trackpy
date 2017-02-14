@@ -1,8 +1,21 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import unittest
+import numpy as np
 from numpy.testing import assert_allclose, assert_equal, assert_array_equal
-from pandas.util.testing import assert_frame_equal
-from trackpy.utils import cKDTree, pandas_sort
+import trackpy as tp
+from trackpy.utils import cKDTree, pandas_sort, make_pandas_strict
+
+
+class StrictTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Suppress logging messages
+        tp.quiet()
+        # Catch attempts to set values on an inadvertent copy of a Pandas object.
+        make_pandas_strict()
+        # Make numpy strict
+        np.seterr('raise')
 
 
 def sort_positions(actual, expected):
