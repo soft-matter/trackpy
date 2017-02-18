@@ -12,9 +12,9 @@ matrix:
     - python: "2.7"
       env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==2.9 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==3.0 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=false
+      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==3.0 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=true
     - python: "3.5"
-      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba ipython sphinx numpydoc nbconvert"  BUILD_DOCS=true
+      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba"  BUILD_DOCS=false
 
 
 install:
@@ -27,7 +27,11 @@ install:
   - conda config --add channels conda-forge
   - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
-  - if [ $BUILD_DOCS == true ]; then pip install sphinx_bootstrap_theme; fi
+  - |
+      if [ $BUILD_DOCS == true ]; then
+        conda install -n testenv --yes ipython=5.1.0 sphinx=1.4.8 numpydoc=0.6.0 nbconvert=4.2.0
+        pip install sphinx_bootstrap_theme==0.4.12
+      fi
   # for debugging...
   - echo $PATH
   - which python
