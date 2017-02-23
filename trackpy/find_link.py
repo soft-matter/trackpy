@@ -207,12 +207,12 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
         pos_columns = default_pos_columns(ndim)
         refine_columns = pos_columns[::-1] + ['mass']
         radius = tuple([d // 2 for d in diameter])
-        def after_link(image, features, **kwargs):
+        def after_link(image, features, image_proc, **kwargs):
             coords = features[pos_columns].values
             if len(coords) == 0:
                 return features
             # no separation filtering, because we use precise grey dilation
-            coords = refine_com(image, image, radius, coords, separation=0,
+            coords = refine_com(image, image_proc, radius, coords, separation=0,
                                 characterize=False)
             features[refine_columns] = coords
             return features
