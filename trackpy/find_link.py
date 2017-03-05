@@ -16,8 +16,8 @@ from .utils import (default_pos_columns, guess_pos_columns, is_isotropic,
                     cKDTree, validate_tuple, pandas_sort)
 from .preprocessing import bandpass
 from .refine import refine_com
-from .linking import (Point, TrackUnstored, recursive_linker_obj,
-                      _points_to_arr)
+from .linking import (Point, TrackUnstored, SubnetLinker,
+                      _points_to_arr, SubnetOversizeException)
 from .feature import characterize
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def coords_from_df_iter(df_iter, pos_columns, t_column):
             yield df[t_column].iloc[0], df[pos_columns].values
 
 
-def link_simple_iter(coords_iter, search_range, memory=0, **kwargs):
+def link_simple_iter(coords_iter, search_range, **kwargs):
     """Link an iterable of per-frame coordinates into trajectories.
 
     Parameters
@@ -90,7 +90,7 @@ def link_simple_iter(coords_iter, search_range, memory=0, **kwargs):
     search_range = validate_tuple(search_range, ndim)
 
     # initialize the linker and yield the particle ids of the first frame
-    linker = Linker(search_range, memory, **kwargs)
+    linker = Linker(search_range, **kwargs)
     linker.init_level(coords, t)
     yield t, linker.particle_ids
 
@@ -99,8 +99,7 @@ def link_simple_iter(coords_iter, search_range, memory=0, **kwargs):
         yield t, linker.particle_ids
 
 
-def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame',
-                **kwargs):
+def link_simple(f, search_range, pos_columns=None, t_column='frame', **kwargs):
     """Link a DataFrame of coordinates into trajectories.
 
     Parameters
@@ -130,15 +129,14 @@ def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame',
 
     coords_iter = coords_from_df(f, pos_columns, t_column)
     ids = []
-    for i, _ids in link_simple_iter(coords_iter, search_range,
-                                    memory, **kwargs):
+    for i, _ids in link_simple_iter(coords_iter, search_range, **kwargs):
         ids.extend(_ids)
 
     f['particle'] = ids
     return f
 
 
-def link_simple_df_iter(f_iter, search_range, memory=0, pos_columns=None,
+def link_simple_df_iter(f_iter, search_range, pos_columns=None,
                         t_column='frame', **kwargs):
     """Link an iterable of DataFrames into trajectories.
 
@@ -168,7 +166,7 @@ def link_simple_df_iter(f_iter, search_range, memory=0, pos_columns=None,
     coords_iter = coords_from_df_iter(f_coords_iter, pos_columns, t_column)
 
     ids_iter = (_ids for _i, _ids in
-        link_simple_iter(coords_iter, search_range, memory, **kwargs))
+        link_simple_iter(coords_iter, search_range, **kwargs))
     for df, ids in zip(f_iter, ids_iter):
         df_linked = df.copy()
         df_linked['particle'] = ids
@@ -289,9 +287,11 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
 
     features = []
     proc_func = lambda x: bandpass(x, noise_size, smoothing_size, threshold)
-    generator = find_link_iter(reader, search_range, separation, diameter,
-                               memory, percentile, minmass, proc_func,
-                               before_link, after_link, ** kwargs)
+    generator = find_link_iter(reader, search_range, separation,
+                               diameter=diameter, memory=memory,
+                               percentile=percentile, minmass=minmass,
+                               proc_func=proc_func, before_link=before_link,
+                               after_link=after_link, **kwargs)
     for frame_no, f_frame in generator:
         if f_frame is None:
             n_traj = 0
@@ -591,15 +591,17 @@ class Subnets(object):
             p.subnet = i
             self.subnets[i] = set(), {p}
 
-    def compute(self):
-        """ Evaluate the linking candidates and corresponding subnets """
+    def compute(self, search_range=1.):
+        """ Evaluate the linking candidates and corresponding subnets, using
+        given `search_range` (rescaled to 1.)."""
         source_hash = self.source_hash
         dest_hash = self.dest_hash
         if len(source_hash.points) == 0 or len(dest_hash.points) == 0:
             return
+        search_range = float(search_range) + 1e-7
         dists, inds = source_hash.kdtree.query(dest_hash.coords_mapped,
                                                self.max_neighbors,
-                                               distance_upper_bound=1+1e-7)
+                                               distance_upper_bound=search_range)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(dest_hash.points):
             for j in range(nn[i]):
@@ -722,6 +724,58 @@ class Subnets(object):
         return [p for p in self.source_hash.points if p.subnet is None]
 
 
+def recursive_linker(source_set, dest_set, search_range, **kwargs):
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+
+    # sort candidates and add in penalty for not linking
+    for _s in source_set:
+        _s.forward_cands.sort(key=lambda x: x[1])
+        _s.forward_cands.append((None, search_range))
+
+    snl = SubnetLinker(source_set, len(dest_set), search_range, **kwargs)
+    sn_spl, sn_dpl = [list(particles) for particles in zip(*snl.best_pairs)]
+
+    for dp in dest_set - set(sn_dpl):
+        # Unclaimed destination particle in subnet
+        sn_spl.append(None)
+        sn_dpl.append(dp)
+
+    return sn_spl, sn_dpl
+
+
+def adaptive_subnetlinker(func, step, stop):
+    def wrapped_linker(source_set, dest_set, search_range, **kwargs):
+        try:
+            return func(source_set, dest_set, search_range, **kwargs)
+        except SubnetOversizeException:
+            new_range = search_range * step
+            if search_range <= stop:
+                # adaptive_stop is the search_range below which linking
+                # is presumed invalid. So we just give up.
+                raise
+
+            # Create adhoc Subnet
+
+
+
+            for sp in s_sn:
+                sp.forward_cands = [fc for fc in sp.forward_cands
+                                    if fc[1] <= new_range]
+            for dp in d_sn:
+                dp.back_cands = [bc for bc in dp.back_cands
+                                 if bc[1] <= new_range]
+            sn_spl, sn_dpl = self._assign_links(
+                d_sn, s_sn, new_range)
+
+    # In Python 3, we must convert to lists to return mutable collections.
+    return [list(particles) for particles in zip(*snl.best_pairs)]
+
+
 def _sort_key_spl_dpl(x):
     if x[0] is not None:
         return list(x[0].pos)
@@ -786,17 +840,31 @@ class Linker(object):
     # Maximum number of candidates per particle
     MAX_NEIGHBORS = 10
 
-    def __init__(self, search_range, memory=0, predictor=None):
+    def __init__(self, search_range, memory=0, predictor=None,
+                 adaptive_stop=None, adaptive_step=0.95):
         self.memory = memory
         self.predictor = predictor
         self.track_cls = TrackUnstored
-        self.subnet_linker = recursive_linker_obj
-        self.max_subnet_size = self.MAX_SUB_NET_SIZE
-        self.subnet_counter = 0  # Unique ID for each subnet
+        self.adaptive_stop = adaptive_stop
+        self.adaptive_step = adaptive_step
+
+        self.subnet_linker = recursive_linker
         self.ndim = len(search_range)
         self.search_range = np.array(search_range)
         self.hash = None
         self.mem_set = set()
+
+        if self.adaptive_stop is not None:
+            # adaptive_stop is a fraction of search range
+            self.adaptive_stop = np.max(self.adaptive_stop / self.search_range)
+            if 1 * self.adaptive_stop <= 0:
+                raise ValueError("adaptive_stop must be positive.")
+            self.max_subnet_size = self.MAX_SUB_NET_SIZE_ADAPTIVE
+        else:
+            self.max_subnet_size = self.MAX_SUB_NET_SIZE
+
+        self.adaptive_stop = adaptive_stop
+        self.adaptive_step = adaptive_step
 
     def update_hash(self, coords, t, extra_data=None):
         prev_hash = self.hash
@@ -887,14 +955,13 @@ class Linker(object):
             for _s in source_set:
                 _s.forward_cands.sort(key=lambda x: x[1])
                 _s.forward_cands.append((None, 1.))
-            sn_spl, sn_dpl = self.subnet_linker(source_set, len(dest_set), 1.)
+
+            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
 
             for dp in dest_set - set(sn_dpl):
                 # Unclaimed destination particle in subnet
                 sn_spl.append(None)
                 sn_dpl.append(dp)
-
-            self.subnet_counter += 1
 
             spl.extend(sn_spl)
             dpl.extend(sn_dpl)
@@ -979,16 +1046,15 @@ class FindLinker(Linker):
     --------
     Linker
     """
-    def __init__(self, search_range, separation, diameter=None, memory=0,
-                 minmass=0, percentile=64, predictor=None):
-        super(FindLinker, self).__init__(search_range, memory=memory)
+    def __init__(self, search_range, separation, diameter=None,
+                 minmass=0, percentile=64, **kwargs):
+        super(FindLinker, self).__init__(search_range, **kwargs)
         if diameter is None:
             diameter = separation
         self.radius = tuple([int(d // 2) for d in diameter])
         self.separation = separation
         self.minmass = minmass  # in masked image
         self.percentile = percentile
-        self.predictor = predictor
 
         # For grey dilation: find the largest box that fits inside the ellipse
         # given by separation
@@ -1154,8 +1220,6 @@ class FindLinker(Linker):
                 unclaimed = (dest_set - sn_dpl_set) - new_cands
                 sn_spl.extend([None] * len(unclaimed))
                 sn_dpl.extend(unclaimed)
-
-                self.subnet_counter += 1
 
                 spl.extend(sn_spl)
                 dpl.extend(sn_dpl)
