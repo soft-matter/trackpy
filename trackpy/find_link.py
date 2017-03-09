@@ -548,6 +548,50 @@ class TreeFinder(object):
             return self.coords[list(found)]
 
 
+def assign_subnet(source, dest, subnets):
+    """ Assign source point and dest point to the same subnet """
+    i1 = source.subnet
+    i2 = dest.subnet
+    if i1 is None and i2 is None:
+        raise ValueError("No subnet for added destination particle")
+    if i1 == i2:  # if a and b are already in the same subnet, do nothing
+        return
+    if i1 is None:  # source did not belong to a subset before
+        # just add it
+        subnets[i2][0].add(source)
+        source.subnet = i2
+    elif i2 is None:  # dest did not belong to a subset before
+        # just add it
+        subnets[i1][1].add(dest)
+        dest.subnet = i1
+    else:  # source belongs to subset i1 before
+        # merge the subnets
+        subnets[i2][0].update(subnets[i1][0])
+        subnets[i2][1].update(subnets[i1][1])
+        # update the subnet identifiers per point
+        for p in itertools.chain(*subnets[i1]):
+            p.subnet = i2
+        # and delete the old source subnet
+        del subnets[i1]
+
+
+def split_subnet(source, dest, new_range):
+    # Clear the subnets and candidates for all points in both frames
+    subnets = dict()
+    for sp in source:
+        sp.subnet = None
+    for i, dp in enumerate(dest):
+        dp.subnet = i
+        subnets[i] = set(), {dp}
+
+    for sp in source:
+        for dp, dist in sp.forward_cands:
+            if dist > new_range:
+                continue
+            assign_subnet(sp, dp, subnets=subnets)
+    return (subnets[key] for key in subnets)
+
+
 class Subnets(object):
     """ Class that evaluates the possible links between two groups of features.
 
@@ -608,36 +652,14 @@ class Subnets(object):
                 wp = source_hash.points[inds[i, j]]
                 # p.back_cands.append((wp, dists[i, j]))
                 wp.forward_cands.append((p, dists[i, j]))
-                self.assign_subnet(wp, p)
+                assign_subnet(wp, p, self.subnets)
 
-    def assign_subnet(self, source, dest):
-        """ Assign source point and dest point to the same subnet """
-        i1 = source.subnet
-        i2 = dest.subnet
-        if i1 is None and i2 is None:
-            raise ValueError("No subnet for added destination particle")
-        if i1 == i2:  # if a and b are already in the same subnet, do nothing
-            return
-        if i1 is None:  # source did not belong to a subset before
-            # just add it
-            self.subnets[i2][0].add(source)
-            source.subnet = i2
-        elif i2 is None:  # dest did not belong to a subset before
-            # just add it
-            self.subnets[i1][1].add(dest)
-            dest.subnet = i1
-        else:   # source belongs to subset i1 before
-            # merge the subnets
-            self.subnets[i2][0].update(self.subnets[i1][0])
-            self.subnets[i2][1].update(self.subnets[i1][1])
-            # update the subnet identifiers per point
-            for p in itertools.chain(*self.subnets[i1]):
-                p.subnet = i2
-            # and delete the old source subnet
-            del self.subnets[i1]
 
     def add_dest_points(self, source_points, dest_points):
         """ Add destination points, evaluate candidates and subnets.
+
+        This code cannot generate new subnets. The given points have to be such
+        that new subnets do not have to be created.
 
         Parameters
         ----------
@@ -724,13 +746,16 @@ class Subnets(object):
         return [p for p in self.source_hash.points if p.subnet is None]
 
 
-def recursive_linker(source_set, dest_set, search_range, **kwargs):
+def subnetlinker_recursive(source_set, dest_set, search_range, **kwargs):
     if len(source_set) == 0 and len(dest_set) == 1:
         # no backwards candidates: particle will get a new track
-        return [source_set.pop()], [dest_set.pop()]
+        return [None], [dest_set.pop()]
     elif len(source_set) == 1 and len(dest_set) == 1:
         # one backwards candidate and one forward candidate
         return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
 
     # sort candidates and add in penalty for not linking
     for _s in source_set:
@@ -748,32 +773,31 @@ def recursive_linker(source_set, dest_set, search_range, **kwargs):
     return sn_spl, sn_dpl
 
 
-def adaptive_subnetlinker(func, step, stop):
-    def wrapped_linker(source_set, dest_set, search_range, **kwargs):
-        try:
-            return func(source_set, dest_set, search_range, **kwargs)
-        except SubnetOversizeException:
-            new_range = search_range * step
-            if search_range <= stop:
-                # adaptive_stop is the search_range below which linking
-                # is presumed invalid. So we just give up.
-                raise
+def subnetlinker_adaptive(source_set, dest_set, search_range,
+                          adaptive_stop=None, adaptive_step=0.95, **kwargs):
+    try:
+        sn_spl, sn_dpl = subnetlinker_recursive(source_set, dest_set,
+                                                search_range, **kwargs)
+    except SubnetOversizeException:
+        if adaptive_stop is None:
+            raise
+        new_range = search_range * adaptive_step
+        if search_range <= adaptive_stop:
+            # adaptive_stop is the search_range below which linking
+            # is presumed invalid. So we just give up.
+            raise
 
-            # Create adhoc Subnet
+        # Split the subnet and recurse
+        sn_spl = []
+        sn_dpl = []
+        for source, dest in split_subnet(source_set, dest_set, new_range):
+            split_spl, split_dpl = \
+                subnetlinker_adaptive(source, dest, new_range,
+                                      adaptive_stop, adaptive_step, **kwargs)
+            sn_spl.extend(split_spl)
+            sn_dpl.extend(split_dpl)
 
-
-
-            for sp in s_sn:
-                sp.forward_cands = [fc for fc in sp.forward_cands
-                                    if fc[1] <= new_range]
-            for dp in d_sn:
-                dp.back_cands = [bc for bc in dp.back_cands
-                                 if bc[1] <= new_range]
-            sn_spl, sn_dpl = self._assign_links(
-                d_sn, s_sn, new_range)
-
-    # In Python 3, we must convert to lists to return mutable collections.
-    return [list(particles) for particles in zip(*snl.best_pairs)]
+    return sn_spl, sn_dpl
 
 
 def _sort_key_spl_dpl(x):
@@ -848,23 +872,22 @@ class Linker(object):
         self.adaptive_stop = adaptive_stop
         self.adaptive_step = adaptive_step
 
-        self.subnet_linker = recursive_linker
+        self.subnet_linker = subnetlinker_recursive
+        self.max_subnet_size = self.MAX_SUB_NET_SIZE
         self.ndim = len(search_range)
         self.search_range = np.array(search_range)
         self.hash = None
         self.mem_set = set()
 
         if self.adaptive_stop is not None:
-            # adaptive_stop is a fraction of search range
-            self.adaptive_stop = np.max(self.adaptive_stop / self.search_range)
+            # internal adaptive_stop is a fraction of search range
+            adaptive_stop = np.max(adaptive_stop / self.search_range)
             if 1 * self.adaptive_stop <= 0:
                 raise ValueError("adaptive_stop must be positive.")
             self.max_subnet_size = self.MAX_SUB_NET_SIZE_ADAPTIVE
-        else:
-            self.max_subnet_size = self.MAX_SUB_NET_SIZE
-
-        self.adaptive_stop = adaptive_stop
-        self.adaptive_step = adaptive_step
+            self.subnet_linker = functools.partial(subnetlinker_adaptive,
+                                                   adaptive_stop=adaptive_stop,
+                                                   adaptive_step=adaptive_step)
 
     def update_hash(self, coords, t, extra_data=None):
         prev_hash = self.hash
@@ -933,41 +956,18 @@ class Linker(object):
         prev_hash = self.update_hash(coords, t, extra_data)
 
         self.subnets = Subnets(prev_hash, self.hash, self.MAX_NEIGHBORS)
-        spl, dpl = self.assign_links()
+        spl, dpl = self.assign_links(self.subnets, range_factor=1.)
         self.apply_links(spl, dpl)
 
-    def assign_links(self):
+    def assign_links(self, subnets, range_factor=1.):
         spl, dpl = [], []
-        for source_set, dest_set in self.subnets:
-            # no backwards candidates
-            if len(source_set) == 0 and len(dest_set) == 1:
-                # particle will get a new track
-                dpl.append(dest_set.pop())
-                spl.append(None)
-                continue  # do next dest_set particle
-            elif len(source_set) == 1 and len(dest_set) == 1:
-                # one backwards candidate and one forward candidate
-                dpl.append(dest_set.pop())
-                spl.append(source_set.pop())
-                continue  # do next dest_set particle
-
-            # sort candidates and add in penalty for not linking
-            for _s in source_set:
-                _s.forward_cands.sort(key=lambda x: x[1])
-                _s.forward_cands.append((None, 1.))
-
+        for source_set, dest_set in subnets:
             sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
-
-            for dp in dest_set - set(sn_dpl):
-                # Unclaimed destination particle in subnet
-                sn_spl.append(None)
-                sn_dpl.append(dp)
-
             spl.extend(sn_spl)
             dpl.extend(sn_dpl)
 
         # Leftovers
-        lost = self.subnets.lost
+        lost = subnets.lost
         spl.extend(lost)
         dpl.extend([None] * len(lost))
 

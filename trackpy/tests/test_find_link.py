@@ -186,6 +186,11 @@ class SimpleLinkingTests(StrictTestCase):
         df['y'] *= 2
         self.link(df, search_range=2)
 
+    @nose.tools.raises(SubnetOversizeException)
+    def test_adaptive_fail(self):
+        """Check recursion limit"""
+        self.link(contracting_grid(), 1, adaptive_stop=0.92)
+
     def test_two_nearby_steppers(self):
         N = 5
         Y = 2
@@ -307,6 +312,27 @@ class SimpleLinkingTests(StrictTestCase):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link(f1, 5, memory=1)
         assert_traj_equal(actual, expected)
+
+    def test_adaptive_range(self):
+        """Tests that is unbearably slow without a fast subnet linker."""
+        cg = contracting_grid()
+        # Allow 5 applications of the step
+        tracks = self.link(cg, 1, adaptive_step=0.8, adaptive_stop=0.32)
+        # Transform back to origin
+        tracks.x -= 100
+        tracks.y -= 100
+        assert len(cg) == len(tracks)
+        tr0 = tracks[tracks.frame == 0].set_index('particle')
+        tr1 = tracks[tracks.frame == 1].set_index('particle')
+        only0 = list(set(tr0.index) - set(tr1.index))
+        only1 = list(set(tr1.index) - set(tr0.index))
+        # From the first frame, the outermost particles should have been lost.
+        assert all(
+            (tr0.x.ix[only0].abs() > 9.5) | (tr0.y.ix[only0].abs() > 9.5))
+        # There should be new tracks in the second frame, corresponding to the
+        # middle radii.
+        assert all(
+            (tr1.x.ix[only1].abs() == 4.5) | (tr1.y.ix[only1].abs() == 4.5))
 
     def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)
