@@ -16,12 +16,32 @@ from trackpy.utils import pandas_sort
 from trackpy.artificial import CoordinateReader
 from trackpy.find_link import find_link, link_simple, link_simple_iter, link_simple_df_iter
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
-from trackpy.tests.test_link import random_walk, contracting_grid
+from trackpy.tests.test_link import random_walk
 
 
 def _skip_if_no_numba():
     if not NUMBA_AVAILABLE:
         raise nose.SkipTest('numba not installed. Skipping.')
+
+def contracting_grid():
+    """Two frames with a grid of 441 points.
+
+    In the second frame, the points contract, so that the outermost set
+    coincides with the second-outermost set in the previous frame.
+
+    This is a way to challenge (and/or stump) a subnet solver.
+    """
+    pts0x, pts0y = np.mgrid[-10:11, -10:11] * 2.
+    pts0 = pd.DataFrame(dict(x=pts0x.flatten(), y=pts0y.flatten(),
+                             frame=0))
+    pts1 = pts0.copy()
+    pts1.frame = 1
+    pts1.x = pts1.x * 0.9
+    pts1.y = pts1.y * 0.9
+    allpts = pd.concat([pts0, pts1], ignore_index=True)
+    allpts.x += 200  # Because BTree doesn't allow negative coordinates
+    allpts.y += 200
+    return allpts
 
 
 class SimpleLinkingTests(StrictTestCase):
@@ -182,14 +202,12 @@ class SimpleLinkingTests(StrictTestCase):
     @nose.tools.raises(SubnetOversizeException)
     def test_oversize_fail(self):
         df = contracting_grid()
-        df['x'] *= 2
-        df['y'] *= 2
         self.link(df, search_range=2)
 
     @nose.tools.raises(SubnetOversizeException)
     def test_adaptive_fail(self):
         """Check recursion limit"""
-        self.link(contracting_grid(), 1, adaptive_stop=0.92)
+        self.link(contracting_grid(), search_range=2, adaptive_stop=1.84)
 
     def test_two_nearby_steppers(self):
         N = 5
@@ -317,10 +335,10 @@ class SimpleLinkingTests(StrictTestCase):
         """Tests that is unbearably slow without a fast subnet linker."""
         cg = contracting_grid()
         # Allow 5 applications of the step
-        tracks = self.link(cg, 1, adaptive_step=0.8, adaptive_stop=0.32)
+        tracks = self.link(cg, 2, adaptive_step=0.8, adaptive_stop=0.64)
         # Transform back to origin
-        tracks.x -= 100
-        tracks.y -= 100
+        tracks.x -= 200
+        tracks.y -= 200
         assert len(cg) == len(tracks)
         tr0 = tracks[tracks.frame == 0].set_index('particle')
         tr1 = tracks[tracks.frame == 1].set_index('particle')
@@ -328,11 +346,11 @@ class SimpleLinkingTests(StrictTestCase):
         only1 = list(set(tr1.index) - set(tr0.index))
         # From the first frame, the outermost particles should have been lost.
         assert all(
-            (tr0.x.ix[only0].abs() > 9.5) | (tr0.y.ix[only0].abs() > 9.5))
+            (tr0.x.ix[only0].abs() > 19) | (tr0.y.ix[only0].abs() > 19))
         # There should be new tracks in the second frame, corresponding to the
         # middle radii.
         assert all(
-            (tr1.x.ix[only1].abs() == 4.5) | (tr1.y.ix[only1].abs() == 4.5))
+            (tr1.x.ix[only1].abs() == 9) | (tr1.y.ix[only1].abs() == 9))
 
     def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)
@@ -415,6 +433,15 @@ class FindLinkTests(SimpleLinkingTests):
         self.linker_opts['diameter'] = 15
 
     def link(self, f, search_range, *args, **kwargs):
+        # the minimal spacing between features in f is assumed to be 1.
+
+        # from scipy.spatial import cKDTree
+        # mindist = 1e7
+        # for _, _f in f.groupby('frame'):
+        #     dists, _ = cKDTree(_f[['y', 'x']].values).query(_f[['y', 'x']].values, k=2)
+        #     mindist = min(mindist, dists[:, 1].min())
+        # print("Minimal dist is {0:.3f}".format(mindist))
+
         kwargs = dict(self.linker_opts, **kwargs)
         size = 3
         separation = kwargs['separation']
@@ -424,6 +451,8 @@ class FindLinkTests(SimpleLinkingTests):
         f[['y', 'x']] -= topleft
         shape = (f[['y', 'x']].max().values + 4 * separation).astype(np.int)
         reader = CoordinateReader(f, shape, size)
+        if kwargs.get('adaptive_stop', None) is not None:
+            kwargs['adaptive_stop'] *= separation
         result = find_link(reader,
                            search_range=search_range*separation,
                            *args, **kwargs)

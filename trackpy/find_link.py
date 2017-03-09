@@ -307,7 +307,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     return features
 
 
-def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
+def find_link_iter(reader, search_range, separation, diameter=None,
                    percentile=64, minmass=0, proc_func=None, before_link=None,
                    after_link=None, **kwargs):
 
@@ -341,7 +341,7 @@ def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
                              'image shape. Please use smaller radius, '
                              'separation or smoothing_size.')
 
-    linker = FindLinker(search_range, separation, diameter, memory, minmass,
+    linker = FindLinker(search_range, separation, diameter, minmass,
                         percentile, **kwargs)
 
     reader_iter = iter(reader)
@@ -598,6 +598,11 @@ class Subnets(object):
     Candidates and subnet indices are stored inside the Point objects that are
     inside the provided TreeFinder objects.
 
+    Subnets are based on the destination points: subnets having only a source
+    point are not included. They can be accessed from the `lost` method.
+    If subnets with only one source point need to be included, call the
+    method `include_lost`. In that case, the method `lost` will raise.
+
     Parameters
     ----------
     source_hash : TreeFinder object
@@ -614,13 +619,19 @@ class Subnets(object):
         tuple of sets. The first set contains the source points, the second
         set contains the destination points. Iterate over this dictionary by
         directly iterating over the Subnets object.
-    lost : list of points
-        Lists source points without linking candidates ('lost' features)
+
+    Methods
+    -------
+    get_lost :
+        Lists source points without linking candidates ('lost' features).
+        Raises if these particles are included in the subnets already, by
+        calling `include_lost`.
     """
     def __init__(self, source_hash, dest_hash, max_neighbors=10):
         self.max_neighbors = max_neighbors
         self.source_hash = source_hash
         self.dest_hash = dest_hash
+        self.includes_lost = False
         self.reset()
         self.compute()
 
@@ -653,7 +664,6 @@ class Subnets(object):
                 # p.back_cands.append((wp, dists[i, j]))
                 wp.forward_cands.append((p, dists[i, j]))
                 assign_subnet(wp, p, self.subnets)
-
 
     def add_dest_points(self, source_points, dest_points):
         """ Add destination points, evaluate candidates and subnets.
@@ -694,11 +704,9 @@ class Subnets(object):
         # for p in dest_hash.points:
         #    p.back_cands.sort(key=lambda x: x[1])
 
-    def merge_lost_subnets(self):
-        """ Merge subnets that have lost features and that are closer than
-        twice the search range together, in order to account for the possibility
-        that relocated points will join subnets together. """
-        # add source particles without any destination particle for relocation
+    def include_lost(self):
+        """ Add source particles without any destination particle to the
+        subnets."""
         if len(self.subnets) > 0:
             counter = itertools.count(start=max(self.subnets) + 1)
         else:
@@ -708,6 +716,15 @@ class Subnets(object):
                 subnet = next(counter)
                 self.subnets[subnet] = {p}, set()
                 p.subnet = subnet
+
+        self.includes_lost = True
+
+    def merge_lost_subnets(self):
+        """ Merge subnets that have lost features and that are closer than
+        twice the search range together, in order to account for the possibility
+        that relocated points will join subnets together. """
+        if not self.includes_lost:
+            self.include_lost()
 
         # list subnets that have lost particles
         lost_source = []
@@ -741,9 +758,11 @@ class Subnets(object):
     def __iter__(self):
         return (self.subnets[key] for key in self.subnets)
 
-    @property
     def lost(self):
-        return [p for p in self.source_hash.points if p.subnet is None]
+        if self.includes_lost:
+            raise ValueError('Lost particles are included in the subnets.')
+        else:
+            return [p for p in self.source_hash.points if p.subnet is None]
 
 
 def subnetlinker_recursive(source_set, dest_set, search_range, **kwargs):
@@ -873,7 +892,6 @@ class Linker(object):
         self.adaptive_step = adaptive_step
 
         self.subnet_linker = subnetlinker_recursive
-        self.max_subnet_size = self.MAX_SUB_NET_SIZE
         self.ndim = len(search_range)
         self.search_range = np.array(search_range)
         self.hash = None
@@ -884,10 +902,13 @@ class Linker(object):
             adaptive_stop = np.max(adaptive_stop / self.search_range)
             if 1 * self.adaptive_stop <= 0:
                 raise ValueError("adaptive_stop must be positive.")
-            self.max_subnet_size = self.MAX_SUB_NET_SIZE_ADAPTIVE
             self.subnet_linker = functools.partial(subnetlinker_adaptive,
                                                    adaptive_stop=adaptive_stop,
-                                                   adaptive_step=adaptive_step)
+                                                   adaptive_step=adaptive_step,
+                                                   max_size=self.MAX_SUB_NET_SIZE_ADAPTIVE)
+        else:
+            self.subnet_linker = functools.partial(subnetlinker_recursive,
+                                                   max_size=self.MAX_SUB_NET_SIZE)
 
     def update_hash(self, coords, t, extra_data=None):
         prev_hash = self.hash
@@ -956,18 +977,18 @@ class Linker(object):
         prev_hash = self.update_hash(coords, t, extra_data)
 
         self.subnets = Subnets(prev_hash, self.hash, self.MAX_NEIGHBORS)
-        spl, dpl = self.assign_links(self.subnets, range_factor=1.)
+        spl, dpl = self.assign_links()
         self.apply_links(spl, dpl)
 
-    def assign_links(self, subnets, range_factor=1.):
+    def assign_links(self):
         spl, dpl = [], []
-        for source_set, dest_set in subnets:
+        for source_set, dest_set in self.subnets:
             sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
             spl.extend(sn_spl)
             dpl.extend(sn_dpl)
 
         # Leftovers
-        lost = subnets.lost
+        lost = self.subnets.lost()
         spl.extend(lost)
         dpl.extend([None] * len(lost))
 
@@ -1174,9 +1195,17 @@ class FindLinker(Linker):
         return coords[mask] + origin, extra_data
 
     def assign_links(self):
+        # The following method includes subnets with only one source point
+        self.subnets.include_lost()
+        # Also, it merges subnets that are less than 2*search_range spaced,
+        # to account for lost particles that link subnets together. A possible
+        # performance enhancement would be joining subnets together during
+        # iterating over the subnets.
         self.subnets.merge_lost_subnets()
+
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
+            # relocate if necessary
             shortage = len(source_set) - len(dest_set)
             if shortage > 0:
                 if self.predictor is not None:
@@ -1187,41 +1216,25 @@ class FindLinker(Linker):
                 else:
                     pos = [s.pos for s in source_set]
                 new_cands = self.relocate(pos, shortage)
+                # this adapts the dest_set inplace
                 self.subnets.add_dest_points(source_set, new_cands)
             else:
                 new_cands = set()
 
-            if len(source_set) == 0 and len(dest_set) == 1:
-                # no backwards candidates: particle will get a new track
-                dpl.append(dest_set.pop())
-                spl.append(None)
-            elif len(source_set) == 1 and len(dest_set) == 0:
-                # no forward candidates
-                spl.append(source_set.pop())
-                dpl.append(None)
-            elif len(source_set) == 1 and len(dest_set) == 1:
-                # one backwards candidate and one forward candidate
-                dpl.append(dest_set.pop())
-                spl.append(source_set.pop())
-                for p in new_cands:
-                    self.hash.add_point(p)
-            else:
-                # sort candidates and add in penalty for not linking
-                for _s in source_set:
-                    _s.forward_cands.sort(key=lambda x: x[1])
-                    _s.forward_cands.append((None, 1.))
-                sn_spl, sn_dpl = self.subnet_linker(source_set,
-                                                    len(dest_set), 1.)
-                sn_dpl_set = set(sn_dpl)
-                # claimed new destination particles
-                for p in new_cands & sn_dpl_set:
-                    self.hash.add_point(p)
-                # unclaimed old destination particles
-                unclaimed = (dest_set - sn_dpl_set) - new_cands
-                sn_spl.extend([None] * len(unclaimed))
-                sn_dpl.extend(unclaimed)
+            # link
+            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
 
-                spl.extend(sn_spl)
-                dpl.extend(sn_dpl)
+            # list the claimed destination particles and add them to the hash
+            sn_dpl_set = set(sn_dpl)
+            # claimed new destination particles
+            for p in new_cands & sn_dpl_set:
+                self.hash.add_point(p)
+            # unclaimed old destination particles
+            unclaimed = (dest_set - sn_dpl_set) - new_cands
+            sn_spl.extend([None] * len(unclaimed))
+            sn_dpl.extend(unclaimed)
+
+            spl.extend(sn_spl)
+            dpl.extend(sn_dpl)
 
         return spl, dpl
