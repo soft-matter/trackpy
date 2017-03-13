@@ -14,10 +14,11 @@ from .masks import slice_image, mask_image
 from .find import grey_dilation, drop_close
 from .utils import (default_pos_columns, guess_pos_columns, is_isotropic,
                     cKDTree, validate_tuple, pandas_sort)
+from .try_numba import NUMBA_AVAILABLE
 from .preprocessing import bandpass
 from .refine import refine_com
-from .linking import (Point, TrackUnstored, SubnetLinker,
-                      _points_to_arr, SubnetOversizeException)
+from .linking import (Point, TrackUnstored, SubnetLinker, _points_to_arr,
+                      SubnetOversizeException, nonrecursive_link, numba_link)
 from .feature import characterize
 
 logger = logging.getLogger(__name__)
@@ -765,7 +766,7 @@ class Subnets(object):
             return [p for p in self.source_hash.points if p.subnet is None]
 
 
-def subnetlinker_recursive(source_set, dest_set, search_range, **kwargs):
+def subnet_linker_recursive(source_set, dest_set, search_range, **kwargs):
     if len(source_set) == 0 and len(dest_set) == 1:
         # no backwards candidates: particle will get a new track
         return [None], [dest_set.pop()]
@@ -792,11 +793,64 @@ def subnetlinker_recursive(source_set, dest_set, search_range, **kwargs):
     return sn_spl, sn_dpl
 
 
-def subnetlinker_adaptive(source_set, dest_set, search_range,
-                          adaptive_stop=None, adaptive_step=0.95, **kwargs):
+def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [None], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
+
+    # sort candidates and add in penalty for not linking
+    for _s in source_set:
+        _s.forward_cands.sort(key=lambda x: x[1])
+        _s.forward_cands.append((None, search_range))
+
+    sn_spl, sn_dpl = nonrecursive_link(source_set, len(dest_set), search_range, **kwargs)
+
+    for dp in dest_set - set(sn_dpl):
+        # Unclaimed destination particle in subnet
+        sn_spl.append(None)
+        sn_dpl.append(dp)
+
+    return sn_spl, sn_dpl
+
+
+def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [None], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
+
+    # sort candidates and add in penalty for not linking
+    for _s in source_set:
+        _s.forward_cands.sort(key=lambda x: x[1])
+        _s.forward_cands.append((None, search_range))
+
+    sn_spl, sn_dpl = numba_link(source_set, len(dest_set), search_range, **kwargs)
+
+    for dp in dest_set - set(sn_dpl):
+        # Unclaimed destination particle in subnet
+        sn_spl.append(None)
+        sn_dpl.append(dp)
+
+    return sn_spl, sn_dpl
+
+
+def adaptive_link_wrap(source_set, dest_set, search_range, subnet_linker,
+                       adaptive_stop=None, adaptive_step=0.95, **kwargs):
+    """Wraps a subnetlinker, making it adaptive."""
     try:
-        sn_spl, sn_dpl = subnetlinker_recursive(source_set, dest_set,
-                                                search_range, **kwargs)
+        sn_spl, sn_dpl = subnet_linker(source_set, dest_set,
+                                       search_range, **kwargs)
     except SubnetOversizeException:
         if adaptive_stop is None:
             raise
@@ -811,8 +865,8 @@ def subnetlinker_adaptive(source_set, dest_set, search_range,
         sn_dpl = []
         for source, dest in split_subnet(source_set, dest_set, new_range):
             split_spl, split_dpl = \
-                subnetlinker_adaptive(source, dest, new_range,
-                                      adaptive_stop, adaptive_step, **kwargs)
+                adaptive_link_wrap(source, dest, new_range, subnet_linker,
+                                   adaptive_stop, adaptive_step, **kwargs)
             sn_spl.extend(split_spl)
             sn_dpl.extend(split_dpl)
 
@@ -883,15 +937,31 @@ class Linker(object):
     # Maximum number of candidates per particle
     MAX_NEIGHBORS = 10
 
-    def __init__(self, search_range, memory=0, predictor=None,
-                 adaptive_stop=None, adaptive_step=0.95):
+    def __init__(self, search_range, memory=0, subnet_linker=None,
+                 predictor=None, adaptive_stop=None, adaptive_step=0.95):
         self.memory = memory
         self.predictor = predictor
         self.track_cls = TrackUnstored
         self.adaptive_stop = adaptive_stop
         self.adaptive_step = adaptive_step
 
-        self.subnet_linker = subnetlinker_recursive
+        if subnet_linker is None or subnet_linker == 'auto':
+            if NUMBA_AVAILABLE:
+                subnet_linker = 'numba'
+            else:
+                subnet_linker = 'recursive'
+
+        if subnet_linker == 'recursive':
+            subnet_linker_func = subnet_linker_recursive
+        elif subnet_linker == 'numba':
+            subnet_linker_func = subnet_linker_numba
+        elif subnet_linker == 'nonrecursive':
+            subnet_linker_func = subnet_linker_nonrecursive
+        elif callable(subnet_linker):
+            subnet_linker_func = subnet_linker
+        else:
+            raise ValueError("Unknown subnet linker '{}'".format(subnet_linker))
+
         self.ndim = len(search_range)
         self.search_range = np.array(search_range)
         self.hash = None
@@ -902,12 +972,13 @@ class Linker(object):
             adaptive_stop = np.max(adaptive_stop / self.search_range)
             if 1 * self.adaptive_stop <= 0:
                 raise ValueError("adaptive_stop must be positive.")
-            self.subnet_linker = functools.partial(subnetlinker_adaptive,
+            self.subnet_linker = functools.partial(adaptive_link_wrap,
+                                                   subnet_linker=subnet_linker_func,
                                                    adaptive_stop=adaptive_stop,
                                                    adaptive_step=adaptive_step,
                                                    max_size=self.MAX_SUB_NET_SIZE_ADAPTIVE)
         else:
-            self.subnet_linker = functools.partial(subnetlinker_recursive,
+            self.subnet_linker = functools.partial(subnet_linker_func,
                                                    max_size=self.MAX_SUB_NET_SIZE)
 
     def update_hash(self, coords, t, extra_data=None):
