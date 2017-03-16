@@ -288,7 +288,7 @@ class FitFunctions(object):
 
         def residual(vect):
             if np.any(np.isnan(vect)):
-                raise RefineException
+                raise RefineException('Parameters contained NaN values.')
             params = vect_to_params(vect, params_const, modes, groups)
             result = 0.
             for indices, image, mesh, masks_cl in zip(cl_groups, images, meshes,
@@ -307,7 +307,7 @@ class FitFunctions(object):
 
         def jacobian(vect):
             if np.any(np.isnan(vect)):
-                raise RefineException
+                raise RefineException('Parameters contained NaN values.')
             params = vect_to_params(vect, params_const, modes, groups)
             result = params.copy()
             for indices, image, mesh, masks_cl in zip(cl_groups, images, meshes,
@@ -418,7 +418,7 @@ def prepare_subimage(coords, image, radius):
     # slice region around cluster
     im, origin = slice_image(coords, image, radius)
     if origin is None:   # coordinates are out of image bounds
-        raise RefineException
+        raise RefineException('Coordinates are out of image bounds.')
 
     # include the edges where dist == 1 exactly
     dist = [(np.sum(((np.indices(im.shape).T - (coord - origin)) / radius)**2, -1) <= 1)
@@ -826,7 +826,7 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
             norm = float(frames[frame_nos[0]].max()) ** 2 / residual_factor
         try:
             if not np.isfinite(params).all():
-                raise RefineException
+                raise RefineException('Not all initial parameters ({}) are known.'.format(ff.params))
             # extract the coordinates from the parameter array
             coords = params[:, 2:2+ndim]
             # transform the params into a vector for leastq optimization
