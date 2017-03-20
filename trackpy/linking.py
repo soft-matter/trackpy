@@ -1402,7 +1402,6 @@ class SubnetLinker(object):
 
 
 def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=False):
-    #    print 'non-recursive', len(source_list), dest_size
     source_list = list(source_list)
     source_list.sort(key=lambda x: len(x.forward_cands))
     MAX = len(source_list)
@@ -1550,7 +1549,7 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
 @try_numba_autojit(nopython=True)
 def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
                           cur_sums, tmp_assignments, best_assignments):
-    """Find the optimal track assigments for a subnetwork, without recursion.
+    """Find the optimal track assignments for a subnetwork, without recursion.
 
     This is for nj source particles. All arguments are arrays with nj rows.
 
