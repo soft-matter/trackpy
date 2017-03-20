@@ -1513,8 +1513,8 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     # A source particle's actual candidates only take up the start of
     # each row of the array. All other elements represent the null link option
     # (i.e. particle lost)
-    candsarray = np.ones((nj, max_candidates + 1), dtype=np.int64) * -1
-    distsarray = np.ones((nj, max_candidates + 1), dtype=np.float64) * search_range
+    candsarray = np.ones((nj, max_candidates), dtype=np.int64) * -1
+    distsarray = np.ones((nj, max_candidates), dtype=np.float64) * search_range
     ncands = np.zeros((nj,), dtype=np.int64)
     for j, sp in enumerate(src_net):
         ncands[j] = len(sp.forward_cands)
@@ -1523,6 +1523,11 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
                                           'on these data (particle has %i forward candidates)' % ncands[j])
         candsarray[j,:ncands[j]] = [dcands_map[cand] for cand, dist in sp.forward_cands]
         distsarray[j,:ncands[j]] = [dist for cand, dist in sp.forward_cands]
+        # Each source particle has a "null link" as its last forward_cand.
+        # assert distsarray[j,ncands[j] - 1] == search_range
+        # The last column of distsarray should also be search_range,
+        # so that the null link can be represented by "-1"
+        # assert all(distsarray[:,-1] == search_range)
     # The assignments are persistent across levels of the recursion
     best_assignments = np.ones((nj,), dtype=np.int64) * -1
     cur_assignments = np.ones((nj,), dtype=np.int64) * -1
