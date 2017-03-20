@@ -1385,10 +1385,8 @@ class SubnetLinker(object):
             # if we have hit the end of s_lst and made it this far, it
             # must be a better linking so save it.
             if j + 1 == self.MAX:
-                tmp_sum = self.cur_sum + self.search_range**2 * (
-                    self.max_links - len(self.d_taken))
-                if tmp_sum < self.best_sum:
-                    self.best_sum = tmp_sum
+                if self.cur_sum < self.best_sum:
+                    self.best_sum = self.cur_sum
                     self.best_pairs = list(self.cur_pairs)
             else:
                 # re curse!
@@ -1427,10 +1425,7 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=Fa
         if j >= MAX:
             # base case, no more source candidates,
             # save the current configuration if it's better than the current max
-            # add penalty for not linking to particles in the destination set
-            tmp_sum = cur_sum + search_range**2 * (
-                max_links - len([d for d in cur_back if d is not None]))
-            if tmp_sum < best_sum:
+            if cur_sum < best_sum:
                 best_sum = cur_sum
                 best_back = list(cur_back)
 
