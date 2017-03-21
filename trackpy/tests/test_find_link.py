@@ -573,7 +573,7 @@ class FindLinkSpecialCases(StrictTestCase):
 
     def test_shifting_string(self):
         shape = (24, 48)
-        shift = 7
+        shift = 5
         expected = pd.DataFrame({'x': [8, 8+shift, 16, 16+shift,
                                        24, 24+shift, 32, 32+shift],
                                  'y': [8, 16, 8, 16, 8, 16, 8, 16],

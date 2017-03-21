@@ -1385,10 +1385,8 @@ class SubnetLinker(object):
             # if we have hit the end of s_lst and made it this far, it
             # must be a better linking so save it.
             if j + 1 == self.MAX:
-                tmp_sum = self.cur_sum + self.search_range**2 * (
-                    self.max_links - len(self.d_taken))
-                if tmp_sum < self.best_sum:
-                    self.best_sum = tmp_sum
+                if self.cur_sum < self.best_sum:
+                    self.best_sum = self.cur_sum
                     self.best_pairs = list(self.cur_pairs)
             else:
                 # re curse!
@@ -1402,7 +1400,6 @@ class SubnetLinker(object):
 
 
 def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=False):
-    #    print 'non-recursive', len(source_list), dest_size
     source_list = list(source_list)
     source_list.sort(key=lambda x: len(x.forward_cands))
     MAX = len(source_list)
@@ -1428,10 +1425,7 @@ def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=Fa
         if j >= MAX:
             # base case, no more source candidates,
             # save the current configuration if it's better than the current max
-            # add penalty for not linking to particles in the destination set
-            tmp_sum = cur_sum + search_range**2 * (
-                max_links - len([d for d in cur_back if d is not None]))
-            if tmp_sum < best_sum:
+            if cur_sum < best_sum:
                 best_sum = cur_sum
                 best_back = list(cur_back)
 
@@ -1519,8 +1513,8 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     # A source particle's actual candidates only take up the start of
     # each row of the array. All other elements represent the null link option
     # (i.e. particle lost)
-    candsarray = np.ones((nj, max_candidates + 1), dtype=np.int64) * -1
-    distsarray = np.ones((nj, max_candidates + 1), dtype=np.float64) * search_range
+    candsarray = np.ones((nj, max_candidates), dtype=np.int64) * -1
+    distsarray = np.ones((nj, max_candidates), dtype=np.float64) * search_range
     ncands = np.zeros((nj,), dtype=np.int64)
     for j, sp in enumerate(src_net):
         ncands[j] = len(sp.forward_cands)
@@ -1529,6 +1523,11 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
                                           'on these data (particle has %i forward candidates)' % ncands[j])
         candsarray[j,:ncands[j]] = [dcands_map[cand] for cand, dist in sp.forward_cands]
         distsarray[j,:ncands[j]] = [dist for cand, dist in sp.forward_cands]
+        # Each source particle has a "null link" as its last forward_cand.
+        # assert distsarray[j,ncands[j] - 1] == search_range
+        # The last column of distsarray should also be search_range,
+        # so that the null link can be represented by "-1"
+        # assert all(distsarray[:,-1] == search_range)
     # The assignments are persistent across levels of the recursion
     best_assignments = np.ones((nj,), dtype=np.int64) * -1
     cur_assignments = np.ones((nj,), dtype=np.int64) * -1
@@ -1550,7 +1549,7 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
 @try_numba_autojit(nopython=True)
 def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
                           cur_sums, tmp_assignments, best_assignments):
-    """Find the optimal track assigments for a subnetwork, without recursion.
+    """Find the optimal track assignments for a subnetwork, without recursion.
 
     This is for nj source particles. All arguments are arrays with nj rows.
 

@@ -6,10 +6,11 @@ from copy import deepcopy
 import warnings
 
 import numpy as np
+from numpy.testing import assert_array_equal
 import pandas as pd
 from pandas import DataFrame
 import nose
-from pandas.util.testing import assert_frame_equal
+from pandas.util.testing import assert_frame_equal, assert_series_equal
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
@@ -227,6 +228,7 @@ class CommonTrackingTests(object):
         f = pd.read_pickle(os.path.join(path, filename))
         # Not all parameters reproduce it, but these do
         self.link_df(f, 8, 2, verify_integrity=True)
+
 
     def test_search_range(self):
         t = self.link(unit_steps(), 1.1, hash_generator((10, 10), 1))
@@ -513,6 +515,42 @@ class SubnetNeededTests(CommonTrackingTests):
         trneg = self.link_df(subnet_test(0.01), 5, retain_index=True)
         trpos = self.link_df(subnet_test(-0.01), 5, retain_index=True)
         assert not np.allclose(trneg.particle.values, trpos.particle.values)
+
+    def test_penalty(self):
+        """A test case of two particles, spaced 8 and each moving by 8 down
+        and 7 to the right. We have two likely linking results:
+
+        1. two links, total squared displacement = 2*(8**2 + 7**2) = 226
+        2. one link, total squared displacement = (8**2 + 1**2) + sr**2
+
+        Case 2 gets a penalty for not linking, which equals the search range
+        squared. We vary this in this test.
+
+        With a penalty of 13, case 2 has a total cost of 234 and we expect case
+        1. as the result.
+
+        With a penalty of 12, case 2. will have a total cost of 209 and we
+        expect case 2. as the result.
+        """
+        f = pd.DataFrame({'x': [0, 8, 7, 8 + 7],
+                          'y': [0, 0, 8, 8],
+                          'frame': [0, 0, 1, 1]})
+        case1 = f.copy()
+        case1['particle'] = np.array([0, 1, 0, 1])
+        case2 = f.copy()
+        case2['particle'] = np.array([0, 1, 1, 2])
+
+        actual = self.link_df(f, 13)
+        pandas_sort(case1, ['x'], inplace=True)
+        pandas_sort(actual, ['x'], inplace=True)
+        assert_array_equal(actual['particle'].values.astype(np.int),
+                           case1['particle'].values.astype(np.int))
+
+        actual = self.link_df(f, 12)
+        pandas_sort(case2, ['x'], inplace=True)
+        pandas_sort(actual, ['x'], inplace=True)
+        assert_array_equal(actual['particle'].values.astype(np.int),
+                           case2['particle'].values.astype(np.int))
 
     def test_memory(self):
         """A unit-stepping trajectory and a random walk are observed
