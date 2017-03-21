@@ -18,7 +18,8 @@ from .try_numba import NUMBA_AVAILABLE
 from .preprocessing import bandpass
 from .refine import refine_com
 from .linking import (Point, TrackUnstored, SubnetLinker, _points_to_arr,
-                      SubnetOversizeException, nonrecursive_link, numba_link)
+                      SubnetOversizeException, nonrecursive_link, numba_link,
+                      UnknownLinkingError)
 from .feature import characterize
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,22 @@ def coords_from_df_iter(df_iter, pos_columns, t_column):
             yield None, np.empty((0, ndim))
         else:
             yield df[t_column].iloc[0], df[pos_columns].values
+
+
+def verify_integrity(df):
+    """Verifies that particle labels are unique for each frame, and that every
+    particle is labeled."""
+    is_labeled = df['particle'] >= 0
+    if not np.all(is_labeled):
+        frames = df.loc[~is_labeled, 'frame'].unique()
+        raise UnknownLinkingError("Some particles were not labeled "
+                                  "in frames {}.".format(frames))
+    grouped = df.groupby('frame')['particle']
+    not_equal = grouped.nunique() != grouped.count()
+    if np.any(not_equal):
+        where_not_equal = not_equal.index[not_equal].values
+        raise UnknownLinkingError("There are multiple particles with the same "
+                                  "label in Frames {}.".format(where_not_equal))
 
 
 def link_simple_iter(coords_iter, search_range, **kwargs):
@@ -766,6 +783,34 @@ class Subnets(object):
             return [p for p in self.source_hash.points if p.subnet is None]
 
 
+def subnet_linker_drop(source_set, dest_set, search_range, max_size=30,
+                       **kwargs):
+    """Handle subnets by dropping particles.
+
+    This is an alternate "link_strategy", selected by specifying 'drop',
+    that simply refuses to solve the subnet. It ends the trajectories
+    represented in source_list, and results in a new trajectory for
+    each destination particle.
+
+    One possible use is to quickly test whether a given search_range will
+    result in a SubnetOversizeException."""
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [None], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
+
+    if len(source_set) > max_size:
+        raise SubnetOversizeException("Subnetwork contains %d points"
+                                      % len(source_set))
+    return [sp for sp in source_set] + [None] * len(dest_set), \
+           [None] * len(source_set) + [dp for dp in dest_set]
+
+
 def subnet_linker_recursive(source_set, dest_set, search_range, **kwargs):
     if len(source_set) == 0 and len(dest_set) == 1:
         # no backwards candidates: particle will get a new track
@@ -937,7 +982,7 @@ class Linker(object):
     # Maximum number of candidates per particle
     MAX_NEIGHBORS = 10
 
-    def __init__(self, search_range, memory=0, subnet_linker=None,
+    def __init__(self, search_range, memory=0, link_strategy=None,
                  predictor=None, adaptive_stop=None, adaptive_step=0.95):
         self.memory = memory
         self.predictor = predictor
@@ -945,22 +990,24 @@ class Linker(object):
         self.adaptive_stop = adaptive_stop
         self.adaptive_step = adaptive_step
 
-        if subnet_linker is None or subnet_linker == 'auto':
+        if link_strategy is None or link_strategy == 'auto':
             if NUMBA_AVAILABLE:
-                subnet_linker = 'numba'
+                link_strategy = 'numba'
             else:
-                subnet_linker = 'recursive'
+                link_strategy = 'recursive'
 
-        if subnet_linker == 'recursive':
-            subnet_linker_func = subnet_linker_recursive
-        elif subnet_linker == 'numba':
-            subnet_linker_func = subnet_linker_numba
-        elif subnet_linker == 'nonrecursive':
-            subnet_linker_func = subnet_linker_nonrecursive
-        elif callable(subnet_linker):
-            subnet_linker_func = subnet_linker
+        if link_strategy == 'recursive':
+            subnet_linker = subnet_linker_recursive
+        elif link_strategy == 'numba':
+            subnet_linker = subnet_linker_numba
+        elif link_strategy == 'nonrecursive':
+            subnet_linker = subnet_linker_nonrecursive
+        elif link_strategy == 'drop':
+            subnet_linker = subnet_linker_drop
+        elif callable(link_strategy):
+            subnet_linker = link_strategy
         else:
-            raise ValueError("Unknown subnet linker '{}'".format(subnet_linker))
+            raise ValueError("Unknown linking strategy '{}'".format(link_strategy))
 
         self.ndim = len(search_range)
         self.search_range = np.array(search_range)
@@ -973,12 +1020,12 @@ class Linker(object):
             if 1 * self.adaptive_stop <= 0:
                 raise ValueError("adaptive_stop must be positive.")
             self.subnet_linker = functools.partial(adaptive_link_wrap,
-                                                   subnet_linker=subnet_linker_func,
+                                                   subnet_linker=subnet_linker,
                                                    adaptive_stop=adaptive_stop,
                                                    adaptive_step=adaptive_step,
                                                    max_size=self.MAX_SUB_NET_SIZE_ADAPTIVE)
         else:
-            self.subnet_linker = functools.partial(subnet_linker_func,
+            self.subnet_linker = functools.partial(subnet_linker,
                                                    max_size=self.MAX_SUB_NET_SIZE)
 
     def update_hash(self, coords, t, extra_data=None):
