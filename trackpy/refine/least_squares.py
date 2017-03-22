@@ -886,7 +886,7 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
                 f.loc[f_iter.index, 'cost'] = np.nan
                 if compute_error:
                     f[f_iter.index, cols_std] = np.nan
-            logger.warn('RefineException: ' + e.args[0])
+            logger.warn('RefineException: {}'.format(e.args))
             status = 'failed'
         else:
             if level == 'global':
