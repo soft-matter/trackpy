@@ -229,6 +229,8 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     # Here, rebuild it from the frame index.
     if not detail:
         return results.set_index('lagt')['msd']
+    # correctly compute the effective number of independent measurements
+    results['N'] = msds['N'].sum(level=1)
     return results
 
 
