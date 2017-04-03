@@ -372,18 +372,29 @@ class SubnetNeededTests(CommonTrackingTests):
 
     def test_quadrature_distances(self):
         """A simple test to check whether the subnet linker adds
-        distances in quadrature (as in Crocker-Grier)."""
+        distances in quadrature (as in Crocker-Grier).
+
+        We have two possible linking results:
+
+        1. A->C and B->D, cost1 = 16, cost2 = 200
+        2. A->D and B->C, cost1 = 28, cost2 = 200
+        """
         def subnet_test(epsilon):
             """Returns 2 features in 2 frames, which represent a special
             case when the subnet linker adds distances in quadrature. With
             epsilon=0, subnet linking is degenerate. Therefore
             linking should differ for positive and negative epsilon."""
-            return pd.DataFrame([(0, 10, 11), (0, 10, 8),
-                                 (1, 9, 10), (1, 12, 10 + epsilon)],
+            return pd.DataFrame([(0, 6, 0),             #A
+                                 (0, 14 + epsilon, 8),  #B
+                                 (1, 8, 0),             #C
+                                 (1, 0, 8)],            #D
                                 columns=['frame', 'x', 'y'])
-        trneg = self.link(subnet_test(0.01), 5)
-        trpos = self.link(subnet_test(-0.01), 5)
-        assert not np.allclose(trneg.particle.values, trpos.particle.values)
+
+        trpos = self.link(subnet_test(1), 20)
+        np.allclose(trpos.particle.values, np.array([0, 1, 1, 0]))
+
+        trneg = self.link(subnet_test(-1), 20)
+        np.allclose(trneg.particle.values, np.array([0, 1, 0, 1]))
 
     def test_penalty(self):
         """A test case of two particles, spaced 8 and each moving by 8 down
