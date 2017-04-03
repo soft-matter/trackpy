@@ -258,12 +258,10 @@ class ChannelPredict(_RecentVelocityPredict):
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
-        # Use the last 2 frames to make a velocity field
-        self.recent_frames = deque([], 2)
         self.initial_profile_guess = initial_profile_guess
 
     def observe(self, frame):
-        # Sort out dimensions and axes
+        # Sort out dimesions and axes
         if len(self.pos_columns) != 2:
             raise ValueError('Implemented for 2 dimensions only')
         if self.flow_axis not in self.pos_columns:
