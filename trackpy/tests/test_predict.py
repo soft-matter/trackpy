@@ -29,9 +29,7 @@ def link(frames, linker, *args, **kw):
 
 def get_linked_lengths(frames, linker, *args, **kw):
     """Track particles and return the length of each trajectory."""
-    print(frames)
     linked = link(frames, linker, *args, **kw)
-    print(linked)
     return linked.groupby('particle').x.count()
 
 Nside_oversize = int(np.sqrt(100)) # Make subnet linker fail
@@ -76,7 +74,7 @@ class BaselinePredictTests(LinkWithPrediction, StrictTestCase):
         # The conditional is so we won't test find_link in this way,
         # due to the way column names are baked into the
         # artificial image code.
-        if not getattr(self, 'skip_keyword_test', None):
+        if not getattr(self, 'coords_via_images', False):
             features = pandas.concat((mkframe(0), mkframe(25)))
             features.rename(columns=lambda n: n + '_', inplace=True)
             pred = predict.NullPredict()
@@ -153,6 +151,8 @@ class VelocityPredictTests(LinkWithPrediction):
         assert all(ends - starts == 145), 'Prediction with memory fails.'
 
     def test_predict_diagnostics(self):
+        if getattr(self, 'coords_via_images', False):
+            raise SkipTest
         """Minimally test predictor instrumentation."""
         pred = self.instrumented_predict_class()
         Nside = Nside_oversize
@@ -296,7 +296,9 @@ class FindLinkPredictTest(object):
     def setUp(self):
         super(FindLinkPredictTest, self).setUp()
         self.linker_opts = dict(separation=10, diameter=15)
-        self.skip_keyword_test = True
+        # Disable certain tests that are redundant here
+        # and would require more code to support.
+        self.coords_via_images = True
 
     def get_linker_iter(self, pred):
         def link_iter(f, search_range, *args, **kw):
@@ -307,7 +309,6 @@ class FindLinkPredictTest(object):
             f = [_f for _f in f]
             indices = [_f['frame'].iloc[0] for _f in f]
             f = pandas.concat([_f for _f in f])
-            f[['y', 'x']] *= separation
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 np.int)
             f[['y', 'x']] -= topleft
@@ -319,11 +320,10 @@ class FindLinkPredictTest(object):
             pred.t_column = kw.get('t_column', 'frame')
 
             for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
-                                                   search_range=search_range * separation,
+                                                   search_range=search_range,
                                                    *args, **kw):
                 pred.observe(frame)
                 frame[['y', 'x']] += topleft
-                frame[['y', 'x']] /= separation
 
                 yield frame
         return link_iter
@@ -334,7 +334,6 @@ class FindLinkPredictTest(object):
             size = 3
             separation = kw['separation']
             f = f.copy()
-            f[['y', 'x']] *= separation
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 np.int)
             f[['y', 'x']] -= topleft
@@ -348,13 +347,12 @@ class FindLinkPredictTest(object):
 
             f = []
             for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
-                                                   search_range=search_range * separation,
+                                                   search_range=search_range,
                                                    *args, **kw):
                 f.append(frame)
 
             f = pandas.concat(f)
             f[['y', 'x']] += topleft
-            f[['y', 'x']] /= separation
 
             return f
         return link
@@ -368,7 +366,6 @@ class FindLinkPredictTest(object):
             f = [_f for _f in f]
             indices = [_f['frame'].iloc[0] for _f in f]
             f = pandas.concat([_f for _f in f])
-            f[['y', 'x']] *= separation
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 np.int)
             f[['y', 'x']] -= topleft
@@ -377,10 +374,9 @@ class FindLinkPredictTest(object):
             reader = CoordinateReader(f, shape, size, t=indices)
 
             for i, frame in trackpy.find_link_iter(reader,
-                                                   search_range=search_range * separation,
+                                                   search_range=search_range,
                                                    *args, **kw):
                 frame[['y', 'x']] += topleft
-                frame[['y', 'x']] /= separation
                 yield frame
         return link_iter
 
