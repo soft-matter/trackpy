@@ -70,7 +70,10 @@ def verify_integrity(df):
         raise UnknownLinkingError("Some particles were not labeled "
                                   "in frames {}.".format(frames))
     grouped = df.groupby('frame')['particle']
-    not_equal = grouped.nunique() != grouped.count()
+    try:
+        not_equal = grouped.nunique() != grouped.count()
+    except AttributeError:  # for older pandas versions
+        not_equal = grouped.apply(lambda x: len(pd.unique(x))) != grouped.count()
     if np.any(not_equal):
         where_not_equal = not_equal.index[not_equal].values
         raise UnknownLinkingError("There are multiple particles with the same "
