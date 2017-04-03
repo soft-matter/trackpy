@@ -294,7 +294,9 @@ class NewChannelPredictYTests(LinkNewPredictTest, ChannelPredictYTests):
 
 class FindLinkPredictTest(object):
     def setUp(self):
+        super(FindLinkPredictTest, self).setUp()
         self.linker_opts = dict(separation=10, diameter=15)
+        self.skip_keyword_test = True
 
     def get_linker_iter(self, pred):
         def link_iter(f, search_range, *args, **kw):
@@ -305,6 +307,7 @@ class FindLinkPredictTest(object):
             f = [_f for _f in f]
             indices = [_f['frame'].iloc[0] for _f in f]
             f = pandas.concat([_f for _f in f])
+            f[['y', 'x']] *= separation
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 np.int)
             f[['y', 'x']] -= topleft
@@ -337,7 +340,8 @@ class FindLinkPredictTest(object):
             f[['y', 'x']] -= topleft
             shape = (f[['y', 'x']].max().values + 4 * separation).astype(
                 np.int)
-            reader = CoordinateReader(f, shape, size)
+            reader = CoordinateReader(f, shape, size,
+                                      t=f['frame'].unique())
 
             pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
             pred.t_column = kw.get('t_column', 'frame')
