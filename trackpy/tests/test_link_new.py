@@ -372,7 +372,7 @@ class SubnetNeededTests(CommonTrackingTests):
 
     def test_quadrature_distances(self):
         """A simple test to check whether the subnet linker adds
-        distances in quadrature (as in Crocker-Grier).
+        orthogonal coordinates in quadrature (as in Pythagoras).
 
         We have two possible linking results:
 
@@ -394,6 +394,24 @@ class SubnetNeededTests(CommonTrackingTests):
         np.allclose(trpos.particle.values, np.array([0, 1, 1, 0]))
 
         trneg = self.link(subnet_test(-1), 20)
+        np.allclose(trneg.particle.values, np.array([0, 1, 0, 1]))
+
+    def test_quadrature_sum(self):
+        """A simple test to check whether the subnet linker adds
+        distances in quadrature (as in Crocker-Grier)."""
+        def subnet_test(epsilon):
+            """Returns 2 features in 2 frames, which represent a special
+            case when the subnet linker adds distances in quadrature. With
+            epsilon=0, subnet linking is degenerate. Therefore
+            linking should differ for positive and negative epsilon."""
+            return pd.DataFrame([(0, 10, 11), (0, 10, 8),
+                                 (1, 9, 10), (1, 12, 10 + epsilon)],
+                         columns=['frame', 'x', 'y'])
+
+        trpos = self.link(subnet_test(0.01), 20)
+        np.allclose(trpos.particle.values, np.array([0, 1, 1, 0]))
+
+        trneg = self.link(subnet_test(-0.01), 20)
         np.allclose(trneg.particle.values, np.array([0, 1, 0, 1]))
 
     def test_penalty(self):

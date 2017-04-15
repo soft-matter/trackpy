@@ -501,7 +501,7 @@ class SubnetNeededTests(CommonTrackingTests):
         actual = self.link_df_iter(f1, 5, hash_size=(2*M, 2*M))
         assert_frame_equal(actual, expected)
 
-    def test_quadrature_distances(self):
+    def test_quadrature_sum(self):
         """A simple test to check whether the subnet linker adds
         distances in quadrature (as in Crocker-Grier)."""
         def subnet_test(epsilon):
