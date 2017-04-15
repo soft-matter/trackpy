@@ -391,10 +391,10 @@ class SubnetNeededTests(CommonTrackingTests):
                                 columns=['frame', 'x', 'y'])
 
         trpos = self.link(subnet_test(1), 20)
-        np.allclose(trpos.particle.values, np.array([0, 1, 1, 0]))
+        assert_equal(trpos.particle.values, np.array([0, 1, 1, 0]))
 
         trneg = self.link(subnet_test(-1), 20)
-        np.allclose(trneg.particle.values, np.array([0, 1, 0, 1]))
+        assert_equal(trneg.particle.values, np.array([0, 1, 0, 1]))
 
     def test_quadrature_sum(self):
         """A simple test to check whether the subnet linker adds
@@ -409,10 +409,10 @@ class SubnetNeededTests(CommonTrackingTests):
                          columns=['frame', 'x', 'y'])
 
         trpos = self.link(subnet_test(0.01), 20)
-        np.allclose(trpos.particle.values, np.array([0, 1, 1, 0]))
+        assert_equal(trpos.particle.values, np.array([0, 1, 1, 0]))
 
         trneg = self.link(subnet_test(-0.01), 20)
-        np.allclose(trneg.particle.values, np.array([0, 1, 0, 1]))
+        assert_equal(trneg.particle.values, np.array([0, 1, 0, 1]))
 
     def test_penalty(self):
         """A test case of two particles, spaced 8 and each moving by 8 down
