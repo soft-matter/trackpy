@@ -376,8 +376,8 @@ class SubnetNeededTests(CommonTrackingTests):
 
         We have two possible linking results:
 
-        1. A->C and B->D, cost1 = 16, cost2 = 200
-        2. A->D and B->C, cost1 = 28, cost2 = 200
+        1. A->C and B->D, cost (linear) = 16, cost (quadrature) = 200
+        2. A->D and B->C, cost (linear) = 28, cost (quadrature) = 200
         """
         def subnet_test(epsilon):
             """Returns 2 features in 2 frames, which represent a special
@@ -391,10 +391,14 @@ class SubnetNeededTests(CommonTrackingTests):
                                 columns=['frame', 'x', 'y'])
 
         trpos = self.link(subnet_test(1), 20)
-        assert_equal(trpos.particle.values, np.array([0, 1, 1, 0]))
+        expected = subnet_test(1)
+        expected['particle'] = np.array([0, 1, 1, 0])
+        assert_traj_equal(trpos, expected)
 
         trneg = self.link(subnet_test(-1), 20)
-        assert_equal(trneg.particle.values, np.array([0, 1, 0, 1]))
+        expected = subnet_test(-1)
+        expected['particle'] = np.array([0, 1, 0, 1])
+        assert_traj_equal(trneg, expected)
 
     def test_quadrature_sum(self):
         """A simple test to check whether the subnet linker adds
@@ -404,15 +408,19 @@ class SubnetNeededTests(CommonTrackingTests):
             case when the subnet linker adds distances in quadrature. With
             epsilon=0, subnet linking is degenerate. Therefore
             linking should differ for positive and negative epsilon."""
-            return pd.DataFrame([(0, 10, 11), (0, 10, 8),
-                                 (1, 9, 10), (1, 12, 10 + epsilon)],
+            return pd.DataFrame([(0, 10, 30), (0, 10, 0),
+                                 (1, 0, 20), (1, 30, 20 + epsilon)],
                          columns=['frame', 'x', 'y'])
 
-        trpos = self.link(subnet_test(0.01), 20)
-        assert_equal(trpos.particle.values, np.array([0, 1, 1, 0]))
+        trpos = self.link(subnet_test(1), 30)
+        expected = subnet_test(1)
+        expected['particle'] = np.array([0, 1, 1, 0])
+        assert_traj_equal(trpos, expected)
 
-        trneg = self.link(subnet_test(-0.01), 20)
-        assert_equal(trneg.particle.values, np.array([0, 1, 0, 1]))
+        trneg = self.link(subnet_test(-1), 30)
+        expected = subnet_test(-1)
+        expected['particle'] = np.array([0, 1, 0, 1])
+        assert_traj_equal(trneg, expected)
 
     def test_penalty(self):
         """A test case of two particles, spaced 8 and each moving by 8 down
