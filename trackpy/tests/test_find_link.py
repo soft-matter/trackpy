@@ -65,16 +65,25 @@ class FindLinkTests(SubnetNeededTests):
 
 
 class FindLinkOneFailedFindTests(FindLinkTests):
+    """In the FindLinker, features that were not found initially are recovered
+    if they fit inside a track. Test this by artificially dropping all features
+    in a single frame via a ``before_link`` callback function. By default,
+    features in frame 3 are dropped, but that can be changed per-test via the
+    dictionary ``FAIL_FRAME``."""
     def setUp(self):
         super(FindLinkOneFailedFindTests, self).setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
                           test_nearby_continuous_random_walks=10,
                           test_start_at_frame_other_than_zero=4,
                           test_two_nearby_steppers_one_gapped=2,
-                          test_two_isolated_steppers_one_gapped=2)
+                          test_two_isolated_steppers_one_gapped=2,
+                          test_memory_removal=2)
 
         test_name = self.id()[self.id().rfind('.') + 1:]
         fail_frame = FAIL_FRAME.get(test_name, 3)
+
+        if fail_frame is None:
+            nose.SkipTest()
 
         def callback(image, coords, **unused_kwargs):
             if image.frame_no == fail_frame:
@@ -85,6 +94,10 @@ class FindLinkOneFailedFindTests(FindLinkTests):
 
 
 class FindLinkManyFailedFindTests(FindLinkTests):
+    """Similar to FindLinkOneFailedFindTests, but now features are not found
+    starting from frame (by default 3). Some tests are not compatible with this:
+    new tracks are not recovered in the second pass by the FindLinker. Skip
+    them by assigning ``None`` to them in ``FAIL_FRAME``."""
     def setUp(self):
         super(FindLinkManyFailedFindTests, self).setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
@@ -92,10 +105,16 @@ class FindLinkManyFailedFindTests(FindLinkTests):
                           test_start_at_frame_other_than_zero=4,
                           test_two_nearby_steppers_one_gapped=5,
                           test_two_isolated_steppers_one_gapped=5,
-                          test_blank_frame_no_memory=5)
+                          test_blank_frame_no_memory=5,
+                          test_memory=None,  # skip all memory tests here
+                          test_memory_removal=None,
+                          test_memory_with_late_appearance=None)
 
         test_name = self.id()[self.id().rfind('.') + 1:]
         fail_frame = FAIL_FRAME.get(test_name, 3)
+
+        if fail_frame is None:
+            raise nose.SkipTest()
 
         def callback(image, coords, **unused_kwargs):
             if image.frame_no >= fail_frame:

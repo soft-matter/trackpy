@@ -23,6 +23,20 @@ def _skip_if_no_numba():
     if not NUMBA_AVAILABLE:
         raise nose.SkipTest('numba not installed. Skipping.')
 
+
+def unit_steps():
+    return pd.DataFrame(dict(x=np.arange(5), y=5, frame=np.arange(5)))
+
+
+random_x = np.random.randn(5).cumsum()
+random_x -= random_x.min()  # All x > 0
+max_disp = np.diff(random_x).max()
+
+
+def random_walk_legacy():
+    return pd.DataFrame(dict(x=random_x, y=0, frame=np.arange(5)))
+
+
 def contracting_grid():
     """Two frames with a grid of 441 points.
 
@@ -193,58 +207,40 @@ class CommonTrackingTests(StrictTestCase):
         f = self.link(f, 8, memory=2)
         verify_integrity(f)
 
+    def test_search_range(self):
+        t = self.link(unit_steps(), 1.1)
+        assert_equal(t['particle'].values, 0)  # One track
 
-    # def test_search_range(self):
-    #     t = self.link(unit_steps(), 1.1, hash_generator((10, 10), 1))
-    #     assert len(t) == 1  # One track
-    #     t_short = self.link(unit_steps(), 0.9, hash_generator((10, 10), 1))
-    #     assert len(t_short) == len(
-    #         unit_steps())  # Each step is a separate track.
-    #
-    #     t = self.link(random_walk_legacy(), max_disp + 0.1,
-    #                   hash_generator((10, 10), 1))
-    #     assert len(t) == 1  # One track
-    #     t_short = self.link(random_walk_legacy(), max_disp - 0.1,
-    #                         hash_generator((10, 10), 1))
-    #     assert len(t_short) > 1  # Multiple tracks
-    #
-    # def test_box_size(self):
-    #     """No matter what the box size, there should be one track, and it should
-    #     contain all the points."""
-    #     for box_size in [0.1, 1, 10]:
-    #         t1 = self.link(unit_steps(), 1.1,
-    #                        hash_generator((10, 10), box_size))
-    #         t2 = self.link(random_walk_legacy(), max_disp + 1,
-    #                        hash_generator((10, 10), box_size))
-    #         assert len(t1) == 1
-    #         assert len(t2) == 1
-    #         assert len(t1[0].points) == len(unit_steps())
-    #         assert len(t2[0].points) == len(random_walk_legacy())
-    #
-    # def test_easy_tracking(self):
-    #     level_count = 5
-    #     p_count = 16
-    #     levels = []
-    #
-    #     for j in range(level_count):
-    #         level = []
-    #         for k in np.arange(p_count) * 2:
-    #             level.append(PointND(j, (j, k)))
-    #         levels.append(level)
-    #
-    #     hash_generator = lambda: Hash_table((level_count + 1,
-    #                                          p_count * 2 + 1), .5)
-    #     tracks = self.link(levels, 1.5, hash_generator)
-    #
-    #     assert len(tracks) == p_count
-    #
-    #     for t in tracks:
-    #         x, y = zip(*[p.pos for p in t])
-    #         dx = np.diff(x)
-    #         dy = np.diff(y)
-    #
-    #         assert np.sum(dx) == level_count - 1
-    #         assert np.sum(dy) == 0
+        t_short = self.link(unit_steps(), 0.9)
+        # Each step is a separate track.
+        assert len(np.unique(t_short['particle'].values)) == len(t_short)
+
+        t = self.link(random_walk_legacy(), max_disp + 0.1)
+        assert_equal(t['particle'].values, 0)  # One track
+        t_short = self.link(random_walk_legacy(), max_disp - 0.1)
+        assert len(np.unique(t_short['particle'].values)) > 1  # Multiple tracks
+
+    def test_easy_tracking(self):
+        level_count = 5
+        p_count = 16
+        levels = []
+
+        for j in range(level_count):
+            for k in np.arange(p_count) * 2:
+                levels.append([j, j, k])
+
+        f = pd.DataFrame(levels, columns=['frame', 'x', 'y'])
+        linked = self.link(f, 1.5)
+
+        assert len(np.unique(linked['particle'].values)) == p_count
+
+        for _, t in linked.groupby('particle'):
+            x, y = t[['x', 'y']].values.T
+            dx = np.diff(x)
+            dy = np.diff(y)
+
+            assert np.sum(dx) == level_count - 1
+            assert np.sum(dy) == 0
 
     def test_copy(self):
         """Check inplace/copy behavior of link_df """
@@ -458,42 +454,43 @@ class SubnetNeededTests(CommonTrackingTests):
         assert_equal(actual['particle'].values.astype(np.int),
                      case2['particle'].values.astype(np.int))
 
-    # def test_memory(self):
-    #     """A unit-stepping trajectory and a random walk are observed
-    #     simultaneously. The random walk is missing from one observation."""
-    #     a = [p[0] for p in unit_steps()]
-    #     b = [p[0] for p in random_walk_legacy()]
-    #     # b[2] is intentionally omitted below.
-    #     gapped = lambda: deepcopy([[a[0], b[0]], [a[1], b[1]], [a[2]],
-    #                                [a[3], b[3]], [a[4], b[4]]])
-    #     safe_disp = 1 + random_x.max() - random_x.min()  # Definitely large enough
-    #     t0 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=0)
-    #     assert len(t0) == 3, len(t0)
-    #     t2 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=2)
-    #     assert len(t2) == 2, len(t2)
-    #
-    # def test_memory_removal(self):
-    #     """BUG: A particle remains in memory after its Track is resumed, leaving two
-    #     copies that can independently pick up desinations, leaving two Points in the
-    #     same Track in a single level."""
-    #     levels  = []
-    #     levels.append([PointND(0, [1, 1]), PointND(0, [4, 1])])  # two points
-    #     levels.append([PointND(1, [1, 1])])  # one vanishes, but is remembered
-    #     levels.append([PointND(2, [1, 1]), PointND(2, [2, 1])]) # resume Track
-    #     levels.append([PointND(3, [1, 1]), PointND(3, [2, 1]), PointND(3, [4, 1])])
-    #     t = self.link(levels, 5, hash_generator((10, 10), 1), memory=2)
-    #     assert len(t) == 3, len(t)
-    #
-    # def test_memory_with_late_appearance(self):
-    #     a = [p[0] for p in unit_steps()]
-    #     b = [p[0] for p in random_walk_legacy()]
-    #     gapped = lambda: deepcopy([[a[0]], [a[1], b[1]], [a[2]],
-    #                                [a[3]], [a[4], b[4]]])
-    #     safe_disp = 1 + random_x.max() - random_x.min()  # large enough
-    #     t0 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=1)
-    #     assert len(t0) == 3, len(t0)
-    #     t2 = self.link(gapped(), safe_disp, hash_generator((10, 10), 1), memory=4)
-    #     assert len(t2) == 2, len(t2)
+    def test_memory(self):
+        """A unit-stepping trajectory and a random walk are observed
+        simultaneously. The random walk is missing from one observation."""
+        a = unit_steps()
+        b = random_walk_legacy()
+        # b[2] is intentionally omitted below.
+        gapped = pd.concat([a, b[b['frame'] != 2]])
+
+        safe_disp = 1 + random_x.max() - random_x.min()  # Definitely large enough
+        t0 = self.link(gapped, safe_disp, memory=0)
+        assert len(np.unique(t0['particle'].values)) == 3
+        t2 = self.link(gapped, safe_disp, memory=2)
+        assert len(np.unique(t2['particle'].values)) == 2
+
+    def test_memory_removal(self):
+        """BUG: A particle remains in memory after its Track is resumed, leaving two
+        copies that can independently pick up desinations, leaving two Points in the
+        same Track in a single level."""
+        levels  = []
+        levels.extend([[0, 1, 1], [0, 4, 1]])  # two points
+        levels.extend([[1, 1, 1]])  # one vanishes, but is remembered
+        levels.extend([[2, 1, 1], [2, 2, 1]])  # resume Track
+        levels.extend([[3, 1, 1], [3, 2, 1], [3, 4, 1]])
+        f = pd.DataFrame(levels, columns=['frame', 'x', 'y'])
+        t = self.link(f, 5, memory=2)
+        assert len(np.unique(t['particle'].values)) == 3
+
+    def test_memory_with_late_appearance(self):
+        a = unit_steps()
+        b = random_walk_legacy()
+        gapped = pd.concat([a, b[b['frame'].isin([1, 4])]])
+
+        safe_disp = 1 + random_x.max() - random_x.min()  # large enough
+        t0 = self.link(gapped, safe_disp, memory=1)
+        assert len(np.unique(t0['particle'].values)) == 3
+        t2 = self.link(gapped, safe_disp, memory=4)
+        assert len(np.unique(t2['particle'].values)) == 2
 
     def test_memory_on_one_gap(self):
         N = 5
@@ -522,24 +519,20 @@ class SubnetNeededTests(CommonTrackingTests):
         actual = self.link(f1, 5, memory=1)
         assert_traj_equal(actual, expected)
 
-    # def test_pathological_tracking(self):
-    #     level_count = 5
-    #     p_count = 16
-    #     levels = []
-    #     shift = 1
-    #
-    #     for j in range(level_count):
-    #         level = []
-    #         for k in np.arange(p_count) * 2:
-    #             level.append(PointND(k // 2, (j, k + j * shift)))
-    #         levels.append(level)
-    #
-    #     hash_generator = lambda: Hash_table((level_count + 1,
-    #                                          p_count*2 + level_count*shift + 1),
-    #                                         .5)
-    #     tracks = self.link(levels, 8, hash_generator)
-    #
-    #     assert len(tracks) == p_count, len(tracks)
+    def test_pathological_tracking(self):
+        level_count = 5
+        p_count = 16
+        levels = []
+        shift = 1
+
+        for j in range(level_count):
+            for k in np.arange(p_count) * 2:
+                levels.append([j, j, k + j * shift])
+
+        f = pd.DataFrame(levels, columns=['frame', 'x', 'y'])
+        linked = self.link(f, 8)
+
+        assert len(np.unique(linked['particle'].values)) == p_count
 
     def test_adaptive_range(self):
         """Tests that is unbearably slow without a fast subnet linker."""
