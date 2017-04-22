@@ -15,6 +15,8 @@ matrix:
       env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==3.0 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=true
     - python: "3.5"
       env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba"  BUILD_DOCS=false
+    - python: "3.6"
+      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba"  BUILD_DOCS=false
 
 
 install:
@@ -24,7 +26,9 @@ install:
   # OK, this used to *fix* the build, but now it *breaks* the build.
   # If you're reading this, good luck out there. I'm not sure what to tell you.
   - conda update --yes conda
-  - conda config --add channels conda-forge
+  # Append the conda-forge channel, instead of adding it. See:
+  # https://github.com/conda-forge/conda-forge.github.io/issues/232)
+  - conda config --append channels conda-forge
   - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   - |
