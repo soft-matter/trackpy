@@ -61,9 +61,11 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
+from datetime import date
+
 # General information about the project.
 project = u'trackpy'
-copyright = u'2010-2014, Trackpy Contributors'
+copyright = u'2010-{}, Trackpy Contributors'.format(date.today().year)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
