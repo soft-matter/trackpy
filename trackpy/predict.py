@@ -41,17 +41,49 @@ class NullPredict(object):
 
     (Equivalent to standard behavior of linker.)
     """
-    def link_df_iter(self, *args, **kw):
-        """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
+    def wrap(self, linking_fcn, *args, **kw):
+        """Wrapper for an arbitrary linking function that causes it to use this predictor.
+
+        The linking function must accept a 'predictor' keyword argument.
+
+        The linking function must accept a 'predictor' keyword argument. It
+        must return an iterator of DataFrames, emitting a DataFrame each time
+        a frame is linked.
+        """
         if getattr(self, '_already_linked', False):
             warn('Perform tracking with a fresh predictor instance to avoid surprises.')
         self._already_linked = True
         kw['predictor'] = self.predict
         self.pos_columns = kw.get('pos_columns', ['x', 'y'])
         self.t_column = kw.get('t_column', 'frame')
-        for frame in linking.link_df_iter(*args, **kw):
+        for frame in linking_fcn(*args, **kw):
             self.observe(frame)
             yield frame
+
+    def wrap_single(self, linking_fcn, *args, **kw):
+        """Wrapper for an arbitrary linking function that causes it to use this predictor.
+
+        This wrapper causes the linker to accept and return a single DataFrame
+        with coordinates for all frames. Because it wraps functions that use
+        iterators of DataFrames, it should not necessarily be considered a drop-in replacement
+        for another single-DataFrame linking function.
+
+        The linking function must accept a 'predictor' keyword argument. It
+        must return an iterator of DataFrames, emitting a DataFrame each time
+        a frame is linked.
+        """
+        # TODO: Properly handle empty frames by adopting more sophisticated
+        # logic in e.g. linking._gen_levels_df()
+        args = list(args)
+        features = args.pop(0)
+        if kw.get('t_column') is None:
+            kw['t_column'] = 'frame'
+        features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
+        return pd.concat(linking_fcn(*([features_iter, ] + args), **kw))
+
+    def link_df_iter(self, *args, **kw):
+        """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
+        return self.wrap(linking.link_df_iter, *args, **kw)
 
     def link_df(self, *args, **kw):
         """Wrapper for linking.link_df_iter() that causes it to use this predictor.
@@ -61,12 +93,7 @@ class NullPredict(object):
         Note that this does not wrap linking.link_df(), and does not accept the same
         options as that function. However in most cases it is functionally equivalent.
         """
-        args = list(args)
-        features = args.pop(0)
-        if kw.get('t_column') is None:
-            kw['t_column'] = 'frame'
-        features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
-        return pd.concat(self.link_df_iter(*([features_iter, ] + args), **kw))
+        return self.wrap_single(linking.link_df_iter, *args, **kw)
 
     def observe(self, frame):
         """Examine the latest output of the linker, to update our predictions."""
@@ -231,12 +258,10 @@ class ChannelPredict(_RecentVelocityPredict):
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
-        # Use the last 2 frames to make a velocity field
-        self.recent_frames = deque([], 2)
         self.initial_profile_guess = initial_profile_guess
 
     def observe(self, frame):
-        # Sort out dimensions and axes
+        # Sort out dimesions and axes
         if len(self.pos_columns) != 2:
             raise ValueError('Implemented for 2 dimensions only')
         if self.flow_axis not in self.pos_columns:
@@ -310,8 +335,8 @@ def instrumented(limit=None):
 
     limit : maximum number of recent frames to retain. If None, keep all.
 
-    Examples
-    --------
+    Example
+    -------
 
     >>> pred = instrumented()(ChannelPredict)(50, flow_axis='y')
     >>> pred.link_df_iter(...)

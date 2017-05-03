@@ -1,10 +1,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-from six.moves import range
+from six.moves import range, zip
 import warnings
 import logging
-import itertools
+import itertools, functools
 
 import numpy as np
 import pandas as pd
@@ -14,17 +14,20 @@ from .masks import slice_image, mask_image
 from .find import grey_dilation, drop_close
 from .utils import (default_pos_columns, guess_pos_columns, is_isotropic,
                     cKDTree, validate_tuple, pandas_sort)
+from .try_numba import NUMBA_AVAILABLE
 from .preprocessing import bandpass
 from .refine import refine_com
-from .linking import (Point, TrackUnstored, TreeFinder, recursive_linker_obj,
-                      _points_to_arr)
+from .linking import (Point, TrackUnstored, SubnetLinker, _points_to_arr,
+                      SubnetOversizeException, nonrecursive_link, numba_link,
+                      UnknownLinkingError)
 from .feature import characterize
 
 logger = logging.getLogger(__name__)
 
 
 def coords_from_df(df, pos_columns, t_column):
-    """A generator that returns ndarrays of coords from a DataFrame.
+    """A generator that returns ndarrays of coords from a DataFrame. Assumes
+    t_column to be of integer type. Float-typed integers are also accepted.
 
     Empty frames will be returned as empty arrays of shape (0, ndim)."""
     ndim = len(pos_columns)
@@ -32,52 +35,93 @@ def coords_from_df(df, pos_columns, t_column):
 
     # get the first frame to learn first frame number
     cur_frame, frame = next(grouped)
-    next_frame = int(cur_frame) + 1
-    yield frame[pos_columns].values
+    cur_frame = int(cur_frame)
+    yield cur_frame, frame[pos_columns].values
+    cur_frame += 1
 
     for frame_no, frame in grouped:
-        while next_frame < int(frame_no):
-            next_frame += 1
-            yield np.empty((0, ndim))
+        frame_no = int(frame_no)
+        while cur_frame < frame_no:
+            yield cur_frame, np.empty((0, ndim))
+            cur_frame += 1
 
-        next_frame += 1
-        yield frame[pos_columns].values
+        yield cur_frame, frame[pos_columns].values
+        cur_frame += 1
 
 
-def link_simple_iter(coords_iter, search_range, memory=0):
+def coords_from_df_iter(df_iter, pos_columns, t_column):
+    """A generator that returns ndarrays of coords from a generator of
+    DataFrames. Also returns the first value of the t_column."""
+    ndim = len(pos_columns)
+
+    for df in df_iter:
+        if len(df) == 0:
+            yield None, np.empty((0, ndim))
+        else:
+            yield df[t_column].iloc[0], df[pos_columns].values
+
+
+def verify_integrity(df):
+    """Verifies that particle labels are unique for each frame, and that every
+    particle is labeled."""
+    is_labeled = df['particle'] >= 0
+    if not np.all(is_labeled):
+        frames = df.loc[~is_labeled, 'frame'].unique()
+        raise UnknownLinkingError("Some particles were not labeled "
+                                  "in frames {}.".format(frames))
+    grouped = df.groupby('frame')['particle']
+    try:
+        not_equal = grouped.nunique() != grouped.count()
+    except AttributeError:  # for older pandas versions
+        not_equal = grouped.apply(lambda x: len(pd.unique(x))) != grouped.count()
+    if np.any(not_equal):
+        where_not_equal = not_equal.index[not_equal].values
+        raise UnknownLinkingError("There are multiple particles with the same "
+                                  "label in Frames {}.".format(where_not_equal))
+
+
+def link_simple_iter(coords_iter, search_range, **kwargs):
     """Link an iterable of per-frame coordinates into trajectories.
 
     Parameters
     ----------
-    coords_iter : iterable of 2d numpy arrays
+    coords_iter : iterable or enumerated iterable of 2d numpy arrays
     search_range : float or tuple
     memory : integer
+    predictor : predictor function; see 'predict' module
 
     Returns
     -------
-    yields tuples (index, list of particle ids)
+    yields tuples (t, list of particle ids)
     """
     # ensure that coords_iter is iterable
     coords_iter = iter(coords_iter)
-    # take the first and obtain dimensionality
-    coords = next(coords_iter)
+
+    # interpret the first element of the iterable
+    val = next(coords_iter)
+    if isinstance(val, np.ndarray):
+        # the iterable was not enumerated, so enumerate the remainder
+        coords_iter = enumerate(coords_iter, start=1)
+        t, coords = 0, val
+    else:
+        t, coords = val
+
+    #  obtain dimensionality
     ndim = coords.shape[1]
     search_range = validate_tuple(search_range, ndim)
 
     # initialize the linker and yield the particle ids of the first frame
-    linker = Linker(search_range, memory)
-    linker.init_level(coords, t=0)
-    yield 0, linker.particle_ids
+    linker = Linker(search_range, **kwargs)
+    linker.init_level(coords, t)
+    yield t, linker.particle_ids
 
-    for t, coords in enumerate(coords_iter, start=1):
+    for t, coords in coords_iter:
         linker.next_level(coords, t)
-        for k, coord in enumerate(linker.coords):
-            np.testing.assert_allclose(coord, coords[k])
         yield t, linker.particle_ids
 
 
-def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
-    """Link an DataFrame of coordinates into trajectories.
+def link_simple(f, search_range, pos_columns=None, t_column='frame', **kwargs):
+    """Link a DataFrame of coordinates into trajectories.
 
     Parameters
     ----------
@@ -89,26 +133,71 @@ def link_simple(f, search_range, memory=0, pos_columns=None, t_column='frame'):
 
     Returns
     -------
-    DataFrame with added column 'particle' containing trajectory labels"""
+    DataFrame with added column 'particle' containing trajectory labels.
+    The t_column (by default: 'frame') will be coerced to integer."""
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
     ndim = len(pos_columns)
     search_range = validate_tuple(search_range, ndim)
 
-    # sort on the t_column (coords_from_df does that anyway)
-    f = pandas_sort(f, t_column)  # makes a copy
+    # copy the dataframe
+    f = f.copy()
+    # coerce t_column to integer type
+    if not np.issubdtype(f[t_column].dtype, np.integer):
+        f[t_column] = f[t_column].astype(np.integer)
+    # sort on the t_column
+    pandas_sort(f, t_column, inplace=True)
+
     coords_iter = coords_from_df(f, pos_columns, t_column)
     ids = []
-    for i, _ids in link_simple_iter(coords_iter, search_range, memory):
+    for i, _ids in link_simple_iter(coords_iter, search_range, **kwargs):
         ids.extend(_ids)
 
     f['particle'] = ids
     return f
 
 
+def link_simple_df_iter(f_iter, search_range, pos_columns=None,
+                        t_column='frame', **kwargs):
+    """Link an iterable of DataFrames into trajectories.
+
+    Parameters
+    ----------
+    f_iter : iterable of DataFrames with feature positions, frame indices
+    search_range : float or tuple
+    memory : integer, optional
+    pos_columns : list of str, optional
+    t_column : str, optional
+    predictor : predictor function; see 'predict' module
+
+    Yields
+    -------
+    DataFrames with added column 'particle' containing trajectory labels
+    """
+    if pos_columns is None:
+        # Get info about the first frame without processing it
+        f_iter, f_iter_dummy = itertools.tee(f_iter)
+        f0 = next(f_iter_dummy)
+        pos_columns = guess_pos_columns(f0)
+        del f_iter_dummy, f0
+    ndim = len(pos_columns)
+    search_range = validate_tuple(search_range, ndim)
+
+    f_iter, f_coords_iter = itertools.tee(f_iter)
+    coords_iter = coords_from_df_iter(f_coords_iter, pos_columns, t_column)
+
+    ids_iter = (_ids for _i, _ids in
+        link_simple_iter(coords_iter, search_range, **kwargs))
+    for df, ids in zip(f_iter, ids_iter):
+        df_linked = df.copy()
+        df_linked['particle'] = ids
+        yield df_linked
+
+
 def find_link(reader, search_range, separation, diameter=None, memory=0,
               minmass=0, noise_size=1, smoothing_size=None, threshold=None,
-              percentile=64, before_link=None, after_link=None, refine=False):
+              percentile=64, before_link=None, after_link=None, refine=False,
+              **kwargs):
     """Find and link features in an image sequence
 
     Parameters
@@ -219,9 +308,11 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
 
     features = []
     proc_func = lambda x: bandpass(x, noise_size, smoothing_size, threshold)
-    generator = find_link_iter(reader, search_range, separation, diameter,
-                               memory, percentile, minmass, proc_func,
-                               before_link, after_link)
+    generator = find_link_iter(reader, search_range, separation,
+                               diameter=diameter, memory=memory,
+                               percentile=percentile, minmass=minmass,
+                               proc_func=proc_func, before_link=before_link,
+                               after_link=after_link, **kwargs)
     for frame_no, f_frame in generator:
         if f_frame is None:
             n_traj = 0
@@ -237,9 +328,9 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     return features
 
 
-def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
+def find_link_iter(reader, search_range, separation, diameter=None,
                    percentile=64, minmass=0, proc_func=None, before_link=None,
-                   after_link=None):
+                   after_link=None, **kwargs):
 
     shape = reader[0].shape
     ndim = len(shape)
@@ -271,8 +362,8 @@ def find_link_iter(reader, search_range, separation, diameter=None, memory=0,
                              'image shape. Please use smaller radius, '
                              'separation or smoothing_size.')
 
-    linker = FindLinker(search_range, separation, diameter, memory, minmass,
-                        percentile)
+    linker = FindLinker(search_range, separation, diameter, minmass,
+                        percentile, **kwargs)
 
     reader_iter = iter(reader)
     image = next(reader_iter)
@@ -353,11 +444,185 @@ class PointFindLink(Point):
         self.relocate_neighbors = []
 
 
+def _default_coord_mapping(search_range, level):
+    """ Convert a list of Points to an ndarray of coordinates """
+    return _points_to_arr(level) / search_range
+
+
+def _wrap_predictor(search_range, predictor, t):
+    """ Create a function that maps coordinates using a predictor class."""
+    def coord_mapping(level):
+        # swap axes order (need to do inplace to preserve the Point attributes)
+        for p in level:
+            p.pos = p.pos[::-1]
+        result = np.array(list(predictor(t, level)))
+        for p in level:  # swap axes order back
+            p.pos = p.pos[::-1]
+        return result[:, ::-1] / search_range
+
+    return coord_mapping
+
+
+class TreeFinder(object):
+    def __init__(self, points, search_range):
+        """Takes a list of particles."""
+        self.ndim = len(search_range)
+        self.search_range = np.atleast_2d(search_range)
+        if not isinstance(points, list):
+            points = list(points)
+        self.points = points
+        self.set_predictor(None)
+        self.rebuild()
+
+    def __len__(self):
+        return len(self.points)
+
+    def add_point(self, pt):
+        self.points.append(pt)
+        self._clean = False
+
+    def set_predictor(self, predictor, t=None):
+        """Sets a predictor to the TreeFinder
+
+        predictor : function, optional
+
+            Called with t and a list of N Point instances, returns their
+            "effective" locations, as an N x d array (or any iterable).
+            Used for prediction (see "predict" module).
+        """
+        if predictor is None:
+            self.coord_mapping = functools.partial(_default_coord_mapping,
+                                                   self.search_range)
+        else:
+            self.coord_mapping = _wrap_predictor(self.search_range,
+                                                 predictor, t)
+        self._clean = False
+
+    @property
+    def kdtree(self):
+        if not self._clean:
+            self.rebuild()
+        return self._kdtree
+
+    def rebuild(self):
+        """Rebuilds tree from ``points`` attribute.
+
+        coord_map : function, optional
+
+            Called with a list of N Point instances, returns their
+            "effective" locations, as an N x d array (or list of tuples).
+            Used for prediction (see "predict" module).
+
+        rebuild() needs to be called after ``add_point()`` and
+        before tree is used for spatial queries again (i.e. when
+        memory is turned on).
+        """
+        self._clean = False
+        if len(self.points) == 0:
+            self._kdtree = None
+        else:
+            coords_mapped = self.coord_mapping(self.points)
+            self._kdtree = cKDTree(coords_mapped, 15)
+        # This could be tuned
+        self._clean = True
+
+    @property
+    def coords(self):
+        return _points_to_arr(self.points)
+
+    @property
+    def coords_mapped(self):
+        if not self._clean:
+            self.rebuild()
+        if self._kdtree is None:
+            return np.empty((0, self.ndim))
+        else:
+            return self._kdtree.data
+
+    @property
+    def coords_df(self):
+        coords = self.coords
+        if len(coords) == 0:
+            return
+        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
+                            index=[p.uuid for p in self.points])
+
+        # add placeholders to obtain columns with integer dtype
+        data['frame'] = -1
+        data['particle'] = -1
+        for p in self.points:
+            data.loc[p.uuid, 'frame'] = p.t
+            data.loc[p.uuid, 'particle'] = p.track.id
+            for col in p.extra_data:
+                data.loc[p.uuid, col] = p.extra_data[col]
+        return data
+
+    def query_points(self, pos, max_dist_normed=1.):
+        if self.kdtree is None:
+            return
+        pos_norm = pos / self.search_range
+        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
+        found = set([i for sl in found for i in sl])  # ravel
+        if len(found) == 0:
+            return
+        else:
+            return self.coords[list(found)]
+
+
+def assign_subnet(source, dest, subnets):
+    """ Assign source point and dest point to the same subnet """
+    i1 = source.subnet
+    i2 = dest.subnet
+    if i1 is None and i2 is None:
+        raise ValueError("No subnet for added destination particle")
+    if i1 == i2:  # if a and b are already in the same subnet, do nothing
+        return
+    if i1 is None:  # source did not belong to a subset before
+        # just add it
+        subnets[i2][0].add(source)
+        source.subnet = i2
+    elif i2 is None:  # dest did not belong to a subset before
+        # just add it
+        subnets[i1][1].add(dest)
+        dest.subnet = i1
+    else:  # source belongs to subset i1 before
+        # merge the subnets
+        subnets[i2][0].update(subnets[i1][0])
+        subnets[i2][1].update(subnets[i1][1])
+        # update the subnet identifiers per point
+        for p in itertools.chain(*subnets[i1]):
+            p.subnet = i2
+        # and delete the old source subnet
+        del subnets[i1]
+
+
+def split_subnet(source, dest, new_range):
+    # Clear the subnets and candidates for all points in both frames
+    subnets = dict()
+    for sp in source:
+        sp.subnet = None
+    for i, dp in enumerate(dest):
+        dp.subnet = i
+        subnets[i] = set(), {dp}
+
+    for sp in source:
+        for dp, dist in sp.forward_cands:
+            if dist > new_range:
+                continue
+            assign_subnet(sp, dp, subnets=subnets)
+    return (subnets[key] for key in subnets)
+
+
 class Subnets(object):
     """ Class that evaluates the possible links between two groups of features.
 
     Candidates and subnet indices are stored inside the Point objects that are
     inside the provided TreeFinder objects.
+
+    Subnets are based on the destination points: subnets having only a source
+    point are not included. They can be accessed from the `lost` method.
+    If subnets with only one source point need to be included, call the
+    method `include_lost`. In that case, the method `lost` will raise.
 
     Parameters
     ----------
@@ -375,13 +640,19 @@ class Subnets(object):
         tuple of sets. The first set contains the source points, the second
         set contains the destination points. Iterate over this dictionary by
         directly iterating over the Subnets object.
-    lost : list of points
-        Lists source points without linking candidates ('lost' features)
+
+    Methods
+    -------
+    get_lost :
+        Lists source points without linking candidates ('lost' features).
+        Raises if these particles are included in the subnets already, by
+        calling `include_lost`.
     """
     def __init__(self, source_hash, dest_hash, max_neighbors=10):
         self.max_neighbors = max_neighbors
         self.source_hash = source_hash
         self.dest_hash = dest_hash
+        self.includes_lost = False
         self.reset()
         self.compute()
 
@@ -396,51 +667,30 @@ class Subnets(object):
             p.subnet = i
             self.subnets[i] = set(), {p}
 
-    def compute(self):
-        """ Evaluate the linking candidates and corresponding subnets """
+    def compute(self, search_range=1.):
+        """ Evaluate the linking candidates and corresponding subnets, using
+        given `search_range` (rescaled to 1.)."""
         source_hash = self.source_hash
         dest_hash = self.dest_hash
         if len(source_hash.points) == 0 or len(dest_hash.points) == 0:
             return
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
+        search_range = float(search_range) + 1e-7
+        dists, inds = source_hash.kdtree.query(dest_hash.coords_mapped,
                                                self.max_neighbors,
-                                               distance_upper_bound=1+1e-7)
+                                               distance_upper_bound=search_range)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(dest_hash.points):
             for j in range(nn[i]):
                 wp = source_hash.points[inds[i, j]]
                 # p.back_cands.append((wp, dists[i, j]))
                 wp.forward_cands.append((p, dists[i, j]))
-                self.assign_subnet(wp, p)
-
-    def assign_subnet(self, source, dest):
-        """ Assign source point and dest point to the same subnet """
-        i1 = source.subnet
-        i2 = dest.subnet
-        if i1 is None and i2 is None:
-            raise ValueError("No subnet for added destination particle")
-        if i1 == i2:  # if a and b are already in the same subnet, do nothing
-            return
-        if i1 is None:  # source did not belong to a subset before
-            # just add it
-            self.subnets[i2][0].add(source)
-            source.subnet = i2
-        elif i2 is None:  # dest did not belong to a subset before
-            # just add it
-            self.subnets[i1][1].add(dest)
-            dest.subnet = i1
-        else:   # source belongs to subset i1 before
-            # merge the subnets
-            self.subnets[i2][0].update(self.subnets[i1][0])
-            self.subnets[i2][1].update(self.subnets[i1][1])
-            # update the subnet identifiers per point
-            for p in itertools.chain(*self.subnets[i1]):
-                p.subnet = i2
-            # and delete the old source subnet
-            del self.subnets[i1]
+                assign_subnet(wp, p, self.subnets)
 
     def add_dest_points(self, source_points, dest_points):
         """ Add destination points, evaluate candidates and subnets.
+
+        This code cannot generate new subnets. The given points have to be such
+        that new subnets do not have to be created.
 
         Parameters
         ----------
@@ -453,15 +703,16 @@ class Subnets(object):
         # TODO is kdtree really faster here than brute force ?
         if len(dest_points) == 0:
             return
-        source_hash = TreeFinder(source_points, self.source_hash.search_range)
-        dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_rescaled,
-                                               max(len(source_points), 2),
-                                               distance_upper_bound=1+1e-7)
+        source_points = list(source_points)
+        source_coord = self.source_hash.coord_mapping(source_points)
+        new_dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
+        dists, inds = new_dest_hash.kdtree.query(source_coord,
+                                                 max(len(source_points), 2),
+                                                 distance_upper_bound=1+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, dest in enumerate(dest_hash.points):
+        for i, source in enumerate(source_points):
             for j in range(nn[i]):
-                source = source_hash.points[inds[i, j]]
+                dest = new_dest_hash.points[inds[i, j]]
                 # dest.back_cands.append((source, dists[i, j]))
                 source.forward_cands.append((dest, dists[i, j]))
                 # source particle always has a subnet, add the dest particle
@@ -469,16 +720,14 @@ class Subnets(object):
                 dest.subnet = source.subnet
 
         # sort candidates again because they might have changed
-        for p in source_hash.points:
+        for p in source_points:
             p.forward_cands.sort(key=lambda x: x[1])
         # for p in dest_hash.points:
         #    p.back_cands.sort(key=lambda x: x[1])
 
-    def merge_lost_subnets(self):
-        """ Merge subnets that have lost features and that are closer than
-        twice the search range together, in order to account for the possibility
-        that relocated points will join subnets together. """
-        # add source particles without any destination particle for relocation
+    def include_lost(self):
+        """ Add source particles without any destination particle to the
+        subnets."""
         if len(self.subnets) > 0:
             counter = itertools.count(start=max(self.subnets) + 1)
         else:
@@ -488,6 +737,15 @@ class Subnets(object):
                 subnet = next(counter)
                 self.subnets[subnet] = {p}, set()
                 p.subnet = subnet
+
+        self.includes_lost = True
+
+    def merge_lost_subnets(self):
+        """ Merge subnets that have lost features and that are closer than
+        twice the search range together, in order to account for the possibility
+        that relocated points will join subnets together. """
+        if not self.includes_lost:
+            self.include_lost()
 
         # list subnets that have lost particles
         lost_source = []
@@ -499,12 +757,11 @@ class Subnets(object):
 
         if len(lost_source) == 0:
             return
-        lost_hash = TreeFinder(lost_source, self.source_hash.search_range)
-        dists, inds = self.source_hash.kdtree.query(lost_hash.coords_rescaled,
-                                                    self.max_neighbors,
+        lost_coords = self.source_hash.coord_mapping(lost_source)
+        dists, inds = self.source_hash.kdtree.query(lost_coords, self.max_neighbors,
                                                     distance_upper_bound=2+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, p in enumerate(lost_hash.points):
+        for i, p in enumerate(lost_source):
             for j in range(nn[i]):
                 wp = self.source_hash.points[inds[i, j]]
                 i1, i2 = p.subnet, wp.subnet
@@ -522,9 +779,146 @@ class Subnets(object):
     def __iter__(self):
         return (self.subnets[key] for key in self.subnets)
 
-    @property
     def lost(self):
-        return [p for p in self.source_hash.points if p.subnet is None]
+        if self.includes_lost:
+            raise ValueError('Lost particles are included in the subnets.')
+        else:
+            return [p for p in self.source_hash.points if p.subnet is None]
+
+
+def subnet_linker_drop(source_set, dest_set, search_range, max_size=30,
+                       **kwargs):
+    """Handle subnets by dropping particles.
+
+    This is an alternate "link_strategy", selected by specifying 'drop',
+    that simply refuses to solve the subnet. It ends the trajectories
+    represented in source_list, and results in a new trajectory for
+    each destination particle.
+
+    One possible use is to quickly test whether a given search_range will
+    result in a SubnetOversizeException."""
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [None], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
+
+    if len(source_set) > max_size:
+        raise SubnetOversizeException("Subnetwork contains %d points"
+                                      % len(source_set))
+    return [sp for sp in source_set] + [None] * len(dest_set), \
+           [None] * len(source_set) + [dp for dp in dest_set]
+
+
+def subnet_linker_recursive(source_set, dest_set, search_range, **kwargs):
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [None], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
+
+    # sort candidates and add in penalty for not linking
+    for _s in source_set:
+        _s.forward_cands.sort(key=lambda x: x[1])
+        _s.forward_cands.append((None, search_range))
+
+    snl = SubnetLinker(source_set, len(dest_set), search_range, **kwargs)
+    sn_spl, sn_dpl = [list(particles) for particles in zip(*snl.best_pairs)]
+
+    for dp in dest_set - set(sn_dpl):
+        # Unclaimed destination particle in subnet
+        sn_spl.append(None)
+        sn_dpl.append(dp)
+
+    return sn_spl, sn_dpl
+
+
+def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [None], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
+
+    # sort candidates and add in penalty for not linking
+    for _s in source_set:
+        _s.forward_cands.sort(key=lambda x: x[1])
+        _s.forward_cands.append((None, search_range))
+
+    sn_spl, sn_dpl = nonrecursive_link(source_set, len(dest_set), search_range, **kwargs)
+
+    for dp in dest_set - set(sn_dpl):
+        # Unclaimed destination particle in subnet
+        sn_spl.append(None)
+        sn_dpl.append(dp)
+
+    return sn_spl, sn_dpl
+
+
+def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
+    if len(source_set) == 0 and len(dest_set) == 1:
+        # no backwards candidates: particle will get a new track
+        return [None], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 1:
+        # one backwards candidate and one forward candidate
+        return [source_set.pop()], [dest_set.pop()]
+    elif len(source_set) == 1 and len(dest_set) == 0:
+        # particle is lost. Not possible with default Linker implementation.
+        return [source_set.pop()], [None]
+
+    # sort candidates and add in penalty for not linking
+    for _s in source_set:
+        _s.forward_cands.sort(key=lambda x: x[1])
+        _s.forward_cands.append((None, search_range))
+
+    sn_spl, sn_dpl = numba_link(source_set, len(dest_set), search_range, **kwargs)
+
+    for dp in dest_set - set(sn_dpl):
+        # Unclaimed destination particle in subnet
+        sn_spl.append(None)
+        sn_dpl.append(dp)
+
+    return sn_spl, sn_dpl
+
+
+def adaptive_link_wrap(source_set, dest_set, search_range, subnet_linker,
+                       adaptive_stop=None, adaptive_step=0.95, **kwargs):
+    """Wraps a subnetlinker, making it adaptive."""
+    try:
+        sn_spl, sn_dpl = subnet_linker(source_set, dest_set,
+                                       search_range, **kwargs)
+    except SubnetOversizeException:
+        if adaptive_stop is None:
+            raise
+        new_range = search_range * adaptive_step
+        if search_range <= adaptive_stop:
+            # adaptive_stop is the search_range below which linking
+            # is presumed invalid. So we just give up.
+            raise
+
+        # Split the subnet and recurse
+        sn_spl = []
+        sn_dpl = []
+        for source, dest in split_subnet(source_set, dest_set, new_range):
+            split_spl, split_dpl = \
+                adaptive_link_wrap(source, dest, new_range, subnet_linker,
+                                   adaptive_stop, adaptive_step, **kwargs)
+            sn_spl.extend(split_spl)
+            sn_dpl.extend(split_dpl)
+
+    return sn_spl, sn_dpl
 
 
 def _sort_key_spl_dpl(x):
@@ -591,16 +985,51 @@ class Linker(object):
     # Maximum number of candidates per particle
     MAX_NEIGHBORS = 10
 
-    def __init__(self, search_range, memory=0):
+    def __init__(self, search_range, memory=0, link_strategy=None,
+                 predictor=None, adaptive_stop=None, adaptive_step=0.95):
         self.memory = memory
+        self.predictor = predictor
         self.track_cls = TrackUnstored
-        self.subnet_linker = recursive_linker_obj
-        self.max_subnet_size = self.MAX_SUB_NET_SIZE
-        self.subnet_counter = 0  # Unique ID for each subnet
+        self.adaptive_stop = adaptive_stop
+        self.adaptive_step = adaptive_step
+
+        if link_strategy is None or link_strategy == 'auto':
+            if NUMBA_AVAILABLE:
+                link_strategy = 'numba'
+            else:
+                link_strategy = 'recursive'
+
+        if link_strategy == 'recursive':
+            subnet_linker = subnet_linker_recursive
+        elif link_strategy == 'numba':
+            subnet_linker = subnet_linker_numba
+        elif link_strategy == 'nonrecursive':
+            subnet_linker = subnet_linker_nonrecursive
+        elif link_strategy == 'drop':
+            subnet_linker = subnet_linker_drop
+        elif callable(link_strategy):
+            subnet_linker = link_strategy
+        else:
+            raise ValueError("Unknown linking strategy '{}'".format(link_strategy))
+
         self.ndim = len(search_range)
         self.search_range = np.array(search_range)
         self.hash = None
         self.mem_set = set()
+
+        if self.adaptive_stop is not None:
+            # internal adaptive_stop is a fraction of search range
+            adaptive_stop = np.max(adaptive_stop / self.search_range)
+            if 1 * self.adaptive_stop <= 0:
+                raise ValueError("adaptive_stop must be positive.")
+            self.subnet_linker = functools.partial(adaptive_link_wrap,
+                                                   subnet_linker=subnet_linker,
+                                                   adaptive_stop=adaptive_stop,
+                                                   adaptive_step=adaptive_step,
+                                                   max_size=self.MAX_SUB_NET_SIZE_ADAPTIVE)
+        else:
+            self.subnet_linker = functools.partial(subnet_linker,
+                                                   max_size=self.MAX_SUB_NET_SIZE)
 
     def update_hash(self, coords, t, extra_data=None):
         prev_hash = self.hash
@@ -616,6 +1045,11 @@ class Linker(object):
             m.track.incr_memory()
             # re-create the forward_cands list
             m.forward_cands = []
+
+        # If prediction is enabled, we need to update the positions in prev_hash
+        # to where we think they'll be in the frame corresponding to 'coords'.
+        if prev_hash is not None and self.predictor is not None:
+            prev_hash.set_predictor(self.predictor, t)  # Rewrite positions
 
         self.hash = TreeFinder(_points_from_arr(coords, t, extra_data),
                                self.search_range)
@@ -670,36 +1104,12 @@ class Linker(object):
     def assign_links(self):
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
-            # no backwards candidates
-            if len(source_set) == 0 and len(dest_set) == 1:
-                # particle will get a new track
-                dpl.append(dest_set.pop())
-                spl.append(None)
-                continue  # do next dest_set particle
-            elif len(source_set) == 1 and len(dest_set) == 1:
-                # one backwards candidate and one forward candidate
-                dpl.append(dest_set.pop())
-                spl.append(source_set.pop())
-                continue  # do next dest_set particle
-
-            # sort candidates and add in penalty for not linking
-            for _s in source_set:
-                _s.forward_cands.sort(key=lambda x: x[1])
-                _s.forward_cands.append((None, 1.))
-            sn_spl, sn_dpl = self.subnet_linker(source_set, len(dest_set), 1.)
-
-            for dp in dest_set - set(sn_dpl):
-                # Unclaimed destination particle in subnet
-                sn_spl.append(None)
-                sn_dpl.append(dp)
-
-            self.subnet_counter += 1
-
+            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
             spl.extend(sn_spl)
             dpl.extend(sn_dpl)
 
         # Leftovers
-        lost = self.subnets.lost
+        lost = self.subnets.lost()
         spl.extend(lost)
         dpl.extend([None] * len(lost))
 
@@ -764,6 +1174,7 @@ class FindLinker(Linker):
     percentile : number, optional
         Precentile threshold used in local maxima finding. Default 64.
 
+
     Methods
     -------
     next_level(coords, t, image, extra_data)
@@ -777,9 +1188,9 @@ class FindLinker(Linker):
     --------
     Linker
     """
-    def __init__(self, search_range, separation, diameter=None, memory=0,
-                 minmass=0, percentile=64):
-        super(FindLinker, self).__init__(search_range, memory=memory)
+    def __init__(self, search_range, separation, diameter=None,
+                 minmass=0, percentile=64, **kwargs):
+        super(FindLinker, self).__init__(search_range, **kwargs)
         if diameter is None:
             diameter = separation
         self.radius = tuple([int(d // 2) for d in diameter])
@@ -812,8 +1223,8 @@ class FindLinker(Linker):
         self.curr_t = t
         super(FindLinker, self).next_level(coords, t, extra_data)
 
-    def relocate(self, source_points, n=1):
-        candidates, extra_data = self.get_relocate_candidates(source_points)
+    def relocate(self, pos, n=1):
+        candidates, extra_data = self.get_relocate_candidates(pos)
         if candidates is None:
             return set()
         else:
@@ -833,8 +1244,9 @@ class FindLinker(Linker):
             self.threshold = (self.curr_t, threshold)
         return threshold
 
-    def get_relocate_candidates(self, source_points):
-        pos = _points_to_arr(source_points)
+    def get_relocate_candidates(self, pos):
+        # pos are the estimated locations of the features (ndarray N x ndim)
+        pos = np.atleast_2d(pos)
 
         # slice region around cluster
         im_unmasked, origin = slice_image(pos, self.image, self.slice_radius)
@@ -904,49 +1316,46 @@ class FindLinker(Linker):
         return coords[mask] + origin, extra_data
 
     def assign_links(self):
+        # The following method includes subnets with only one source point
+        self.subnets.include_lost()
+        # Also, it merges subnets that are less than 2*search_range spaced,
+        # to account for lost particles that link subnets together. A possible
+        # performance enhancement would be joining subnets together during
+        # iterating over the subnets.
         self.subnets.merge_lost_subnets()
+
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
+            # relocate if necessary
             shortage = len(source_set) - len(dest_set)
             if shortage > 0:
-                new_cands = self.relocate(source_set, shortage)
+                if self.predictor is not None:
+                    # lookup the predicted locations
+                    sh = self.subnets.source_hash
+                    pos = [c for c, p in zip(sh.coords_mapped,
+                                             sh.points) if p in source_set]
+                else:
+                    pos = [s.pos for s in source_set]
+                new_cands = self.relocate(pos, shortage)
+                # this adapts the dest_set inplace
                 self.subnets.add_dest_points(source_set, new_cands)
             else:
                 new_cands = set()
 
-            if len(source_set) == 0 and len(dest_set) == 1:
-                # no backwards candidates: particle will get a new track
-                dpl.append(dest_set.pop())
-                spl.append(None)
-            elif len(source_set) == 1 and len(dest_set) == 0:
-                # no forward candidates
-                spl.append(source_set.pop())
-                dpl.append(None)
-            elif len(source_set) == 1 and len(dest_set) == 1:
-                # one backwards candidate and one forward candidate
-                dpl.append(dest_set.pop())
-                spl.append(source_set.pop())
-                for p in new_cands:
-                    self.hash.add_point(p)
-            else:
-                # sort candidates and add in penalty for not linking
-                for _s in source_set:
-                    _s.forward_cands.sort(key=lambda x: x[1])
-                    _s.forward_cands.append((None, 1.))
-                sn_spl, sn_dpl = self.subnet_linker(source_set,
-                                                    len(dest_set), 1.)
-                sn_dpl_set = set(sn_dpl)
-                # claimed new destination particles
-                for p in new_cands & sn_dpl_set:
-                    self.hash.add_point(p)
-                # unclaimed old destination particles
-                unclaimed = (dest_set - sn_dpl_set) - new_cands
-                sn_spl.extend([None] * len(unclaimed))
-                sn_dpl.extend(unclaimed)
+            # link
+            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
 
-                self.subnet_counter += 1
+            # list the claimed destination particles and add them to the hash
+            sn_dpl_set = set(sn_dpl)
+            # claimed new destination particles
+            for p in new_cands & sn_dpl_set:
+                self.hash.add_point(p)
+            # unclaimed old destination particles
+            unclaimed = (dest_set - sn_dpl_set) - new_cands
+            sn_spl.extend([None] * len(unclaimed))
+            sn_dpl.extend(unclaimed)
 
-                spl.extend(sn_spl)
-                dpl.extend(sn_dpl)
+            spl.extend(sn_spl)
+            dpl.extend(sn_dpl)
 
         return spl, dpl

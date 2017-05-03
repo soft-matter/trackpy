@@ -1,5 +1,3 @@
-## TESTS PARTIALLY COPIED FROM trackpy.tests.test_link.py
-
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
@@ -10,346 +8,29 @@ from pandas import DataFrame
 import nose
 from numpy.testing import assert_equal
 
-from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.linking import SubnetOversizeException
 from trackpy.utils import pandas_sort
 from trackpy.artificial import CoordinateReader
-from trackpy.find_link import find_link, link_simple
+from trackpy.find_link import find_link
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
-from trackpy.tests.test_link import random_walk, contracting_grid
+from trackpy.tests.test_link_new import SubnetNeededTests
 
 
-def _skip_if_no_numba():
-    if not NUMBA_AVAILABLE:
-        raise nose.SkipTest('numba not installed. Skipping.')
-
-
-class SimpleLinkingTests(StrictTestCase):
-    def setUp(self):
-        self.linker_opts = dict()
-
-    def test_one_trivial_stepper(self):
-        # One 1D stepper
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        expected = f.copy()
-        expected['particle'] = np.zeros(N)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_output_dtypes(self):
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
-                       'frame': np.arange(N)})
-
-        # Integer-typed input
-        f['frame'] = f['frame'].astype(np.int)
-        f['x'] = f['x'].astype(np.int)
-        f['y'] = f['y'].astype(np.int)
-        actual = self.link_df(f, 5)
-
-        # Particle column should be integer typed
-        assert np.issubdtype(actual['particle'], np.int)
-        # Preserve dtypes of frame, x, y
-        assert np.issubdtype(actual['frame'], np.int)
-        assert np.issubdtype(actual['x'], np.int)
-        assert np.issubdtype(actual['y'], np.int)
-
-        # Float-typed input
-        f['frame'] = f['frame'].astype(np.float)
-        f['x'] = f['x'].astype(np.float)
-        f['y'] = f['y'].astype(np.float)
-        actual = self.link_df(f, 5)
-
-        # Particle column should be integer typed
-        assert np.issubdtype(actual['particle'], np.int)
-
-        # Preserve dtypes of frame, x, y
-        assert np.issubdtype(actual['frame'], np.float)
-        assert np.issubdtype(actual['x'], np.float)
-        assert np.issubdtype(actual['y'], np.float)
-
-
-    def test_two_isolated_steppers(self):
-        N = 5
-        Y = 25
-        # Begin second feature one frame later than the first, so the particle
-        # labeling (0, 1) is established and not arbitrary.
-        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-        # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_traj_equal(actual, expected)
-
-        # Shuffle rows (crazy!)
-        np.random.seed(0)
-        f1 = f.reset_index(drop=True)
-        f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_two_isolated_steppers_one_gapped(self):
-        N = 5
-        Y = 25
-        # Begin second feature one frame later than the first, 
-        # so the particle labeling (0, 1) is established and not arbitrary.
-        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
-                      'frame': np.arange(N)})
-        a = a.drop(3).reset_index(drop=True)
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 
-                      'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
-        expected = f.copy()
-        expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        expected.reset_index(drop=True, inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-        # link_df_iter() tests not performed, because hash_size is
-        # not knowable from the first frame alone.
-
-        # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_traj_equal(actual, expected)
-
-        # Shuffle rows (crazy!)
-        np.random.seed(0)
-        f1 = f.reset_index(drop=True)
-        f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_isolated_continuous_random_walks(self):
-        # Two 2D random walks
-        np.random.seed(0)
-        N = 30
-        Y = 250
-        M = 20 # margin, because negative values raise OutOfHash
-        a = DataFrame({'x': M + random_walk(N), 'y': M + random_walk(N), 'frame': np.arange(N)})
-        b = DataFrame({'x': M + random_walk(N - 1), 'y': M + Y + random_walk(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-        # Many 2D random walks
-        np.random.seed(0)
-        initial_positions = [(100, 100), (200, 100), (100, 200), (200, 200)]
-        import itertools
-        c = itertools.count()
-        def walk(x, y): 
-            i = next(c)
-            return DataFrame({'x': x + random_walk(N - i), 
-                              'y': y + random_walk(N - i),
-                             'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_start_at_frame_other_than_zero(self):
-        # One 1D stepper
-        N = 5
-        FIRST_FRAME = 3
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 
-                      'frame': FIRST_FRAME + np.arange(N)})
-        expected = f.copy()
-        expected['particle'] = np.zeros(N)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_blank_frame_no_memory(self):
-        # One 1D stepper
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
-                      'frame': [0, 1, 2, 4, 5],
-                      'particle': [0, 0, 0, 1, 1]})
-        expected = f.copy()
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_copy(self):
-        """Check inplace/copy behavior of link_df """
-        # One 1D stepper
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        expected = f.copy()
-        expected['particle'] = np.zeros(N)
-
-        # Should copy
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-        assert 'particle' not in f.columns
-
-    @nose.tools.raises(SubnetOversizeException)
-    def test_oversize_fail(self):
-        df = contracting_grid()
-        df['x'] *= 2
-        df['y'] *= 2
-        self.link_df(df, search_range=2)
-
-    def test_two_nearby_steppers(self):
-        N = 5
-        Y = 2
-        # Begin second feature one frame later than the first, so the particle
-        # labeling (0, 1) is established and not arbitrary.
-        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-        # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_traj_equal(actual, expected)
-
-        # Shuffle rows (crazy!)
-        np.random.seed(0)
-        f1 = f.reset_index(drop=True)
-        f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_two_nearby_steppers_one_gapped(self):
-        N = 5
-        Y = 2
-        # Begin second feature one frame later than the first, so the particle
-        # labeling (0, 1) is established and not arbitrary.
-        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        expected.reset_index(drop=True, inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-        # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_traj_equal(actual, expected)
-
-        # Shuffle rows (crazy!)
-        np.random.seed(0)
-        f1 = f.reset_index(drop=True)
-        f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_nearby_continuous_random_walks(self):
-        # Two 2D random walks
-        np.random.seed(0)
-        N = 30
-        Y = 250
-        M = 20 # margin, because negative values raise OutOfHash
-        a = DataFrame({'x': M + random_walk(N),
-                       'y': M + random_walk(N),
-                       'frame': np.arange(N)})
-        b = DataFrame({'x': M + random_walk(N - 1),
-                       'y': M + Y + random_walk(N - 1),
-                       'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-        np.random.seed(0)
-        initial_positions = [(10, 11), (10, 18), (14, 15), (20, 21), (13, 13),
-                             (10, 10), (17, 19)]
-        import itertools
-        c = itertools.count()
-        def walk(x, y):
-            i = next(c)
-            return DataFrame({'x': x + random_walk(N - i),
-                              'y': y + random_walk(N - i),
-                              'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        actual = self.link_df(f, 5)
-        assert_traj_equal(actual, expected)
-
-        # Shuffle rows (crazy!)
-        np.random.seed(0)
-        f1 = f.reset_index(drop=True)
-        f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5)
-        assert_traj_equal(actual, expected)
-
-    def test_memory_on_one_gap(self):
-        N = 5
-        Y = 2
-        # Begin second feature one frame later than the first, so the particle labeling (0, 1) is
-        # established and not arbitrary.
-        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
-        expected = f.copy().reset_index(drop=True)
-        expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
-        pandas_sort(expected, ['particle', 'frame'], inplace=True)
-        expected.reset_index(drop=True, inplace=True)
-        actual = self.link_df(f, 5, memory=1)
-        assert_traj_equal(actual, expected)
-
-        # Sort rows by frame (normal use)
-        actual = self.link_df(pandas_sort(f, 'frame'), 5, memory=1)
-        assert_traj_equal(actual, expected)
-
-        # Shuffle rows (crazy!)
-        np.random.seed(0)
-        f1 = f.reset_index(drop=True)
-        f1.reindex(np.random.permutation(f1.index))
-        actual = self.link_df(f1, 5, memory=1)
-        assert_traj_equal(actual, expected)
-
-    def link_df(self, f, search_range, *args, **kwargs):
-        kwargs = dict(self.linker_opts, **kwargs)
-        return link_simple(f, search_range, *args, **kwargs)
-
-
-class FindLinkTests(SimpleLinkingTests):
+class FindLinkTests(SubnetNeededTests):
     def setUp(self):
         super(FindLinkTests, self).setUp()
         self.linker_opts['separation'] = 10
         self.linker_opts['diameter'] = 15
 
-    def test_output_dtypes(self):
-        # Different behaviour than the SimpleLinkingTests, as features are added
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
-                       'frame': np.arange(N)})
-        # Integer-typed input
-        f['frame'] = f['frame'].astype(np.int)
-        actual = self.link_df(f, 5)
+    def link(self, f, search_range, *args, **kwargs):
+        # the minimal spacing between features in f is assumed to be 1.
 
-        # Particle and frame columns should be integer typed
-        assert np.issubdtype(actual['particle'], np.int)
-        assert np.issubdtype(actual['frame'], np.int)
+        # from scipy.spatial import cKDTree
+        # mindist = 1e7
+        # for _, _f in f.groupby('frame'):
+        #     dists, _ = cKDTree(_f[['y', 'x']].values).query(_f[['y', 'x']].values, k=2)
+        #     mindist = min(mindist, dists[:, 1].min())
+        # print("Minimal dist is {0:.3f}".format(mindist))
 
-        # Position columns should be float typed
-        assert np.issubdtype(actual['x'], np.float)
-        assert np.issubdtype(actual['y'], np.float)
-
-    def link_df(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)
         size = 3
         separation = kwargs['separation']
@@ -359,6 +40,8 @@ class FindLinkTests(SimpleLinkingTests):
         f[['y', 'x']] -= topleft
         shape = (f[['y', 'x']].max().values + 4 * separation).astype(np.int)
         reader = CoordinateReader(f, shape, size)
+        if kwargs.get('adaptive_stop', None) is not None:
+            kwargs['adaptive_stop'] *= separation
         result = find_link(reader,
                            search_range=search_range*separation,
                            *args, **kwargs)
@@ -377,21 +60,30 @@ class FindLinkTests(SimpleLinkingTests):
         expected['particle'] = np.zeros(N)
 
         # Should not raise
-        actual = self.link_df(f, 5.2, separation=9.5, diameter=15.2)
+        actual = self.link(f, 5.2, separation=9.5, diameter=15.2)
         assert_traj_equal(actual, expected)
 
 
 class FindLinkOneFailedFindTests(FindLinkTests):
+    """In the FindLinker, features that were not found initially are recovered
+    if they fit inside a track. Test this by artificially dropping all features
+    in a single frame via a ``before_link`` callback function. By default,
+    features in frame 3 are dropped, but that can be changed per-test via the
+    dictionary ``FAIL_FRAME``."""
     def setUp(self):
         super(FindLinkOneFailedFindTests, self).setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
                           test_nearby_continuous_random_walks=10,
                           test_start_at_frame_other_than_zero=4,
                           test_two_nearby_steppers_one_gapped=2,
-                          test_two_isolated_steppers_one_gapped=2)
+                          test_two_isolated_steppers_one_gapped=2,
+                          test_memory_removal=2)
 
         test_name = self.id()[self.id().rfind('.') + 1:]
         fail_frame = FAIL_FRAME.get(test_name, 3)
+
+        if fail_frame is None:
+            nose.SkipTest()
 
         def callback(image, coords, **unused_kwargs):
             if image.frame_no == fail_frame:
@@ -402,6 +94,10 @@ class FindLinkOneFailedFindTests(FindLinkTests):
 
 
 class FindLinkManyFailedFindTests(FindLinkTests):
+    """Similar to FindLinkOneFailedFindTests, but now features are not found
+    starting from frame (by default 3). Some tests are not compatible with this:
+    new tracks are not recovered in the second pass by the FindLinker. Skip
+    them by assigning ``None`` to them in ``FAIL_FRAME``."""
     def setUp(self):
         super(FindLinkManyFailedFindTests, self).setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
@@ -409,10 +105,16 @@ class FindLinkManyFailedFindTests(FindLinkTests):
                           test_start_at_frame_other_than_zero=4,
                           test_two_nearby_steppers_one_gapped=5,
                           test_two_isolated_steppers_one_gapped=5,
-                          test_blank_frame_no_memory=5)
+                          test_blank_frame_no_memory=5,
+                          test_memory=None,  # skip all memory tests here
+                          test_memory_removal=None,
+                          test_memory_with_late_appearance=None)
 
         test_name = self.id()[self.id().rfind('.') + 1:]
         fail_frame = FAIL_FRAME.get(test_name, 3)
+
+        if fail_frame is None:
+            raise nose.SkipTest()
 
         def callback(image, coords, **unused_kwargs):
             if image.frame_no >= fail_frame:
