@@ -10,9 +10,9 @@ from numpy.testing import assert_equal
 
 from trackpy.utils import pandas_sort
 from trackpy.artificial import CoordinateReader
-from trackpy.find_link import find_link
+from trackpy.linking import find_link
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
-from trackpy.tests.test_link_new import SubnetNeededTests
+from trackpy.tests.test_linking import SubnetNeededTests
 
 
 class FindLinkTests(SubnetNeededTests):

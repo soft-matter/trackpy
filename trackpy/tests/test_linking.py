@@ -9,14 +9,17 @@ import nose
 from numpy.testing import assert_equal
 
 from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.linking import SubnetOversizeException
 from trackpy.utils import pandas_sort
-from trackpy.find_link import link_simple, link_simple_iter, link_simple_df_iter, verify_integrity
+from trackpy.linking import (link, link_iter, link_df_iter, verify_integrity,
+                             SubnetOversizeException)
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
-from trackpy.tests.test_link import random_walk
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
+
+
+def random_walk(N):
+    return np.cumsum(np.random.randn(N))
 
 
 def _skip_if_no_numba():
@@ -267,7 +270,7 @@ class CommonTrackingTests(StrictTestCase):
 
     def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)
-        return link_simple(f, search_range, *args, **kwargs)
+        return link(f, search_range, *args, **kwargs)
 
 
 class SubnetNeededTests(CommonTrackingTests):
@@ -569,8 +572,8 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
 
         res = f.copy()
         res['particle'] = -1
-        for t, ids in link_simple_iter(f_iter(f, 0, int(f['frame'].max())),
-                                       search_range, *args, **kwargs):
+        for t, ids in link_iter(f_iter(f, 0, int(f['frame'].max())),
+                                search_range, *args, **kwargs):
             res.loc[res['frame'] == t, 'particle'] = ids
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
@@ -601,8 +604,8 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
             for t in range(first_frame, last_frame + 1):
                 yield f[f['frame'] == t]
 
-        res_iter = link_simple_df_iter(df_iter(f, 0, int(f['frame'].max())),
-                                       search_range, *args, **kwargs)
+        res_iter = link_df_iter(df_iter(f, 0, int(f['frame'].max())),
+                                search_range, *args, **kwargs)
         res = pd.concat(res_iter)
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 

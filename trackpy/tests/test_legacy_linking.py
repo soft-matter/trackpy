@@ -14,7 +14,9 @@ from pandas.util.testing import assert_frame_equal, assert_series_equal
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.linking import PointND, Hash_table
+from trackpy.linking.legacy import (link, link_df, link_df_iter,
+                                    PointND, Hash_table, strip_diagnostics,
+                                    SubnetOversizeException)
 from trackpy.utils import is_pandas_since_016, pandas_sort, validate_tuple
 from trackpy.tests.common import StrictTestCase
 
@@ -318,31 +320,30 @@ class CommonTrackingTests(object):
         assert_frame_equal(actual_iter, expected)
         assert 'particle' not in f.columns
 
-    @nose.tools.raises(tp.SubnetOversizeException)
+    @nose.tools.raises(SubnetOversizeException)
     def test_oversize_fail(self):
         self.link_df(contracting_grid(), 1)
 
-    @nose.tools.raises(tp.SubnetOversizeException)
+    @nose.tools.raises(SubnetOversizeException)
     def test_adaptive_fail(self):
         """Check recursion limit"""
         self.link_df(contracting_grid(), 1, adaptive_stop=0.92)
 
     def link(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
-        return tp.link(args[0], validate_tuple(args[1], 2),
-                       *args[2:], **kwargs)
+        return link(args[0], validate_tuple(args[1], 2), *args[2:], **kwargs)
 
     def link_df(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
         kwargs['diagnostics'] = self.do_diagnostics
-        return tp.link_df(*args, **kwargs)
+        return link_df(*args, **kwargs)
 
     def link_df_iter(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
         kwargs['diagnostics'] = self.do_diagnostics
         args = list(args)
         features = args.pop(0)
-        res = pd.concat(tp.link_df_iter(
+        res = pd.concat(link_df_iter(
             (df for fr, df in features.groupby('frame')), *args, **kwargs))
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
@@ -362,16 +363,16 @@ class TestOnce(StrictTestCase):
         f.columns = cols
 
         # smoke tests
-        tp.link_df(f, 5, t_column=name, verify_integrity=True)
+        link_df(f, 5, t_column=name, verify_integrity=True)
 
         f_iter = (frame for fnum, frame in f.groupby('arbitrary name'))
-        list(tp.link_df_iter(f_iter, 5, t_column=name, verify_integrity=True))
+        list(link_df_iter(f_iter, 5, t_column=name, verify_integrity=True))
 
     @nose.tools.raises(ValueError)
     def test_check_iter(self):
         """Check that link_df_iter() makes a useful error message if we
         try to pass a single DataFrame."""
-        list(tp.link_df_iter(self.features.copy(), 5))
+        list(link_df_iter(self.features.copy(), 5))
 
 
 class SubnetNeededTests(CommonTrackingTests):
@@ -668,7 +669,7 @@ class DiagnosticsTests(CommonTrackingTests):
         """
         diag_cols = [cn for cn in df.columns if cn.startswith('diag_')]
         self.diag = df.reindex(columns=diag_cols)
-        return tp.strip_diagnostics(df)
+        return strip_diagnostics(df)
 
     def link_df(self, *args, **kwargs):
         return self._strip_diag(
