@@ -66,7 +66,7 @@ class BaselinePredictTests(LinkWithPrediction, StrictTestCase):
         pred = predict.NullPredict()
         ll_df = self.get_linker(pred)(pandas.concat((mkframe(0),
                                                      mkframe(25))), 45)
-        print(ll_df)
+        # print(ll_df)
         assert all(ll_df.groupby('particle').x.count().values == 2)
 
         # Make sure that keyword options are handled correctly
@@ -261,34 +261,34 @@ class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
 # Define a mixin that converts a normal prediction test class into one
 # that uses find_link.
 
-class LinkNewPredictTest(object):
+class LegacyLinkPredictTest(object):
     def get_linker_iter(self, pred):
-        return functools.partial(pred.wrap, trackpy.link_simple_df_iter)
+        return functools.partial(pred.wrap, trackpy.linking.legacy.link_df_iter)
 
     def get_linker(self, pred):
-        return functools.partial(pred.wrap_single, trackpy.link_simple_df_iter)
+        return functools.partial(pred.wrap_single, trackpy.linking.legacy.link_df_iter)
 
     def get_unwrapped_linker(self):
-        return trackpy.link_simple_df_iter
+        return trackpy.linking.legacy.link_df_iter
 
 
-class NewBaselinePredictTests(LinkNewPredictTest, BaselinePredictTests):
+class NewBaselinePredictTests(LegacyLinkPredictTest, BaselinePredictTests):
     pass
 
 
-class NewNearestVelocityPredictTests(LinkNewPredictTest, NearestVelocityPredictTests):
+class NewNearestVelocityPredictTests(LegacyLinkPredictTest, NearestVelocityPredictTests):
     pass
 
 
-class NewDriftPredictTests(LinkNewPredictTest, DriftPredictTests):
+class NewDriftPredictTests(LegacyLinkPredictTest, DriftPredictTests):
     pass
 
 
-class NewChannelPredictXTests(LinkNewPredictTest, ChannelPredictXTests):
+class NewChannelPredictXTests(LegacyLinkPredictTest, ChannelPredictXTests):
     pass
 
 
-class NewChannelPredictYTests(LinkNewPredictTest, ChannelPredictYTests):
+class NewChannelPredictYTests(LegacyLinkPredictTest, ChannelPredictYTests):
     pass
 
 
