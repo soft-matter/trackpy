@@ -27,13 +27,14 @@ def link_iter(coords_iter, search_range, **kwargs):
     Parameters
     ----------
     coords_iter : iterable or enumerated iterable of 2d numpy arrays
-    search_range : float or tuple
-    memory : integer
-    predictor : predictor function; see 'predict' module
 
-    Returns
-    -------
-    yields tuples (t, list of particle ids)
+    Yields
+    ------
+    tuples (t, list of particle ids)
+
+    See also
+    --------
+    link
     """
     # ensure that coords_iter is iterable
     coords_iter = iter(coords_iter)
@@ -66,11 +67,35 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
 
     Parameters
     ----------
-    f : DataFrame containing feature positions and frame indices
+    f : DataFrame
+        The DataFrame must include any number of column(s) for position and a
+        column of frame numbers. By default, 'x' and 'y' are expected for
+        position, and 'frame' is expected for frame number. See below for
+        options to use custom column names.
     search_range : float or tuple
+        the maximum distance features can move between frames,
+        optionally per dimension
     memory : integer, optional
+        the maximum number of frames during which a feature can vanish,
+        then reappear nearby, and be considered the same particle. 0 by default.
     pos_columns : list of str, optional
+        Default is ['y', 'x'], or ['z', 'y', 'x'] when 'z' is present in f
     t_column : str, optional
+        Default is 'frame'
+    predictor : function, optional
+        Improve performance by guessing where a particle will be in
+        the next frame.
+        For examples of how this works, see the "predict" module.
+    adaptive_stop : float, optional
+        If not None, when encountering an oversize subnet, retry by progressively
+        reducing search_range until the subnet is solvable. If search_range
+        becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
+    adaptive_step : float, optional
+        Reduce search_range by multiplying it by this factor.
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
+        algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
+        'drop' causes particles in subnetworks to go unlinked
 
     Returns
     -------
@@ -97,6 +122,8 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
     f['particle'] = ids
     return f
 
+link_df = link
+
 
 def link_df_iter(f_iter, search_range, pos_columns=None,
                  t_column='frame', **kwargs):
@@ -105,15 +132,14 @@ def link_df_iter(f_iter, search_range, pos_columns=None,
     Parameters
     ----------
     f_iter : iterable of DataFrames with feature positions, frame indices
-    search_range : float or tuple
-    memory : integer, optional
-    pos_columns : list of str, optional
-    t_column : str, optional
-    predictor : predictor function; see 'predict' module
 
     Yields
-    -------
+    ------
     DataFrames with added column 'particle' containing trajectory labels
+
+    See also
+    --------
+    link
     """
     if pos_columns is None:
         # Get info about the first frame without processing it
@@ -171,7 +197,9 @@ def _sort_key_spl_dpl(x):
 
 
 class Linker(object):
-    """ Re-implementation of trackpy.linking.Linker for use in find_link.
+    """Linker class that sequentially links ndarrays of coordinates together.
+
+    The class can be used via the `init_level` and `next_level` methods.
 
     Attributes
     ----------
@@ -208,6 +236,10 @@ class Linker(object):
     apply_links(spl, dpl)
         Applies links between the source particle list (spl) and destination
         particle list (dpl)
+
+    See also
+    --------
+    link
     """
     # Largest subnet we will attempt to solve.
     MAX_SUB_NET_SIZE = 30
