@@ -7,15 +7,14 @@ import logging
 import itertools, functools
 
 import numpy as np
-import pandas as pd
 
-from ..utils import (default_pos_columns, guess_pos_columns, is_isotropic,
-                     cKDTree, validate_tuple, pandas_sort)
+from ..utils import (default_pos_columns, guess_pos_columns,
+                     validate_tuple, pandas_sort)
 from ..try_numba import NUMBA_AVAILABLE
-from .utils import (Point, TrackUnstored, _points_to_arr, _points_from_arr,
+from .utils import (Point, TrackUnstored, points_from_arr,
                     coords_from_df, coords_from_df_iter,
                     SubnetOversizeException)
-from .subnet import Subnets, split_subnet
+from .subnet import TreeFinder, Subnets, split_subnet
 from .subnetlinker import (subnet_linker_recursive, subnet_linker_drop,
                            subnet_linker_numba, subnet_linker_nonrecursive)
 
@@ -136,7 +135,6 @@ def link_df_iter(f_iter, search_range, pos_columns=None,
         yield df_linked
 
 
-
 def adaptive_link_wrap(source_set, dest_set, search_range, subnet_linker,
                        adaptive_stop=None, adaptive_step=0.95, **kwargs):
     """Wraps a subnetlinker, making it adaptive."""
@@ -170,131 +168,6 @@ def _sort_key_spl_dpl(x):
         return list(x[0].pos)
     else:
         return list(x[1].pos)
-
-def _default_coord_mapping(search_range, level):
-    """ Convert a list of Points to an ndarray of coordinates """
-    return _points_to_arr(level) / search_range
-
-
-def _wrap_predictor(search_range, predictor, t):
-    """ Create a function that maps coordinates using a predictor class."""
-    def coord_mapping(level):
-        # swap axes order (need to do inplace to preserve the Point attributes)
-        for p in level:
-            p.pos = p.pos[::-1]
-        result = np.array(list(predictor(t, level)))
-        for p in level:  # swap axes order back
-            p.pos = p.pos[::-1]
-        return result[:, ::-1] / search_range
-
-    return coord_mapping
-
-
-class TreeFinder(object):
-    def __init__(self, points, search_range):
-        """Takes a list of particles."""
-        self.ndim = len(search_range)
-        self.search_range = np.atleast_2d(search_range)
-        if not isinstance(points, list):
-            points = list(points)
-        self.points = points
-        self.set_predictor(None)
-        self.rebuild()
-
-    def __len__(self):
-        return len(self.points)
-
-    def add_point(self, pt):
-        self.points.append(pt)
-        self._clean = False
-
-    def set_predictor(self, predictor, t=None):
-        """Sets a predictor to the TreeFinder
-
-        predictor : function, optional
-
-            Called with t and a list of N Point instances, returns their
-            "effective" locations, as an N x d array (or any iterable).
-            Used for prediction (see "predict" module).
-        """
-        if predictor is None:
-            self.coord_mapping = functools.partial(_default_coord_mapping,
-                                                   self.search_range)
-        else:
-            self.coord_mapping = _wrap_predictor(self.search_range,
-                                                 predictor, t)
-        self._clean = False
-
-    @property
-    def kdtree(self):
-        if not self._clean:
-            self.rebuild()
-        return self._kdtree
-
-    def rebuild(self):
-        """Rebuilds tree from ``points`` attribute.
-
-        coord_map : function, optional
-
-            Called with a list of N Point instances, returns their
-            "effective" locations, as an N x d array (or list of tuples).
-            Used for prediction (see "predict" module).
-
-        rebuild() needs to be called after ``add_point()`` and
-        before tree is used for spatial queries again (i.e. when
-        memory is turned on).
-        """
-        self._clean = False
-        if len(self.points) == 0:
-            self._kdtree = None
-        else:
-            coords_mapped = self.coord_mapping(self.points)
-            self._kdtree = cKDTree(coords_mapped, 15)
-        # This could be tuned
-        self._clean = True
-
-    @property
-    def coords(self):
-        return _points_to_arr(self.points)
-
-    @property
-    def coords_mapped(self):
-        if not self._clean:
-            self.rebuild()
-        if self._kdtree is None:
-            return np.empty((0, self.ndim))
-        else:
-            return self._kdtree.data
-
-    @property
-    def coords_df(self):
-        coords = self.coords
-        if len(coords) == 0:
-            return
-        data = pd.DataFrame(coords, columns=default_pos_columns(self.ndim),
-                            index=[p.uuid for p in self.points])
-
-        # add placeholders to obtain columns with integer dtype
-        data['frame'] = -1
-        data['particle'] = -1
-        for p in self.points:
-            data.loc[p.uuid, 'frame'] = p.t
-            data.loc[p.uuid, 'particle'] = p.track.id
-            for col in p.extra_data:
-                data.loc[p.uuid, col] = p.extra_data[col]
-        return data
-
-    def query_points(self, pos, max_dist_normed=1.):
-        if self.kdtree is None:
-            return
-        pos_norm = pos / self.search_range
-        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
-        found = set([i for sl in found for i in sl])  # ravel
-        if len(found) == 0:
-            return
-        else:
-            return self.coords[list(found)]
-
 
 
 class Linker(object):
@@ -409,7 +282,7 @@ class Linker(object):
         if prev_hash is not None and self.predictor is not None:
             prev_hash.set_predictor(self.predictor, t)  # Rewrite positions
 
-        self.hash = TreeFinder(_points_from_arr(coords, t, extra_data),
+        self.hash = TreeFinder(points_from_arr(coords, t, extra_data),
                                self.search_range)
         return prev_hash
 

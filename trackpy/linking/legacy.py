@@ -15,7 +15,7 @@ import pandas as pd
 from ..try_numba import NUMBA_AVAILABLE
 from ..utils import (is_pandas_since_016, pandas_sort, cKDTree, validate_tuple,
                      is_isotropic)
-from .utils import (TrackUnstored, _points_to_arr, UnknownLinkingError,
+from .utils import (TrackUnstored, points_to_arr, UnknownLinkingError,
                     SubnetOversizeException)
 from .subnetlinker import (recursive_linker_obj, nonrecursive_link, drop_link,
                            numba_link)
@@ -246,7 +246,7 @@ class TreeFinder(object):
         memory is turned on).
         """
         if coord_map is None:
-            coordmap_as_arr = _points_to_arr
+            coordmap_as_arr = points_to_arr
         else:
             coordmap_as_arr = lambda x: np.asarray(list(coord_map(x)))
         if len(self.points) == 0:
@@ -265,7 +265,7 @@ class TreeFinder(object):
             else:
                 return self._kdtree.data
         else:
-            return _points_to_arr(self.points) / self.search_range
+            return points_to_arr(self.points) / self.search_range
 
 
 class HashTable(object):

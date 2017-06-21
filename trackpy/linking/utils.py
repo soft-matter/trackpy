@@ -18,12 +18,12 @@ class UnknownLinkingError(Exception):
     pass
 
 
-def _points_to_arr(level):
+def points_to_arr(level):
     """ Convert a list of Points to an ndarray of coordinates """
     return np.array([p.pos for p in level])
 
 
-def _points_from_arr(coords, frame_no, extra_data=None):
+def points_from_arr(coords, frame_no, extra_data=None):
     """ Convert an ndarray of coordinates to a list of PointFindLink """
     if extra_data is None:
         return [Point(frame_no, pos) for pos in coords]

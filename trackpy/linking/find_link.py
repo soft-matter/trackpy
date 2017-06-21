@@ -18,9 +18,9 @@ from ..preprocessing import bandpass
 from ..refine import refine_com
 from ..feature import characterize
 
-from .utils import Point, _points_from_arr
+from .utils import points_from_arr
 from .subnet import Subnets
-from .linking import TreeFinder, Linker
+from .linking import Linker
 
 logger = logging.getLogger(__name__)
 
@@ -257,116 +257,6 @@ def find_link_iter(reader, search_range, separation, diameter=None,
         yield image.frame_no, features
 
 
-class PointFindLink(Point):
-    """  Version of :class:`trackpy.linking.PointND` that is used for find_link.
-    """
-    def __init__(self, t, pos, id=None, extra_data=None):
-        super(PointFindLink, self).__init__()
-        self.t = t
-        self.pos = np.asarray(pos)
-        self.id = id
-        if extra_data is None:
-            self.extra_data = dict()
-        else:
-            self.extra_data = extra_data
-        # self.back_cands = []
-        self.forward_cands = []
-        self.subnet = None
-        self.relocate_neighbors = []
-
-
-class SubnetsFindLink(Subnets):
-    def add_dest_points(self, source_points, dest_points):
-        """ Add destination points, evaluate candidates and subnets.
-
-        This code cannot generate new subnets. The given points have to be such
-        that new subnets do not have to be created.
-
-        Parameters
-        ----------
-        source_points : iterable of points
-            Consider these points only as linking candidates. They should exist
-            already in Subnets.source_points.
-        dest_points : iterable of points
-            The destination points to add. They should be new.
-        """
-        # TODO is kdtree really faster here than brute force ?
-        if len(dest_points) == 0:
-            return
-        source_points = list(source_points)
-        source_coord = self.source_hash.coord_mapping(source_points)
-        new_dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = new_dest_hash.kdtree.query(source_coord,
-                                                 max(len(source_points), 2),
-                                                 distance_upper_bound=1+1e-7)
-        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, source in enumerate(source_points):
-            for j in range(nn[i]):
-                dest = new_dest_hash.points[inds[i, j]]
-                # dest.back_cands.append((source, dists[i, j]))
-                source.forward_cands.append((dest, dists[i, j]))
-                # source particle always has a subnet, add the dest particle
-                self.subnets[source.subnet][1].add(dest)
-                dest.subnet = source.subnet
-
-        # sort candidates again because they might have changed
-        for p in source_points:
-            p.forward_cands.sort(key=lambda x: x[1])
-        # for p in dest_hash.points:
-        #    p.back_cands.sort(key=lambda x: x[1])
-
-    def include_lost(self):
-        """ Add source particles without any destination particle to the
-        subnets."""
-        if len(self.subnets) > 0:
-            counter = itertools.count(start=max(self.subnets) + 1)
-        else:
-            counter = itertools.count()
-        for p in self.source_hash.points:
-            if len(p.forward_cands) == 0:
-                subnet = next(counter)
-                self.subnets[subnet] = {p}, set()
-                p.subnet = subnet
-
-        self.includes_lost = True
-
-    def merge_lost_subnets(self):
-        """ Merge subnets that have lost features and that are closer than
-        twice the search range together, in order to account for the possibility
-        that relocated points will join subnets together. """
-        if not self.includes_lost:
-            self.include_lost()
-
-        # list subnets that have lost particles
-        lost_source = []
-        for key in self.subnets:
-            source, dest = self.subnets[key]
-            shortage = len(source) - len(dest)
-            if shortage > 0:
-                lost_source.extend(source)
-
-        if len(lost_source) == 0:
-            return
-        lost_coords = self.source_hash.coord_mapping(lost_source)
-        dists, inds = self.source_hash.kdtree.query(lost_coords, self.max_neighbors,
-                                                    distance_upper_bound=2+1e-7)
-        nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
-        for i, p in enumerate(lost_source):
-            for j in range(nn[i]):
-                wp = self.source_hash.points[inds[i, j]]
-                i1, i2 = p.subnet, wp.subnet
-                if i1 != i2:
-                    if i2 > i1:
-                        i1, i2 = i2, i1
-                    self.subnets[i2][0].update(self.subnets[i1][0])
-                    self.subnets[i2][1].update(self.subnets[i1][1])
-                    # update the subnet identifiers per point
-                    for p in itertools.chain(*self.subnets[i1]):
-                        p.subnet = i2
-                    # and delete the old source subnet
-                    del self.subnets[i1]
-
-
 class FindLinker(Linker):
     """ Linker that relocates lost features.
 
@@ -441,7 +331,7 @@ class FindLinker(Linker):
         self.curr_t = t
         prev_hash = self.update_hash(coords, t, extra_data)
 
-        self.subnets = SubnetsFindLink(prev_hash, self.hash, self.MAX_NEIGHBORS)
+        self.subnets = Subnets(prev_hash, self.hash, self.MAX_NEIGHBORS)
         spl, dpl = self.assign_links()
         self.apply_links(spl, dpl)
 
@@ -451,8 +341,7 @@ class FindLinker(Linker):
             return set()
         else:
             n = min(n, len(candidates))
-            points = _points_from_arr(candidates[:n], self.curr_t,
-                                      extra_data=extra_data)
+            points = points_from_arr(candidates[:n], self.curr_t, extra_data)
         return set(points)
 
     def percentile_threshold(self, percentile):

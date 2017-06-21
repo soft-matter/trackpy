@@ -33,7 +33,7 @@ def unit_steps():
 
 random_x = np.random.randn(5).cumsum()
 random_x -= random_x.min()  # All x > 0
-max_disp = np.diff(random_x).max()
+max_disp = np.abs(np.diff(random_x)).max()
 
 
 def random_walk_legacy():
