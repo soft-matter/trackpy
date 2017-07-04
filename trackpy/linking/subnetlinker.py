@@ -257,7 +257,7 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
         #if j == 0:
         #    print i, j, best_sum
         #    sys.stdout.flush()
-        if i > ncands[j]:
+        if i >= ncands[j]:
             # We've exhausted possibilities at this level, including the
             # null link; make no more changes and go up a level
             #### GO UP
