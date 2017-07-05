@@ -192,6 +192,8 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
         dcands.update([cand for cand, dist in p.forward_cands])
     dcands = list(dcands)
     dcands_map = {cand: i for i, cand in enumerate(dcands)}
+    # -1 is used by the numba code to signify a null link
+    dcands_map[None] = -1
     # A source particle's actual candidates only take up the start of
     # each row of the array. All other elements represent the null link option
     # (i.e. particle lost)
@@ -207,9 +209,11 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
         distsarray[j,:ncands[j]] = [dist for cand, dist in sp.forward_cands]
         # Each source particle has a "null link" as its last forward_cand.
         # assert distsarray[j,ncands[j] - 1] == search_range
-        # The last column of distsarray should also be search_range,
-        # so that the null link can be represented by "-1"
-        # assert all(distsarray[:,-1] == search_range)
+        # assert candsarray[j,ncands[j] - 1] == -1
+    # The last column of distsarray should also be search_range,
+    # so that the null link can be represented by "-1"
+    # assert all(distsarray[:,-1] == search_range)
+
     # The assignments are persistent across levels of the recursion
     best_assignments = np.ones((nj,), dtype=np.int64) * -1
     cur_assignments = np.ones((nj,), dtype=np.int64) * -1
@@ -283,7 +287,8 @@ def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
                         if jtmp < j:
                             flag = 1
                 if flag and candsarray[j, i] >= 0:
-                    # we have already used this destination point; try the next one instead
+                    # We have already used this destination point and it is
+                    # not null; try the next "i" instead
                     delta = 0
                 else:
                     cur_assignments[j] = candsarray[j, i]
