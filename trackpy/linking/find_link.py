@@ -298,6 +298,9 @@ class FindLinker(Linker):
     """
     def __init__(self, search_range, separation, diameter=None,
                  minmass=0, percentile=64, **kwargs):
+        if 'dist_func' in kwargs:
+            warnings.warn("Custom distance functions are untested using "
+                          "the FindLinker and likely will cause issues!")
         super(FindLinker, self).__init__(search_range, **kwargs)
         if diameter is None:
             diameter = separation

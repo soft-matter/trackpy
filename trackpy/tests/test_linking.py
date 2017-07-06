@@ -22,14 +22,25 @@ def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
 
+
 def _skip_if_no_numba():
     if not NUMBA_AVAILABLE:
         raise nose.SkipTest('numba not installed. Skipping.')
 
 
+SKLEARN_AVAILABLE = True
+try:
+    from sklearn.neighbors import BallTree
+except ImportError:
+    SKLEARN_AVAILABLE = False
+
+
+def _skip_if_no_sklearn():
+    if not SKLEARN_AVAILABLE:
+        raise nose.SkipTest('Scikit-learn not installed. Skipping.')
+
 def unit_steps():
     return pd.DataFrame(dict(x=np.arange(5), y=5, frame=np.arange(5)))
-
 
 random_x = np.random.randn(5).cumsum()
 random_x -= random_x.min()  # All x > 0
@@ -257,6 +268,18 @@ class CommonTrackingTests(StrictTestCase):
         actual = self.link(f, 5)
         assert_traj_equal(actual, expected)
         assert 'particle' not in f.columns
+
+    def test_custom_dist_func(self):
+        _skip_if_no_sklearn()
+        # One 1D stepper
+        N = 5
+        f = DataFrame(
+            {'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        expected = f.copy()
+        expected['particle'] = np.zeros(N)
+        actual = self.link(f, 5,
+                           dist_func=lambda a, b: np.sqrt(np.sum((a - b)**2)))
+        assert_traj_equal(actual, expected)
 
     @nose.tools.raises(SubnetOversizeException)
     def test_oversize_fail(self):

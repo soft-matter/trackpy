@@ -13,13 +13,14 @@ from ..utils import default_pos_columns, cKDTree
 
 
 class TreeFinder(object):
-    def __init__(self, points, search_range):
+    def __init__(self, points, search_range, dist_func=None):
         """Takes a list of particles."""
         self.ndim = len(search_range)
         self.search_range = np.atleast_2d(search_range)
         if not isinstance(points, list):
             points = list(points)
         self.points = points
+        self.dist_func = dist_func
         self.set_predictor(None)
         self.rebuild()
 
@@ -71,7 +72,17 @@ class TreeFinder(object):
             self._kdtree = None
         else:
             coords_mapped = self.coord_mapping(self.points)
-            self._kdtree = cKDTree(coords_mapped, 15)
+
+            if self.dist_func is None:
+                self._kdtree = cKDTree(coords_mapped, 15)
+            else:
+                try:
+                    from sklearn.neighbors import BallTree
+                except ImportError:
+                    raise ImportError("Scikit-learn (sklearn) is required "
+                                      "for custom distance functions.")
+                self._kdtree = BallTree(coords_mapped,
+                                        metric='pyfunc', func=self.dist_func)
         # This could be tuned
         self._clean = True
 
@@ -106,7 +117,24 @@ class TreeFinder(object):
                 data.loc[p.uuid, col] = p.extra_data[col]
         return data
 
-    def query_points(self, pos, max_dist_normed=1.):
+    def query(self, pos, max_neighbors, max_dist_normed=1., rescale=True):
+        if self.kdtree is None:
+            return
+        if rescale:
+            pos = pos / self.search_range
+        if self.dist_func is None:
+            return self.kdtree.query(pos, max_neighbors,
+                                     distance_upper_bound=max_dist_normed)
+        else:
+            if max_neighbors > len(self):
+                max_neighbors = len(self)
+            dists, inds = self.kdtree.query(pos, max_neighbors)
+            mask = dists > max_dist_normed
+            dists[mask] = np.inf
+            inds[mask] = len(pos) + 1
+            return dists, inds
+
+    def query_points(self, pos, max_dist_normed=1., rescale=True):
         if self.kdtree is None:
             return
         pos_norm = pos / self.search_range
@@ -240,9 +268,9 @@ class Subnets(object):
         if len(source_hash.points) == 0 or len(dest_hash.points) == 0:
             return
         search_range = float(search_range) + 1e-7
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_mapped,
-                                               self.max_neighbors,
-                                               distance_upper_bound=search_range)
+        dists, inds = source_hash.query(dest_hash.coords_mapped,
+                                        self.max_neighbors, rescale=False,
+                                        max_dist_normed=search_range)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(dest_hash.points):
             for j in range(nn[i]):
@@ -280,9 +308,10 @@ class Subnets(object):
         source_points = list(source_points)
         source_coord = self.source_hash.coord_mapping(source_points)
         new_dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = new_dest_hash.kdtree.query(source_coord,
-                                                 max(len(source_points), 2),
-                                                 distance_upper_bound=1+1e-7)
+        dists, inds = new_dest_hash.query(source_coord,
+                                          max(len(source_points), 2),
+                                          rescale=False,
+                                          max_dist_normed=1+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, source in enumerate(source_points):
             for j in range(nn[i]):
@@ -329,8 +358,8 @@ class Subnets(object):
         if len(lost_source) == 0:
             return
         lost_coords = self.source_hash.coord_mapping(lost_source)
-        dists, inds = self.source_hash.kdtree.query(lost_coords, self.max_neighbors,
-                                                    distance_upper_bound=2+1e-7)
+        dists, inds = self.source_hash.query(lost_coords, self.max_neighbors,
+                                             rescale=False, max_dist_normed=2+1e-7)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(lost_source):
             for j in range(nn[i]):

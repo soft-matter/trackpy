@@ -249,12 +249,14 @@ class Linker(object):
     MAX_NEIGHBORS = 10
 
     def __init__(self, search_range, memory=0, link_strategy=None,
-                 predictor=None, adaptive_stop=None, adaptive_step=0.95):
+                 predictor=None, adaptive_stop=None, adaptive_step=0.95,
+                 dist_func=None):
         self.memory = memory
         self.predictor = predictor
         self.track_cls = TrackUnstored
         self.adaptive_stop = adaptive_stop
         self.adaptive_step = adaptive_step
+        self.dist_func = dist_func
 
         if link_strategy is None or link_strategy == 'auto':
             if NUMBA_AVAILABLE:
@@ -315,7 +317,7 @@ class Linker(object):
             prev_hash.set_predictor(self.predictor, t)  # Rewrite positions
 
         self.hash = TreeFinder(points_from_arr(coords, t, extra_data),
-                               self.search_range)
+                               self.search_range, dist_func=self.dist_func)
         return prev_hash
 
     def init_level(self, coords, t, extra_data=None):
