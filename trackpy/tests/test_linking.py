@@ -271,14 +271,31 @@ class CommonTrackingTests(StrictTestCase):
 
     def test_custom_dist_func(self):
         _skip_if_no_sklearn()
-        # One 1D stepper
+        # Several 2D random walkers
         N = 5
-        f = DataFrame(
-            {'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        expected = f.copy()
-        expected['particle'] = np.zeros(N)
-        actual = self.link(f, 5,
-                           dist_func=lambda a, b: np.sqrt(np.sum((a - b)**2)))
+        length = 5
+        step_size = 2
+        search_range = 3
+
+        steps = (np.random.random((2, length, N)) - 0.5) * step_size
+        x, y = np.cumsum(steps, axis=2)
+        f = DataFrame(dict(x=x.ravel(), y=y.ravel(),
+                           frame=np.repeat(np.arange(length), N)))
+        expected = self.link(f, search_range)
+
+        f['angle'] = np.arctan2(f['y'], f['x'])
+        f['r'] = np.sqrt(f['y']**2 + f['x']**2)
+
+        def dist_func(a, b):
+            x1 = a[0] * np.cos(a[1])
+            y1 = a[0] * np.sin(a[1])
+            x2 = b[0] * np.cos(b[1])
+            y2 = b[0] * np.sin(b[1])
+
+            return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+
+        actual = self.link(f, search_range, pos_columns=['r', 'angle'],
+                           dist_func=dist_func)
         assert_traj_equal(actual, expected)
 
     @nose.tools.raises(SubnetOversizeException)
