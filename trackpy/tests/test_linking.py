@@ -11,7 +11,7 @@ from numpy.testing import assert_equal
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.utils import pandas_sort
 from trackpy.linking import (link, link_iter, link_df_iter, verify_integrity,
-                             SubnetOversizeException)
+                             SubnetOversizeException, link_partial)
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -659,3 +659,21 @@ class TestNumbaLink(SubnetNeededTests):
 class TestNonrecursiveLink(SubnetNeededTests):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive')
+
+
+class TestPartialLink(CommonTrackingTests):
+    def link(self, f, search_range, *args, **kwargs):
+        kwargs = dict(self.linker_opts, **kwargs)
+        link_range = range(int(f['frame'].min()), int(f['frame'].max()) + 1)
+        return link_partial(f, search_range, link_range=link_range,
+                            *args, **kwargs)
+
+    def test_one_trivial_stepper(self):
+        N = 5
+        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
+                       'frame': np.arange(N), 'particle': [3, 3, 4, 4, 4]})
+        expected = f.copy()
+        expected['particle'] = np.zeros(N)
+
+        actual = link_partial(f, 5, link_range=range(1, 3))
+        assert_equal(actual['particle'].values, 3)
