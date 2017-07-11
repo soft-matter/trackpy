@@ -10,7 +10,7 @@ from numpy.testing import assert_allclose
 
 import trackpy as tp
 from trackpy.preprocessing import invert_image
-from trackpy.utils import cKDTree
+from trackpy.utils import cKDTree, pandas_iloc
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -47,12 +47,12 @@ def compore_pos_df(actual, expected, pos_atol=0.001, lost_atol=1):
         i_appeared1 = np.argwhere(~np.in1d(np.arange(len(coords1)),
                                            np.concatenate(
                                                [i_equal0, i_dev0]))).ravel()
-        lost0.append(expected_frame.iloc[i_lost0].index.values)
-        appeared1.append(actual_frame.iloc[i_appeared1].index.values)
-        dev0.append(expected_frame.iloc[i_dev0].index.values)
-        dev1.append(actual_frame.iloc[i_dev1].index.values)
-        equal0.append(expected_frame.iloc[i_equal0].index.values)
-        equal1.append(actual_frame.iloc[i_equal1].index.values)
+        lost0.append(pandas_iloc(expected_frame, i_lost0).index.values)
+        appeared1.append(pandas_iloc(actual_frame, i_appeared1).index.values)
+        dev0.append(pandas_iloc(expected_frame, i_dev0).index.values)
+        dev1.append(pandas_iloc(actual_frame, i_dev1).index.values)
+        equal0.append(pandas_iloc(expected_frame, i_equal0).index.values)
+        equal1.append(pandas_iloc(actual_frame, i_equal1).index.values)
 
     return np.concatenate(lost0), np.concatenate(appeared1), \
            (np.concatenate(dev0), np.concatenate(dev1)), \

@@ -307,6 +307,24 @@ else:
     pandas_sort = _pandas_sort_pre_017
 
 
+def _pandas_iloc_pre_016(df, inds):
+    """Workaround for bug, iloc with empty list, in pandas < 0.16"""
+    if len(inds) > 0:
+        return df.iloc[inds]
+    else:
+        return df.iloc[:0]
+
+
+def _pandas_iloc_since_016(df, inds):
+    return df.iloc[inds]
+
+
+if is_pandas_since_016:
+    pandas_iloc = _pandas_iloc_since_016
+else:
+    pandas_iloc = _pandas_iloc_pre_016
+
+
 def guess_pos_columns(f):
     """ Guess the position columns from a given feature DataFrame """
     if 'z' in f:
