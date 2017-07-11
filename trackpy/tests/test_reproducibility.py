@@ -18,7 +18,7 @@ reproduce_fn = os.path.join(path, 'data',
                             'reproduce_{}.csv'.format(tp.__version__))
 
 
-def test_pos_equal(actual, expected, pos_atol=0.001, lost_atol=1):
+def compore_pos_df(actual, expected, pos_atol=0.001, lost_atol=1):
     """Returns indices of equal and different positions inside dataframes
     `actual` and `expected`."""
     lost0 = []
@@ -79,19 +79,25 @@ class TestReproducibility(StrictTestCase):
         self.expected = pd.read_csv(os.path.join(path, 'data',
                                                  'reproduce_v0.3.1.csv'))
         self.actual = pd.read_csv(reproduce_fn)
-        self.compared = test_pos_equal(self.actual, self.expected,
+        self.compared = compore_pos_df(self.actual, self.expected,
                                        pos_atol=0.001, lost_atol=1)
         self.characterize_rtol = 0.0001
 
     def test_find(self):
+        # for v0.4: confirm that more than 95% of the features are still found
+        # the slight output change is allowed because it is due to the adapted
+        # grey_dilation kernel
+        # if the reference dataframe (now v0.3.1) is ever changed, this test
+        # should be made more strict
         n_lost = len(self.compared[0])
-        self.assertEqual(n_lost, 0,
-                         "{0} of {1} features were not found.".format(
-                             n_lost, len(self.expected)))
+        1 - n_lost / len(self.expected)
+        self.assertGreater(1 - n_lost / len(self.expected), 0.95,
+                           "{0} of {1} features were not found.".format(
+                               n_lost, len(self.expected)))
         n_appeared = len(self.compared[1])
-        self.assertEqual(n_appeared, 0,
-                         "{0} of {1} features were found unexpectedly.".format(
-                             n_appeared, len(self.actual)))
+        self.assertGreater(1 - n_appeared / len(self.actual), 0.95,
+                           "{0} of {1} features were found unexpectedly.".format(
+                               n_appeared, len(self.actual)))
 
     def test_refine(self):
         n_dev = len(self.compared[2][0])
