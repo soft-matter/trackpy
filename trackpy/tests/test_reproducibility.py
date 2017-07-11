@@ -77,7 +77,7 @@ class TestReproducibility(StrictTestCase):
 
     def setUp(self):
         self.expected = pd.read_csv(os.path.join(path, 'data',
-                                                 'reproduce_reference.csv'))
+                                                 'reproduce_v0.3.1.csv'))
         self.actual = pd.read_csv(reproduce_fn)
         self.compared = test_pos_equal(self.actual, self.expected,
                                        pos_atol=0.001, lost_atol=1)
@@ -112,5 +112,17 @@ class TestReproducibility(StrictTestCase):
     def test_link(self):
         # run the linking on the expected coordinates, so that tests are
         # independent of possible different refine or find results
-        actual = tp.link_df(self.expected, search_range=5, memory=0)
+        actual = tp.link_df(self.expected, search_range=5, memory=2)
         assert_traj_equal(actual, self.expected)
+
+
+# SCRIPT TO GENERATE THE FEATURES
+# import trackpy as tp
+# import pims
+# import os
+# os.chdir(r'path\to\trackpy\source')
+# frames = pims.ImageSequence(os.path.join('tests', 'video', 'image_sequence'))
+# inverted = pims.pipeline(lambda x: 255 - x)(frames)
+# f_current = tp.batch(inverted, 9, minmass=240)
+# f_current = tp.link_df(f_current, 5, memory=2)
+# f_current.to_csv('reproduce_v0.3.1.csv')
