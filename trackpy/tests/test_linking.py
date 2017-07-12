@@ -662,18 +662,41 @@ class TestNonrecursiveLink(SubnetNeededTests):
 
 
 class TestPartialLink(CommonTrackingTests):
-    def link(self, f, search_range, *args, **kwargs):
-        kwargs = dict(self.linker_opts, **kwargs)
-        link_range = range(int(f['frame'].min()), int(f['frame'].max()) + 1)
-        return link_partial(f, search_range, link_range=link_range,
-                            *args, **kwargs)
+    def test_patch_single(self):
+        f = DataFrame({'x':        [0, 1, 2, 3],
+                       'y':        [1, 1, 1, 1],
+                       'frame':    [0, 1, 2, 3],
+                       'particle': [3, 3, 4, 4]})
 
-    def test_one_trivial_stepper(self):
-        N = 5
-        f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
-                       'frame': np.arange(N), 'particle': [3, 3, 4, 4, 4]})
-        expected = f.copy()
-        expected['particle'] = np.zeros(N)
-
-        actual = link_partial(f, 5, link_range=range(1, 3))
+        actual = link_partial(f, 5, link_range=(1, 3))
         assert_equal(actual['particle'].values, 3)
+
+    def test_patch_crossing(self):
+        f = DataFrame({'x':        [0, 1, 2, 3, 0, 1, 2, 3],
+                       'y':        [1, 1, 1, 1, 5, 5, 5, 5],
+                       'frame':    [0, 1, 2, 3, 0, 1, 2, 3],
+                       'particle': [3, 3, 4, 4, 4, 4, 3, 3]})
+
+        actual = link_partial(f, 5, link_range=(1, 3))
+        assert_equal(actual.loc[actual['y'] == 1, 'particle'].values[:4], 3)
+        assert_equal(actual.loc[actual['y'] == 5, 'particle'].values[4:], 4)
+
+    def test_patch_appearing(self):
+        f = DataFrame({'x':        [0, 1, 2, 3, 2, 3],
+                       'y':        [1, 1, 1, 1, 5, 5],
+                       'frame':    [0, 1, 2, 3, 2, 3],
+                       'particle': [3, 3, 4, 4, 3, 3]})
+
+        actual = link_partial(f, 5, link_range=(1, 3))
+        assert_equal(actual.loc[actual['y'] == 1, 'particle'].values[:4], 3)
+        assert_equal(actual.loc[actual['y'] == 5, 'particle'].values[4:], 4)
+
+    def test_patch_only_in(self):
+        f = DataFrame({'x':        [0, 1, 2, 3, 2, 3],
+                       'y':        [1, 1, 1, 1, 5, 5],
+                       'frame':    [0, 1, 2, 3, 1, 2],
+                       'particle': [3, 3, 4, 4, 3, 3]})
+
+        actual = link_partial(f, 5, link_range=(1, 3))
+        assert_equal(actual.loc[actual['y'] == 1, 'particle'].values[:4], 3)
+        assert_equal(actual.loc[actual['y'] == 5, 'particle'].values[4:], 0)
