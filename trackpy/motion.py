@@ -258,23 +258,22 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
     """
     if pos_columns is None:
         pos_columns = ['x', 'y']
-    # the groupby...diff works only if the trajectory Dataframe is sorted along frame
-    # I do here a copy because a "inplace=True" would sort the original "traj" which is perhaps unwanted/unexpected
-    traj = pandas_sort(traj, 'frame')
-    # Probe by particle, take the difference between frames.
-    delta = traj.groupby('particle', sort=False).apply(lambda x :
-                                    x.set_index('frame', drop=False).diff())
-    # Keep only deltas between frames that are consecutive.
-    delta = delta[delta['frame'] == 1]
-    # Restore the original frame column (replacing delta frame).
-    del delta['frame']
-    delta.reset_index('particle', drop=True, inplace=True)
-    delta.reset_index('frame', drop=False, inplace=True)
-    dx = delta.groupby('frame').mean()
+    f_sort = traj.sort_values(['particle', 'frame'])
+
+    # Compute the difference list of positions, particle, and frame columns.
+    f_diff = f_sort[list(pos_columns) + ['particle', 'frame']].diff()
+
+    # Rename the frame column and insert the original frame column back in.
+    f_diff.rename(columns={'frame': 'frame_diff'}, inplace=True)
+    f_diff['frame'] = f_sort['frame']
+
+    # Compute the per frame averages. Keep only deltas of the same particle,
+    # and between frames that are consecutive, and of the same particle.
+    mask = (f_diff['particle'] == 0) & (f_diff['frame_diff'] == 1)
+    dx = f_diff.loc[mask, pos_columns + ['frame']].groupby('frame').mean()
     if smoothing > 0:
         dx = pd.rolling_mean(dx, smoothing, min_periods=0)
-    x = dx.cumsum(0)[pos_columns]
-    return x
+    return dx.cumsum()
 
 
 def subtract_drift(traj, drift=None, inplace=False):
