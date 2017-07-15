@@ -7,7 +7,7 @@ from pandas import DataFrame, Series
 
 import warnings
 from warnings import warn
-from .utils import pandas_sort
+from .utils import pandas_sort, guess_pos_columns
 
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
@@ -239,14 +239,18 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
 
     Parameters
     ----------
-    traj : DataFrame of trajectories, including columns x, y, frame, and particle
-    smoothing : integer
+    traj : DataFrame
+        trajectories, including position columns, 'frame', and 'particle'
+    smoothing : integer, optional
         Smooth the drift using a forward-looking rolling mean over
-        this many frames.
+        this many frames. Default: 0.
+    pos_columns : list, optional
+        The names of the position columns.
+        Default ['y', 'x'] or ['z', 'y', 'x'] if 'z' is present in traj.
 
     Returns
     -------
-    drift : DataFrame([x, y], index=frame)
+    drift : DataFrame(pos_columns, index=frame)
 
     Examples
     --------
@@ -257,8 +261,9 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
     >>> corrected_traj = subtract_drift(traj, drift) # Apply them.
     """
     if pos_columns is None:
-        pos_columns = ['x', 'y']
-    f_sort = traj.sort_values(['particle', 'frame'])
+        # swap the order for backwards compatibility
+        pos_columns = guess_pos_columns(traj)
+    f_sort = pandas_sort(traj, ['particle', 'frame'])
 
     # Compute the difference list of positions, particle, and frame columns.
     f_diff = f_sort[list(pos_columns) + ['particle', 'frame']].diff()
@@ -268,7 +273,7 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
     f_diff['frame'] = f_sort['frame']
 
     # Compute the per frame averages. Keep only deltas of the same particle,
-    # and between frames that are consecutive, and of the same particle.
+    # and between frames that are consecutive.
     mask = (f_diff['particle'] == 0) & (f_diff['frame_diff'] == 1)
     dx = f_diff.loc[mask, pos_columns + ['frame']].groupby('frame').mean()
     if smoothing > 0:
