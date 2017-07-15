@@ -33,6 +33,12 @@ try:
 except ValueError:  # Probably a development version
     is_pandas_since_017 = True
 
+try:
+    is_pandas_since_018 = (LooseVersion(pd.__version__) >=
+                           LooseVersion('0.18.0'))
+except ValueError:  # Probably a development version
+    is_pandas_since_018 = True
+
 
 # Wrap the scipy cKDTree to work around a bug in scipy 0.18.0
 try:
@@ -306,7 +312,6 @@ if is_pandas_since_017:
 else:
     pandas_sort = _pandas_sort_pre_017
 
-
 def _pandas_iloc_pre_016(df, inds):
     """Workaround for bug, iloc with empty list, in pandas < 0.16"""
     if len(inds) > 0:
@@ -314,15 +319,26 @@ def _pandas_iloc_pre_016(df, inds):
     else:
         return df.iloc[:0]
 
-
 def _pandas_iloc_since_016(df, inds):
     return df.iloc[inds]
-
 
 if is_pandas_since_016:
     pandas_iloc = _pandas_iloc_since_016
 else:
     pandas_iloc = _pandas_iloc_pre_016
+
+def _pandas_rolling_pre_018(df, window, *args, **kwargs):
+    """Use sort() to sort a DataFrame"""
+    return df.rolling_mean(window, *args, **kwargs)
+
+def _pandas_rolling_since_018(df, window, *args, **kwargs):
+    """Use sort_values() to sort a DataFrame"""
+    return df.rolling(window, *args, **kwargs)
+
+if is_pandas_since_018:
+    pandas_rolling = _pandas_rolling_since_018
+else:
+    pandas_rolling = _pandas_rolling_pre_018
 
 
 def guess_pos_columns(f):
