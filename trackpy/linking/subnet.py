@@ -11,10 +11,18 @@ import pandas as pd
 from .utils import points_to_arr
 from ..utils import default_pos_columns, cKDTree
 
+try:
+    from sklearn.neighbors import BallTree
+except ImportError:
+    BallTree = None
+
 
 class TreeFinder(object):
     def __init__(self, points, search_range, dist_func=None):
         """Takes a list of particles."""
+        if dist_func is not None and BallTree is None:
+            raise ImportError("Scikit-learn (sklearn) is required "
+                              "for custom distance functions.")
         self.ndim = len(search_range)
         self.search_range = np.atleast_2d(search_range)
         if not isinstance(points, list):
@@ -76,11 +84,6 @@ class TreeFinder(object):
             if self.dist_func is None:
                 self._kdtree = cKDTree(coords_mapped, 15)
             else:
-                try:
-                    from sklearn.neighbors import BallTree
-                except ImportError:
-                    raise ImportError("Scikit-learn (sklearn) is required "
-                                      "for custom distance functions.")
                 self._kdtree = BallTree(coords_mapped,
                                         metric='pyfunc', func=self.dist_func)
         # This could be tuned
