@@ -208,13 +208,11 @@ class Subnets(object):
         tuple of sets. The first set contains the source points, the second
         set contains the destination points. Iterate over this dictionary by
         directly iterating over the Subnets object.
-
-    Methods
-    -------
-    get_lost :
+    lost : list
         Lists source points without linking candidates ('lost' features).
-        Raises if these particles are included in the subnets already, by
-        calling `include_lost`.
+        Raises if `includes_lost` == True.
+    includes_lost : Boolean
+        Whether the source points without linking candidates are included.
     """
     def __init__(self, source_hash, dest_hash, max_neighbors=10):
         self.max_neighbors = max_neighbors
@@ -231,7 +229,6 @@ class Subnets(object):
             p.forward_cands = []
             p.subnet = None
         for i, p in enumerate(self.dest_hash.points):
-            # p.back_cands = []
             p.subnet = i
             self.subnets[i] = set(), {p}
 
@@ -250,13 +247,13 @@ class Subnets(object):
         for i, p in enumerate(dest_hash.points):
             for j in range(nn[i]):
                 wp = source_hash.points[inds[i, j]]
-                # p.back_cands.append((wp, dists[i, j]))
                 wp.forward_cands.append((p, dists[i, j]))
                 assign_subnet(wp, p, self.subnets)
 
     def __iter__(self):
         return (self.subnets[key] for key in self.subnets)
 
+    @property
     def lost(self):
         if self.includes_lost:
             raise ValueError('Lost particles are included in the subnets.')
@@ -299,12 +296,9 @@ class Subnets(object):
         # sort candidates again because they might have changed
         for p in source_points:
             p.forward_cands.sort(key=lambda x: x[1])
-        # for p in dest_hash.points:
-        #    p.back_cands.sort(key=lambda x: x[1])
 
     def include_lost(self):
-        """ Add source particles without any destination particle to the
-        subnets."""
+        """ Add source particles without any candidate to the subnets. """
         if len(self.subnets) > 0:
             counter = itertools.count(start=max(self.subnets) + 1)
         else:
@@ -320,7 +314,7 @@ class Subnets(object):
     def merge_lost_subnets(self):
         """ Merge subnets that have lost features and that are closer than
         twice the search range together, in order to account for the possibility
-        that relocated points will join subnets together. """
+        that relocated points will join subnets together."""
         if not self.includes_lost:
             self.include_lost()
 

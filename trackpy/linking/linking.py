@@ -372,7 +372,7 @@ class Linker(object):
             dpl.extend(sn_dpl)
 
         # Leftovers
-        lost = self.subnets.lost()
+        lost = self.subnets.lost
         spl.extend(lost)
         dpl.extend([None] * len(lost))
 
@@ -394,9 +394,7 @@ class Linker(object):
                 # memory set
                 new_mem_set.add(sp)
 
-            # # Clean up
-            # if dp is not None:
-            #     dp.back_cands = []
+            # Clean up
             if sp is not None:
                 sp.forward_cands = []
 
