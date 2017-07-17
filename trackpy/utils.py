@@ -328,11 +328,11 @@ else:
     pandas_iloc = _pandas_iloc_pre_016
 
 def _pandas_rolling_pre_018(df, window, *args, **kwargs):
-    """Use sort() to sort a DataFrame"""
+    """Use rolling_mean() to compute a rolling average"""
     return df.rolling_mean(window, *args, **kwargs)
 
 def _pandas_rolling_since_018(df, window, *args, **kwargs):
-    """Use sort_values() to sort a DataFrame"""
+    """Use rolling() to compute a rolling average"""
     return df.rolling(window, *args, **kwargs)
 
 if is_pandas_since_018:
