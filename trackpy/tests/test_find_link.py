@@ -12,7 +12,7 @@ from trackpy.utils import pandas_sort
 from trackpy.artificial import CoordinateReader
 from trackpy.linking import find_link
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
-from trackpy.tests.test_linking import SubnetNeededTests
+from trackpy.tests.test_linking import SubnetNeededTests, _skip_if_no_sklearn
 
 
 class FindLinkTests(SubnetNeededTests):
@@ -68,6 +68,7 @@ class FindLinkTests(SubnetNeededTests):
 
 class FindLinkTestsBTree(FindLinkTests):
     def setUp(self):
+        _skip_if_no_sklearn()
         super(FindLinkTestsBTree, self).setUp()
         self.linker_opts['neighbor_strategy'] = 'BTree'
 

@@ -7,16 +7,16 @@ matrix:
     - python: "2.7"
       env: DEPS="numpy=1.8.2 scipy=0.12.0 matplotlib=1.3 pillow==2.1 pandas=0.13.0 scikit-image=0.9 pyyaml pytables" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="numpy=1.8.2 scipy=0.13.3 matplotlib=1.3 pillow==2.5.1 pandas=0.13.0 scikit-image=0.9 pyyaml numba=0.13.4 pytables" BUILD_DOCS=false
+      env: DEPS="numpy=1.8.2 scipy=0.13.3 matplotlib=1.3 pillow==2.5.1 pandas=0.13.0 scikit-image=0.9 pyyaml numba=0.13.4 pytables scikit-learn" BUILD_DOCS=false
     # "Recommended" environments: More recent versions, for Py2 and Py3.
     - python: "2.7"
-      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==2.9 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=false
+      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==2.9 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw scikit-learn" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==3.0 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw" BUILD_DOCS=true
+      env: DEPS="libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 pillow==3.0 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw scikit-learn" BUILD_DOCS=true
     - python: "3.5"
-      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba"  BUILD_DOCS=false
+      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba scikit-learn"  BUILD_DOCS=false
     - python: "3.6"
-      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba"  BUILD_DOCS=false
+      env: DEPS="numpy scipy matplotlib pillow pandas!=0.18.0 scikit-image pyyaml pytables numba scikit-learn"  BUILD_DOCS=false
 
 
 install:
