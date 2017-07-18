@@ -302,6 +302,7 @@ class FindLinker(Linker):
             warnings.warn("Custom distance functions are untested using "
                           "the FindLinker and likely will cause issues!")
         super(FindLinker, self).__init__(search_range, **kwargs)
+        self.ndim = len(diameter)
         if diameter is None:
             diameter = separation
         self.radius = tuple([int(d // 2) for d in diameter])
@@ -334,7 +335,8 @@ class FindLinker(Linker):
         self.curr_t = t
         prev_hash = self.update_hash(coords, t, extra_data)
 
-        self.subnets = Subnets(prev_hash, self.hash, self.MAX_NEIGHBORS)
+        self.subnets = Subnets(prev_hash, self.hash, self.search_range,
+                               self.MAX_NEIGHBORS)
         spl, dpl = self.assign_links()
         self.apply_links(spl, dpl)
 
@@ -452,7 +454,8 @@ class FindLinker(Linker):
                     pos = [s.pos for s in source_set]
                 new_cands = self.relocate(pos, shortage)
                 # this adapts the dest_set inplace
-                self.subnets.add_dest_points(source_set, new_cands)
+                self.subnets.add_dest_points(source_set, new_cands,
+                                             self.search_range)
             else:
                 new_cands = set()
 
@@ -473,3 +476,13 @@ class FindLinker(Linker):
             dpl.extend(sn_dpl)
 
         return spl, dpl
+
+    @property
+    def coords_df(self):
+        return self.hash.coords_df
+
+    @coords_df.setter
+    def coords_df(self, value):
+        if len(value) != len(self.hash.points):
+            raise ValueError("Number of features has changed")
+        self.coords = value[default_pos_columns(self.ndim)].values

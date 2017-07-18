@@ -269,8 +269,7 @@ class CommonTrackingTests(StrictTestCase):
         assert_traj_equal(actual, expected)
         assert 'particle' not in f.columns
 
-    def test_custom_dist_func(self):
-        _skip_if_no_sklearn()
+    def test_custom_to_eucl(self):
         # Several 2D random walkers
         N = 5
         length = 5
@@ -281,21 +280,25 @@ class CommonTrackingTests(StrictTestCase):
         x, y = np.cumsum(steps, axis=2)
         f = DataFrame(dict(x=x.ravel(), y=y.ravel(),
                            frame=np.repeat(np.arange(length), N)))
+
+        # link in normal (2D Euclidean) coordinates
         expected = self.link(f, search_range)
 
-        f['angle'] = np.arctan2(f['y'], f['x'])
-        f['r'] = np.sqrt(f['y']**2 + f['x']**2)
+        # compute radial coordinates
+        f_radial = f.copy()
+        f_radial['angle'] = np.arctan2(f_radial['y'], f_radial['x'])
+        f_radial['r'] = np.sqrt(f_radial['y'] ** 2 + f_radial['x'] ** 2)
+        # leave x, y for the comparison at the end
 
-        def dist_func(a, b):
-            x1 = a[0] * np.cos(a[1])
-            y1 = a[0] * np.sin(a[1])
-            x2 = b[0] * np.cos(b[1])
-            y2 = b[0] * np.sin(b[1])
+        def to_eucl(arr):
+            r, angle = arr.T
+            x = r * np.cos(angle)
+            y = r * np.sin(angle)
+            return np.array([x, y]).T
 
-            return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-
-        actual = self.link(f, search_range, pos_columns=['r', 'angle'],
-                           dist_func=dist_func)
+        # link using a custom distance function
+        actual = self.link(f_radial, search_range, pos_columns=['r', 'angle'],
+                           to_eucl=to_eucl)
         assert_traj_equal(actual, expected)
 
     @nose.tools.raises(SubnetOversizeException)
@@ -601,6 +604,7 @@ class SubnetNeededTests(CommonTrackingTests):
 
 class SimpleLinkingTestsIter(CommonTrackingTests):
     def link(self, f, search_range, *args, **kwargs):
+        pos_columns = kwargs.pop('pos_columns', ['y', 'x'])
 
         def f_iter(f, first_frame, last_frame):
             """ link_iter requires an (optionally enumerated) generator of
@@ -608,7 +612,7 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
             for t in np.arange(first_frame, last_frame + 1,
                                dtype=f['frame'].dtype):
                 f_filt = f[f['frame'] == t]
-                yield t, f_filt[['y', 'x']].values
+                yield t, f_filt[pos_columns].values
 
         res = f.copy()
         res['particle'] = -1
@@ -693,9 +697,50 @@ class TestDropLink(CommonTrackingTests):
 
 class TestNumbaLink(SubnetNeededTests):
     def setUp(self):
+        _skip_if_no_numba()
         self.linker_opts = dict(link_strategy='numba')
 
 
 class TestNonrecursiveLink(SubnetNeededTests):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive')
+
+
+class TestBTreeLink(SubnetNeededTests):
+    def setUp(self):
+        _skip_if_no_sklearn()
+        self.linker_opts = dict(neighbor_strategy='BTree')
+
+    def test_custom_dist_func(self):
+        # Several 2D random walkers
+        N = 5
+        length = 5
+        step_size = 2
+        search_range = 3
+
+        steps = (np.random.random((2, length, N)) - 0.5) * step_size
+        x, y = np.cumsum(steps, axis=2)
+        f = DataFrame(dict(x=x.ravel(), y=y.ravel(),
+                           frame=np.repeat(np.arange(length), N)))
+
+        # link in normal (2D Euclidean) coordinates
+        expected = self.link(f, search_range)
+
+        # compute radial coordinates
+        f_radial = f.copy()
+        f_radial['angle'] = np.arctan2(f_radial['y'], f_radial['x'])
+        f_radial['r'] = np.sqrt(f_radial['y']**2 + f_radial['x']**2)
+        # leave x, y for the comparison at the end
+
+        def dist_func(a, b):
+            x1 = a[0] * np.cos(a[1])
+            y1 = a[0] * np.sin(a[1])
+            x2 = b[0] * np.cos(b[1])
+            y2 = b[0] * np.sin(b[1])
+
+            return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+
+        # link using a custom distance function
+        actual = self.link(f_radial, search_range, pos_columns=['r', 'angle'],
+                           dist_func=dist_func)
+        assert_traj_equal(actual, expected)
