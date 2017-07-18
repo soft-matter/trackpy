@@ -22,6 +22,8 @@ class FindLinkTests(SubnetNeededTests):
         self.linker_opts['diameter'] = 15
 
     def link(self, f, search_range, *args, **kwargs):
+        if 'pos_columns' in kwargs:
+            raise nose.SkipTest('Skipping find_link tests with custom pos_columns.')
         # the minimal spacing between features in f is assumed to be 1.
 
         # from scipy.spatial import cKDTree
@@ -62,6 +64,12 @@ class FindLinkTests(SubnetNeededTests):
         # Should not raise
         actual = self.link(f, 5.2, separation=9.5, diameter=15.2)
         assert_traj_equal(actual, expected)
+
+
+class FindLinkTestsBTree(FindLinkTests):
+    def setUp(self):
+        super(FindLinkTestsBTree, self).setUp()
+        self.linker_opts['neighbor_strategy'] = 'BTree'
 
 
 class FindLinkOneFailedFindTests(FindLinkTests):
@@ -176,7 +184,7 @@ class FindLinkSpecialCases(StrictTestCase):
     def test_two_isolated(self):
         shape = (32, 32)
         expected = DataFrame({'x': [8, 16, 24, 16], 'y': [8, 8, 24, 24],
-                                 'frame': [0, 1, 0, 1], 'particle': [0, 0, 1, 1]})
+                              'frame': [0, 1, 0, 1], 'particle': [0, 0, 1, 1]})
         for remove in [[], [0], [1], [0, 1]]:
             actual = self.link(expected, shape=shape, remove=remove)
             assert_traj_equal(actual, expected)

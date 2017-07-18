@@ -8,7 +8,7 @@ import itertools, functools
 
 import numpy as np
 
-from ..utils import (guess_pos_columns,
+from ..utils import (guess_pos_columns, default_pos_columns,
                      validate_tuple, is_isotropic, pandas_sort)
 from ..try_numba import NUMBA_AVAILABLE
 from .utils import (Point, TrackUnstored, points_from_arr,
@@ -261,6 +261,7 @@ class Linker(object):
         self.memory = memory
         self.predictor = predictor
         self.track_cls = TrackUnstored
+        self.ndim = None  # unknown at this point; inferred at init_level()
 
         if neighbor_strategy is None:
             if dist_func is None:
@@ -301,9 +302,9 @@ class Linker(object):
         # space with search_range == 1.
         if is_isotropic(search_range):
             if hasattr(search_range, '__iter__'):
-                self.search_range = search_range[0]
+                self.search_range = float(search_range[0])
             else:
-                self.search_range = search_range
+                self.search_range = float(search_range)
         elif self.to_eucl is not None:
             raise ValueError('Cannot use anisotropic search ranges in '
                              'combination with a coordinate transformation.')
@@ -331,6 +332,9 @@ class Linker(object):
                                                    max_size=self.MAX_SUB_NET_SIZE)
 
     def update_hash(self, coords, t, extra_data=None):
+        if self.ndim is None:
+            raise RuntimeError("The Linker was not initialized. Please use "
+                               "`init_level` for the first level.")
         prev_hash = self.hash
         # add memory points to prev_hash (to be used as the next source)
         for m in self.mem_set:
@@ -351,13 +355,14 @@ class Linker(object):
             prev_hash.set_predictor(self.predictor, t)  # Rewrite positions
 
         self.hash = self.hash_cls(points_from_arr(coords, t, extra_data),
-                                  ndim=coords.shape[1], to_eucl=self.to_eucl,
+                                  ndim=self.ndim, to_eucl=self.to_eucl,
                                   dist_func=self.dist_func)
         return prev_hash
 
     def init_level(self, coords, t, extra_data=None):
         Point.reset_counter()
         TrackUnstored.reset_counter()
+        self.ndim = coords.shape[1]
         self.mem_set = set()
         # Initialize memory with empty sets.
         self.mem_history = []
@@ -388,6 +393,11 @@ class Linker(object):
     @property
     def coords_df(self):
         return self.hash.coords_df
+    @coords_df.setter
+    def coords_df(self, value):
+        if len(value) != len(self.hash.points):
+            raise ValueError("Number of features has changed")
+        self.coords = value[default_pos_columns(self.ndim)].values
 
     def next_level(self, coords, t, extra_data=None):
         prev_hash = self.update_hash(coords, t, extra_data)

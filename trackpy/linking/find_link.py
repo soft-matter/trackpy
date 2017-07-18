@@ -12,8 +12,7 @@ from scipy import ndimage
 
 from ..masks import slice_image, mask_image
 from ..find import grey_dilation, drop_close
-from ..utils import (default_pos_columns, is_isotropic,
-                     cKDTree, validate_tuple)
+from ..utils import default_pos_columns, is_isotropic, validate_tuple
 from ..preprocessing import bandpass
 from ..refine import refine_com
 from ..feature import characterize
@@ -301,8 +300,10 @@ class FindLinker(Linker):
         if 'dist_func' in kwargs:
             warnings.warn("Custom distance functions are untested using "
                           "the FindLinker and likely will cause issues!")
+        # initialize the Linker.
+        # beware: self.search_range is a scalar, while search_range is a tuple
         super(FindLinker, self).__init__(search_range, **kwargs)
-        self.ndim = len(diameter)
+        self.ndim = len(search_range)
         if diameter is None:
             diameter = separation
         self.radius = tuple([int(d // 2) for d in diameter])
@@ -317,7 +318,7 @@ class FindLinker(Linker):
         # slice_radius: radius for relocate mask
         # search_range + feature radius + 1
         self.slice_radius = tuple([int(s + r + 1)
-                                   for (s, r) in zip(self.search_range,
+                                   for (s, r) in zip(search_range,
                                                      self.radius)])
         # background_radius: radius to make sure the already located features
         # do not fall inside slice radius
@@ -326,8 +327,11 @@ class FindLinker(Linker):
         # The big feature hashtable is normed to search_range. For performance,
         # we do not rebuild this large hashtable. apply the norm here and take
         # the largest value.
-        self.bg_radius = max([a / b for (a, b) in zip(bg_radius,
-                                                      self.search_range)])
+        if is_isotropic(search_range):
+            self.bg_radius = max(bg_radius)
+        else:
+            self.bg_radius = max([a / b for (a, b) in zip(bg_radius,
+                                                          search_range)])
         self.threshold = (None, None)
 
     def next_level(self, coords, t, image, extra_data=None):
@@ -404,14 +408,18 @@ class FindLinker(Linker):
         if len(coords) == 0:
             return None, None
 
-        # drop points that are further than search range from any initial point
-        max_dist = np.atleast_2d(self.search_range)
-        kdtree = cKDTree(coords / max_dist, 30)
-        found = kdtree.query_ball_point((pos - origin) / max_dist, 1.)
-        if len(found) > 0:
-            coords = coords[list(set([i for sl in found for i in sl]))]
-        else:
+        # drop points that are further than search range from all initial points
+        # borrow the rescaling function from the hash
+        coords_rescaled = self.hash.to_eucl(origin + coords)
+        pos_rescaled = self.hash.to_eucl(pos)
+        coords_ok = []
+        for coord, coord_rescaled in zip(coords, coords_rescaled):
+            dists = np.sqrt(np.sum((coord_rescaled - pos_rescaled)**2, axis=1))
+            if np.any(dists <= self.search_range):
+                coords_ok.append(coord)
+        if len(coords_ok) == 0:
             return None, None
+        coords = np.array(coords_ok)
 
         # drop dimmer points that are closer than separation to each other
         coords = drop_close(coords, self.separation,
@@ -438,7 +446,7 @@ class FindLinker(Linker):
         # to account for lost particles that link subnets together. A possible
         # performance enhancement would be joining subnets together during
         # iterating over the subnets.
-        self.subnets.merge_lost_subnets()
+        self.subnets.merge_lost_subnets(self.search_range)
 
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
@@ -460,7 +468,8 @@ class FindLinker(Linker):
                 new_cands = set()
 
             # link
-            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
+            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set,
+                                                self.search_range)
 
             # list the claimed destination particles and add them to the hash
             sn_dpl_set = set(sn_dpl)
@@ -476,13 +485,3 @@ class FindLinker(Linker):
             dpl.extend(sn_dpl)
 
         return spl, dpl
-
-    @property
-    def coords_df(self):
-        return self.hash.coords_df
-
-    @coords_df.setter
-    def coords_df(self, value):
-        if len(value) != len(self.hash.points):
-            raise ValueError("Number of features has changed")
-        self.coords = value[default_pos_columns(self.ndim)].values
