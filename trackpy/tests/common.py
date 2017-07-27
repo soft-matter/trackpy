@@ -41,7 +41,9 @@ def assert_traj_equal(actual, expected, pos_atol=1):
     for frame_no in expected['frame'].unique():
         actual_f = actual[actual['frame'] == frame_no]
         expected_f = expected[expected['frame'] == frame_no]
-        assert_equal(len(actual_f), len(expected_f))
+        assert_equal(len(actual_f), len(expected_f),
+                     err_msg='Actual and expected numbers of features '
+                             'differ in frame %i' % frame_no)
         tree = cKDTree(actual_f[['y', 'x']].values)
         devs, argsort = tree.query(expected_f[['y', 'x']].values)
         assert_allclose(devs, 0., atol=pos_atol)
@@ -52,5 +54,8 @@ def assert_traj_equal(actual, expected, pos_atol=1):
         actual_ind = actual.index[actual['particle'] == p_actual]
         p_expected = expected.loc[actual_ind[0], 'particle']
         expected_ind = expected.index[expected['particle'] == p_expected]
-        assert_array_equal(actual_ind, expected_ind)
+        assert_array_equal(actual_ind, expected_ind,
+                           err_msg='Actual and expected linking results '
+                           'differ for actual particle %i/expected particle %i'
+                           '' % (p_actual, p_expected))
 

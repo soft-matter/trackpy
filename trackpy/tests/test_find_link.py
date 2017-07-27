@@ -10,9 +10,9 @@ from numpy.testing import assert_equal
 
 from trackpy.utils import pandas_sort
 from trackpy.artificial import CoordinateReader
-from trackpy.find_link import find_link
+from trackpy.linking import find_link
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
-from trackpy.tests.test_link_new import SubnetNeededTests
+from trackpy.tests.test_linking import SubnetNeededTests
 
 
 class FindLinkTests(SubnetNeededTests):
@@ -77,7 +77,8 @@ class FindLinkOneFailedFindTests(FindLinkTests):
                           test_start_at_frame_other_than_zero=4,
                           test_two_nearby_steppers_one_gapped=2,
                           test_two_isolated_steppers_one_gapped=2,
-                          test_memory_removal=2)
+                          test_memory_removal=2,
+                          test_search_range=None)
 
         test_name = self.id()[self.id().rfind('.') + 1:]
         fail_frame = FAIL_FRAME.get(test_name, 3)
@@ -108,7 +109,8 @@ class FindLinkManyFailedFindTests(FindLinkTests):
                           test_blank_frame_no_memory=5,
                           test_memory=None,  # skip all memory tests here
                           test_memory_removal=None,
-                          test_memory_with_late_appearance=None)
+                          test_memory_with_late_appearance=None,
+                          test_search_range=None)
 
         test_name = self.id()[self.id().rfind('.') + 1:]
         fail_frame = FAIL_FRAME.get(test_name, 3)

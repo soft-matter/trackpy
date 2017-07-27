@@ -35,7 +35,7 @@ setup_parameters = dict(
     install_requires = ['numpy>=1.7', 'scipy>=0.12', 'six>=1.8',
 	                    'pandas>=0.13', 'pims>=0.3.3',
                         'pyyaml', 'matplotlib'],
-    packages = ['trackpy', 'trackpy.refine'],
+    packages = ['trackpy', 'trackpy.refine', 'trackpy.linking'],
     long_description = descr,
 )
 
