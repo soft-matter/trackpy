@@ -72,11 +72,11 @@ class TestDrift(StrictTestCase):
         # ^ no drift measured for Frame 0
 
         actual = tp.compute_drift(self.dead_still)
-        assert_frame_equal(actual, expected)
+        assert_frame_equal(actual, expected[['y', 'x']])
 
         # Small random drift
         actual = tp.compute_drift(self.many_walks)
-        assert_frame_equal(actual, expected)
+        assert_frame_equal(actual, expected[['y', 'x']])
 
     def test_constant_drift(self):
         N = 10
@@ -86,7 +86,7 @@ class TestDrift(StrictTestCase):
         expected.columns = ['x', 'y']
 
         actual = tp.compute_drift(self.steppers)
-        assert_frame_equal(actual, expected)
+        assert_frame_equal(actual, expected[['y', 'x']])
 
     def test_subtract_zero_drift(self):
         N = 10
