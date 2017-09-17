@@ -1,3 +1,9 @@
+""" Functions to evaluate all possible links between two groups of features.
+
+These are low-level functions that rigorously resolve cases when features
+can be linked in more than one way.
+"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
