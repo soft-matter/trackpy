@@ -18,6 +18,7 @@ except ImportError:
 
 
 class HashBase(object):
+    """ Base for classes that efficiently find features near a point. """
     def __init__(self, points, ndim):
         """Takes a list of particles."""
         self.ndim = ndim
@@ -91,6 +92,7 @@ class HashBase(object):
 
 
 class HashKDTree(HashBase):
+    """ Implementation of hash using scipy.spatial.cKDTree """
     def __init__(self, points, ndim, to_eucl=None, dist_func=None):
         """Takes a list of particles."""
         if dist_func is not None:
@@ -156,6 +158,7 @@ class HashKDTree(HashBase):
 
 
 class HashBTree(HashBase):
+    """ Implementation of hash using sklearn.neighbors.BallTree """
     def __init__(self, points, ndim, to_eucl=None, dist_func=None):
         """Takes a list of particles."""
         if BallTree is None:
@@ -277,7 +280,7 @@ def split_subnet(source, dest, new_range):
 
 
 class Subnets(object):
-    """ Class that evaluates the possible links between two groups of features.
+    """ Class that identifies the possible links between two groups of features.
 
     Candidates and subnet indices are stored inside the Point objects that are
     inside the provided TreeFinder objects.
@@ -286,6 +289,9 @@ class Subnets(object):
     point are not included. They can be accessed from the `lost` method.
     If subnets with only one source point need to be included, call the
     method `include_lost`. In that case, the method `lost` will raise.
+
+    In general, subnets computed by this class need to be further evaluated
+    to determine the best way to link the source and destination features.
 
     Parameters
     ----------

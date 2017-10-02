@@ -28,7 +28,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
               minmass=0, noise_size=1, smoothing_size=None, threshold=None,
               percentile=64, before_link=None, after_link=None, refine=False,
               **kwargs):
-    """Find and link features in an image sequence
+    """Find and link features, using image data to re-find lost features.
 
     Parameters
     ----------
@@ -257,7 +257,7 @@ def find_link_iter(reader, search_range, separation, diameter=None,
 
 
 class FindLinker(Linker):
-    """ Linker that relocates lost features.
+    """ Linker that uses image data to re-find lost features.
 
     Newly found features are farther than ``separation`` from any other feature
     in the current frame, closer than ``search_range`` to a feature in the
