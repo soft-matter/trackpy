@@ -698,10 +698,10 @@ class NumbaOnlyTests(SubnetNeededTests):
         only0 = list(set(tr0.index) - set(tr1.index))
         only1 = list(set(tr1.index) - set(tr0.index))
         # From the first frame, the outermost particles should have been lost.
-        assert all((tr0.x.ix[only0].abs() > 9.5) | (tr0.y.ix[only0].abs() > 9.5))
+        assert all((tr0.x.loc[only0].abs() > 9.5) | (tr0.y.loc[only0].abs() > 9.5))
         # There should be new tracks in the second frame, corresponding to the
         # middle radii.
-        assert all((tr1.x.ix[only1].abs() == 4.5) | (tr1.y.ix[only1].abs() == 4.5))
+        assert all((tr1.x.loc[only1].abs() == 4.5) | (tr1.y.loc[only1].abs() == 4.5))
         if self.do_diagnostics:
             # We use this opportunity to check for diagnostic data
             # made by the numba linker only.
