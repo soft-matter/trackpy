@@ -11,6 +11,10 @@ from trackpy import plots
 from trackpy.utils import suppress_plotting, fit_powerlaw
 from trackpy.tests.common import StrictTestCase
 
+# Quiet warnings about Axes not being compatible with tight_layout
+import warnings
+warnings.filterwarnings("ignore", message="This figure includes Axes that are not compatible with tight_layout")
+
 path, _ = os.path.split(os.path.abspath(__file__))
 
 class TestPlots(StrictTestCase):
