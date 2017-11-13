@@ -5,9 +5,9 @@ matrix:
   include:
     # "Legacy" environments: oldest supported versions, without and with numba
     - python: "2.7"
-      env: DEPS="numpy=1.12 scipy=0.18 matplotlib=1.5 pillow==2.1 pandas=0.16 scikit-image=0.9 pyyaml pytables" BUILD_DOCS=false
+      env: DEPS="numpy=1.12 scipy=0.18 matplotlib=1.5 pillow==2.1 pandas=0.16 scikit-image=0.10 pyyaml pytables" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="numpy=1.12 scipy=0.18 matplotlib=1.5 pillow==2.5 pandas=0.16.0 scikit-image=0.9 pyyaml numba=0.13.4 pytables scikit-learn" BUILD_DOCS=false
+      env: DEPS="numpy=1.12 scipy=0.18 matplotlib=1.5 pillow==2.5 pandas=0.16.0 scikit-image=0.10 pyyaml numba=0.13.4 pytables scikit-learn" BUILD_DOCS=false
     # "Recommended" environments: More recent versions, for Py2 and Py3.
     - python: "2.7"
       env: DEPS="libgfortran=1.0 numpy=1.12 scipy=0.18 matplotlib=1.5 pillow==2.9 pandas=0.16 scikit-image=0.11 pyyaml numba=0.20 pytables pyfftw scikit-learn" BUILD_DOCS=false
