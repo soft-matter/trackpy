@@ -333,7 +333,7 @@ def _pandas_rolling_pre_018(df, window, *args, **kwargs):
 
 def _pandas_rolling_since_018(df, window, *args, **kwargs):
     """Use rolling() to compute a rolling average"""
-    return df.rolling(window, *args, **kwargs)
+    return df.rolling(window, *args, **kwargs).mean()
 
 if is_pandas_since_018:
     pandas_rolling = _pandas_rolling_since_018
