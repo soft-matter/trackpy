@@ -16,6 +16,11 @@ import trackpy as tp
 from trackpy.tests.common import StrictTestCase
 from pims import ImageSequence
 
+# Quiet warnings about get_store being deprecated.
+# These come from pandas.io and are caused by line 62:
+#       s = self.storage_class(STORE_NAME)
+import warnings
+warnings.filterwarnings("ignore", message="get_store is deprecated")
 
 path, _ = os.path.split(os.path.abspath(__file__))
 

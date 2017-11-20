@@ -595,11 +595,11 @@ class SubnetNeededTests(CommonTrackingTests):
         only1 = list(set(tr1.index) - set(tr0.index))
         # From the first frame, the outermost particles should have been lost.
         assert all(
-            (tr0.x.ix[only0].abs() > 19) | (tr0.y.ix[only0].abs() > 19))
+            (tr0.x.loc[only0].abs() > 19) | (tr0.y.loc[only0].abs() > 19))
         # There should be new tracks in the second frame, corresponding to the
         # middle radii.
         assert all(
-            (tr1.x.ix[only1].abs() == 9) | (tr1.y.ix[only1].abs() == 9))
+            (tr1.x.loc[only1].abs() == 9) | (tr1.y.loc[only1].abs() == 9))
 
 
 class SimpleLinkingTestsIter(CommonTrackingTests):
