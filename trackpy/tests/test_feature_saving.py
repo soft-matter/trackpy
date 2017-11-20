@@ -20,7 +20,7 @@ from pims import ImageSequence
 # These come from pandas.io and are caused by line 62:
 #       s = self.storage_class(STORE_NAME)
 import warnings
-warnings.filterwarnings("ignore",message="get_store is deprecated")
+warnings.filterwarnings("ignore", message="get_store is deprecated")
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
