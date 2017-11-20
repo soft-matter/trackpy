@@ -268,18 +268,16 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
     # Compute the difference list of positions, particle, and frame columns.
     f_diff = f_sort[list(pos_columns) + ['particle', 'frame']].diff()
 
-    # Rename the frame column (which now contains frame diff)
-    # and insert the original frame column back in,
-    # since it is required for computing the average
-    # delta_x/delta_y (and possibly delta_z) for each frame.
+    # Rename the frame column and insert the original frame column back in.
     f_diff.rename(columns={'frame': 'frame_diff'}, inplace=True)
     f_diff['frame'] = f_sort['frame']
 
     # Compute the per frame averages. Keep only deltas of the same particle,
     # and between frames that are consecutive.
     mask = (f_diff['particle'] == 0) & (f_diff['frame_diff'] == 1)
-    f_diff_fix = f_diff.rename_axis('index')
-    dx = f_diff_fix.loc[mask, pos_columns + ['frame']].groupby('frame').mean()
+    dx = f_diff.loc[mask, pos_columns + ['frame']].groupby('frame').mean()
+    #f_diff_fix = f_diff.rename_axis('index')
+    #dx = f_diff_fix.loc[mask, pos_columns + ['frame']].groupby('frame').mean()
     if smoothing > 0:
         dx = pandas_rolling(dx, smoothing, min_periods=0)
     return dx.cumsum()
