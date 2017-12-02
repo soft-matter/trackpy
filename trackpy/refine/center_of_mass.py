@@ -61,7 +61,10 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
     if isinstance(coords, pd.DataFrame):
         if pos_columns is None:
             pos_columns = guess_pos_columns(coords)
+        index = coords.index
         coords = coords[pos_columns].values
+    else:
+        index = None
 
     coord_columns = default_pos_columns(image.ndim)
     columns = coord_columns + ['mass']
@@ -78,7 +81,7 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
                              engine=engine, shift_thresh=shift_thresh,
                              characterize=characterize)
 
-    return pd.DataFrame(refined, columns=columns)
+    return pd.DataFrame(refined, columns=columns, index=index)
 
 
 def refine_com_arr(raw_image, image, radius, coords, max_iterations=10,
