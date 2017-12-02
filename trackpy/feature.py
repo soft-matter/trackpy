@@ -13,7 +13,7 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
 from .utils import (record_meta, validate_tuple, is_isotropic,
                     default_pos_columns, default_size_columns)
 from .find import grey_dilation, where_close
-from .refine import refine_com_arr
+from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -191,40 +191,6 @@ def estimate_size(image, radius, coord, estimated_mass):
 
 
 def refine(*args, **kwargs):
-    """Find the center of mass of a bright feature starting from an estimate.
-    This function will be deprecated. Please use the routines in trackpy.refine.
-
-    Characterize the neighborhood of a local maximum, and iteratively
-    hone in on its center-of-brightness. Return its coordinates, integrated
-    brightness, size (Rg), eccentricity (0=circular), and signal strength.
-
-    Parameters
-    ----------
-    raw_image : array (any dimensions)
-        used for final characterization
-    image : array (any dimension)
-        processed image, used for locating center of mass
-    coord : array
-        estimated position
-    separation : float or tuple
-        Minimum separtion between features.
-        Default is 0. May be a tuple, see diameter for details.
-    max_iterations : integer
-        max number of loops to refine the center of mass, default 10
-    engine : {'python', 'numba'}
-        Numba is faster if available, but it cannot do walkthrough.
-    shift_thresh : float, optional
-        Default 0.6 (unit is pixels).
-        If the brightness centroid is more than this far off the mask center,
-        shift mask to neighboring pixel. The new mask will be used for any
-        remaining iterations.
-    break_thresh : float, optional
-        Deprecated
-    characterize : boolean, True by default
-        Compute and return mass, size, eccentricity, signal.
-    walkthrough : boolean, False by default
-        Print the offset on each loop and display final neighborhood image.
-    """
     warnings.warn("trackpy.feature.refine will be deprecated: please use routines in "
                   "trackpy.refine", PendingDeprecationWarning)
     return refine_com(*args, **kwargs)
@@ -399,24 +365,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # Normalize_to_int does nothing if image is already of integer type.
     scale_factor, image = convert_to_int(image, dtype)
 
-    # Set up a DataFrame for the final results.
-    coord_columns = default_pos_columns(image.ndim)
-    MASS_COLUMN_INDEX = len(coord_columns)
-    columns = coord_columns + ['mass']
-    if characterize:
-        if isotropic:
-            SIZE_COLUMN_INDEX = len(columns)
-        else:
-            SIZE_COLUMN_INDEX = range(len(columns),
-                                      len(columns) + len(coord_columns))
-        columns += default_size_columns(image.ndim, isotropic)
-
-        SIGNAL_COLUMN_INDEX = len(columns) + 1
-        columns += ['ecc', 'signal', 'raw_mass']
-        if isotropic and np.all(noise_size[1:] == noise_size[:-1]):
-            columns += ['ep']
-        else:
-            columns += ['ep_' + cc for cc in coord_columns]
+    pos_columns = default_pos_columns(image.ndim)
 
     # Find local maxima.
     # Define zone of exclusion at edges of image, avoiding
@@ -430,72 +379,70 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # excludes detection of small features close to large, bright features
     # using the `maxsize` argument.
     coords = grey_dilation(image, separation, percentile, margin, precise=False)
-    count_maxima = coords.shape[0]
-
-    if count_maxima == 0:
-        return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine_com_arr(raw_image, image, radius, coords,
-                                    max_iterations=max_iterations,
-                                    engine=engine, characterize=characterize)
+    refined_coords = refine_com(raw_image, image, radius, coords,
+                                max_iterations=max_iterations,
+                                engine=engine, characterize=characterize)
+    if len(refined_coords) == 0:
+        return refined_coords
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
     if np.all(np.greater(separation, 0)):
-        positions = refined_coords[:, :MASS_COLUMN_INDEX]
-        mass = refined_coords[:, MASS_COLUMN_INDEX]
-        to_drop = where_close(positions, separation, mass)
-        refined_coords = np.delete(refined_coords, to_drop, 0)
+        to_drop = where_close(refined_coords[pos_columns], separation,
+                              refined_coords['mass'])
+        refined_coords.drop(to_drop, axis=0, inplace=True)
 
     # mass and signal values has to be corrected due to the rescaling
     # raw_mass was obtained from raw image; size and ecc are scale-independent
-    refined_coords[:, MASS_COLUMN_INDEX] *= 1. / scale_factor
-    if characterize:
-        refined_coords[:, SIGNAL_COLUMN_INDEX] *= 1. / scale_factor
+    refined_coords['mass'] /= scale_factor
+    if 'signal' in refined_coords:
+        refined_coords['signal'] /= scale_factor
 
     # Filter on mass and size, if set.
-    condition = refined_coords[:, MASS_COLUMN_INDEX] > minmass
+    condition = refined_coords['mass'] > minmass
     if maxsize is not None:
-        condition &= refined_coords[:, SIZE_COLUMN_INDEX] < maxsize
-    refined_coords = refined_coords[condition]
-    count_qualified = refined_coords.shape[0]
+        condition &= refined_coords['size'] < maxsize
+    if not condition.all():  # apply the filter
+        # making a copy to avoid SettingWithCopyWarning
+        refined_coords = refined_coords.loc[condition].copy()
 
-    if count_qualified == 0:
+    if len(refined_coords) == 0:
         warnings.warn("No maxima survived mass- and size-based filtering. "
                       "Be advised that the mass computation was changed from "
                       "version 0.2.4 to 0.3.0 and from 0.3.3 to 0.4.0. "
                       "See the documentation and the convenience functions "
                       "'minmass_v03_change' and 'minmass_v04_change'.")
-        return DataFrame(columns=columns)
+        return refined_coords
 
-    if topn is not None and count_qualified > topn:
-        mass = refined_coords[:, MASS_COLUMN_INDEX]
+    if topn is not None and len(refined_coords) > topn:
+        # go through numpy for easy pandas backwards compatibility
+        mass = refined_coords['mass'].values
         if topn == 1:
             # special case for high performance and correct shape
-            refined_coords = refined_coords[np.argmax(mass)]
-            refined_coords = refined_coords.reshape(1, -1)
+            refined_coords = refined_coords.iloc[[np.argmax(mass)]]
         else:
-            refined_coords = refined_coords[np.argsort(mass)][-topn:]
+            refined_coords = refined_coords.iloc[np.argsort(mass)[-topn:]]
 
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
     if characterize:
-        if preprocess:  # identify background regions from the processed image
-            black_level, noise = measure_noise(image, raw_image, radius)
-        else:  # identify background regions from the provided image
-            black_level, noise = measure_noise(image, raw_image, radius)
+        black_level, noise = measure_noise(image, raw_image, radius)
         Npx = N_binary_mask(radius, ndim)
-        mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
+        mass = refined_coords['raw_mass'].values - Npx * black_level
         ep = _static_error(mass, noise, radius, noise_size)
-        refined_coords = np.column_stack([refined_coords, ep])
 
-    f = DataFrame(refined_coords, columns=columns)
+        if ep.ndim == 1:
+            refined_coords['ep'] = ep
+        else:
+            ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
+            refined_coords = pd.concat([refined_coords, ep], axis=1)
 
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.
     if hasattr(raw_image, 'frame_no') and raw_image.frame_no is not None:
-        f['frame'] = raw_image.frame_no
-    return f
+        refined_coords['frame'] = int(raw_image.frame_no)
+    return refined_coords
 
 
 def batch(frames, diameter, minmass=100, maxsize=None, separation=None,

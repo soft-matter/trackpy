@@ -70,6 +70,9 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
         columns += default_size_columns(image.ndim, isotropic) + \
             ['ecc', 'signal', 'raw_mass']
 
+    if len(coords) == 0:
+        return pd.DataFrame(columns=columns)
+
     refined = refine_com_arr(raw_image, image, radius, coords,
                              max_iterations=max_iterations,
                              engine=engine, shift_thresh=shift_thresh,
