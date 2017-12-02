@@ -97,8 +97,8 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
         Size of the gaussian kernel with which the image is convolved.
         Provide a tuple for different sizes per dimension.
     llong : integer or tuple
-        Half the size of rolling average (square or rectangular kernel) filter.
-        Should be larger than the particle diameter. When llong <= 2*lshort,
+        The size of rolling average (square or rectangular kernel) filter.
+        Should be larger than the particle diameter. When llong <= lshort,
         an error is raised.
         Provide a tuple for different sizes per dimension.
     threshold : float or integer
@@ -116,6 +116,11 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
     See Also
     --------
     lowpass, boxcar, legacy_bandpass, legacy_bandpass_fftw
+
+    Notes
+    -----
+    The boxcar size changed in v0.4: before, one side of the square kernel was
+    equalled `llong * 2 + 1`, starting from v0.4 it equals `llong`.
     """
     lshort = validate_tuple(lshort, image.ndim)
     llong = validate_tuple(llong, image.ndim)
@@ -127,7 +132,7 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
             threshold = 1
         else:
             threshold = 1/255.
-    background = boxcar(image, [x * 2 + 1 for x in llong])
+    background = boxcar(image, llong)
     result = lowpass(image, lshort, truncate)
     result -= background
     return np.where(result >= threshold, result, 0)
