@@ -191,8 +191,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
     smoothing_size : float or tuple
-        Half size of boxcar smoothing, in pixels
-        Default is diameter. May be a tuple, see diameter for details.
+        The size of the sides of the square kernel used in boxcar (rolling
+        average) smoothing, in pixels
+        Default is diameter. May be a tuple, making the kernel rectangular.
     threshold : float
         Clip bandpass result below this value. Thresholding is done on the
         already background-subtracted image.
@@ -459,8 +460,9 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
     smoothing_size : float or tuple
-        Size of boxcar smoothing, in pixels
-        Default is diameter. May be a tuple, see diameter for details.
+        The size of the sides of the square kernel used in boxcar (rolling
+        average) smoothing, in pixels
+        Default is diameter. May be a tuple, making the kernel rectangular.
     threshold : float
         Clip bandpass result below this value.
         Default, None, defers to default settings of the bandpass function.
