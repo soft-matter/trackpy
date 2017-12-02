@@ -13,7 +13,7 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
 from .utils import (record_meta, validate_tuple, is_isotropic,
                     default_size_columns)
 from .find import grey_dilation, where_close
-from .refine import refine_com
+from .refine import refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -439,10 +439,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine_com(raw_image, image, radius, coords,
-                                separation=separation,
-                                max_iterations=max_iterations,
-                                engine=engine, characterize=characterize)
+    refined_coords = refine_com_arr(raw_image, image, radius, coords,
+                                    max_iterations=max_iterations,
+                                    engine=engine, characterize=characterize)
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
     if np.all(np.greater(separation, 0)):

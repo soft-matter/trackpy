@@ -8,7 +8,7 @@ from ..try_numba import try_numba_autojit
 import warnings
 import logging
 
-from ..utils import validate_tuple
+from ..utils import validate_tuple, guess_pos_columns
 from ..masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 
@@ -24,9 +24,10 @@ def _safe_center_of_mass(x, radius, grids):
     return np.array([(x * grids[dim]).sum() / normalizer
                     for dim in range(x.ndim)])
 
-def refine_com(raw_image, image, radius, coords, separation=0, max_iterations=10,
-               engine='auto', shift_thresh=0.6, break_thresh=None,
-               characterize=True, walkthrough=False):
+
+def refine_com(raw_image, image, radius, coords, max_iterations=10,
+               engine='auto', shift_thresh=0.6, characterize=True,
+               pos_columns=None):
     """Find the center of mass of a bright feature starting from an estimate.
 
     Characterize the neighborhood of a local maximum, and iteratively
@@ -39,7 +40,7 @@ def refine_com(raw_image, image, radius, coords, separation=0, max_iterations=10
         used for final characterization
     image : array (any dimension)
         processed image, used for locating center of mass
-    coord : array
+    coord : array or DataFrame
         estimated position
     separation : float or tuple
         Minimum separtion between features.
@@ -53,23 +54,50 @@ def refine_com(raw_image, image, radius, coords, separation=0, max_iterations=10
         If the brightness centroid is more than this far off the mask center,
         shift mask to neighboring pixel. The new mask will be used for any
         remaining iterations.
-    break_thresh : float, optional
-        Deprecated
     characterize : boolean, True by default
         Compute and return mass, size, eccentricity, signal.
-    walkthrough : boolean, False by default
-        Print the offset on each loop and display final neighborhood image.
     """
-    if break_thresh is not None:
-        warnings.warn("break_threshold has been deprecated: shift_threshold is"
-                      "the only parameter that determines when to shift the"
-                      "mask.", DeprecationWarning)
+    if isinstance(coords, pd.DataFrame):
+        if pos_columns is None:
+            pos_columns = guess_pos_columns(coords)
+        coords = coords[pos_columns].values
+
+    # Set up a DataFrame for the final results.
+    if image.ndim < 4:
+        coord_columns = ['x', 'y', 'z'][:image.ndim]
+    else:
+        coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
+    columns = coord_columns + ['mass']
+    if characterize:
+        if np.all(radius[1:] == radius[:-1]):
+            columns += ['size']
+        else:
+            columns += ['size_' + cc for cc in coord_columns]
+        columns += ['ecc', 'signal', 'raw_mass']
+
+    refined = refine_com_arr(raw_image, image, radius, coords,
+                             max_iterations=max_iterations,
+                             engine=engine, shift_thresh=shift_thresh,
+                             characterize=characterize)
+
+    return pd.DataFrame(refined, columns=columns)
+
+
+def refine_com_arr(raw_image, image, radius, coords, max_iterations=10,
+                   engine='auto', shift_thresh=0.6, characterize=True,
+                   walkthrough=False):
+    """Refine coordinates and return a numpy array instead of a DataFrame.
+
+    See also
+    --------
+    refine_com
+    """
     if max_iterations <= 0:
         warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
         max_iterations = 1
-    # ensure that radius is tuple of integers, for direct calls to refine()
+
+    # ensure that radius is tuple of integers, for direct calls to refine_com_arr()
     radius = validate_tuple(radius, image.ndim)
-    separation = validate_tuple(separation, image.ndim)
     # Main loop will be performed in separate function.
     if engine == 'auto':
         if NUMBA_AVAILABLE and image.ndim in [2, 3]:
