@@ -740,22 +740,22 @@ class CommonFeatureIdentificationTests(object):
 
         guess = np.array([[6, 13]])
         actual = refine_com_arr(image, image, 6, guess,characterize=False,
-                                engine=self.engine)[:, :2][:, ::-1]
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 12]])
         actual = refine_com_arr(image, image, 6, guess, characterize=False,
-                                engine=self.engine)[:, :2][:, ::-1]
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 14]])
         actual = refine_com_arr(image, image, 6, guess, characterize=False,
-                                engine=self.engine)[:, :2][:, ::-1]
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[6, 12]])
         actual = refine_com_arr(image, image, 6, guess, characterize=False,
-                                engine=self.engine)[:, :2][:, ::-1]
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
     def test_uncertainty_failure(self):

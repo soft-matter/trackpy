@@ -8,7 +8,8 @@ from ..try_numba import try_numba_autojit
 import warnings
 import logging
 
-from ..utils import validate_tuple, guess_pos_columns
+from ..utils import (validate_tuple, guess_pos_columns, default_pos_columns,
+                     default_size_columns)
 from ..masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 
@@ -62,18 +63,12 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
             pos_columns = guess_pos_columns(coords)
         coords = coords[pos_columns].values
 
-    # Set up a DataFrame for the final results.
-    if image.ndim < 4:
-        coord_columns = ['x', 'y', 'z'][:image.ndim]
-    else:
-        coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
+    coord_columns = default_pos_columns(image.ndim)
     columns = coord_columns + ['mass']
     if characterize:
-        if np.all(radius[1:] == radius[:-1]):
-            columns += ['size']
-        else:
-            columns += ['size_' + cc for cc in coord_columns]
-        columns += ['ecc', 'signal', 'raw_mass']
+        isotropic = radius[1:] == radius[:-1]
+        columns += default_size_columns(image.ndim, isotropic) + \
+            ['ecc', 'signal', 'raw_mass']
 
     refined = refine_com_arr(raw_image, image, radius, coords,
                              max_iterations=max_iterations,
@@ -232,8 +227,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
             upper_bound = np.array(image.shape) - 1 - radius
             coord = np.clip(coord, radius, upper_bound).astype(int)
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        final_coords[feat] = cm_i[..., ::-1]
+        # stick to yx column order
+        final_coords[feat] = cm_i
 
         if walkthrough:
             import matplotlib.pyplot as plt
@@ -250,7 +245,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
             Rg[feat] = np.sqrt(ndim * np.sum(x_squared_masks(radius, ndim) *
                                              neighborhood,
                                              axis=tuple(range(1, ndim + 1))) /
-                               mass[feat])[::-1]  # change order yx -> xy
+                               mass[feat])
         # I only know how to measure eccentricity in 2D.
         if ndim == 2:
             ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
@@ -328,9 +323,9 @@ def _numba_refine_2D(image, radiusY, radiusX, coords, N, max_iterations,
             if coordX > upper_boundX:
                 coordX = upper_boundX
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
-        results[feat, 1] = cm_iY
+        # use yx order
+        results[feat, 0] = cm_iY
+        results[feat, 1] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         results[feat, MASS_COL] = mass_
@@ -401,9 +396,9 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
             if coordX > upper_boundX:
                 coordX = upper_boundX
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
-        results[feat, 1] = cm_iY
+        # use yx order
+        results[feat, 0] = cm_iY
+        results[feat, 1] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         raw_mass_ = 0.
@@ -439,8 +434,8 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
                          results):
     # Column indices into the 'results' array
     MASS_COL = 2
-    RGX_COL = 3
-    RGY_COL = 4
+    RGY_COL = 3
+    RGX_COL = 4
     ECC_COL = 5
     SIGNAL_COL = 6
     RAW_MASS_COL = 7
@@ -500,9 +495,9 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
                 coordX = upper_boundX
             # Update slice to shifted position.
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
-        results[feat, 1] = cm_iY
+        # use yx order
+        results[feat, 0] = cm_iY
+        results[feat, 1] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         mass_ = 0.
@@ -551,9 +546,9 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
         SIGNAL_COL = 6
         RAW_MASS_COL = 7
     else:
-        RGX_COL = 4
+        RGZ_COL = 4
         RGY_COL = 5
-        RGZ_COL = 6
+        RGX_COL = 6
         ECC_COL = 7
         SIGNAL_COL = 8
         RAW_MASS_COL = 9
@@ -627,10 +622,10 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
             if coordX > upper_boundX:
                 coordX = upper_boundX
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
+        # use zyx order
+        results[feat, 0] = cm_iZ
         results[feat, 1] = cm_iY
-        results[feat, 2] = cm_iZ
+        results[feat, 2] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         raw_mass_ = 0.

@@ -11,7 +11,7 @@ from pandas import DataFrame
 from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import (record_meta, validate_tuple, is_isotropic,
-                    default_size_columns)
+                    default_pos_columns, default_size_columns)
 from .find import grey_dilation, where_close
 from .refine import refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
@@ -400,20 +400,17 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     scale_factor, image = convert_to_int(image, dtype)
 
     # Set up a DataFrame for the final results.
-    if image.ndim < 4:
-        coord_columns = ['x', 'y', 'z'][:image.ndim]
-    else:
-        coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
+    coord_columns = default_pos_columns(image.ndim)
     MASS_COLUMN_INDEX = len(coord_columns)
     columns = coord_columns + ['mass']
     if characterize:
         if isotropic:
             SIZE_COLUMN_INDEX = len(columns)
-            columns += ['size']
         else:
             SIZE_COLUMN_INDEX = range(len(columns),
                                       len(columns) + len(coord_columns))
-            columns += ['size_' + cc for cc in coord_columns]
+        columns += default_size_columns(image.ndim, isotropic)
+
         SIGNAL_COLUMN_INDEX = len(columns) + 1
         columns += ['ecc', 'signal', 'raw_mass']
         if isotropic and np.all(noise_size[1:] == noise_size[:-1]):
@@ -447,7 +444,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if np.all(np.greater(separation, 0)):
         positions = refined_coords[:, :MASS_COLUMN_INDEX]
         mass = refined_coords[:, MASS_COLUMN_INDEX]
-        to_drop = where_close(positions, list(reversed(separation)), mass)
+        to_drop = where_close(positions, separation, mass)
         refined_coords = np.delete(refined_coords, to_drop, 0)
 
     # mass and signal values has to be corrected due to the rescaling
@@ -489,7 +486,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
             black_level, noise = measure_noise(image, raw_image, radius)
         Npx = N_binary_mask(radius, ndim)
         mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
-        ep = _static_error(mass, noise, radius[::-1], noise_size[::-1])
+        ep = _static_error(mass, noise, radius, noise_size)
         refined_coords = np.column_stack([refined_coords, ep])
 
     f = DataFrame(refined_coords, columns=columns)
