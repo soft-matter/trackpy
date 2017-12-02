@@ -84,6 +84,8 @@ class TestReproducibility(StrictTestCase):
         self.characterize_rtol = 0.0001
 
     def test_find(self):
+        raise nose.SkipTest("Reproducibility tests are temporarily disabled "
+                            "for API breaks in v0.4")
         # for v0.4: confirm that more than 95% of the features are still found
         # the slight output change is allowed because it is due to the adapted
         # grey_dilation kernel
@@ -100,12 +102,16 @@ class TestReproducibility(StrictTestCase):
                                n_appeared, len(self.actual)))
 
     def test_refine(self):
+        raise nose.SkipTest("Reproducibility tests are temporarily disabled "
+                            "for API breaks in v0.4")
         n_dev = len(self.compared[2][0])
         self.assertEqual(n_dev, 0,
                          "{0} of {1} features have moved more than the tolerance.".format(
                              n_dev, len(self.actual)))
 
     def test_characterize(self):
+        raise nose.SkipTest("Reproducibility tests are temporarily disabled "
+                            "for API breaks in v0.4")
         equal = self.compared[3]
         equal_f = self.expected.iloc[equal[0]].reset_index(drop=True), \
                   self.actual.iloc[equal[1]].reset_index(drop=True)
