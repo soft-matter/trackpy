@@ -58,7 +58,7 @@ def boxcar(image, size):
     image : ndarray
     size : number or tuple
         Size of rolling average (square or rectangular kernel) filter. Should
-        be larger than the particle diameter.
+        be odd and larger than the particle diameter.
         Provide a tuple for different sizes per dimension.
 
     Returns
@@ -71,6 +71,8 @@ def boxcar(image, size):
     bandpass
     """
     size = validate_tuple(size, image.ndim)
+    if not np.all([x & 1 for x in size]):
+        raise ValueError("Smoothing size must be an odd integer. Round up.")
     result = image.copy()
     for axis, _size in enumerate(size):
         if _size > 1:
@@ -98,8 +100,8 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
         Provide a tuple for different sizes per dimension.
     llong : integer or tuple
         The size of rolling average (square or rectangular kernel) filter.
-        Should be larger than the particle diameter. When llong <= lshort,
-        an error is raised.
+        Should be odd and larger than the particle diameter.
+        When llong <= lshort, an error is raised.
         Provide a tuple for different sizes per dimension.
     threshold : float or integer
         Clip bandpass result below this value. Thresholding is done on the
@@ -119,14 +121,14 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
 
     Notes
     -----
-    The boxcar size changed in v0.4: before, one side of the square kernel was
+    The boxcar size changed in v0.4: before, one side of the square kernel
     equalled `llong * 2 + 1`, starting from v0.4 it equals `llong`.
     """
     lshort = validate_tuple(lshort, image.ndim)
     llong = validate_tuple(llong, image.ndim)
-    if np.any([x*2 >= y for (x, y) in zip(lshort, llong)]):
-        raise ValueError("The smoothing length scale must be more" +
-                         "than twice the noise length scale.")
+    if np.any([x >= y for (x, y) in zip(lshort, llong)]):
+        raise ValueError("The smoothing length scale must be larger than " +
+                         "the noise length scale.")
     if threshold is None:
         if np.issubdtype(image.dtype, np.integer):
             threshold = 1
