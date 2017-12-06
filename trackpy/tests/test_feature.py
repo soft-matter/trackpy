@@ -24,7 +24,7 @@ from trackpy.preprocessing import invert_image
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-def compare(shape, count, radius, noise_level, engine):
+def compare(shape, count, radius, noise_level, **kwargs):
     radius = tp.utils.validate_tuple(radius, len(shape))
     # tp.locate ignores a margin of size radius, take 1 px more to be safe
     margin = tuple([r + 1 for r in radius])
@@ -34,7 +34,7 @@ def compare(shape, count, radius, noise_level, engine):
     cols = ['x', 'y', 'z'][:len(shape)][::-1]
     pos = gen_nonoverlapping_locations(shape, count, separation, margin)
     image = draw_spots(shape, pos, size, noise_level)
-    f = tp.locate(image, diameter, engine=engine)
+    f = tp.locate(image, diameter, **kwargs)
     actual = pandas_sort(f[cols], cols)
     expected = pandas_sort(DataFrame(pos, columns=cols), cols)
     return actual, expected
@@ -445,14 +445,16 @@ class CommonFeatureIdentificationTests(object):
 
     def test_multiple_noisy_sparse(self):
         self.check_skip()
-        actual, expected = compare((200, 300), 4, 2, noise_level=1,
-                                   engine=self.engine)
+        #  4% noise
+        actual, expected = compare((200, 300), 4, 2, noise_level=10,
+                                   engine=self.engine, minmass=100)
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_more_noisy_sparse(self):
         self.check_skip()
-        actual, expected = compare((200, 300), 4, 2, noise_level=2,
-                                   engine=self.engine)
+        # 20% noise
+        actual, expected = compare((200, 300), 4, 2, noise_level=51,
+                                   engine=self.engine, minmass=100)
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_anisotropic_3D_simple(self):
