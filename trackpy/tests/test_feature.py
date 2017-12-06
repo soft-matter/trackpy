@@ -19,6 +19,7 @@ from trackpy.utils import pandas_sort
 from trackpy.refine import refine_com
 from trackpy.tests.common import sort_positions, StrictTestCase
 from trackpy.preprocessing import invert_image
+from trackpy.uncertainty import measure_noise
 
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -657,25 +658,28 @@ class CommonFeatureIdentificationTests(object):
         # background average and standard deviation can be estimated within 1%
         # accuracy.
 
-        # The tolerance for ep in this test is 0.001 px or 10%.
+        # The tolerance for ep in this test is 0.001 px or 20%.
         # This amounts to roughly the following rms error values:
-        # noise / signal = 0.01 : 0.004+-0.001px
-        # noise / signal = 0.02 : 0.008+-0.001 px
-        # noise / signal = 0.05 : 0.02+-0.002 px
-        # noise / signal = 0.1 : 0.04+-0.004 px
-        # noise / signal = 0.2 : 0.08+-0.008 px
-        # noise / signal = 0.3 : 0.12+-0.012 px
-        # noise / signal = 0.5 : 0.2+-0.02 px
+        # noise / signal = 0.01 : 0.004+-0.001 px
+        # noise / signal = 0.02 : 0.008+-0.002 px
+        # noise / signal = 0.05 : 0.02+-0.004 px
+        # noise / signal = 0.1 : 0.04+-0.008 px
+        # noise / signal = 0.2 : 0.08+-0.016 px
+        # noise / signal = 0.3 : 0.12+-0.024 px
+        # noise / signal = 0.5 : 0.2+-0.04 px
         # Parameters are tweaked so that there is no deviation due to a too
         # small mask size. Noise/signal ratios up to 50% are tested.
         self.check_skip()
         draw_size = 4.5
         locate_diameter = 21
         N = 200
-        noise_expectation = np.array([1/2., np.sqrt(1/12.)])  # average, stdev
+        noise_levels = (np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]) * (2**12 - 1)).astype(np.int)
+        real_rms_dev = []
+        eps = []
+        actual_black_level = []
+        actual_noise = []
         expected, image = draw_array(N, draw_size, bitdepth=12)
-        for n, noise in enumerate([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]):
-            noise_level = int((2**12 - 1) * noise)
+        for n, noise_level in enumerate(noise_levels):
             image_noisy = image + np.array(np.random.randint(0, noise_level,
                                                              image.shape),
                                            dtype=image.dtype)
@@ -685,13 +689,23 @@ class CommonFeatureIdentificationTests(object):
 
             _, actual = sort_positions(f[['y', 'x']].values, expected)
             rms_dev = np.sqrt(np.mean(np.sum((actual-expected)**2, 1)))
-            assert_allclose(rms_dev, f['ep'].mean(), rtol=0.1, atol=0.001)
+
+            real_rms_dev.append(rms_dev)
+            eps.append(f['ep'].mean())
 
             # Additionally test the measured noise
-            actual_noise = tp.uncertainty.measure_noise(image, image_noisy,
-                                                        locate_diameter // 2)
-            assert_allclose(actual_noise, noise_expectation * noise_level,
-                            rtol=0.01, atol=1)
+            black_level, noise = measure_noise(image, image_noisy,
+                                               locate_diameter // 2)
+            actual_black_level.append(black_level)
+            actual_noise.append(noise)
+
+        assert_allclose(actual_black_level, 1/2 * noise_levels,
+                        rtol=0.01, atol=1)
+        assert_allclose(actual_noise, np.sqrt(1/12.) * noise_levels,
+                        rtol=0.01, atol=1)
+        assert_allclose(real_rms_dev, eps, rtol=0.2, atol=0.001)
+
+
 
     def test_ep_anisotropic(self):
         # The separate columns 'ep_x' and 'ep_y' reflect the static errors
