@@ -206,17 +206,6 @@ class RefineTsts(object):
             size = df[self.size_columns].values
         return pos, signal, size, pos_err
 
-    def from_tp_ndarray(self, ndarray):
-        ndim = self.ndim
-        pos = ndarray[:, ndim-1:None:-1]
-        if self.isotropic:
-            size = ndarray[:, ndim + 1]
-            signal = ndarray[:, ndim + 3]
-        else:
-            size = ndarray[:, 2*ndim:ndim:-1]
-            signal = ndarray[:, 2*ndim + 2]
-        return pos, signal, size, None
-
     def get_deviations(self, actual_pos, expected_pos, cluster_size,
                        expected_center, expected_angle):
         """Obtain deviations in cluster coordinate system"""
@@ -412,7 +401,7 @@ class RefineTsts(object):
 
         actual = refine_com(image, image, self.radius, p0_pos, **kwargs)
 
-        actual = self.from_tp_ndarray(actual)
+        actual = self.from_dataframe(actual)
         return self.compute_deviations(actual, expected)
 
 
@@ -508,7 +497,7 @@ class RefineTsts(object):
 
         actual = refine_com(image, image, self.radius, p0_pos, **kwargs)
 
-        actual = self.from_tp_ndarray(actual)
+        actual = self.from_dataframe(actual)
         actual_pos, actual_signal, actual_size, pos_err = actual
         deviations = self.get_deviations(actual_pos, expected_pos, cluster_size,
                                          expected_center, expected_angle)
