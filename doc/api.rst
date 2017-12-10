@@ -194,9 +194,9 @@ Utility functions
 .. autosummary::
     :toctree: generated/
 
-    minmass_version_change
+    minmass_v03_change
+    minmass_v04_change
     utils.fit_powerlaw
-    strip_diagnostics
 
 Diagnostic functions
 --------------------

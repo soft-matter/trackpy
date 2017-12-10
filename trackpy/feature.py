@@ -98,7 +98,7 @@ def minmass_v04_change(raw_image, old_minmass, diameter, preprocess=True,
         M_{bp} = M_{real} \\left( 1 - \\frac{n_r}{n_{bp}} \\right)
 
     Where :math:`n_r` denotes the number of pixels in the (circular)
-    refine mask and :math:`n_{bp}}` the number of pixels in the (square)
+    refine mask and :math:`n_{bp}` the number of pixels in the (square)
     rolling average kernel.
 
     This follows from a simple model where the bandpassed image :math:`I_{bp}`
