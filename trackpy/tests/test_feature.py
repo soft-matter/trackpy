@@ -52,14 +52,20 @@ class OldMinmass(StrictTestCase):
         self.N = len(self.pos)
         self.size = 4.5
         self.tp_diameter = 15
+
+    def minmass_v02_to_v04(self, im, old_minmass, invert=False):
+        minmass_v03 = tp.minmass_v03_change(im, old_minmass, invert=invert,
+                                            smoothing_size=self.tp_diameter)
+        minmass_v04 = tp.minmass_v04_change(im, minmass_v03,
+                                            diameter=self.tp_diameter)
+        return minmass_v04
     
     def test_oldmass_8bit(self):
         old_minmass = 11000
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=8,
                         noise_level=50)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
@@ -68,8 +74,7 @@ class OldMinmass(StrictTestCase):
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=12,
                         noise_level=500)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
@@ -78,8 +83,7 @@ class OldMinmass(StrictTestCase):
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=16,
                         noise_level=10000)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
@@ -89,8 +93,7 @@ class OldMinmass(StrictTestCase):
                         noise_level=50)
         im = (im / im.max()).astype(np.float)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
         
@@ -100,15 +103,13 @@ class OldMinmass(StrictTestCase):
                         noise_level=500)
         im = (im.max() - im + 10000)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass, invert=True,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass, invert=True)
 
         f = tp.locate(invert_image(im), self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
 
 class CommonFeatureIdentificationTests(object):
-
     def check_skip(self):
         pass
 

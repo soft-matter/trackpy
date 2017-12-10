@@ -22,9 +22,9 @@ import trackpy  # to get trackpy.__version__
 logger = logging.getLogger(__name__)
 
 
-def minmass_version_change(raw_image, old_minmass, preprocess=True,
-                           invert=False, noise_size=1, smoothing_size=None,
-                           threshold=None):
+def minmass_v03_change(raw_image, old_minmass, preprocess=True,
+                       invert=False, noise_size=1, smoothing_size=None,
+                       threshold=None):
     """Convert minmass value from v0.2.4 to v0.3.
 
     From trackpy version 0.3.0, the mass calculation is changed. Before
@@ -73,7 +73,84 @@ def minmass_version_change(raw_image, old_minmass, preprocess=True,
 
     scale_factor = scalefactor_to_gamut(image, dtype)
 
-    return int(old_minmass / scale_factor)
+    return old_minmass / scale_factor
+
+
+def minmass_v04_change(raw_image, old_minmass, diameter, preprocess=True,
+                       old_smoothing_size=None, new_smoothing_size=None):
+    """Convert minmass value from v0.3 o v0.4.
+
+    From trackpy version 0.4.0, the default image preprocessing is changed.
+    Before version 0.4.0 a blurred out image (rolling or boxcar average) with
+    a circular kernel with radius `diameter` was subtracted from the image
+    before refinement and mass calculation. From version 0.4.0, this has
+    changed to a square kernel with sides `diameter`, more or less twice as
+    small. This increasing tracking accuracy, and reduces the mass.
+
+    This function estimates this difference and applies it to calculate the
+    new minmass value.
+
+    Here the following approximate relation between the "real" mass of the
+    feature and the mass apparent from the bandpassed image is used:
+
+    .. math::
+
+        M_{bp} = M_{real} \\left( 1 - \\frac{n_r}{n_{bp}} \\right)
+
+    Where :math:`n_r` denotes the number of pixels in the (circular)
+    refine mask and :math:`n_{bp}}` the number of pixels in the (square)
+    rolling average kernel.
+
+    This follows from a simple model where the bandpassed image :math:`I_{bp}`
+    relates to the "real" feature :math:`F` and the noise :math:`N` by:
+
+    .. math::
+
+        I_{bp} = F + N - \\left(N + \\frac{M_{real}}{n_{bp}} \\right)
+
+    Parameters
+    ----------
+    raw_image : ndarray
+    old_minmass : number
+    diameter : number or tuple
+        Odd-valued number that is used in locate
+    preprocess : boolean, optional
+        Defaults to True. Minmass is not changed when preprocess=False.
+    old_smoothing_size : number or tuple, optional
+        The smoothing size used in the old (pre v0.4) trackpy version (the
+        radius of the circular kernel). Defaults to diameter.
+    new_smoothing_size : number or tuple, optional
+        The smoothing size used in the new (post v0.4) trackpy version (the
+        size of the sides of the square kernel). Defaults to diameter.
+
+    Returns
+    -------
+    New minmass
+    """
+    if not preprocess:
+        return old_minmass
+
+    ndim = raw_image.ndim
+    diameter = validate_tuple(diameter, ndim)
+    if old_smoothing_size is None:
+        old_smoothing_size = diameter
+    else:
+        old_smoothing_size = validate_tuple(old_smoothing_size, ndim)
+    if new_smoothing_size is None:
+        new_smoothing_size = diameter
+    else:
+        new_smoothing_size = validate_tuple(new_smoothing_size, ndim)
+
+    radius = tuple((int(d / 2) for d in diameter))
+    old_bp_size = tuple((s * 2 + 1 for s in old_smoothing_size))
+
+    n_px_refine = N_binary_mask(radius, ndim)
+    n_px_old_bp = N_binary_mask(old_bp_size, ndim)
+    n_px_new_bp = np.prod(new_smoothing_size)
+
+    real_minmass = old_minmass / (1 - n_px_refine / n_px_old_bp)
+    new_minmass = real_minmass * (1 - n_px_refine / n_px_new_bp)
+    return new_minmass
 
 
 def local_maxima(image, radius, percentile=64, margin=None):
