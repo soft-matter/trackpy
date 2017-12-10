@@ -142,7 +142,7 @@ class FindLinkSpecialCases(StrictTestCase):
     def setUp(self):
         self.linker_opts = dict()
         self.search_range = 12
-        self.separation = 4
+        self.separation = 7
         self.diameter = 12  # only for characterization
         self.size = 3
 
