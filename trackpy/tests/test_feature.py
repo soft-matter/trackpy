@@ -8,7 +8,7 @@ import warnings
 import nose
 import numpy as np
 from pandas import DataFrame
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_less
 from pandas.util.testing import assert_produces_warning
 
 import trackpy as tp
@@ -705,8 +705,7 @@ class CommonFeatureIdentificationTests(object):
         assert_allclose(actual_noise, np.sqrt(1/12.) * noise_levels,
                         rtol=0.01, atol=1)
         assert_allclose(real_rms_dev, eps, rtol=0.2, atol=0.001)
-
-
+        assert_array_less(real_rms_dev, eps)
 
     def test_ep_anisotropic(self):
         # The separate columns 'ep_x' and 'ep_y' reflect the static errors
