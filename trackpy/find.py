@@ -28,8 +28,7 @@ def where_close(pos, separation, intensity=None):
     # Rescale positions, so that pairs are identified below a distance
     # of 1.
     if isinstance(pos, pd.DataFrame):
-        pos_rescaled = pos.values
-        pos_rescaled /= separation
+        pos_rescaled = pos.values / separation
     else:
         pos_rescaled = pos / separation
     duplicates = cKDTree(pos_rescaled, 30).query_pairs(1 - 1e-7)

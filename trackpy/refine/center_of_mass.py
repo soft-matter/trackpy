@@ -57,6 +57,9 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
         remaining iterations.
     characterize : boolean, True by default
         Compute and return mass, size, eccentricity, signal.
+    pos_columns: list of strings, optional
+        Column names that contain the position coordinates.
+        Defaults to ``['y', 'x']`` or ``['z', 'y', 'x']``, if ``'z'`` exists.
     """
     if isinstance(coords, pd.DataFrame):
         if pos_columns is None:
@@ -66,8 +69,11 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
     else:
         index = None
 
-    coord_columns = default_pos_columns(image.ndim)
-    columns = coord_columns + ['mass']
+    radius = validate_tuple(radius, image.ndim)
+
+    if pos_columns is None:
+        pos_columns = default_pos_columns(image.ndim)
+    columns = pos_columns + ['mass']
     if characterize:
         isotropic = radius[1:] == radius[:-1]
         columns += default_size_columns(image.ndim, isotropic) + \
@@ -96,6 +102,9 @@ def refine_com_arr(raw_image, image, radius, coords, max_iterations=10,
     if max_iterations <= 0:
         warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
         max_iterations = 1
+    if raw_image.ndim != coords.shape[1]:
+        raise ValueError("The image has a differnt number of dimensions than "
+                         "the coordinate array.")
 
     # ensure that radius is tuple of integers, for direct calls to refine_com_arr()
     radius = validate_tuple(radius, image.ndim)
