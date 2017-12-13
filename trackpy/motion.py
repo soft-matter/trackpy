@@ -89,9 +89,20 @@ def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     result_columns = ['<{}>'.format(p) for p in pos_columns] + \
                      ['<{}^2>'.format(p) for p in pos_columns]
 
-    # Reindex with consecutive frames, placing NaNs in the gaps.
-    pos = traj.set_index('frame')[pos_columns] * mpp
-    pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
+    # The following fails if > 1 record per particle (cannot reindex):
+    try:
+        # Reindex with consecutive frames, placing NaNs in the gaps.
+        pos = traj.set_index('frame')[pos_columns] * mpp
+        pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
+    except ValueError:
+        if traj['frame'].nunique()!=len(traj['frame']):
+            # Reindex failed due to duplicate index values
+            raise Exception("Cannot use msd_gaps, more than one trajectory "
+                            "per particle found.")
+        else:
+            raise
+
+
 
     max_lagtime = min(max_lagtime, len(pos) - 1)  # checking to be safe
 
