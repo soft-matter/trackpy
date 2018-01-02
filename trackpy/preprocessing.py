@@ -121,8 +121,9 @@ def bandpass(image, lshort, llong, threshold=None, truncate=4):
 
     Notes
     -----
-    The boxcar size changed in v0.4: before, one side of the square kernel
-    equalled `llong * 2 + 1`, starting from v0.4 it equals `llong`.
+    The boxcar size and shape changed in v0.4: before, the boxcar had a
+    circular kernel with radius `llong`, now it is has a square kernel that
+    has an edge length of `llong` (twice as small!).
     """
     lshort = validate_tuple(lshort, image.ndim)
     llong = validate_tuple(llong, image.ndim)

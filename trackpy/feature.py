@@ -78,14 +78,14 @@ def minmass_v03_change(raw_image, old_minmass, preprocess=True,
 
 def minmass_v04_change(raw_image, old_minmass, diameter, preprocess=True,
                        old_smoothing_size=None, new_smoothing_size=None):
-    """Convert minmass value from v0.3 o v0.4.
+    """Convert minmass value from v0.3 to v0.4.
 
     From trackpy version 0.4.0, the default image preprocessing is changed.
     Before version 0.4.0 a blurred out image (rolling or boxcar average) with
     a circular kernel with radius `diameter` was subtracted from the image
     before refinement and mass calculation. From version 0.4.0, this has
     changed to a square kernel with sides `diameter`, more or less twice as
-    small. This increasing tracking accuracy, and reduces the mass.
+    small. This increases tracking accuracy, and reduces the mass.
 
     This function estimates this difference and applies it to calculate the
     new minmass value.
