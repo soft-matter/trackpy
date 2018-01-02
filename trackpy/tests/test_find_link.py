@@ -20,6 +20,7 @@ class FindLinkTests(SubnetNeededTests):
         super(FindLinkTests, self).setUp()
         self.linker_opts['separation'] = 10
         self.linker_opts['diameter'] = 15
+        self.linker_opts['preprocess'] = False
 
     def link(self, f, search_range, *args, **kwargs):
         if 'pos_columns' in kwargs:
@@ -141,14 +142,15 @@ class FindLinkSpecialCases(StrictTestCase):
     def setUp(self):
         self.linker_opts = dict()
         self.search_range = 12
-        self.separation = 4
+        self.separation = 7
         self.diameter = 12  # only for characterization
         self.size = 3
 
     def link(self, f, shape, remove=None, **kwargs):
         _kwargs = dict(diameter=self.diameter,
                        search_range=self.search_range,
-                       separation=self.separation)
+                       separation=self.separation,
+                       preprocess=False)
         _kwargs.update(kwargs)
         if remove is not None:
             callback_coords = f.loc[f['frame'] == 1, ['y', 'x']].values

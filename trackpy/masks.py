@@ -23,7 +23,7 @@ def binary_mask(radius, ndim):
 
 @memo
 def N_binary_mask(radius, ndim):
-    return np.sum(binary_mask(radius,ndim))
+    return np.sum(binary_mask(radius, ndim))
 
 
 @memo

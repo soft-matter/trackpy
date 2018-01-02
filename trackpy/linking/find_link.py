@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 def find_link(reader, search_range, separation, diameter=None, memory=0,
               minmass=0, noise_size=1, smoothing_size=None, threshold=None,
-              percentile=64, before_link=None, after_link=None, refine=False,
-              **kwargs):
+              percentile=64, preprocess=True, before_link=None,
+              after_link=None, refine=False, **kwargs):
     """Find and link features, using image data to re-find lost features.
 
     Parameters
@@ -58,6 +58,8 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     percentile : number, optional
         The upper percentile of intensities in the image are considered as
         feature locations. Default 64.
+    preprocess : boolean
+        Set to False to turn off bandpass preprocessing.
     before_link : function, optional
         This function is executed after the initial find of each frame, but
         but before the linking and relocating.
@@ -110,15 +112,22 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     """
     shape = reader[0].shape
     ndim = len(shape)
-    if smoothing_size is None:
-        smoothing_size = separation
-    smoothing_size = validate_tuple(smoothing_size, ndim)
-    smoothing_size = tuple([int(s) for s in smoothing_size])
     separation = validate_tuple(separation, ndim)
     if diameter is None:
         diameter = separation
     else:
         diameter = validate_tuple(diameter, ndim)
+
+    if preprocess:
+        if smoothing_size is None:
+            smoothing_size = separation
+        smoothing_size = validate_tuple(smoothing_size, ndim)
+        # make smoothing_size an odd integer
+        smoothing_size = tuple([int((s - 1) / 2) * 2 + 1 for s in smoothing_size])
+        proc_func = lambda x: bandpass(x, noise_size, smoothing_size,
+                                       threshold)
+    else:
+        proc_func = None
 
     if refine:
         if after_link is not None:
@@ -137,7 +146,6 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
             return features
 
     features = []
-    proc_func = lambda x: bandpass(x, noise_size, smoothing_size, threshold)
     generator = find_link_iter(reader, search_range, separation,
                                diameter=diameter, memory=memory,
                                percentile=percentile, minmass=minmass,
