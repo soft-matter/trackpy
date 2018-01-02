@@ -467,8 +467,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if count_qualified == 0:
         warnings.warn("No maxima survived mass- and size-based filtering. "
                       "Be advised that the mass computation was changed from "
-                      "version 0.2.4 to 0.3.0. See the documentation and the "
-                      "convenience function minmass_version_change.")
+                      "version 0.2.4 to 0.3.0 and from 0.3.3 to 0.4.0. "
+                      "See the documentation and the convenience functions "
+                      "'minmass_v03_change' and 'minmass_v04_change'.")
         return DataFrame(columns=columns)
 
     if topn is not None and count_qualified > topn:
@@ -527,7 +528,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         Default is 100 for integer images and 1 for float images, but a good
         value is often much higher. This is a crucial parameter for eliminating
         spurious features.
-        .. warning:: The mass value was changed since v0.3.0
+        .. warning:: The mass value was changed since v0.3.3
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
@@ -581,7 +582,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     See Also
     --------
     locate : performs location on a single image
-    minmass_version_change : to convert minmass from v0.2.4 to v0.3.0
+    minmass_v03_change : to convert minmass from v0.2.4 to v0.3.0
+    minmass_v04_change : to convert minmass from v0.3.3 to v0.4.0
 
     Notes
     -----
