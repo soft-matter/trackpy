@@ -41,7 +41,7 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
         used for final characterization
     image : array (any dimension)
         processed image, used for locating center of mass
-    coord : array or DataFrame
+    coords : array or DataFrame
         estimated position
     separation : float or tuple
         Minimum separtion between features.
@@ -103,7 +103,7 @@ def refine_com_arr(raw_image, image, radius, coords, max_iterations=10,
         warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
         max_iterations = 1
     if raw_image.ndim != coords.shape[1]:
-        raise ValueError("The image has a differnt number of dimensions than "
+        raise ValueError("The image has a different number of dimensions than "
                          "the coordinate array.")
 
     # ensure that radius is tuple of integers, for direct calls to refine_com_arr()
