@@ -29,7 +29,8 @@ install:
   # Append the conda-forge channel, instead of adding it. See:
   # https://github.com/conda-forge/conda-forge.github.io/issues/232)
   - conda config --append channels conda-forge
-  - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
+  # --quiet: see https://github.com/conda/conda/issues/6473
+  - travis_wait conda create -n testenv --yes --quiet $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   - |
       if [ $BUILD_DOCS == true ]; then
