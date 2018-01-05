@@ -352,16 +352,18 @@ def guess_pos_columns(f):
 
 def default_pos_columns(ndim):
     """ Sets the default position column names """
-    return ['z', 'y', 'x'][-ndim:]
+    if ndim < 4:
+        return ['z', 'y', 'x'][-ndim:]
+    else:
+        return map(lambda i: 'x' + str(i), range(ndim))
 
 
 def default_size_columns(ndim, isotropic):
     """ Sets the default size column names """
     if isotropic:
-        size_columns = ['size']
+        return ['size']
     else:
-        size_columns = ['size_z', 'size_y', 'size_x'][-ndim:]
-    return size_columns
+        return ['size_' + cc for cc in default_pos_columns(ndim)]
 
 
 def is_isotropic(value):

@@ -14,7 +14,7 @@ from ..masks import slice_image, mask_image
 from ..find import grey_dilation, drop_close
 from ..utils import default_pos_columns, is_isotropic, validate_tuple
 from ..preprocessing import bandpass
-from ..refine import refine_com
+from ..refine import refine_com_arr
 from ..feature import characterize
 
 from .utils import points_from_arr
@@ -140,8 +140,8 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
             if len(coords) == 0:
                 return features
             # no separation filtering, because we use precise grey dilation
-            coords = refine_com(image, image_proc, radius, coords, separation=0,
-                                characterize=False)
+            coords = refine_com_arr(image, image_proc, radius, coords, separation=0,
+                                    characterize=False)
             features[refine_columns] = coords
             return features
 

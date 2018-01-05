@@ -16,7 +16,7 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array,
                                 gen_nonoverlapping_locations)
 from trackpy.utils import pandas_sort
-from trackpy.refine import refine_com
+from trackpy.refine import refine_com_arr
 from trackpy.tests.common import sort_positions, StrictTestCase
 from trackpy.preprocessing import invert_image
 from trackpy.uncertainty import measure_noise
@@ -739,23 +739,23 @@ class CommonFeatureIdentificationTests(object):
         draw_feature(image, pos, 3.75)
 
         guess = np.array([[6, 13]])
-        actual = refine_com(image, image, 6, guess,characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess,characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 12]])
-        actual = refine_com(image, image, 6, guess, characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess, characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 14]])
-        actual = refine_com(image, image, 6, guess, characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess, characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[6, 12]])
-        actual = refine_com(image, image, 6, guess, characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess, characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
     def test_uncertainty_failure(self):

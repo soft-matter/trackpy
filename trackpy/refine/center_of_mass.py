@@ -8,7 +8,8 @@ from ..try_numba import try_numba_autojit
 import warnings
 import logging
 
-from ..utils import validate_tuple
+from ..utils import (validate_tuple, guess_pos_columns, default_pos_columns,
+                     default_size_columns)
 from ..masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 
@@ -24,9 +25,10 @@ def _safe_center_of_mass(x, radius, grids):
     return np.array([(x * grids[dim]).sum() / normalizer
                     for dim in range(x.ndim)])
 
-def refine_com(raw_image, image, radius, coords, separation=0, max_iterations=10,
-               engine='auto', shift_thresh=0.6, break_thresh=None,
-               characterize=True, walkthrough=False):
+
+def refine_com(raw_image, image, radius, coords, max_iterations=10,
+               engine='auto', shift_thresh=0.6, characterize=True,
+               pos_columns=None):
     """Find the center of mass of a bright feature starting from an estimate.
 
     Characterize the neighborhood of a local maximum, and iteratively
@@ -39,7 +41,7 @@ def refine_com(raw_image, image, radius, coords, separation=0, max_iterations=10
         used for final characterization
     image : array (any dimension)
         processed image, used for locating center of mass
-    coord : array
+    coords : array or DataFrame
         estimated position
     separation : float or tuple
         Minimum separtion between features.
@@ -53,23 +55,59 @@ def refine_com(raw_image, image, radius, coords, separation=0, max_iterations=10
         If the brightness centroid is more than this far off the mask center,
         shift mask to neighboring pixel. The new mask will be used for any
         remaining iterations.
-    break_thresh : float, optional
-        Deprecated
     characterize : boolean, True by default
         Compute and return mass, size, eccentricity, signal.
-    walkthrough : boolean, False by default
-        Print the offset on each loop and display final neighborhood image.
+    pos_columns: list of strings, optional
+        Column names that contain the position coordinates.
+        Defaults to ``['y', 'x']`` or ``['z', 'y', 'x']``, if ``'z'`` exists.
     """
-    if break_thresh is not None:
-        warnings.warn("break_threshold has been deprecated: shift_threshold is"
-                      "the only parameter that determines when to shift the"
-                      "mask.", DeprecationWarning)
+    if isinstance(coords, pd.DataFrame):
+        if pos_columns is None:
+            pos_columns = guess_pos_columns(coords)
+        index = coords.index
+        coords = coords[pos_columns].values
+    else:
+        index = None
+
+    radius = validate_tuple(radius, image.ndim)
+
+    if pos_columns is None:
+        pos_columns = default_pos_columns(image.ndim)
+    columns = pos_columns + ['mass']
+    if characterize:
+        isotropic = radius[1:] == radius[:-1]
+        columns += default_size_columns(image.ndim, isotropic) + \
+            ['ecc', 'signal', 'raw_mass']
+
+    if len(coords) == 0:
+        return pd.DataFrame(columns=columns)
+
+    refined = refine_com_arr(raw_image, image, radius, coords,
+                             max_iterations=max_iterations,
+                             engine=engine, shift_thresh=shift_thresh,
+                             characterize=characterize)
+
+    return pd.DataFrame(refined, columns=columns, index=index)
+
+
+def refine_com_arr(raw_image, image, radius, coords, max_iterations=10,
+                   engine='auto', shift_thresh=0.6, characterize=True,
+                   walkthrough=False):
+    """Refine coordinates and return a numpy array instead of a DataFrame.
+
+    See also
+    --------
+    refine_com
+    """
     if max_iterations <= 0:
         warnings.warn("max_iterations has to be larger than 0. setting it to 1.")
         max_iterations = 1
-    # ensure that radius is tuple of integers, for direct calls to refine()
+    if raw_image.ndim != coords.shape[1]:
+        raise ValueError("The image has a different number of dimensions than "
+                         "the coordinate array.")
+
+    # ensure that radius is tuple of integers, for direct calls to refine_com_arr()
     radius = validate_tuple(radius, image.ndim)
-    separation = validate_tuple(separation, image.ndim)
     # Main loop will be performed in separate function.
     if engine == 'auto':
         if NUMBA_AVAILABLE and image.ndim in [2, 3]:
@@ -204,8 +242,8 @@ def _refine(raw_image, image, radius, coords, max_iterations,
             upper_bound = np.array(image.shape) - 1 - radius
             coord = np.clip(coord, radius, upper_bound).astype(int)
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        final_coords[feat] = cm_i[..., ::-1]
+        # stick to yx column order
+        final_coords[feat] = cm_i
 
         if walkthrough:
             import matplotlib.pyplot as plt
@@ -222,7 +260,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
             Rg[feat] = np.sqrt(ndim * np.sum(x_squared_masks(radius, ndim) *
                                              neighborhood,
                                              axis=tuple(range(1, ndim + 1))) /
-                               mass[feat])[::-1]  # change order yx -> xy
+                               mass[feat])
         # I only know how to measure eccentricity in 2D.
         if ndim == 2:
             ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
@@ -300,9 +338,9 @@ def _numba_refine_2D(image, radiusY, radiusX, coords, N, max_iterations,
             if coordX > upper_boundX:
                 coordX = upper_boundX
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
-        results[feat, 1] = cm_iY
+        # use yx order
+        results[feat, 0] = cm_iY
+        results[feat, 1] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         results[feat, MASS_COL] = mass_
@@ -373,9 +411,9 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
             if coordX > upper_boundX:
                 coordX = upper_boundX
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
-        results[feat, 1] = cm_iY
+        # use yx order
+        results[feat, 0] = cm_iY
+        results[feat, 1] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         raw_mass_ = 0.
@@ -411,8 +449,8 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
                          results):
     # Column indices into the 'results' array
     MASS_COL = 2
-    RGX_COL = 3
-    RGY_COL = 4
+    RGY_COL = 3
+    RGX_COL = 4
     ECC_COL = 5
     SIGNAL_COL = 6
     RAW_MASS_COL = 7
@@ -472,9 +510,9 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
                 coordX = upper_boundX
             # Update slice to shifted position.
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
-        results[feat, 1] = cm_iY
+        # use yx order
+        results[feat, 0] = cm_iY
+        results[feat, 1] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         mass_ = 0.
@@ -523,9 +561,9 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
         SIGNAL_COL = 6
         RAW_MASS_COL = 7
     else:
-        RGX_COL = 4
+        RGZ_COL = 4
         RGY_COL = 5
-        RGZ_COL = 6
+        RGX_COL = 6
         ECC_COL = 7
         SIGNAL_COL = 8
         RAW_MASS_COL = 9
@@ -599,10 +637,10 @@ def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
             if coordX > upper_boundX:
                 coordX = upper_boundX
 
-        # matplotlib and ndimage have opposite conventions for xy <-> yx.
-        results[feat, 0] = cm_iX
+        # use zyx order
+        results[feat, 0] = cm_iZ
         results[feat, 1] = cm_iY
-        results[feat, 2] = cm_iZ
+        results[feat, 2] = cm_iX
 
         # Characterize the neighborhood of our final centroid.
         raw_mass_ = 0.

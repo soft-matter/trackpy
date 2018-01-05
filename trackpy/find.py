@@ -5,6 +5,7 @@ import warnings
 import logging
 
 import numpy as np
+import pandas as pd
 from scipy import ndimage
 from scipy.spatial import cKDTree
 
@@ -26,7 +27,10 @@ def where_close(pos, separation, intensity=None):
         return []
     # Rescale positions, so that pairs are identified below a distance
     # of 1.
-    pos_rescaled = pos / separation
+    if isinstance(pos, pd.DataFrame):
+        pos_rescaled = pos.values / separation
+    else:
+        pos_rescaled = pos / separation
     duplicates = cKDTree(pos_rescaled, 30).query_pairs(1 - 1e-7)
     if len(duplicates) == 0:
         return []
