@@ -30,7 +30,7 @@ install:
   # https://github.com/conda-forge/conda-forge.github.io/issues/232)
   - conda config --append channels conda-forge
   # --quiet: see https://github.com/conda/conda/issues/6473
-  - conda create -n testenv --yes --quiet $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
+  - travis_wait conda create -n testenv --yes --quiet $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   - |
       if [ $BUILD_DOCS == true ]; then
