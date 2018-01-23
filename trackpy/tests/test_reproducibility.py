@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pims
 import nose
-from numpy.testing import assert_allclose
+from numpy.testing import assert_array_equal, assert_allclose
 
 import trackpy as tp
 from trackpy.preprocessing import invert_image
@@ -14,11 +14,10 @@ from trackpy.utils import cKDTree, pandas_iloc
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
-reproduce_fn = os.path.join(path, 'data',
-                            'reproduce_{}.csv'.format(tp.__version__))
+reproduce_fn = os.path.join(path, 'data', 'reproducibility_v0.4.npz')
 
 
-def compore_pos_df(actual, expected, pos_atol=0.001, lost_atol=1):
+def compare_pos_df(actual, expected, pos_atol=0.001, lost_atol=1):
     """Returns indices of equal and different positions inside dataframes
     `actual` and `expected`."""
     lost0 = []
@@ -63,78 +62,122 @@ class TestReproducibility(StrictTestCase):
     @classmethod
     def setUpClass(cls):
         super(TestReproducibility, cls).setUpClass()
-        # generate a new file
-        video = pims.ImageSequence(
-            os.path.join(path, 'video', 'image_sequence'))
-        actual = tp.batch(invert_image(video), diameter=9, minmass=240)
-        actual = tp.link_df(actual, search_range=5, memory=2)
-        actual.to_csv(reproduce_fn)
+        npz = np.load(reproduce_fn)
+        cls.expected_find_raw = npz['arr_0']
+        cls.expected_find_bp = npz['arr_1']
+        cls.expected_refine = npz['arr_2']
+        cls.expected_locate = npz['arr_3']
+        cls.coords_link = npz['arr_4']
+        cls.expected_link = npz['arr_5']
+        cls.expected_link_memory = npz['arr_6']
+        cls.expected_characterize = npz['arr_7']
 
-    @classmethod
-    def tearDownClass(cls):
-        super(TestReproducibility, cls).tearDownClass()
-        os.remove(reproduce_fn)
+        cls.v = pims.ImageSequence(os.path.join(path, 'video',
+                                                'image_sequence', '*.png'))
+        cls.v0_inverted = tp.invert_image(cls.v[0])
 
     def setUp(self):
-        self.expected = pd.read_csv(os.path.join(path, 'data',
-                                                 'reproduce_v0.3.1.csv'))
-        self.actual = pd.read_csv(reproduce_fn)
-        self.compared = compore_pos_df(self.actual, self.expected,
-                                       pos_atol=0.001, lost_atol=1)
-        self.characterize_rtol = 0.0001
+        self.diameter = 9
+        self.minmass = 140
+        self.memory = 2
+        self.bandpass_params = dict(lshort=1, llong=self.diameter)
+        self.find_params = dict(separation=self.diameter)
+        self.refine_params = dict(radius=int(self.diameter // 2))
+        self.locate_params = dict(diameter=self.diameter, minmass=self.minmass,
+                                  characterize=False)
+        self.link_params = dict(search_range=5)
+        self.characterize_params = dict(diameter=self.diameter,
+                                        characterize=True)
+        self.pos_columns = ['y', 'x']
+        self.char_columns = ['mass', 'size', 'ecc', 'signal', 'raw_mass', 'ep']
 
-    def test_find(self):
-        raise nose.SkipTest("Reproducibility tests are temporarily disabled "
-                            "for API breaks in v0.4")
-        # for v0.4: confirm that more than 95% of the features are still found
-        # the slight output change is allowed because it is due to the adapted
-        # grey_dilation kernel
-        # if the reference dataframe (now v0.3.1) is ever changed, this test
-        # should be made more strict
-        n_lost = len(self.compared[0])
-        1 - n_lost / len(self.expected)
-        self.assertGreater(1 - n_lost / len(self.expected), 0.95,
-                           "{0} of {1} features were not found.".format(
-                               n_lost, len(self.expected)))
-        n_appeared = len(self.compared[1])
-        self.assertGreater(1 - n_appeared / len(self.actual), 0.95,
-                           "{0} of {1} features were found unexpectedly.".format(
-                               n_appeared, len(self.actual)))
+    def test_find_raw(self):
+        actual = tp.grey_dilation(self.v0_inverted, **self.find_params)
+        assert_array_equal(actual, self.expected_find_raw)
+
+    def test_find_bp(self):
+        image_bp = tp.bandpass(self.v0_inverted, **self.bandpass_params)
+        actual = tp.grey_dilation(image_bp, **self.find_params)
+        assert_array_equal(actual, self.expected_find_bp)
 
     def test_refine(self):
-        raise nose.SkipTest("Reproducibility tests are temporarily disabled "
-                            "for API breaks in v0.4")
-        n_dev = len(self.compared[2][0])
-        self.assertEqual(n_dev, 0,
-                         "{0} of {1} features have moved more than the tolerance.".format(
-                             n_dev, len(self.actual)))
+        coords_v0 = self.expected_find_bp
+        image_bp = tp.bandpass(self.v0_inverted, **self.bandpass_params)
+        df = tp.refine_com(self.v0_inverted, image_bp, coords=coords_v0,
+                           **self.refine_params)
+        actual = df[df['mass'] >= self.minmass][self.pos_columns].values
+
+        assert_allclose(actual, self.expected_refine)
+
+    def test_locate(self):
+        df = tp.locate(self.v0_inverted, **self.locate_params)
+        actual = df[self.pos_columns].values
+        assert_allclose(actual, self.expected_locate)
+
+    def test_link_nomemory(self):
+        expected = pd.DataFrame(self.coords_link,
+                                columns=self.pos_columns + ['frame'])
+        expected['frame'] = expected['frame'].astype(np.int)
+        actual = tp.link(expected, **self.link_params)
+        expected['particle'] = self.expected_link
+
+        assert_traj_equal(actual, expected)
+
+    def test_link_memory(self):
+        expected = pd.DataFrame(self.coords_link,
+                                columns=self.pos_columns + ['frame'])
+        expected['frame'] = expected['frame'].astype(np.int)
+        actual = tp.link(expected, memory=self.memory, **self.link_params)
+        expected['particle'] = self.expected_link_memory
+
+        assert_traj_equal(actual, expected)
 
     def test_characterize(self):
-        raise nose.SkipTest("Reproducibility tests are temporarily disabled "
-                            "for API breaks in v0.4")
-        equal = self.compared[3]
-        equal_f = self.expected.iloc[equal[0]].reset_index(drop=True), \
-                  self.actual.iloc[equal[1]].reset_index(drop=True)
+        df = tp.locate(self.v0_inverted, diameter=9)
+        df = df[(df['x'] < 64) & (df['y'] < 64)]
+        actual_coords = df[self.pos_columns].values
+        actual_char = df[self.char_columns].values
 
-        for field in ['mass', 'size', 'ecc', 'signal', 'raw_mass', 'ep']:
-            assert_allclose(equal_f[0][field].values,
-                            equal_f[1][field].values,
-                            rtol=self.characterize_rtol)
-
-    def test_link(self):
-        # run the linking on the expected coordinates, so that tests are
-        # independent of possible different refine or find results
-        actual = tp.link_df(self.expected, search_range=5, memory=2)
-        assert_traj_equal(actual, self.expected)
-
+        try:
+            assert_allclose(actual_coords,
+                            self.expected_characterize[:, :2])
+        except AssertionError:
+            raise AssertionError('The characterize tests failed as the coords'
+                                 ' found by locate were not reproduced.')
+        assert_allclose(actual_char,
+                        self.expected_characterize[:, 2:])
 
 # SCRIPT TO GENERATE THE FEATURES
-# import trackpy as tp
-# import pims
-# import os
-# os.chdir(r'path\to\trackpy\source')
-# frames = pims.ImageSequence(os.path.join('tests', 'video', 'image_sequence'))
-# inverted = pims.pipeline(lambda x: 255 - x)(frames)
-# f_current = tp.batch(inverted, 9, minmass=240)
-# f_current = tp.link_df(f_current, 5, memory=2)
-# f_current.to_csv('reproduce_v0.3.1.csv')
+# pos_columns = ['y', 'x']
+# char_columns = ['mass', 'size', 'ecc', 'signal', 'raw_mass', 'ep']
+# testpath = os.path.join(os.path.dirname(tp.__file__), 'tests')
+# impath = os.path.join(testpath, 'video', 'image_sequence', '*.png')
+# npzpath = os.path.join(testpath, 'data', 'reproducibility_v0.4.npz')
+#
+# v = pims.ImageSequence(impath)
+# v0 = tp.invert_image(v[0])
+# v0_bp = tp.bandpass(v0, lshort=1, llong=9)
+# expected_find = tp.grey_dilation(v0, separation=9)
+# expected_find_bandpass = tp.grey_dilation(v0_bp, separation=9)
+# expected_refine = tp.refine_com(v0, v0_bp, radius=4,
+#                                 coords=expected_find_bandpass)
+# expected_refine = expected_refine[expected_refine['mass'] >= 140]
+# expected_refine_coords = expected_refine[pos_columns].values
+# expected_locate = tp.locate(v0, diameter=9, minmass=140)
+# expected_locate_coords = expected_locate[pos_columns].values
+# df = tp.locate(v0, diameter=9)
+# df = df[(df['x'] < 64) & (df['y'] < 64)]
+# expected_characterize = df[pos_columns + char_columns].values
+#
+# f = tp.batch(tp.invert_image(v), 9, minmass=140)
+# f_crop = f[(f['x'] < 320) & (f['x'] > 280) & (f['y'] < 280) & (f['x'] > 240)]
+# f_linked = tp.link(f_crop, search_range=5, memory=0)
+# f_linked_memory = tp.link(f_crop, search_range=5, memory=2)
+# link_coords = f_linked[pos_columns + ['frame']].values
+# expected_linked = f_linked['particle'].values
+# expected_linked_memory = f_linked_memory['particle'].values
+#
+# np.savez_compressed(npzpath, expected_find, expected_find_bandpass,
+#                     expected_refine_coords, expected_locate_coords,
+#                     link_coords, expected_linked, expected_linked_memory,
+#                     expected_characterize)
