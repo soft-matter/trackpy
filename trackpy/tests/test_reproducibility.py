@@ -10,11 +10,22 @@ from numpy.testing import assert_array_equal, assert_allclose
 
 import trackpy as tp
 from trackpy.preprocessing import invert_image
-from trackpy.utils import cKDTree, pandas_iloc
+from trackpy.utils import cKDTree, pandas_iloc, is_scipy_since_100
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
-reproduce_fn = os.path.join(path, 'data', 'reproducibility_v0.4.npz')
+
+
+# The reproducibility tests differ depending on the Scipy version, because of
+# changed rounding properties of `scipy.ndimage.filters.uniform_filter1d`. These
+# changes propagate via trackpy's preprocessing into the tested values in the
+# following tests: `test_find_bp`, `test_locate`, `test_refine`, and
+# `test_characterize`. See GH issue #459.
+if is_scipy_since_100:
+    reproduce_fn = 'reproducibility_v0.4.npz'
+else:
+    reproduce_fn = 'reproducibility_v0.4_pre_scipy_v1.0.npz'
+reproduce_fn = os.path.join(path, 'data', reproduce_fn)
 
 
 def compare_pos_df(actual, expected, pos_atol=0.001, lost_atol=1):
@@ -74,7 +85,7 @@ class TestReproducibility(StrictTestCase):
 
         cls.v = pims.ImageSequence(os.path.join(path, 'video',
                                                 'image_sequence', '*.png'))
-        cls.v0_inverted = tp.invert_image(cls.v[0])
+        cls.v0_inverted = invert_image(cls.v[0])
 
     def setUp(self):
         self.diameter = 9
