@@ -201,7 +201,7 @@ def refine_com_arr(raw_image, image, radius, coords, max_iterations=10,
 # (This is pure Python. A numba variant follows below.)
 def _refine(raw_image, image, radius, coords, max_iterations,
             shift_thresh, characterize, walkthrough):
-    if not np.issubdtype(coords.dtype, np.int):
+    if not np.issubdtype(coords.dtype, np.integer):
         raise ValueError('The coords array should be of integer datatype')
     ndim = image.ndim
     isotropic = np.all(radius[1:] == radius[:-1])

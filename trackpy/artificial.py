@@ -303,7 +303,7 @@ class SimulatedImage(object):
         self.noise = noise
         if saturation is None and np.issubdtype(dtype, np.integer):
             self.saturation = np.iinfo(dtype).max
-        elif saturation is None and np.issubdtype(dtype, np.float):
+        elif saturation is None and np.issubdtype(dtype, np.floating):
             self.saturation = 1
         else:
             self.saturation = saturation

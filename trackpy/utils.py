@@ -55,6 +55,11 @@ if is_scipy_018:
 else:
     from scipy.spatial import cKDTree
 
+try:
+    is_scipy_since_100 = LooseVersion(scipy.__version__) >= LooseVersion('1.0.0')
+except ValueError:  # Probably a development version
+    is_scipy_since_100 = True
+
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
