@@ -55,6 +55,7 @@ def link_iter(coords_iter, search_range, **kwargs):
 
     for t, coords in coords_iter:
         linker.next_level(coords, t)
+        logger.info("Frame {0}: {1} trajectories present.".format(t, len(linker.particle_ids)))
         yield t, linker.particle_ids
 
 
