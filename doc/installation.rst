@@ -44,7 +44,7 @@ This will automatically open a browser tab, ready to interpret Python code.
 To get started, check out the links to tutorials at the top of this document.
 
 Updating Your Installation
---------------------------
+""""""""""""""""""""""""""
 
 Before updating to a new version of trackpy, be sure to read the
 :doc:`release notes<whatsnew>` for a list of new features and any changes
@@ -77,6 +77,30 @@ You can easily install a recent build by downloading the source from
 
 If you plan to edit the code yourself, you should use git and pip as
 explained below.
+
+Using environments
+""""""""""""""""""
+
+Some users often like to separate Python instances into environments, so that
+each project can have its own set of packages. Create a trackpy-dedicated
+environment with the name softmatter as follows:
+
+.. code-block:: bash
+
+    conda create --name softmatter python=3.6 trackpy nb_conda
+
+The `nb_conda` is optional, but we added it to ensure that Jupyter sees this
+environment as well. You can switch to the environment from within Jupyter in
+the Kernels menu. To access the environment on the commandline, type the
+following:
+
+.. code-block:: bash
+
+    source activate softmatter
+
+On Windows systems, leave out the `source`. You can go back to the root conda
+environment by activating `root`.
+
 
 More Information for Experienced Python Users
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
