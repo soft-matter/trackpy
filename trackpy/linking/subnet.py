@@ -263,17 +263,30 @@ def assign_subnet(source, dest, subnets):
 
 
 def split_subnet(source, dest, new_range):
-    # Clear the subnets and candidates for all points in both frames
+    """Break apart a subnet by using a reduced search_range."""
     subnets = dict()
+    # Clear source particles' subnets, and prune their forward candidates
+    # according to new_range.
+    # The pruning step is crucial because some subnet linkers ignore
+    # the destination set and use the source particles' forward candidates
+    # exclusively.
     for sp in source:
         sp.subnet = None
+        new_fcs = []
+        for dp, dist in sp.forward_cands:
+            if dist <= new_range or dp is None:
+                new_fcs.append((dp, dist))
+            sp.forward_cands = new_fcs
+    # Each destination particle gets its own fresh subnet.
+    # These are numbered differently from the "global" dictionary
+    # of subnets maintained by the instance of the Subnet class.
     for i, dp in enumerate(dest):
         dp.subnet = i
         subnets[i] = set(), {dp}
 
     for sp in source:
         for dp, dist in sp.forward_cands:
-            if dist > new_range:
+            if dp is None:
                 continue
             assign_subnet(sp, dp, subnets=subnets)
     return (subnets[key] for key in subnets)
