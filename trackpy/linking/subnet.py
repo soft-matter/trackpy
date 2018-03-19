@@ -243,15 +243,15 @@ def assign_subnet(source, dest, subnets):
         raise ValueError("No subnet for added destination particle")
     if i1 == i2:  # if a and b are already in the same subnet, do nothing
         return
-    if i1 is None:  # source did not belong to a subset before
+    if i1 is None:  # source did not belong to a subnet before
         # just add it
         subnets[i2][0].add(source)
         source.subnet = i2
-    elif i2 is None:  # dest did not belong to a subset before
+    elif i2 is None:  # dest did not belong to a subnet before
         # just add it
         subnets[i1][1].add(dest)
         dest.subnet = i1
-    else:  # source belongs to subset i1 before
+    else:  # source belongs to subnet i1 before
         # merge the subnets
         subnets[i2][0].update(subnets[i1][0])
         subnets[i2][1].update(subnets[i1][1])
