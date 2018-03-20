@@ -16,7 +16,7 @@ Documentation
 
 - an introduction
 - tutorials on the basics, 3D tracking, and much, much more
-- easy installation instructions
+- easy [installation instructions](http://soft-matter.github.io/trackpy/dev/installation.html)
 - the reference guide
 
 If you use trackpy for published research, please
