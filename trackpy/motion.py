@@ -589,6 +589,13 @@ def min_rolling_theta_entropy(pos, window=24, bins=24):
 
 
 def proximity(*args, **kwargs):
+    """
+    Deprecated
+
+    See also
+    --------
+    trackpy.static.proximity
+    """
     warn('This function has been moved to `trackpy.static', DeprecationWarning)
     from trackpy.static import proximity
     return proximity(*args, **kwargs)

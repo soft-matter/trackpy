@@ -22,11 +22,49 @@ logger = logging.getLogger(__name__)
 
 
 def link_iter(coords_iter, search_range, **kwargs):
-    """Link an iterable of per-frame coordinates into trajectories.
+    """
+    link_iter(coords_iter, search_range, memory=0, predictor=None,
+        adaptive_stop=None, adaptive_step=0.95, neighbor_strategy=None,
+        link_strategy=None, dist_func=None, to_eucl=None)
+
+    Link an iterable of per-frame coordinates into trajectories.
 
     Parameters
     ----------
-    coords_iter : iterable or enumerated iterable of 2d numpy arrays
+    coords_iter : iterable
+        the iterable produces 2d numpy arrays of coordinates (shape: N, ndim).
+        to tell link_iter what frame number each array is, the iterable may
+        be enumerated so that it produces (number, 2d array) tuples
+    search_range : float or tuple
+        the maximum distance features can move between frames,
+        optionally per dimension
+    memory : integer, optional
+        the maximum number of frames during which a feature can vanish,
+        then reappear nearby, and be considered the same particle. Default: 0
+    predictor : function, optional
+        Improve performance by guessing where a particle will be in
+        the next frame.
+        For examples of how this works, see the "predict" module.
+    adaptive_stop : float, optional
+        If not None, when encountering an oversize subnet, retry by progressively
+        reducing search_range until the subnet is solvable. If search_range
+        becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
+    adaptive_step : float, optional
+        Reduce search_range by multiplying it by this factor.
+    neighbor_strategy : {'KDTree', 'BTree'}
+        algorithm used to identify nearby features. Default 'KDTree'.
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
+        algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
+        'drop' causes particles in subnetworks to go unlinked
+    dist_func : function, optional
+        a custom distance function that takes two 1D arrays of coordinates and
+        returns a float. Must be used with the 'BTree' neighbor_strategy.
+    to_eucl : function, optional
+        function that transforms a N x ndim array of positions into coordinates
+        in Euclidean space. Useful for instance to link by Euclidean distance
+        starting from radial coordinates. If search_range is anisotropic, this
+        parameter cannot be used.
 
     Yields
     ------
@@ -60,7 +98,13 @@ def link_iter(coords_iter, search_range, **kwargs):
 
 
 def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
-    """Link a DataFrame of coordinates into trajectories.
+    """
+    link(f, search_range, pos_columns=None, t_column='frame', memory=0,
+        predictor=None, adaptive_stop=None, adaptive_step=0.95,
+        neighbor_strategy=None, link_strategy=None, dist_func=None,
+        to_eucl=None)
+
+    Link a DataFrame of coordinates into trajectories.
 
     Parameters
     ----------
@@ -72,13 +116,13 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
     search_range : float or tuple
         the maximum distance features can move between frames,
         optionally per dimension
-    memory : integer, optional
-        the maximum number of frames during which a feature can vanish,
-        then reappear nearby, and be considered the same particle. 0 by default.
     pos_columns : list of str, optional
         Default is ['y', 'x'], or ['z', 'y', 'x'] when 'z' is present in f
     t_column : str, optional
         Default is 'frame'
+    memory : integer, optional
+        the maximum number of frames during which a feature can vanish,
+        then reappear nearby, and be considered the same particle. 0 by default.
     predictor : function, optional
         Improve performance by guessing where a particle will be in
         the next frame.
@@ -89,25 +133,30 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
+    neighbor_strategy : {'KDTree', 'BTree'}
+        algorithm used to identify nearby features. Default 'KDTree'.
     link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses numba if available
         'drop' causes particles in subnetworks to go unlinked
-    neighbor_strategy : {'KDTree', 'BTree'}
-        algorithm used to identify nearby features. Default 'KDTree'.
+    dist_func : function, optional
+        a custom distance function that takes two 1D arrays of coordinates and
+        returns a float. Must be used with the 'BTree' neighbor_strategy.
     to_eucl : function, optional
         function that transforms a N x ndim array of positions into coordinates
         in Euclidean space. Useful for instance to link by Euclidean distance
         starting from radial coordinates. If search_range is anisotropic, this
         parameter cannot be used.
-    dist_func : function, optional
-        a custom distance function that takes two 1D arrays of coordinates and
-        returns a float. Must be used with the 'BTree' neighbor_strategy.
 
     Returns
     -------
     DataFrame with added column 'particle' containing trajectory labels.
-    The t_column (by default: 'frame') will be coerced to integer."""
+    The t_column (by default: 'frame') will be coerced to integer.
+
+    See also
+    --------
+    link_iter
+    """
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
 
@@ -132,15 +181,58 @@ link_df = link
 
 def link_df_iter(f_iter, search_range, pos_columns=None,
                  t_column='frame', **kwargs):
-    """Link an iterable of DataFrames into trajectories.
+    """
+    link_df_iter(f_iter, search_range, pos_columns=None, t_column='frame',
+        memory=0, predictor=None, adaptive_stop=None, adaptive_step=0.95,
+        neighbor_strategy=None, link_strategy=None, dist_func=None,
+        to_eucl=None)
+
+    Link an iterable of DataFrames into trajectories.
 
     Parameters
     ----------
-    f_iter : iterable of DataFrames with feature positions, frame indices
+    f_iter : iterable of DataFrames
+        Each DataFrame must include any number of column(s) for position and a
+        column of frame numbers. By default, 'x' and 'y' are expected for
+        position, and 'frame' is expected for frame number. For optimal
+        performance, explicitly specify the column names using `pos_columns`
+        and `t_column` kwargs.
+    search_range : float or tuple
+        the maximum distance features can move between frames,
+        optionally per dimension
     pos_columns : list of str, optional
-        Default is ['y', 'x'], or ['z', 'y', 'x'] when 'z' is present in f.
+        Default is ['y', 'x'], or ['z', 'y', 'x'] when 'z' is present in f
         If this is not supplied, f_iter will be investigated, which might cost
         performance. For optimal performance, always supply this parameter.
+    t_column : str, optional
+        Default is 'frame'
+    memory : integer, optional
+        the maximum number of frames during which a feature can vanish,
+        then reappear nearby, and be considered the same particle. 0 by default.
+    predictor : function, optional
+        Improve performance by guessing where a particle will be in
+        the next frame.
+        For examples of how this works, see the "predict" module.
+    adaptive_stop : float, optional
+        If not None, when encountering an oversize subnet, retry by progressively
+        reducing search_range until the subnet is solvable. If search_range
+        becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
+    adaptive_step : float, optional
+        Reduce search_range by multiplying it by this factor.
+    neighbor_strategy : {'KDTree', 'BTree'}
+        algorithm used to identify nearby features. Default 'KDTree'.
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
+        algorithm used to resolve subnetworks of nearby particles
+        'auto' uses numba if available
+        'drop' causes particles in subnetworks to go unlinked
+    dist_func : function, optional
+        a custom distance function that takes two 1D arrays of coordinates and
+        returns a float. Must be used with the 'BTree' neighbor_strategy.
+    to_eucl : function, optional
+        function that transforms a N x ndim array of positions into coordinates
+        in Euclidean space. Useful for instance to link by Euclidean distance
+        starting from radial coordinates. If search_range is anisotropic, this
+        parameter cannot be used.
 
     Yields
     ------
