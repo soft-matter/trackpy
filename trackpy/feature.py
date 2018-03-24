@@ -191,6 +191,13 @@ def estimate_size(image, radius, coord, estimated_mass):
 
 
 def refine(*args, **kwargs):
+    """
+    Deprecated.
+
+    See also
+    --------
+    trackpy.refine.refine_com
+    """
     warnings.warn("trackpy.feature.refine is deprecated: please use routines in "
                   "trackpy.refine", PendingDeprecationWarning)
     return refine_com(*args, **kwargs)

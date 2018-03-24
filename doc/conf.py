@@ -48,6 +48,7 @@ extlinks = {'issue': ('https://github.com/soft-matter/trackpy/issues/%s',
 # Generate the API documentation when building
 autosummary_generate = True
 numpydoc_show_class_members = False
+autodoc_docstring_signature = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
