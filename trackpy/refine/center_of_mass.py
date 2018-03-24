@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+                         unicode_literals)
+
 import six
-from six.moves import range
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ from ..utils import (validate_tuple, guess_pos_columns, default_pos_columns,
 from ..masks import (binary_mask, r_squared_mask,
                      x_squared_masks, cosmask, sinmask)
 
-from ..try_numba import NUMBA_AVAILABLE
+from ..try_numba import NUMBA_AVAILABLE, range, int, round
 
 
 logger = logging.getLogger(__name__)
