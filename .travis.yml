@@ -13,9 +13,9 @@ matrix:
       env: DEPS="numpy=1.11 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables=3.2.3 numba=0.23.1 scikit-learn=0.17.1 pyyaml pims=0.4.1"  BUILD_DOCS=true
     # Environment with most recent versions, on python 2.7 and python 3.6
     - python: "2.7"
-      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims=0.4.1" BUILD_DOCS=false
+      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims" BUILD_DOCS=false
     - python: "3.6"
-      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims=0.4.1"  BUILD_DOCS=false
+      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims"  BUILD_DOCS=false
 
 
 install:
