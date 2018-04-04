@@ -8,6 +8,13 @@ from warnings import warn
 import logging
 from distutils.version import LooseVersion
 
+# re-import some builtins for legacy numba versions if future is installed
+from six.moves import range
+try:
+    from __builtin__ import int, round
+except ImportError:
+    from builtins import int, round
+
 
 def _hush_llvm():
     # Necessary for current stable release 0.11.
