@@ -12,13 +12,11 @@ API Changes
 - locate has a more modular structure that makes it easier to customize feature-finding (:issue:`400`, :issue:`406`)
 
 - The default value of smoothing_size is smaller, and more consistent with
-  other implementations of this algorithm (:issue:`401`)
+  other implementations of this algorithm. In general, particle
+  mass values will be different. The new minmass_v04_change function helps
+  update minmass values in existing code (:issue:`401`, :issue:`465`)
 
 - The "minmass" parameter now has a default value of 0 (:issue:`400`)
-
-- The default preprocessing method has changed to increase accuracy. In general, particle
-  mass values will be different. The new minmass_v04_change function helps
-  update minmass values in existing code (:issue:`465`).
 
 - The "filter_before" option is no longer supported (:issue:`400`)
 
