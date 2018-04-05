@@ -2,14 +2,31 @@
 v0.4.0
 ------
 
+This is a major release that includes new choices for linking and feature-finding algorithms, as well as many
+performance increases and clean-ups. It is recommended for all trackpy users, but may require
+minor changes to existing code, as detailed below.
+
 API Changes
 ~~~~~~~~~~~
 
-- Refactor of locate to make it more modular. Some API breakages. (:issue:`400`, :issue:`406`)
+- locate has a more modular structure that makes it easier to customize feature-finding (:issue:`400`, :issue:`406`)
 
-- Refactor of the linking code giving linking a better API (:issue:`416`)
+- The default value of smoothing_size is smaller, and more consistent with
+  other implementations of this algorithm (:issue:`401`)
 
-- Adjust default value of smoothing_size (:issue:`465`)
+- The "minmass" parameter now has a default value of 0 (:issue:`400`)
+
+- The default preprocessing method has changed to increase accuracy. In general, particle
+  mass values will be different. The new minmass_v04_change function helps
+  update minmass values in existing code (:issue:`465`).
+
+- The "filter_before" option is no longer supported (:issue:`400`)
+
+- Major refactor of the linking code giving linking a better API (:issue:`416`, :issue:`414`)
+
+- Linking diagnostics are no longer supported (:issue:`414`)
+
+- link_df always creates a copy of the data; it can no longer work in-place (:issue:`414`)
 
 
 Enhancements
@@ -21,7 +38,7 @@ Enhancements
 
 - New refinement method using least squares optimization (:issue:`407`)
 
-- New linker that combines gray dilation with linking (FindLinker) (:issue:`407`, :issue:`410`, :issue:`411`, :issue:`416`, :issue:`428`)
+- New linker that combines feature-finding with linking (FindLinker) (:issue:`407`, :issue:`410`, :issue:`411`, :issue:`416`, :issue:`428`)
 
 - Linking in non-Euclidean coordinate systems and curved metrics (:issue:`448`)
 
@@ -29,7 +46,7 @@ Enhancements
 Bug fixes
 ~~~~~~~~~
 
-- Fix compute drift if dataframes are not sorted (:issue:`409`)
+- Fix compute_drift if dataframes are not sorted (:issue:`409`)
 
 - Fix double counting of non-linking penalty in non-numba linkers (:issue:`430`)
 
