@@ -77,17 +77,18 @@ citations in various formats. If your citation style allows for a URL,
 please include a link to the github repository:
 `github.com/soft-matter/trackpy`.
 
-================= ================================================= ====================
-Release (version) Zenodo Record Pages with info and citations       DOI
-================= ================================================= ====================
-v0.3.2            `Record Page <https://zenodo.org/record/60550>`__ 10.5281/zenodo.60550
-v0.3.1            `Record Page <https://zenodo.org/record/55143>`__ 10.5281/zenodo.55143
-v0.3.0            `Record Page <https://zenodo.org/record/34028>`__ 10.5281/zenodo.34028
-v0.2.4            `Record Page <https://zenodo.org/record/12255>`__ 10.5281/zenodo.12255
-v0.2.3            `Record Page <https://zenodo.org/record/11956>`__ 10.5281/zenodo.11956
-v0.2.2            `Record Page <https://zenodo.org/record/11132>`__ 10.5281/zenodo.11132
-v0.2              `Record Page <https://zenodo.org/record/9971>`__  10.5281/zenodo.9971
-================= ================================================= ====================
+================= =================================================== ======================
+Release (version) Zenodo Record Pages with info and citations         DOI
+================= =================================================== ======================
+v0.4              `Record Page <https://zenodo.org/record/1213241>`__ 10.5281/zenodo.1213241
+v0.3.2            `Record Page <https://zenodo.org/record/60550>`__   10.5281/zenodo.60550
+v0.3.1            `Record Page <https://zenodo.org/record/55143>`__   10.5281/zenodo.55143
+v0.3.0            `Record Page <https://zenodo.org/record/34028>`__   10.5281/zenodo.34028
+v0.2.4            `Record Page <https://zenodo.org/record/12255>`__   10.5281/zenodo.12255
+v0.2.3            `Record Page <https://zenodo.org/record/11956>`__   10.5281/zenodo.11956
+v0.2.2            `Record Page <https://zenodo.org/record/11132>`__   10.5281/zenodo.11132
+v0.2              `Record Page <https://zenodo.org/record/9971>`__    10.5281/zenodo.9971
+================= =================================================== ======================
 
 Related Projects
 ^^^^^^^^^^^^^^^^
