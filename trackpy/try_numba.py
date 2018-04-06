@@ -62,9 +62,15 @@ class RegisteredFunction(object):
             self.func_name = func.__name__
         except AttributeError:
             self.func_name = func.func_name
-        module_name = inspect.getmodulename(
-            six.get_function_globals(func)['__file__'])
-        module_name = '.'.join(['trackpy', module_name])
+        module_name = inspect.getmoduleinfo(
+            six.get_function_globals(func)['__file__']).name
+        if module_name == 'subnetlinker':
+            module_parent = 'trackpy.linking'
+        elif module_name == 'center_of_mass':
+            module_parent = 'trackpy.refine'
+        else:
+            module_parent = 'trackpy'
+        module_name = '.'.join([module_parent, module_name])
         self.module_name = module_name
         self.autojit_kw = autojit_kw
         if fallback is not None:
