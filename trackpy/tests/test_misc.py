@@ -60,3 +60,9 @@ class LoggerTests(StrictTestCase):
         self.assertEqual(len(trackpy.logger.handlers), 1)
         self.assertEqual(trackpy.logger.level, logging.INFO)
         self.assertEqual(trackpy.logger.propagate, 1)
+
+
+class NumbaTests(StrictTestCase):
+    def test_enable(self):
+        trackpy.enable_numba()
+        trackpy.disable_numba()
