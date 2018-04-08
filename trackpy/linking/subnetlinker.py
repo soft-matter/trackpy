@@ -439,7 +439,10 @@ def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # sort candidates and add in penalty for not linking
+    # Sort candidates and add in penalty for not linking.
+    # During adaptive search, sorting only needs to happen on the first
+    # iteration. There's an opportunity for a ~1% speedup by moving
+    # sorting to Linker.assign_links()
     for _s in source_set:
         _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
