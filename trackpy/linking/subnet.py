@@ -274,9 +274,10 @@ def split_subnet(source, dest, new_range):
         sp.subnet = None
         new_fcs = []
         for dp, dist in sp.forward_cands:
-            if dist <= new_range or dp is None:
+            if dist <= new_range:
                 new_fcs.append((dp, dist))
-            sp.forward_cands = new_fcs
+        new_fcs.append((None, new_range))
+        sp.forward_cands = new_fcs
     # Each destination particle gets its own fresh subnet.
     # These are numbered differently from the "global" dictionary
     # of subnets maintained by the instance of the Subnet class.
