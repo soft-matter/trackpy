@@ -427,19 +427,19 @@ def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
 
     return sn_spl, sn_dpl
 
-
-def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
+def subnet_linker_numba(source_set, dest_set, search_range,
+                        hybrid=True, **kwargs):
     """Link a subnet using a numba-accelerated algorithm.
 
     Since this is meant to be the highest-performance option, it
     has some special behaviors:
 
     - Each source particle's forward_cands must be sorted by distance.
-    - Subnets with only 1 source or destination particle, or with at
-      most 4 source particles and 4 destination particles, are
-      solved using the recursive pure-Python algorithm, which has
-      much less overhead since it does not convert to a numpy
-      representation.
+    - If the 'hybrid' option is true, subnets with only 1 source or
+      destination particle, or with at most 4 source particles and
+      4 destination particles, are solved using the recursive
+      pure-Python algorithm, which has much less overhead since
+      it does not convert to a numpy representation.
     """
     lss = len(source_set)
     lds = len(dest_set)
@@ -458,7 +458,7 @@ def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
         _s.forward_cands.append((None, search_range))
 
     # Shortcut for small subnets, because the numba linker has significant overhead
-    if lds == 1 or lss == 1 or (lds <= 4 and lss <= 4):
+    if (lds == 1 or lss == 1 or (lds <= 4 and lss <= 4)) and hybrid:
         sn_spl, sn_dpl = recursive_linker_obj(source_set, lds, search_range, **kwargs)
     else:
         sn_spl, sn_dpl = numba_link(source_set, lds, search_range, **kwargs)

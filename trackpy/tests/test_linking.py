@@ -701,6 +701,12 @@ class TestNumbaLink(SubnetNeededTests):
         self.linker_opts = dict(link_strategy='numba')
 
 
+class TestHybridLink(SubnetNeededTests):
+    def setUp(self):
+        _skip_if_no_numba()
+        self.linker_opts = dict(link_strategy='hybrid')
+
+
 class TestNonrecursiveLink(SubnetNeededTests):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive')

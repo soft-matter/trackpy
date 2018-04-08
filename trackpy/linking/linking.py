@@ -53,9 +53,9 @@ def link_iter(coords_iter, search_range, **kwargs):
         Reduce search_range by multiplying it by this factor.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Default 'KDTree'.
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
+    link_strategy : {'recursive', 'nonrecursive', 'hybrid', 'numba', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
-        'auto' uses numba if available
+        'auto' uses hybrid (numba+recursive) if available
         'drop' causes particles in subnetworks to go unlinked
     dist_func : function, optional
         a custom distance function that takes two 1D arrays of coordinates and
@@ -135,9 +135,9 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
         Reduce search_range by multiplying it by this factor.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Default 'KDTree'.
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
-        'auto' uses numba if available
+        'auto' uses hybrid (numba+recursive) if available
         'drop' causes particles in subnetworks to go unlinked
     dist_func : function, optional
         a custom distance function that takes two 1D arrays of coordinates and
@@ -221,9 +221,9 @@ def link_df_iter(f_iter, search_range, pos_columns=None,
         Reduce search_range by multiplying it by this factor.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Default 'KDTree'.
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
-        'auto' uses numba if available
+        'auto' uses hybrid (numba+recursive) if available
         'drop' causes particles in subnetworks to go unlinked
     dist_func : function, optional
         a custom distance function that takes two 1D arrays of coordinates and
@@ -374,14 +374,17 @@ class Linker(object):
 
         if link_strategy is None or link_strategy == 'auto':
             if NUMBA_AVAILABLE:
-                link_strategy = 'numba'
+                link_strategy = 'hybrid'
             else:
                 link_strategy = 'recursive'
 
         if link_strategy == 'recursive':
             subnet_linker = subnet_linker_recursive
-        elif link_strategy == 'numba':
+        elif link_strategy == 'hybrid':
             subnet_linker = subnet_linker_numba
+        elif link_strategy == 'numba':
+            subnet_linker = functools.partial(subnet_linker_numba,
+                                              hybrid=False)
         elif link_strategy == 'nonrecursive':
             subnet_linker = subnet_linker_nonrecursive
         elif link_strategy == 'drop':
@@ -433,12 +436,6 @@ class Linker(object):
         for m in self.mem_set:
             # add points to the hash
             prev_hash.add_point(m)
-            # Record how many times this particle got "held back".
-            # Since this particle has already been yielded in a previous
-            # level, we can't store it there. We'll have to put it in the
-            # track object, then copy this info to the point in cur_hash
-            # if/when we make a link.
-            m.track.incr_memory()
             # re-create the forward_cands list
             m.forward_cands = []
 
