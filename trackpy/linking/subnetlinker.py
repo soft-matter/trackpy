@@ -429,13 +429,15 @@ def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
 
 
 def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
-    if len(source_set) == 0 and len(dest_set) == 1:
+    lss = len(source_set)
+    lds = len(dest_set)
+    if lss == 0 and lds == 1:
         # no backwards candidates: particle will get a new track
         return [None], [dest_set.pop()]
-    elif len(source_set) == 1 and len(dest_set) == 1:
+    elif lss == 1 and lds == 1:
         # one backwards candidate and one forward candidate
         return [source_set.pop()], [dest_set.pop()]
-    elif len(source_set) == 1 and len(dest_set) == 0:
+    elif lss == 1 and lds == 0:
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
@@ -447,7 +449,11 @@ def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
         _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
 
-    sn_spl, sn_dpl = numba_link(source_set, len(dest_set), search_range, **kwargs)
+    # Further shortcuts to avoid running the numba linker, which has significant overhead
+    if lds == 1 or lss == 1 or (lds <= 3 and lss <= 3):
+        sn_spl, sn_dpl = nonrecursive_link(source_set, lds, search_range, **kwargs)
+    else:
+        sn_spl, sn_dpl = numba_link(source_set, lds, search_range, **kwargs)
 
     for dp in dest_set - set(sn_dpl):
         # Unclaimed destination particle in subnet
