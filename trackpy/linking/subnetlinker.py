@@ -441,17 +441,13 @@ def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # Sort candidates and add in penalty for not linking.
-    # During adaptive search, sorting only needs to happen on the first
-    # iteration. There's an opportunity for a ~1% speedup by moving
-    # sorting to Linker.assign_links()
+    # Forward candidates were already sorted by Linker.assign_links()
     for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
 
-    # Further shortcuts to avoid running the numba linker, which has significant overhead
-    if lds == 1 or lss == 1 or (lds <= 3 and lss <= 3):
-        sn_spl, sn_dpl = nonrecursive_link(source_set, lds, search_range, **kwargs)
+    # Shortcut for small subnets, because the numba linker has significant overhead
+    if lds == 1 or lss == 1 or (lds <= 4 and lss <= 4):
+        sn_spl, sn_dpl = recursive_linker_obj(source_set, lds, search_range, **kwargs)
     else:
         sn_spl, sn_dpl = numba_link(source_set, lds, search_range, **kwargs)
 
