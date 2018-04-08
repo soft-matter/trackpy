@@ -1148,11 +1148,12 @@ class Linker(object):
                         dest_set.discard(c_dp[0])
                 done_flg = (len(d_sn) == d_sn_sz) and (len(s_sn) == s_sn_sz)
 
-            # add in penalty for not linking
+            # sort and add in penalty for not linking
             for _s in s_sn:
                 # If we end up having to recurse for adaptive search, this final
                 # element will be dropped and re-added, because search_range is
                 # decreasing.
+                _s.forward_cands.sort(key=lambda x: x[1])
                 _s.forward_cands.append((None, search_range))
 
             try:

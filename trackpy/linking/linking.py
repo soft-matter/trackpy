@@ -503,6 +503,9 @@ class Linker(object):
     def assign_links(self):
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
+            for sp in source_set:
+                sp.forward_cands.sort(key=lambda x: x[1])
+
             sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set,
                                                 self.search_range)
             spl.extend(sn_spl)
