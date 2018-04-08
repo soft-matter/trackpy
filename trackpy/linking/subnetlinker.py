@@ -429,6 +429,18 @@ def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
 
 
 def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
+    """Link a subnet using a numba-accelerated algorithm.
+
+    Since this is meant to be the highest-performance option, it
+    has some special behaviors:
+
+    - Each source particle's forward_cands must be sorted by distance.
+    - Subnets with only 1 source or destination particle, or with at
+      most 4 source particles and 4 destination particles, are
+      solved using the recursive pure-Python algorithm, which has
+      much less overhead since it does not convert to a numpy
+      representation.
+    """
     lss = len(source_set)
     lds = len(dest_set)
     if lss == 0 and lds == 1:
