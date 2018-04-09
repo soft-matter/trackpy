@@ -458,7 +458,7 @@ def subnet_linker_numba(source_set, dest_set, search_range,
         _s.forward_cands.append((None, search_range))
 
     # Shortcut for small subnets, because the numba linker has significant overhead
-    if (lds == 1 or lss == 1 or (lds <= 4 and lss <= 4)) and hybrid:
+    if (lds == 1 or lss == 1 or (lds <= 3 and lss <= 3)) and hybrid:
         sn_spl, sn_dpl = recursive_linker_obj(source_set, lds, search_range, **kwargs)
     else:
         sn_spl, sn_dpl = numba_link(source_set, lds, search_range, **kwargs)
