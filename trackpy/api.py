@@ -26,7 +26,7 @@ from . import predict
 from . import utils
 from . import artificial
 from .utils import handle_logging, ignore_logging, quiet
-from .try_numba import try_numba_autojit, enable_numba, disable_numba
+from .try_numba import try_numba_jit, enable_numba, disable_numba
 
 
 # pims import is deprecated. We include it here for backwards

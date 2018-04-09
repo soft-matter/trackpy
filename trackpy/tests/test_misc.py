@@ -9,6 +9,9 @@ import pims
 import trackpy
 import trackpy.diag
 from trackpy.tests.common import StrictTestCase
+from trackpy.try_numba import NUMBA_AVAILABLE
+
+import nose
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
@@ -60,3 +63,27 @@ class LoggerTests(StrictTestCase):
         self.assertEqual(len(trackpy.logger.handlers), 1)
         self.assertEqual(trackpy.logger.level, logging.INFO)
         self.assertEqual(trackpy.logger.propagate, 1)
+
+
+class NumbaTests(StrictTestCase):
+    def setUp(self):
+        if not NUMBA_AVAILABLE:
+            raise nose.SkipTest("Numba not installed. Skipping.")
+        self.funcs = trackpy.try_numba._registered_functions
+
+    def test_registered_numba_functions(self):
+        self.assertGreater(len(self.funcs), 0)
+
+    def test_enabled(self):
+        trackpy.enable_numba()
+        for registered_func in self.funcs:
+            module = __import__(registered_func.module_name, fromlist='.')
+            func = getattr(module, registered_func.func_name)
+            self.assertIs(func, registered_func.compiled)
+
+    def test_disabled(self):
+        trackpy.disable_numba()
+        for registered_func in self.funcs:
+            module = __import__(registered_func.module_name, fromlist='.')
+            func = getattr(module, registered_func.func_name)
+            self.assertIs(func, registered_func.ordinary)
