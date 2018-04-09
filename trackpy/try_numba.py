@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import sys
-import inspect
 from warnings import warn
 import logging
 from distutils.version import LooseVersion
@@ -62,16 +61,7 @@ class RegisteredFunction(object):
             self.func_name = func.__name__
         except AttributeError:
             self.func_name = func.func_name
-        module_name = inspect.getmoduleinfo(
-            six.get_function_globals(func)['__file__']).name
-        if module_name == 'subnetlinker':
-            module_parent = 'trackpy.linking'
-        elif module_name == 'center_of_mass':
-            module_parent = 'trackpy.refine'
-        else:
-            module_parent = 'trackpy'
-        module_name = '.'.join([module_parent, module_name])
-        self.module_name = module_name
+        self.module_name = func.__module__
         self.autojit_kw = autojit_kw
         if fallback is not None:
             self.ordinary = fallback
