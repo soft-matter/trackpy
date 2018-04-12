@@ -475,8 +475,10 @@ class FindLinker(Linker):
             else:
                 new_cands = set()
 
-            for sp in source_set:
-                sp.forward_cands.sort(key=lambda x: x[1])
+            # sort candidates and add in penalty for not linking
+            for _s in source_set:
+                _s.forward_cands.sort(key=lambda x: x[1])
+                _s.forward_cands.append((None, self.search_range))
 
             # link
             sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set,

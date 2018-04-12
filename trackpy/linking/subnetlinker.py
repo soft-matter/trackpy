@@ -386,11 +386,6 @@ def subnet_linker_recursive(source_set, dest_set, search_range, **kwargs):
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # sort candidates and add in penalty for not linking
-    for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
-        _s.forward_cands.append((None, search_range))
-
     snl = SubnetLinker(source_set, len(dest_set), search_range, **kwargs)
     sn_spl, sn_dpl = [list(particles) for particles in zip(*snl.best_pairs)]
 
@@ -412,11 +407,6 @@ def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
     elif len(source_set) == 1 and len(dest_set) == 0:
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
-
-    # sort candidates and add in penalty for not linking
-    for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
-        _s.forward_cands.append((None, search_range))
 
     sn_spl, sn_dpl = nonrecursive_link(source_set, len(dest_set), search_range, **kwargs)
 
@@ -452,10 +442,6 @@ def subnet_linker_numba(source_set, dest_set, search_range,
     elif lss == 1 and lds == 0:
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
-
-    # Forward candidates were already sorted by Linker.assign_links()
-    for _s in source_set:
-        _s.forward_cands.append((None, search_range))
 
     # Shortcut for small subnets, because the numba linker has significant overhead
     if (lds == 1 or lss == 1 or (lds <= 3 and lss <= 3)) and hybrid:
