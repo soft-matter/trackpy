@@ -280,6 +280,8 @@ def split_subnet(source, dest, new_range):
         sp.subnet = None
         new_fcs = []
         for dp, dist in sp.forward_cands:
+            # Remove particles that are outside new_range
+            # (including, presumably, the null candidate)
             if dist <= new_range:
                 new_fcs.append((dp, dist))
             else:

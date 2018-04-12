@@ -800,12 +800,20 @@ class TestMockSubnetlinker(StrictTestCase):
 
         fwd_cds = source[0]['forward_cands']
 
+        # there are no forward candidates inside search_range
+        for p, dist in fwd_cds:
+            self.assertLessEqual(dist, search_range)
+
         # the forward candidate distances are sorted in ascending order
         for i in range(len(fwd_cds) - 1):
             self.assertLess(fwd_cds[i][1], fwd_cds[i + 1][1])
 
-        # the last one is None and its dist equals the search_range
+        # there's exactly one null candidate, at the end
+        for i in range(len(fwd_cds) - 1):
+            self.assertIsNot(fwd_cds[i][0], None)
         self.assertIs(fwd_cds[-1][0], None)
+
+        # the null candidate's dist equals the search_range
         self.assertEquals(fwd_cds[-1][1], search_range)
 
     def test_adaptive_subnet(self):
