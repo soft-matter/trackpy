@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_allclose
+from numpy.testing.decorators import slow
 from trackpy.utils import validate_tuple
 from trackpy.refine import refine_com, refine_leastsq
 from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
@@ -651,6 +652,7 @@ class RefineTsts(object):
         self.assertLess(devs['parr_mean'], self.accuracy_constrained * max(self.size))
         self.assertLess(devs['perp_rms'], self.precision_perfect)
 
+    @slow
     def test_trimer_constrained(self):
         hard_radius = 1.
         constraints = trimer(2*np.array(self.size)*hard_radius, self.ndim)
@@ -663,6 +665,7 @@ class RefineTsts(object):
 
         self.assertLess(devs['pos'], self.precision_perfect)
 
+    @slow
     def test_tetramer_constrained(self):
         if self.ndim != 3:
             raise SkipTest('Tetramers are only tested in 3D')
@@ -692,6 +695,7 @@ class TestFit_gauss2D(RefineTsts, StrictTestCase):
 #      fit_func = 'gauss'
 
 
+@slow
 class TestFit_gauss3D(RefineTsts, StrictTestCase):
      size = SIZE_3D
      ndim = 3
@@ -699,6 +703,7 @@ class TestFit_gauss3D(RefineTsts, StrictTestCase):
      fit_func = 'gauss'
 
 
+@slow
 class TestFit_gauss3D_a(RefineTsts, StrictTestCase):
      size = SIZE_3D_ANISOTROPIC
      ndim = 3
@@ -834,6 +839,7 @@ class TestMultiple(StrictTestCase):
         assert_coordinates_close(result[self.im.pos_columns].values,
                                  self.im.coords, 0.1)
 
+    @slow
     def test_var_global(self):
         self.im.clear()
         self.im.draw_features(100, 15, self.diameter)

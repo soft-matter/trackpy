@@ -6,6 +6,7 @@ from trackpy.static import *
 import pandas
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_array_less
+from numpy.testing.decorators import slow
 from trackpy.static import cluster
 from trackpy.tests.common import StrictTestCase
 
@@ -99,6 +100,7 @@ class TestPairCorrelation(StrictTestCase):
         self.assertTrue( np.allclose(peaks, r, atol=.02) )
 
 
+    @slow
     def test_correlation_3d_lattice(self):
         ### Lattice Test 
         # With proper edge handling, g(r) of the particle at the center should 
