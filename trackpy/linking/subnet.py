@@ -296,9 +296,6 @@ def split_subnet(source, dest, new_range):
             # if dp is None:
             #     continue
             assign_subnet(sp, dp, subnets=subnets)
-
-        # the null particle was removed: re-add it here
-        sp.forward_cands.append((None, new_range))
     return (subnets[key] for key in subnets)
 
 
