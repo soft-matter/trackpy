@@ -18,7 +18,6 @@ requirements:
     - numpy
     - pandas
     - scipy
-    - pims
     - matplotlib
     - mock  # patching https://github.com/matplotlib/matplotlib/pull/4188
     - nose # patching https://github.com/matplotlib/matplotlib/pull/4188
@@ -32,7 +31,6 @@ requirements:
     - numexpr  # required for pandas DataFrame.query, used in examples
     - scipy >=0.12.0
     - matplotlib
-    - pims >=0.2.2
     - numba >=0.13.4
     - pytables
 

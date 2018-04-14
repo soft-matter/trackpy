@@ -33,7 +33,7 @@ setup_parameters = dict(
     author_email = "daniel.b.allan@gmail.com",
     url = "https://github.com/soft-matter/trackpy",
     install_requires = ['numpy>=1.8', 'scipy>=0.12', 'six>=1.8',
-	                    'pandas>=0.13', 'pims>=0.4.1',
+	                    'pandas>=0.13',
                         'pyyaml', 'matplotlib'],
     packages = ['trackpy', 'trackpy.refine', 'trackpy.linking'],
     long_description = descr,
