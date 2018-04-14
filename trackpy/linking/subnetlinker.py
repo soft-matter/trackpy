@@ -386,9 +386,9 @@ def subnet_linker_recursive(source_set, dest_set, search_range, **kwargs):
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # sort candidates and add in penalty for not linking
+    # Add the null candidate that is required by the subnet linker.
+    # Forward candidates were already sorted by Linker.assign_links()
     for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
 
     snl = SubnetLinker(source_set, len(dest_set), search_range, **kwargs)
@@ -413,9 +413,9 @@ def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # sort candidates and add in penalty for not linking
+    # Add the null candidate that is required by the subnet linker.
+    # Forward candidates were already sorted by Linker.assign_links()
     for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
 
     sn_spl, sn_dpl = nonrecursive_link(source_set, len(dest_set), search_range, **kwargs)
@@ -453,6 +453,7 @@ def subnet_linker_numba(source_set, dest_set, search_range,
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
+    # Add the null candidate that is required by the subnet linker.
     # Forward candidates were already sorted by Linker.assign_links()
     for _s in source_set:
         _s.forward_cands.append((None, search_range))
