@@ -44,17 +44,15 @@ install:
   - conda config --append channels conda-forge
   - conda create -n testenv --yes %DEPS% pip nose setuptools python=%PYTHON_VERSION%
   - activate testenv
+  - python setup.py install
 
   # for debugging...
   - "ECHO %PATH%"
-  - "python --version"
+  - python --version
   - conda info
   - conda list
 
 build: false
 
-before_test:
-  - "%CMD_IN_ENV% python setup.py install"
-
 test_script:
-  - "%CMD_IN_ENV% nosetests --nologcapture -a '!slow'"
+  - nosetests -vv
