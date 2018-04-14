@@ -4,9 +4,9 @@ environment:
 
     # "Legacy" environments: oldest supported versions, without and with numba
 
-    - PYTHON: "C:\\Miniconda"
-      PYTHON_VERSION: "2.7"
-      DEPS: "numpy=1.8.2 scipy=0.14.0 matplotlib=1.3 pillow=2.1 pandas=0.13.0 scikit-image=0.9 pytables scikit-learn=0.14.1 pyyaml pims=0.4.1"
+#    - PYTHON: "C:\\Miniconda"
+#      PYTHON_VERSION: "2.7"
+#      DEPS: "numpy=1.8.2 scipy=0.14.0 matplotlib=1.3 pillow=2.1 pandas=0.13.0 scikit-image=0.9 pytables scikit-learn=0.14.1 pyyaml pims=0.4.1"
 
     - PYTHON: "C:\\Miniconda"
       PYTHON_VERSION: "2.7"
@@ -14,19 +14,19 @@ environment:
 
     # "Typical" environments: package versions from 2016
 
-    - PYTHON: "C:\\Miniconda-x64"
-      PYTHON_VERSION: "2.7"
-      DEPS: "numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables numba=0.23.1 scikit-learn=0.17.1 pyyaml pims=0.4.1"
+#    - PYTHON: "C:\\Miniconda-x64"
+#      PYTHON_VERSION: "2.7"
+#      DEPS: "numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables numba=0.23.1 scikit-learn=0.17.1 pyyaml pims=0.4.1"
 
-    - PYTHON: "C:\\Miniconda35-x64"
-      PYTHON_VERSION: "3.5"
-      DEPS: "numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables numba=0.23.1 scikit-learn=0.17.1 pyyaml pims=0.4.1"
+#    - PYTHON: "C:\\Miniconda35-x64"
+#      PYTHON_VERSION: "3.5"
+#      DEPS: "numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables numba=0.23.1 scikit-learn=0.17.1 pyyaml pims=0.4.1"
 
     # Environments with most recent versions, on python 2.7 and python 3.6
 
-    - PYTHON: "C:\\Miniconda-x64"
-      PYTHON_VERSION: "2.7"
-      DEPS: "numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims"
+#    - PYTHON: "C:\\Miniconda-x64"
+#      PYTHON_VERSION: "2.7"
+#      DEPS: "numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims"
 
     - PYTHON: "C:\\Miniconda36-x64"
       PYTHON_VERSION: "3.6"
