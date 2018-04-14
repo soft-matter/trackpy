@@ -2,6 +2,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import os
+from copy import copy
+import functools
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
@@ -11,7 +13,8 @@ from numpy.testing import assert_equal
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.utils import pandas_sort
 from trackpy.linking import (link, link_iter, link_df_iter, verify_integrity,
-                             SubnetOversizeException)
+                             SubnetOversizeException, Linker)
+from trackpy.linking.subnetlinker import subnet_linker_recursive
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -701,6 +704,12 @@ class TestNumbaLink(SubnetNeededTests):
         self.linker_opts = dict(link_strategy='numba')
 
 
+class TestHybridLink(SubnetNeededTests):
+    def setUp(self):
+        _skip_if_no_numba()
+        self.linker_opts = dict(link_strategy='hybrid')
+
+
 class TestNonrecursiveLink(SubnetNeededTests):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive')
@@ -744,3 +753,94 @@ class TestBTreeLink(SubnetNeededTests):
         actual = self.link(f_radial, search_range, pos_columns=['r', 'angle'],
                            dist_func=dist_func)
         assert_traj_equal(actual, expected)
+
+
+class TestMockSubnetlinker(StrictTestCase):
+    def setUp(self):
+        self.dest = []
+        self.source = []
+        self.sr = []
+
+        def copy_point(point):
+            return dict(id=point.id, pos=point.pos, t=point.t,
+                        forward_cands=copy(point.forward_cands))
+
+        def mock_subnetlinker(source_set, dest_set, search_range, **kwargs):
+            self.source.append([copy_point(p) for p in source_set])
+            self.dest.append([copy_point(p) for p in dest_set])
+            self.sr.append(search_range)
+
+            return subnet_linker_recursive(source_set, dest_set, search_range,
+                                           **kwargs)
+
+        self.linker_opts = dict(link_strategy=mock_subnetlinker)
+        self.default_max_size = Linker.MAX_SUB_NET_SIZE_ADAPTIVE
+
+    def tearDown(self):
+        Linker.MAX_SUB_NET_SIZE_ADAPTIVE = self.default_max_size
+
+    def link(self, *args, **kwargs):
+        kwargs.update(self.linker_opts)
+        return link(*args, **kwargs)
+
+    def test_single_subnet(self):
+        f = DataFrame({'x': [0, 1, 2, 3, 4],
+                       'frame': [0, 1, 1, 1, 1]})
+        search_range = 10.
+
+        self.link(f, search_range=search_range, pos_columns=['x'])
+
+        source = self.source[0]
+        dest = self.dest[0]
+        sr = self.sr[0]
+
+        self.assertEquals(sr, search_range)
+        self.assertEquals(len(source), 1)
+        self.assertEquals(len(dest), 4)
+
+        fwd_cds = source[0]['forward_cands']
+
+        # there are no forward candidates inside search_range
+        for p, dist in fwd_cds:
+            self.assertLessEqual(dist, search_range)
+
+        # the forward candidate distances are sorted in ascending order
+        for i in range(len(fwd_cds) - 1):
+            self.assertLess(fwd_cds[i][1], fwd_cds[i + 1][1])
+
+    def test_adaptive_subnet(self):
+        Linker.MAX_SUB_NET_SIZE_ADAPTIVE = 1
+
+        f = DataFrame({'x': [0.0, 1.0, 0.1, 1.1],
+                       'frame': [0, 0, 1, 1]})
+        search_range = 8
+        self.link(f, search_range=search_range, pos_columns=['x'],
+                  adaptive_step=0.25, adaptive_stop=0.25)
+
+        # round 0: search range 8, one call to subnetlinker
+        self.assertEquals(self.sr[0], 8.)
+        self.assertEquals(len(self.source[0]), 2)
+        self.assertEquals(len(self.dest[0]), 2)
+        for p in self.source[0]:
+            self.assertEquals(len(p['forward_cands']), 2)
+            for cand, dist in p['forward_cands']:
+                self.assertIsNot(cand, None)
+                self.assertLess(dist, self.sr[0])
+
+        # round 1: search range 2; same
+        self.assertEquals(self.sr[1], 2.)
+        self.assertEquals(len(self.source[1]), 2)
+        self.assertEquals(len(self.dest[1]), 2)
+        for p in self.source[1]:
+            for cand, dist in p['forward_cands']:
+                self.assertIsNot(cand, None)
+                self.assertLess(dist, self.sr[1])
+
+        # round 2, both calls: search range 0.5, subnets separate
+        for i in (2, 3):
+            self.assertEquals(self.sr[i], 0.5)
+            self.assertEquals(len(self.source[i]), 1)
+            self.assertEquals(len(self.dest[i]), 1)
+            for p in self.source[i]:
+                self.assertEquals(len(p['forward_cands']), 1)
+                self.assertAlmostEqual(p['forward_cands'][0][1], 0.1)

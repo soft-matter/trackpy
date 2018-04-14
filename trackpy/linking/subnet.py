@@ -265,6 +265,12 @@ def assign_subnet(source, dest, subnets):
 def split_subnet(source, dest, new_range):
     """Break apart a subnet by using a reduced search_range."""
     subnets = dict()
+    # Each destination particle gets its own fresh subnet.
+    # These are numbered differently from the "global" dictionary
+    # of subnets maintained by the instance of the Subnet class.
+    for i, dp in enumerate(dest):
+        dp.subnet = i
+        subnets[i] = set(), {dp}
     # Clear source particles' subnets, and prune their forward candidates
     # according to new_range.
     # The pruning step is crucial because some subnet linkers ignore
@@ -274,20 +280,21 @@ def split_subnet(source, dest, new_range):
         sp.subnet = None
         new_fcs = []
         for dp, dist in sp.forward_cands:
-            if dist <= new_range or dp is None:
+            # Remove particles that are outside new_range
+            # (including, presumably, the null candidate)
+            if dist <= new_range:
                 new_fcs.append((dp, dist))
-            sp.forward_cands = new_fcs
-    # Each destination particle gets its own fresh subnet.
-    # These are numbered differently from the "global" dictionary
-    # of subnets maintained by the instance of the Subnet class.
-    for i, dp in enumerate(dest):
-        dp.subnet = i
-        subnets[i] = set(), {dp}
+            else:
+                break  # List was sorted by distance
+        # There's no need to re-add the null candidate here; that will be done by the
+        # subnet linker if needed
+        # new_fcs.append((None, new_range))
+        sp.forward_cands = new_fcs
 
-    for sp in source:
-        for dp, dist in sp.forward_cands:
-            if dp is None:
-                continue
+        for dp, dist in new_fcs:
+            # Null candidates were removed
+            # if dp is None:
+            #     continue
             assign_subnet(sp, dp, subnets=subnets)
     return (subnets[key] for key in subnets)
 
