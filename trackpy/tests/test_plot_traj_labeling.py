@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 
-from numpy.testing.decorators import slow
+from nose.plugins.attrib import attr
 import pandas as pd
 
 from trackpy import ptraj
@@ -18,7 +18,7 @@ class TestLabeling(StrictTestCase):
         self.sparse = pd.read_pickle(os.path.join(path, 'data', 
                                            'sparse_trajectories.df'))
 
-    @slow
+    @attr('slow')
     def test_labeling_sparse_trajectories(self):
         suppress_plotting()
         ptraj(self.sparse, label=True) # No errors?

@@ -1,5 +1,5 @@
 
-from numpy.testing.decorators import slow
+from nose.plugins.attrib import attr
 import os
 
 import numpy as np
@@ -38,7 +38,7 @@ class TestPlots(StrictTestCase):
         self.sparse = pd.read_pickle(os.path.join(path, 'data', 
                                            'sparse_trajectories.df'))
 
-    @slow
+    @attr('slow')
     def test_labeling_sparse_trajectories(self):
         suppress_plotting()
         plots.plot_traj(self.sparse, label=True)
