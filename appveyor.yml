@@ -55,4 +55,4 @@ install:
 build: false
 
 test_script:
-  - nosetests --nologcapture -a'!slow'
+  - nosetests --nologcapture -A "slow!=true"
