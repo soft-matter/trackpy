@@ -44,7 +44,7 @@ install:
   - conda config --append channels conda-forge
   - conda create -n testenv --yes %DEPS% pip nose setuptools python=%PYTHON_VERSION%
   - activate testenv
-  - python setup.py install
+  - python setup.py install --no-deps
 
   # for debugging...
   - "ECHO %PATH%"
