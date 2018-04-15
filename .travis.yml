@@ -32,7 +32,7 @@ install:
   - conda config --append channels conda-forge
   - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
-  - python setup.py install --no-deps
+  # - python setup.py install
   # for debugging...
   - echo $PATH
   - which python
