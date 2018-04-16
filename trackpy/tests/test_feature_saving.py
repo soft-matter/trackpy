@@ -14,7 +14,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
 import trackpy as tp
 from trackpy.tests.common import StrictTestCase
-from pims import ImageSequence
+from trackpy.tests.common import TrackpyImageSequence
 
 # Quiet warnings about get_store being deprecated.
 # These come from pandas.io and are caused by line 62:
@@ -49,7 +49,8 @@ def _skip_if_no_pytables():
 class FeatureSavingTester(object):
     def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
-        self.v = tp.invert_image(ImageSequence(os.path.join(directory, '*.png')))
+        v = TrackpyImageSequence(os.path.join(directory, '*.png'))
+        self.v = [tp.invert_image(im) for im in v]
         # mass depends on pixel dtype, which differs per reader
         minmass = self.v[0].max() * 2
         self.PARAMS = {'diameter': 11, 'minmass': minmass}
