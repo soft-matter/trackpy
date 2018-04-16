@@ -1,10 +1,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import six, os, glob
 import unittest
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal, assert_array_equal
 import trackpy as tp
 from trackpy.utils import cKDTree, pandas_sort, make_pandas_strict
+from matplotlib.pyplot import imread
 
 
 class StrictTestCase(unittest.TestCase):
@@ -59,3 +61,50 @@ def assert_traj_equal(actual, expected, pos_atol=1):
                            'differ for actual particle %i/expected particle %i'
                            '' % (p_actual, p_expected))
 
+
+class TrackpyImageSequence(object):
+    """Simplified version of pims.ImageSequence. Returns uint8 always.
+    """
+    def __init__(self, path_spec):
+        self._get_files(path_spec)
+
+        tmp = imread(self._filepaths[0])
+        self._first_frame_shape = tmp.shape
+
+    def _get_files(self, path_spec):
+        # deal with if input is _not_ a string
+        if not isinstance(path_spec, six.string_types):
+            # assume it is iterable and off we go!
+            self._filepaths = list(path_spec)
+            self._count = len(self._filepaths)
+            return
+
+        self.pathname = os.path.abspath(path_spec)  # used by __repr__
+        if os.path.isdir(path_spec):
+            directory = path_spec
+            filenames = os.listdir(directory)
+            make_full_path = lambda filename: (
+                os.path.abspath(os.path.join(directory, filename)))
+            filepaths = list(map(make_full_path, filenames))
+        else:
+            filepaths = glob.glob(path_spec)
+        self._filepaths = sorted(filepaths)
+        self._count = len(self._filepaths)
+
+        # If there were no matches, this was probably a user typo.
+        if self._count == 0:
+            raise IOError("No files were found matching that path.")
+
+    def __getitem__(self, j):
+        return (imread(self._filepaths[j]) * 255).astype(self.dtype)
+
+    def __len__(self):
+        return self._count
+
+    @property
+    def frame_shape(self):
+        return self._first_frame_shape
+
+    @property
+    def dtype(self):
+        return np.uint8
