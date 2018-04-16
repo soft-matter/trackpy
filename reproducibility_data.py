@@ -17,6 +17,8 @@ npzpath = os.path.join(testpath, 'data',
                        'reproducibility_v{}.npz'.format(version))
 
 v = pims.ImageSequence(impath)
+# take reader that provides uint8!
+assert np.issubdtype(v.dtype, np.uint8)
 v0 = tp.invert_image(v[0])
 v0_bp = tp.bandpass(v0, lshort=1, llong=9)
 expected_find = tp.grey_dilation(v0, separation=9)

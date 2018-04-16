@@ -9,8 +9,10 @@ from scipy.ndimage.fourier import fourier_gaussian
 
 from .utils import validate_tuple
 from .masks import gaussian_kernel
-from pims import pipeline
-
+try:
+    from pims import pipeline
+except ImportError:
+    pipeline = lambda x: x
 
 def lowpass(image, sigma=1, truncate=4):
     """Remove noise by convolving with a Gaussian.
