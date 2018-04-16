@@ -50,11 +50,11 @@ class FeatureSavingTester(object):
     def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
         v = TrackpyImageSequence(os.path.join(directory, '*.png'))
-        self.v = [tp.invert_image(im) for im in v]
+        self.v = [tp.invert_image(v[i]) for i in range(2)]
         # mass depends on pixel dtype, which differs per reader
         minmass = self.v[0].max() * 2
         self.PARAMS = {'diameter': 11, 'minmass': minmass}
-        self.expected = tp.batch(self.v[[0, 1]], engine='python', meta=False,
+        self.expected = tp.batch(self.v, engine='python', meta=False,
                                  **self.PARAMS)
 
     def test_storage(self):
@@ -66,7 +66,7 @@ class FeatureSavingTester(object):
         except IOError:
             nose.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
-            tp.batch(self.v[[0, 1]], output=s, engine='python', meta=False,
+            tp.batch(self.v, output=s, engine='python', meta=False,
                      **self.PARAMS)
             self.assertEqual(len(s), 2)
             self.assertEqual(s.max_frame, 1)

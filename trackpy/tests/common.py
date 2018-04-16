@@ -88,7 +88,7 @@ class TrackpyImageSequence(object):
             filepaths = list(map(make_full_path, filenames))
         else:
             filepaths = glob.glob(path_spec)
-        self._filepaths = sorted(filepaths)
+        self._filepaths = list(sorted(filepaths))
         self._count = len(self._filepaths)
 
         # If there were no matches, this was probably a user typo.
