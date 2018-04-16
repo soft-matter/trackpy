@@ -3,10 +3,16 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import numpy as np
 import pandas as pd
-from pims import Frame, FramesSequence
 from trackpy.find import drop_close
 from trackpy.utils import validate_tuple, cKDTree
 from trackpy.preprocessing import bandpass
+
+
+try:
+    from pims import Frame as _Frame, FramesSequence as _FramesSequence
+except ImportError:
+    _Frame = None
+    _FramesSequence = object
 
 
 def draw_point(image, pos, value):
@@ -295,7 +301,7 @@ class SimulatedImage(object):
         self.ndim = len(shape)
         self.shape = shape
         self.dtype = dtype
-        self.image = Frame(np.zeros(shape, dtype=dtype))
+        self.image = np.zeros(shape, dtype=dtype)
         self.size = validate_tuple(size, self.ndim)
         self.isotropic = np.all([self.size[1:] == self.size[:-1]])
         self.feat_func = feat_func
@@ -442,7 +448,7 @@ class SimulatedImage(object):
         else:
             noise = np.clip(np.random.normal(noise_level, noise_level/2, self.shape), 0, self.saturation)
         noisy_image = np.clip(self.image + noise, 0, self.saturation)
-        return Frame(np.array(noisy_image, dtype=self.dtype))
+        return np.array(noisy_image, dtype=self.dtype)
 
     def denoised(self, noise_level, noise_size, smoothing_size=None,
                  threshold=None):
@@ -467,7 +473,7 @@ class SimulatedImage(object):
         return result
 
 
-class CoordinateReader(FramesSequence):
+class _CoordinateReader(_FramesSequence):
     """Generate a FramesSquence that draws features at given coordinates"""
     def __init__(self, f, shape, size, t=None, **kwargs):
         self._f = f.copy()
@@ -495,7 +501,7 @@ class CoordinateReader(FramesSequence):
         pos = self._f.loc[self._f['frame'] == ind, self.pos_columns].values
         for _pos in pos:
             self.im.draw_feature(_pos)
-        return Frame(self.im(), frame_no=ind)
+        return _Frame(self.im(), frame_no=ind)
 
     @property
     def pixel_type(self):
@@ -504,3 +510,10 @@ class CoordinateReader(FramesSequence):
     @property
     def frame_shape(self):
         return self.im.shape
+
+
+if _Frame is None:
+    # pims is missing; class will not function
+    del _CoordinateReader
+else:
+    CoordinateReader = _CoordinateReader
