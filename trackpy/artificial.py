@@ -7,10 +7,9 @@ from trackpy.find import drop_close
 from trackpy.utils import validate_tuple
 from trackpy.preprocessing import bandpass
 try:
-    from pims import Frame as _Frame, FramesSequence as _FramesSequence
+    from pims import Frame as _Frame
 except ImportError:
     _Frame = None
-    _FramesSequence = object  # for subclassing
 
 
 def draw_point(image, pos, value):
@@ -475,50 +474,3 @@ class SimulatedImage(object):
                 result[col] = float(s)
         return result
 
-
-class CoordinateReader(_FramesSequence):
-    """Generate a FramesSquence that draws features at given coordinates"""
-    def __init__(self, f, shape, size, t=None, **kwargs):
-        self._f = f.copy()
-        self.pos_columns = ['z', 'y', 'x'][-len(shape):]
-        self.shape = shape
-        self.size = size
-        self.kwargs = kwargs
-        self.im = SimulatedImage(shape, size, **self.kwargs)
-        if t is None:
-            self._len = int(f['frame'].max() + 1)
-            self._inds = range(self._len)
-        else:
-            self._len = len(t)
-            self._inds = t
-
-    def __len__(self):
-        return self._len
-
-    def __iter__(self):
-        # this is actually a hack to get find_link working with float-typed indices
-        return (self.get_frame(i) for i in self._inds)
-
-    def __getitem__(self, key):
-        try:
-            return super(CoordinateReader, self).__getitem__(key)
-        except AttributeError:
-            return self.get_frame(key)
-
-    def get_frame(self, ind):
-        self.im.clear()
-        pos = self._f.loc[self._f['frame'] == ind, self.pos_columns].values
-        for _pos in pos:
-            self.im.draw_feature(_pos)
-        if _Frame is not None:
-            return _Frame(self.im(), frame_no=ind)
-        else:
-            return self.im()
-
-    @property
-    def pixel_type(self):
-        return self.im.dtype
-
-    @property
-    def frame_shape(self):
-        return self.im.shape

@@ -6,6 +6,7 @@ import numpy as np
 from numpy.testing import assert_allclose, assert_equal, assert_array_equal
 import trackpy as tp
 from trackpy.utils import cKDTree, pandas_sort, make_pandas_strict
+from trackpy.artificial import SimulatedImage
 from matplotlib.pyplot import imread
 
 
@@ -62,9 +63,30 @@ def assert_traj_equal(actual, expected, pos_atol=1):
                            '' % (p_actual, p_expected))
 
 
+class TrackpyFrame(np.ndarray):
+    """Simplified version of pims.Frame, for testing purposes only."""
+    def __new__(cls, input_array, frame_no=None):
+        # get a view of the input data as a Frame object
+        obj = np.asarray(input_array).view(cls)
+        obj.frame_no = frame_no
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.frame_no = getattr(obj, 'frame_no', None)
+
+    def __array_wrap__(self, out_arr, context=None):
+        # Handle scalars so as not to break ndimage.
+        # See http://stackoverflow.com/a/794812/1221924
+        if out_arr.ndim == 0:
+            return out_arr[()]
+
+        return np.ndarray.__array_wrap__(self, out_arr, context)
+
+
 class TrackpyImageSequence(object):
-    """Simplified version of pims.ImageSequence. Returns uint8 always.
-    """
+    """Simplified version of pims.ImageSequence, for testing purposes only."""
     def __init__(self, path_spec):
         self._get_files(path_spec)
 
@@ -96,7 +118,9 @@ class TrackpyImageSequence(object):
             raise IOError("No files were found matching that path.")
 
     def __getitem__(self, j):
-        return (imread(self._filepaths[j]) * 255).astype(self.dtype)
+        image = imread(self._filepaths[j])
+        image = (image * 255).astype(np.uint8)
+        return TrackpyFrame(image, frame_no=j)
 
     def __len__(self):
         return self._count
@@ -108,3 +132,46 @@ class TrackpyImageSequence(object):
     @property
     def dtype(self):
         return np.uint8
+
+
+class CoordinateReader(object):
+    """Generate a pims.FramesSquence-like object that draws features at
+    given coordinates"""
+    def __init__(self, f, shape, size, t=None, **kwargs):
+        self._f = f.copy()
+        self.pos_columns = ['z', 'y', 'x'][-len(shape):]
+        self.shape = shape
+        self.size = size
+        self.kwargs = kwargs
+        self.im = SimulatedImage(shape, size, **self.kwargs)
+        if t is None:
+            self._len = int(f['frame'].max() + 1)
+            self._inds = range(self._len)
+        else:
+            self._len = len(t)
+            self._inds = t
+
+    def __len__(self):
+        return self._len
+
+    def __iter__(self):
+        # this is actually a hack to get find_link working with float-typed indices
+        return (self.get_frame(i) for i in self._inds)
+
+    def __getitem__(self, key):
+        return self.get_frame(key)
+
+    def get_frame(self, ind):
+        self.im.clear()
+        pos = self._f.loc[self._f['frame'] == ind, self.pos_columns].values
+        for _pos in pos:
+            self.im.draw_feature(_pos)
+        return TrackpyFrame(self.im(), frame_no=ind)
+
+    @property
+    def pixel_type(self):
+        return self.im.dtype
+
+    @property
+    def frame_shape(self):
+        return self.im.shape

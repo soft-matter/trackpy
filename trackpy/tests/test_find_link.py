@@ -9,9 +9,9 @@ import nose
 from numpy.testing import assert_equal
 
 from trackpy.utils import pandas_sort
-from trackpy.artificial import CoordinateReader
 from trackpy.linking import find_link
-from trackpy.tests.common import assert_traj_equal, StrictTestCase
+from trackpy.tests.common import (assert_traj_equal, StrictTestCase,
+                                  CoordinateReader)
 from trackpy.tests.test_linking import SubnetNeededTests, _skip_if_no_sklearn
 
 
