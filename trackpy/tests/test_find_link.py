@@ -9,15 +9,29 @@ import nose
 from numpy.testing import assert_equal
 
 from trackpy.utils import pandas_sort
-from trackpy.artificial import CoordinateReader
 from trackpy.linking import find_link
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 from trackpy.tests.test_linking import SubnetNeededTests, _skip_if_no_sklearn
+
+try:
+    import pims
+except ImportError:
+    # find_link tests depend heavily on pims for creating artificial image sequences
+    PIMS_AVAILABLE = False
+else:
+    PIMS_AVAILABLE = True
+    from trackpy.artificial import CoordinateReader
+
+
+def _skip_if_no_pims():
+    if not PIMS_AVAILABLE:
+        raise nose.SkipTest('pims not installed. Skipping.')
 
 
 class FindLinkTests(SubnetNeededTests):
     def setUp(self):
         super(FindLinkTests, self).setUp()
+        _skip_if_no_pims()
         self.linker_opts['separation'] = 10
         self.linker_opts['diameter'] = 15
         self.linker_opts['preprocess'] = False
@@ -140,6 +154,7 @@ class FindLinkSpecialCases(StrictTestCase):
     # also, for paper images
     do_diagnostics = False  # Don't ask for diagnostic info from linker
     def setUp(self):
+        _skip_if_no_pims()
         self.linker_opts = dict()
         self.search_range = 12
         self.separation = 7
