@@ -4,13 +4,12 @@ import six
 import os
 import numpy as np
 import pandas as pd
-import pims
-import nose
 from numpy.testing import assert_array_equal, assert_allclose
 
 import trackpy as tp
 from trackpy.preprocessing import invert_image
 from trackpy.utils import cKDTree, pandas_iloc, is_scipy_since_100
+from trackpy.tests.common import TrackpyImageSequence
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -83,8 +82,8 @@ class TestReproducibility(StrictTestCase):
         cls.expected_link_memory = npz['arr_6']
         cls.expected_characterize = npz['arr_7']
 
-        cls.v = pims.ImageSequence(os.path.join(path, 'video',
-                                                'image_sequence', '*.png'))
+        cls.v = TrackpyImageSequence(os.path.join(path, 'video',
+                                                  'image_sequence', '*.png'))
         cls.v0_inverted = invert_image(cls.v[0])
 
     def setUp(self):

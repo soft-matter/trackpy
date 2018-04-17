@@ -715,7 +715,7 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
         try:
             ndim = reader.ndim
         except AttributeError:
-            raise ValueError('The provded reader neither has the attribute '
+            raise ValueError('The provided reader neither has the attribute '
                              '"frame_shape" nor the attribute "ndim". Please '
                              'provide a pims.FramesSequence (for refinement of '
                              'multiple frames) or a pims.Frame / ndarray (for '

@@ -14,7 +14,7 @@ from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
 import trackpy as tp
 from trackpy.tests.common import StrictTestCase
-from pims import ImageSequence
+from trackpy.tests.common import TrackpyImageSequence
 
 # Quiet warnings about get_store being deprecated.
 # These come from pandas.io and are caused by line 62:
@@ -49,11 +49,12 @@ def _skip_if_no_pytables():
 class FeatureSavingTester(object):
     def prepare(self):
         directory = os.path.join(path, 'video', 'image_sequence')
-        self.v = tp.invert_image(ImageSequence(os.path.join(directory, '*.png')))
+        v = TrackpyImageSequence(os.path.join(directory, '*.png'))
+        self.v = [tp.invert_image(v[i]) for i in range(2)]
         # mass depends on pixel dtype, which differs per reader
         minmass = self.v[0].max() * 2
         self.PARAMS = {'diameter': 11, 'minmass': minmass}
-        self.expected = tp.batch(self.v[[0, 1]], engine='python', meta=False,
+        self.expected = tp.batch(self.v, engine='python', meta=False,
                                  **self.PARAMS)
 
     def test_storage(self):
@@ -65,7 +66,7 @@ class FeatureSavingTester(object):
         except IOError:
             nose.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
-            tp.batch(self.v[[0, 1]], output=s, engine='python', meta=False,
+            tp.batch(self.v, output=s, engine='python', meta=False,
                      **self.PARAMS)
             self.assertEqual(len(s), 2)
             self.assertEqual(s.max_frame, 1)

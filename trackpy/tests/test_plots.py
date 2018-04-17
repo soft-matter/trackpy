@@ -11,11 +11,25 @@ from trackpy import plots
 from trackpy.utils import suppress_plotting, fit_powerlaw
 from trackpy.tests.common import StrictTestCase
 
+import nose
 # Quiet warnings about Axes not being compatible with tight_layout
 import warnings
 warnings.filterwarnings("ignore", message="This figure includes Axes that are not compatible with tight_layout")
 
 path, _ = os.path.split(os.path.abspath(__file__))
+
+try:
+    import pims
+except ImportError:
+    PIMS_AVAILABLE = False
+else:
+    PIMS_AVAILABLE = True
+
+
+def _skip_if_no_pims():
+    if not PIMS_AVAILABLE:
+        raise nose.SkipTest('PIMS not installed. Skipping.')
+
 
 class TestPlots(StrictTestCase):
     def setUp(self):
@@ -89,6 +103,7 @@ class TestPlots(StrictTestCase):
         self.assertRaises(ValueError, bad_call)
 
     def test_annotate3d(self):
+        _skip_if_no_pims()
         suppress_plotting()
         f = DataFrame({'x': [0, 1], 'y': [0, 1], 'z': [0, 1], 'frame': [0, 0],
                       'mass': [10, 20]})

@@ -26,8 +26,11 @@ for Applications > Utilities > Terminal. Type these commands:
 
    conda update conda
    conda install -c conda-forge trackpy
+   conda install -c conda-forge pims
 
-The above installs trackpy and all its requirements.
+The above installs trackpy and all its requirements, plus the recommended
+`PIMS <http://soft-matter.github.io/pims/>`_ package that simplifies image-reading,
+and that is used in the trackpy tutorials.
 
 3. Try it out!
 """"""""""""""

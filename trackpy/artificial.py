@@ -3,10 +3,13 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import numpy as np
 import pandas as pd
-from pims import Frame, FramesSequence
 from trackpy.find import drop_close
-from trackpy.utils import validate_tuple, cKDTree
+from trackpy.utils import validate_tuple
 from trackpy.preprocessing import bandpass
+try:
+    from pims import Frame as _Frame
+except ImportError:
+    _Frame = None
 
 
 def draw_point(image, pos, value):
@@ -295,7 +298,9 @@ class SimulatedImage(object):
         self.ndim = len(shape)
         self.shape = shape
         self.dtype = dtype
-        self.image = Frame(np.zeros(shape, dtype=dtype))
+        self.image = np.zeros(shape, dtype=dtype)
+        if _Frame is not None:
+            self.image = _Frame(self.image)
         self.size = validate_tuple(size, self.ndim)
         self.isotropic = np.all([self.size[1:] == self.size[:-1]])
         self.feat_func = feat_func
@@ -442,7 +447,10 @@ class SimulatedImage(object):
         else:
             noise = np.clip(np.random.normal(noise_level, noise_level/2, self.shape), 0, self.saturation)
         noisy_image = np.clip(self.image + noise, 0, self.saturation)
-        return Frame(np.array(noisy_image, dtype=self.dtype))
+        result = np.array(noisy_image, dtype=self.dtype)
+        if _Frame is not None:
+            result = _Frame(result)
+        return result
 
     def denoised(self, noise_level, noise_size, smoothing_size=None,
                  threshold=None):
@@ -466,41 +474,3 @@ class SimulatedImage(object):
                 result[col] = float(s)
         return result
 
-
-class CoordinateReader(FramesSequence):
-    """Generate a FramesSquence that draws features at given coordinates"""
-    def __init__(self, f, shape, size, t=None, **kwargs):
-        self._f = f.copy()
-        self.pos_columns = ['z', 'y', 'x'][-len(shape):]
-        self.shape = shape
-        self.size = size
-        self.kwargs = kwargs
-        self.im = SimulatedImage(shape, size, **self.kwargs)
-        if t is None:
-            self._len = int(f['frame'].max() + 1)
-            self._inds = range(self._len)
-        else:
-            self._len = len(t)
-            self._inds = t
-
-    def __len__(self):
-        return self._len
-
-    def __iter__(self):
-        # this is actually a hack to get find_link working with float-typed indices
-        return (self.get_frame(i) for i in self._inds)
-
-    def get_frame(self, ind):
-        self.im.clear()
-        pos = self._f.loc[self._f['frame'] == ind, self.pos_columns].values
-        for _pos in pos:
-            self.im.draw_feature(_pos)
-        return Frame(self.im(), frame_no=ind)
-
-    @property
-    def pixel_type(self):
-        return self.im.dtype
-
-    @property
-    def frame_shape(self):
-        return self.im.shape
