@@ -22,8 +22,7 @@ matrix:
 
 install:
   - conda update --yes conda
-  - conda config --append channels conda-forge
-  - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
+  - conda create -n testenv --yes $DEPS nose python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
 
   # for debugging...

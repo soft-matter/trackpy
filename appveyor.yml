@@ -19,8 +19,7 @@ install:
 
   # Install dependencies
   - conda update --yes conda
-  - conda config --append channels conda-forge
-  - conda create -n testenv --yes %DEPS% pip nose setuptools python=%PYTHON_VERSION%
+  - conda create -n testenv --yes %DEPS% nose python=%PYTHON_VERSION%
   - activate testenv
 
   # for debugging...
