@@ -5,7 +5,7 @@ import six
 
 import numpy as np
 import pandas as pd
-from ..try_numba import try_numba_autojit
+from ..try_numba import try_numba_jit
 
 import warnings
 import logging
@@ -281,7 +281,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         return np.column_stack([final_coords, mass, Rg, ecc, signal, raw_mass])
 
 
-@try_numba_autojit(nopython=True)
+@try_numba_jit(nopython=True)
 def _numba_refine_2D(image, radiusY, radiusX, coords, N, max_iterations,
                      shift_thresh, shapeY, shapeX, maskY, maskX, N_mask,
                      results):
@@ -350,7 +350,7 @@ def _numba_refine_2D(image, radiusY, radiusX, coords, N, max_iterations,
 
     return 0  # Unused
 
-@try_numba_autojit(nopython=True)
+@try_numba_jit(nopython=True)
 def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
                        max_iterations, shift_thresh, shapeY, shapeX, maskY,
                        maskX, N_mask, r2_mask, cmask, smask, results):
@@ -445,7 +445,7 @@ def _numba_refine_2D_c(raw_image, image, radiusY, radiusX, coords, N,
     return 0  # Unused
 
 
-@try_numba_autojit(nopython=True)
+@try_numba_jit(nopython=True)
 def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
                          max_iterations, shift_thresh, shapeY, shapeX, maskY,
                          maskX, N_mask, y2_mask, x2_mask, cmask, smask,
@@ -550,7 +550,7 @@ def _numba_refine_2D_c_a(raw_image, image, radiusY, radiusX, coords, N,
     return 0  # Unused
 
 
-@try_numba_autojit(nopython=True)
+@try_numba_jit(nopython=True)
 def _numba_refine_3D(raw_image, image, radiusZ, radiusY, radiusX, coords, N,
                      max_iterations, shift_thresh, characterize, shapeZ, shapeY,
                      shapeX, maskZ, maskY, maskX, N_mask, r2_mask, z2_mask,
