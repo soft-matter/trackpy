@@ -17,7 +17,7 @@ Convenience functions for feature finding, refinement, and linking are readily a
 
     locate
     batch
-    link_df
+    link
 
 For more control on your tracking "pipeline", the following core functions are provided:
 
@@ -44,14 +44,16 @@ Linking
 .. autosummary::
     :toctree: generated/
 
-    link_df
+    link
+    link_iter
     link_df_iter
 
 
-:func:`~trackpy.linking.link_df` and :func:`~trackpy.linking.link_df_iter` run
-the same underlying code, but :func:`~trackpy.linking.link_df_iter` streams
-through large data sets one frame at a time. See the tutorial on large data
-sets for more.
+:func:`~trackpy.linking.link` and :func:`~trackpy.linking.link_df_iter` run
+the same underlying code. :func:`~trackpy.linking.link_iter` streams
+through large data sets (numpy ndarrays) one frame at a time and
+:func:`~trackpy.linking.link_df_iter` streams through per-frame DataFrames.
+See the tutorial on large data sets for more.
 
 Static Analysis
 ---------------
