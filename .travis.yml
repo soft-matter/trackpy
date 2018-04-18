@@ -5,34 +5,26 @@ matrix:
   include:
     # "Legacy" environments: oldest supported versions, without and with numba
     - python: "2.7"
-      env: DEPS="numpy=1.8.2 scipy=0.12.0 matplotlib=1.3 pillow=2.1 pandas=0.13.0 scikit-image=0.9 pytables=3.1.0 scikit-learn=0.14.1 pyyaml pims=0.4.1" BUILD_DOCS=false
+      env: DEPS="numpy=1.8.2 scipy=0.12.0 matplotlib=1.3 pillow=2.1 pandas=0.13.0 scikit-image=0.9 pytables scikit-learn=0.14.1 pyyaml" BUILD_DOCS=false SKIP_SLOW=true
     - python: "2.7"
-      env: DEPS="numpy=1.8.2 scipy=0.12.0 matplotlib=1.3 pillow=2.1 pandas=0.13.0 scikit-image=0.9 numba=0.13.4 pytables=3.1.0 scikit-learn=0.14.1 pyyaml pims=0.4.1" BUILD_DOCS=false
+      env: DEPS="numpy=1.8.2 scipy=0.12.0 matplotlib=1.3 pillow=2.1 pandas=0.13.0 scikit-image=0.9 numba=0.13.4 pytables scikit-learn=0.14.1 pyyaml" BUILD_DOCS=false SKIP_SLOW=true
     # "Typical" environments: package versions from 2016
     - python: "2.7"
-      env: DEPS="numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables=3.2.3 numba=0.23.1 scikit-learn=0.17.1 pyyaml pims=0.4.1" BUILD_DOCS=false
+      env: DEPS="numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables numba=0.23.1 scikit-learn=0.17.1 pyyaml" BUILD_DOCS=false SKIP_SLOW=true
     - python: "3.5"
-      env: DEPS="numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables=3.2.3 numba=0.23.1 scikit-learn=0.17.1 pyyaml pims=0.4.1 ipython=5.1.0 sphinx=1.4.8 numpydoc=0.6.0 nbconvert=4.2.0 sphinx_bootstrap_theme=0.4" BUILD_DOCS=true
+      env: DEPS="numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables numba=0.23.1 scikit-learn=0.17.1 pyyaml" BUILD_DOCS=true SKIP_SLOW=true
     # Environments with most recent versions, on python 2.7 and python 3.6
     - python: "2.7"
-      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims" BUILD_DOCS=false
+      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn" BUILD_DOCS=false SKIP_SLOW=true
     - python: "3.6"
-      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn pims"  BUILD_DOCS=false
+      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn"  BUILD_DOCS=false SKIP_SLOW=false
 
 
 install:
-  # See:
-  # https://groups.google.com/a/continuum.io/forum/#!topic/conda/RSFENqovnro
-  # - conda update --yes --no-deps conda
-  # OK, this used to *fix* the build, but now it *breaks* the build.
-  # If you're reading this, good luck out there. I'm not sure what to tell you.
   - conda update --yes conda
-  # Append the conda-forge channel, instead of adding it. See:
-  # https://github.com/conda-forge/conda-forge.github.io/issues/232)
-  - conda config --append channels conda-forge
-  - conda create -n testenv --yes $DEPS pip nose setuptools python=$TRAVIS_PYTHON_VERSION
+  - conda create -n testenv --yes $DEPS nose python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
-  - python setup.py install
+
   # for debugging...
   - echo $PATH
   - which python
@@ -40,15 +32,17 @@ install:
   - conda list
 
 before_install:
-  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-3.5.5-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-3.5.5-Linux-x86_64.sh -O miniconda.sh; fi
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh; fi
   - chmod +x miniconda.sh
   - ./miniconda.sh -b -p /home/travis/mc
   - export PATH=/home/travis/mc/bin:$PATH
 
 script:
-  - nosetests --nologcapture -a '!slow'
+  - if [ $SKIP_SLOW == true ]; then nosetests --nologcapture -a '!slow'; else nosetests --nologcapture; fi
   - |
     if [ $BUILD_DOCS == true ]; then
+      conda config --append channels conda-forge
+      conda install --yes ipython=5.1.0 sphinx=1.4.8 numpydoc=0.6.0 nbconvert=4.2.0 sphinx_bootstrap_theme=0.4
       cd $TRAVIS_BUILD_DIR/..
       git clone https://github.com/soft-matter/trackpy-examples.git
       cd trackpy/doc

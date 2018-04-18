@@ -6,7 +6,6 @@ import logging
 import warnings
 import types
 
-import pims
 import trackpy
 import trackpy.diag
 from trackpy.tests.common import StrictTestCase
@@ -15,6 +14,7 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 import nose
 
 path, _ = os.path.split(os.path.abspath(__file__))
+
 
 class DiagTests(StrictTestCase):
     def test_performance_report(self):

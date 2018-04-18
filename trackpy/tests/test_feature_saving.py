@@ -8,7 +8,6 @@ import os
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
-from numpy.testing.decorators import slow
 import pandas
 from pandas.util.testing import (assert_series_equal, assert_frame_equal)
 
