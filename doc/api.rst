@@ -50,9 +50,13 @@ Linking
 
 
 :func:`~trackpy.linking.link` and :func:`~trackpy.linking.link_df_iter` run
-the same underlying code. :func:`~trackpy.linking.link_iter` streams
-through large data sets (numpy ndarrays) one frame at a time and
-:func:`~trackpy.linking.link_df_iter` streams through per-frame DataFrames.
+the same underlying code. :func:`~trackpy.linking.link` operates on a single
+DataFrame containing data for an entire movie.
+:func:`~trackpy.linking.link_df_iter` streams through larger data sets,
+in the form of one DataFrame for each video frame.
+:func:`~trackpy.linking.link_iter` streams through a series of numpy
+ndarrays.
+
 See the tutorial on large data sets for more.
 
 Static Analysis
