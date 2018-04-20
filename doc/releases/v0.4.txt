@@ -14,7 +14,8 @@ API Changes
 Enhancements
 ~~~~~~~~~~~~
 
-- Improved performance of adaptive linking (:issue:`489`)
+- Improved performance of adaptive search (:issue:`489`)
+- Reduced memory usage during linking (:issue:`489`)
 
 
 Bug fixes
