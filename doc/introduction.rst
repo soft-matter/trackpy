@@ -69,7 +69,8 @@ Special Capabilities
 Citing Trackpy
 ^^^^^^^^^^^^^^
 
-Trackpy can be cited using a DOI provided through Zenodo. To direct your
+Trackpy can be cited using a DOI provided through our Zenodo
+`record page <https://zenodo.org/record/1213240>`_. To direct your
 readers to the specific version of trackpy that they can use to reproduce
 your results, cite the release of trackpy that you used for your work. The
 record pages linked below contain author lists, other details, and complete
@@ -80,6 +81,7 @@ please include a link to the github repository:
 ================= =================================================== ======================
 Release (version) Zenodo Record Pages with info and citations         DOI
 ================= =================================================== ======================
+v0.4.1            `Record Page <https://zenodo.org/record/1226458>`__ 10.5281/zenodo.1226458
 v0.4              `Record Page <https://zenodo.org/record/1213241>`__ 10.5281/zenodo.1213241
 v0.3.2            `Record Page <https://zenodo.org/record/60550>`__   10.5281/zenodo.60550
 v0.3.1            `Record Page <https://zenodo.org/record/55143>`__   10.5281/zenodo.55143
