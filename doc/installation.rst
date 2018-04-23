@@ -12,7 +12,7 @@ Installation is simple on Windows, OSX, and Linux, even for Python novices.
 """"""""""""""""""""""""
 
 To get started with Python on any platform, download and install
-`Anaconda <https://store.continuum.io/cshop/anaconda/>`_. It comes with the
+`Anaconda <https://www.anaconda.com/distribution/>`_. It comes with the
 common scientific Python packages built in.
 
 2. Install trackpy
@@ -119,7 +119,7 @@ Package for python 2 and python 3 are available for Archlinux on AUR:
 pip
 """
 
-We strongly recommend using conda install trackpy, as described above,
+We strongly recommend using conda to install trackpy, as described above,
 but pip is also supported.
 
 Essential Dependencies:
@@ -133,10 +133,11 @@ Essential Dependencies:
 * `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__ >=0.13
 * `pyyaml <http://pyyaml.org/>`__
 
-You will also need the image- and video-reader PIMS, which is, like trackpy
-itself, part of the github.com/soft-matter organization. The package is also
-available at conda-forge and PyPI, so installation works the same as
-with trackpy.
+You will also want to install the `pims <http://soft-matter.github.io/pims/>`_
+package that simplifies image-reading, and that is used in the trackpy tutorials.
+The remaining optional dependencies, listed below, are strongly recommended but
+can be challenging to install yourself, hence our recommendation that you
+use `Anaconda <https://www.anaconda.com/distribution/>`_.
 
 Manual installation
 """""""""""""""""""
@@ -183,6 +184,10 @@ started using git.
 Optional Dependencies
 """""""""""""""""""""
 
+These are strongly recommended to make using trackpy more convenient and faster:
+
+* The `PIMS <http://soft-matter.github.io/pims/>`_ package simplifies image-reading,
+      and is used in the trackpy tutorials.
 * `PyTables <http://www.pytables.org/moin>`__ for saving results in an HDF5 file. 
       This is included with Anaconda.
 * `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. 
