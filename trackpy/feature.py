@@ -3,6 +3,8 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import warnings
 import logging
+from functools import partial
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import pandas as pd
@@ -456,7 +458,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=None, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=None, filter_after=None, characterize=True,
-          engine='auto', output=None, meta=None):
+          engine='auto', output=None, meta=None, threads=0):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -521,6 +523,10 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         If specified, information relevant to reproducing this batch is saved
         as a YAML file, a plain-text machine- and human-readable format.
         By default, this is None, and no file is saved.
+    threads : integer or None, optional
+        If 0, no threading is used. An integer greater 0 is treated as the
+        number of threads used to process frames in parallel. If `threads` is
+        None then the number returned by ``os.cpu_count()`` is used.
 
     Returns
     -------
@@ -571,27 +577,46 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             # Interpret meta to be a file handle.
             record_meta(meta_info, meta)
 
-    all_features = []
-    for i, image in enumerate(frames):
-        features = locate(image, diameter, minmass, maxsize, separation,
-                          noise_size, smoothing_size, threshold, invert,
-                          percentile, topn, preprocess, max_iterations,
-                          filter_before, filter_after, characterize,
-                          engine)
-        if hasattr(image, 'frame_no') and image.frame_no is not None:
-            frame_no = image.frame_no
-            # If this works, locate created a 'frame' column.
-        else:
-            frame_no = i
-            features['frame'] = i  # just counting iterations
-        logger.info("Frame %d: %d features", frame_no, len(features))
-        if len(features) == 0:
-            continue
+    # Prepare wrapped function for mapping to `frames`
+    curried_locate = partial(
+        func=locate,
+        diameter=diameter, minmass=minmass, maxsize=maxsize,
+        separation=separation, noise_size=noise_size,
+        smoothing_size=smoothing_size, threshold=threshold, invert=invert,
+        percentile=percentile, topn=topn, preprocess=preprocess,
+        max_iterations=max_iterations, filter_before=filter_before,
+        filter_after=filter_after, characterize=characterize, engine=engine
+    )
+    # Choose threaded or normal map function
+    if threads == 0:
+        pool = None
+        map_func = map
+    else:
+        pool = ThreadPool(processes=threads)
+        map_func = pool.imap
 
-        if output is None:
-            all_features.append(features)
-        else:
-            output.put(features)
+    try:
+        all_features = []
+        for i, features in enumerate(map_func(curried_locate, frames)):
+            image = frames[i]
+            if hasattr(image, 'frame_no') and image.frame_no is not None:
+                frame_no = image.frame_no
+                # If this works, locate created a 'frame' column.
+            else:
+                frame_no = i
+                features['frame'] = i  # just counting iterations
+            logger.info("Frame %d: %d features", frame_no, len(features))
+            if len(features) == 0:
+                continue
+
+            if output is None:
+                all_features.append(features)
+            else:
+                output.put(features)
+    finally:
+        if pool:
+            # Ensure correct termination of ThreadPool
+            pool.terminate()
 
     if output is None:
         if len(all_features) > 0:
