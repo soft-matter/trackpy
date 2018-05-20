@@ -458,7 +458,8 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
           noise_size=1, smoothing_size=None, threshold=None, invert=False,
           percentile=64, topn=None, preprocess=True, max_iterations=10,
           filter_before=None, filter_after=None, characterize=True,
-          engine='auto', output=None, meta=None, threads=0):
+          engine='auto', output=None, meta=None, threads=None,
+          report_hook=None):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -523,10 +524,14 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         If specified, information relevant to reproducing this batch is saved
         as a YAML file, a plain-text machine- and human-readable format.
         By default, this is None, and no file is saved.
-    threads : integer or None, optional
+    threads : integer, optional
         If 0, no threading is used. An integer greater 0 is treated as the
         number of threads used to process frames in parallel. If `threads` is
         None then the number returned by ``os.cpu_count()`` is used.
+    report_hook : function, optional
+        Specify a custom function to log information for each processed frame.
+        Must accept two integer arguments `frame_no` and `detected_features`.
+        If not given the process is passed to trackpy's default logger.
 
     Returns
     -------
@@ -579,7 +584,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     # Prepare wrapped function for mapping to `frames`
     curried_locate = partial(
-        func=locate,
+        locate,
         diameter=diameter, minmass=minmass, maxsize=maxsize,
         separation=separation, noise_size=noise_size,
         smoothing_size=smoothing_size, threshold=threshold, invert=invert,
@@ -595,6 +600,11 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         pool = ThreadPool(processes=threads)
         map_func = pool.imap
 
+    if report_hook is None:
+        # Use default logger to report process
+        def report_hook(frame_no, detected_features):
+            logger.info("Frame %d: %d features", frame_no, detected_features)
+
     try:
         all_features = []
         for i, features in enumerate(map_func(curried_locate, frames)):
@@ -605,7 +615,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             else:
                 frame_no = i
                 features['frame'] = i  # just counting iterations
-            logger.info("Frame %d: %d features", frame_no, len(features))
+            report_hook(frame_no, len(features))
             if len(features) == 0:
                 continue
 
