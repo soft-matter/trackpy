@@ -38,7 +38,11 @@ try:
                            LooseVersion('0.18.0'))
 except ValueError:  # Probably a development version
     is_pandas_since_018 = True
-
+try:
+    is_pandas_since_023 = (LooseVersion(pd.__version__) >=
+                           LooseVersion('0.23.0'))
+except ValueError:  # Probably a development version
+    is_pandas_since_023 = True
 
 # Wrap the scipy cKDTree to work around a bug in scipy 0.18.0
 try:
