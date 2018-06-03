@@ -521,12 +521,12 @@ def link_df(features, search_range, memory=0,
         hash_size = features[pos_columns].max() + MARGIN
 
     # Check if DataFrame is writeable.
-    # I don't know how to do this for pandas < 0.16 or > 0.23
-    if (is_pandas_since_016 and not is_pandas_since_023
-            and features.is_copy is not None and not copy_features):
-        warn('The features DataFrame is a view, so it is not writeable. '
-             'The results will be output to a copy. Use copy_features='
-             'True to prevent this warning message.')
+    # I don't know how to do this for pandas < 0.16
+    if (is_pandas_since_016 and features._is_copy is not None
+            and not copy_features):
+        warn('The features DataFrame could be a view, so it may not be'
+             'writeable. The results will be output to a copy. Use'
+             'copy_features=True to prevent this warning message.')
         copy_features = True
 
     # Group the DataFrame by time steps and make a 'level' out of each

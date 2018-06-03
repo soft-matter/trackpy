@@ -3,13 +3,12 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import numpy as np
-import pandas as pd
 from pandas import DataFrame, Series
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,
                                  assert_almost_equal)
 
 import trackpy as tp
-from trackpy.utils import pandas_sort
+from trackpy.utils import pandas_sort, pandas_concat
 from trackpy.tests.common import StrictTestCase
 
 def random_walk(N):
@@ -46,7 +45,7 @@ class TestDrift(StrictTestCase):
                        'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
-        self.dead_still = conformity(pd.concat([a, b]))
+        self.dead_still = conformity(pandas_concat([a, b]))
         pandas_sort(self.dead_still, ['frame', 'particle'], inplace=True)
 
         P = 1000 # particles
@@ -55,13 +54,13 @@ class TestDrift(StrictTestCase):
         particles = [DataFrame({'x': A*random_walk(N), 'y': A*random_walk(N),
                                 'frame': np.arange(N), 'particle': i})
                      for i in range(P)]
-        self.many_walks = conformity(pd.concat(particles))
+        self.many_walks = conformity(pandas_concat(particles))
 
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
                        'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
-        self.steppers = conformity(pd.concat([a, b]))
+        self.steppers = conformity(pandas_concat([a, b]))
 
     def test_no_drift(self):
         N = 10
@@ -128,7 +127,7 @@ class TestMSD(StrictTestCase):
                       'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.zeros(N - 1), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
-        self.dead_still = conformity(pd.concat([a, b]))
+        self.dead_still = conformity(pandas_concat([a, b]))
 
         P = 50 # particles
         A = 1 # step amplitude
@@ -136,13 +135,13 @@ class TestMSD(StrictTestCase):
         particles = [DataFrame({'x': A*random_walk(N), 'y': A*random_walk(N),
                                 'frame': np.arange(N), 'particle': i})
                      for i in range(P)]
-        self.many_walks = conformity(pd.concat(particles))
+        self.many_walks = conformity(pandas_concat(particles))
 
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
                       'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
-        self.steppers = conformity(pd.concat([a, b]))
+        self.steppers = conformity(pandas_concat([a, b]))
 
     def test_zero_emsd(self):
         N = 10
@@ -199,7 +198,7 @@ class TestSpecial(StrictTestCase):
                       'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
-        self.steppers = conformity(pd.concat([a, b]))
+        self.steppers = conformity(pandas_concat([a, b]))
 
     def test_theta_entropy(self):
         # just a smoke test

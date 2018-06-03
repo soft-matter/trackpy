@@ -78,7 +78,7 @@ def fit_powerlaw(data, plot=True, **kwargs):
         values[col] = [slope, np.exp(intercept)]
         fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope)
     values = values.T
-    fits = pd.concat(fits, axis=1)
+    fits = pandas_concat(fits, axis=1)
     if plot:
         from trackpy import plots
         plots.fit(data, fits, logx=True, logy=True, legend=False, **kwargs)
@@ -348,6 +348,21 @@ if is_pandas_since_018:
     pandas_rolling = _pandas_rolling_since_018
 else:
     pandas_rolling = _pandas_rolling_pre_018
+
+
+def _pandas_concat_pre_023(*args, **kwargs):
+    """Pass sort = True to silence warnings and preserve compatibility """
+    return pd.concat(*args, **kwargs)
+
+def _pandas_concat_post_023(*args, **kwargs):
+    """Pass sort = False. Breaks API by not sorting, but we don't care. """
+    kwargs.setdefault('sort', False)
+    return pd.concat(*args, **kwargs)
+
+if is_pandas_since_023:
+    pandas_concat = _pandas_concat_post_023
+else:
+    pandas_concat = _pandas_concat_pre_023
 
 
 def guess_pos_columns(f):

@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from copy import copy
-import functools
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
@@ -11,7 +10,7 @@ import nose
 from numpy.testing import assert_equal
 
 from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.utils import pandas_sort
+from trackpy.utils import pandas_sort, pandas_concat
 from trackpy.linking import (link, link_iter, link_df_iter, verify_integrity,
                              SubnetOversizeException, Linker)
 from trackpy.linking.subnetlinker import subnet_linker_recursive
@@ -69,7 +68,7 @@ def contracting_grid():
     pts1.frame = 1
     pts1.x = pts1.x * 0.9
     pts1.y = pts1.y * 0.9
-    allpts = pd.concat([pts0, pts1], ignore_index=True)
+    allpts = pandas_concat([pts0, pts1], ignore_index=True)
     allpts.x += 200  # Because BTree doesn't allow negative coordinates
     allpts.y += 200
     return allpts
@@ -115,7 +114,7 @@ class CommonTrackingTests(StrictTestCase):
         # labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -143,7 +142,7 @@ class CommonTrackingTests(StrictTestCase):
         a = a.drop(3).reset_index(drop=True)
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1),
                       'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy()
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -172,7 +171,7 @@ class CommonTrackingTests(StrictTestCase):
         M = 20 # margin, because negative values raise OutOfHash
         a = DataFrame({'x': M + random_walk(N), 'y': M + random_walk(N), 'frame': np.arange(N)})
         b = DataFrame({'x': M + random_walk(N - 1), 'y': M + Y + random_walk(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -189,7 +188,7 @@ class CommonTrackingTests(StrictTestCase):
             return DataFrame({'x': x + random_walk(N - i),
                               'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
+        f = pandas_concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -327,7 +326,7 @@ class SubnetNeededTests(CommonTrackingTests):
         # labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -353,7 +352,7 @@ class SubnetNeededTests(CommonTrackingTests):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -384,7 +383,7 @@ class SubnetNeededTests(CommonTrackingTests):
         b = DataFrame({'x': M + random_walk(N - 1),
                        'y': M + Y + random_walk(N - 1),
                        'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -401,7 +400,7 @@ class SubnetNeededTests(CommonTrackingTests):
             return DataFrame({'x': x + random_walk(N - i),
                               'y': y + random_walk(N - i),
                               'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
+        f = pandas_concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -509,7 +508,7 @@ class SubnetNeededTests(CommonTrackingTests):
         a = unit_steps()
         b = random_walk_legacy()
         # b[2] is intentionally omitted below.
-        gapped = pd.concat([a, b[b['frame'] != 2]])
+        gapped = pandas_concat([a, b[b['frame'] != 2]])
 
         safe_disp = 1 + random_x.max() - random_x.min()  # Definitely large enough
         t0 = self.link(gapped, safe_disp, memory=0)
@@ -533,7 +532,7 @@ class SubnetNeededTests(CommonTrackingTests):
     def test_memory_with_late_appearance(self):
         a = unit_steps()
         b = random_walk_legacy()
-        gapped = pd.concat([a, b[b['frame'].isin([1, 4])]])
+        gapped = pandas_concat([a, b[b['frame'].isin([1, 4])]])
 
         safe_disp = 1 + random_x.max() - random_x.min()  # large enough
         t0 = self.link(gapped, safe_disp, memory=1)
@@ -549,7 +548,7 @@ class SubnetNeededTests(CommonTrackingTests):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -653,7 +652,7 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
 
         res_iter = link_df_iter(df_iter(f, 0, int(f['frame'].max())),
                                 search_range, *args, **kwargs)
-        res = pd.concat(res_iter)
+        res = pandas_concat(res_iter)
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
     def test_output_dtypes(self):

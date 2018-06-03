@@ -8,6 +8,8 @@ import warnings
 
 import pandas as pd
 
+from .utils import pandas_concat
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,10 +57,10 @@ class FramewiseData(object):
         DataFrame
         """
         if N is None:
-            return pd.concat(iter(self))
+            return pandas_concat(iter(self))
         else:
             i = iter(self)
-            return pd.concat((next(i) for _ in range(N)))
+            return pandas_concat((next(i) for _ in range(N)))
 
     @property
     def max_frame(self):
