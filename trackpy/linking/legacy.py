@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from ..try_numba import NUMBA_AVAILABLE
-from ..utils import (is_pandas_since_016, is_pandas_since_023, pandas_sort,
+from ..utils import (pandas_is_copy, pandas_sort,
                      cKDTree, validate_tuple, is_isotropic)
 from .utils import (TrackUnstored, points_to_arr, UnknownLinkingError,
                     SubnetOversizeException)
@@ -521,9 +521,8 @@ def link_df(features, search_range, memory=0,
         hash_size = features[pos_columns].max() + MARGIN
 
     # Check if DataFrame is writeable.
-    # I don't know how to do this for pandas < 0.16
-    if (is_pandas_since_016 and features._is_copy is not None
-            and not copy_features):
+    # for pandas < 0.16, it is assumed that it is writable
+    if not copy_features and pandas_is_copy(features):
         warn('The features DataFrame could be a view, so it may not be'
              'writeable. The results will be output to a copy. Use'
              'copy_features=True to prevent this warning message.')

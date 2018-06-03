@@ -350,10 +350,6 @@ else:
     pandas_rolling = _pandas_rolling_pre_018
 
 
-def _pandas_concat_pre_023(*args, **kwargs):
-    """Pass sort = True to silence warnings and preserve compatibility """
-    return pd.concat(*args, **kwargs)
-
 def _pandas_concat_post_023(*args, **kwargs):
     """Pass sort = False. Breaks API by not sorting, but we don't care. """
     kwargs.setdefault('sort', False)
@@ -362,7 +358,28 @@ def _pandas_concat_post_023(*args, **kwargs):
 if is_pandas_since_023:
     pandas_concat = _pandas_concat_post_023
 else:
-    pandas_concat = _pandas_concat_pre_023
+    pandas_concat = pd.concat
+
+
+def _pandas_is_copy_pre_016(df):
+    # I don't know how to do this for pandas < 0.16
+    return True
+
+
+def _pandas_is_copy_pre_023(df):
+    return df.is_copy
+
+
+def _pandas_is_copy_post_023(df):
+    return df._is_copy
+
+
+if is_pandas_since_023:
+    pandas_is_copy = _pandas_is_copy_post_023
+elif is_pandas_since_016:
+    pandas_is_copy = _pandas_is_copy_pre_023
+else:
+    pandas_is_copy = _pandas_is_copy_pre_016
 
 
 def guess_pos_columns(f):
