@@ -793,9 +793,9 @@ class TestMockSubnetlinker(StrictTestCase):
         dest = self.dest[0]
         sr = self.sr[0]
 
-        self.assertEquals(sr, search_range)
-        self.assertEquals(len(source), 1)
-        self.assertEquals(len(dest), 4)
+        self.assertEqual(sr, search_range)
+        self.assertEqual(len(source), 1)
+        self.assertEqual(len(dest), 4)
 
         fwd_cds = source[0]['forward_cands']
 
@@ -817,19 +817,19 @@ class TestMockSubnetlinker(StrictTestCase):
                   adaptive_step=0.25, adaptive_stop=0.25)
 
         # round 0: search range 8, one call to subnetlinker
-        self.assertEquals(self.sr[0], 8.)
-        self.assertEquals(len(self.source[0]), 2)
-        self.assertEquals(len(self.dest[0]), 2)
+        self.assertEqual(self.sr[0], 8.)
+        self.assertEqual(len(self.source[0]), 2)
+        self.assertEqual(len(self.dest[0]), 2)
         for p in self.source[0]:
-            self.assertEquals(len(p['forward_cands']), 2)
+            self.assertEqual(len(p['forward_cands']), 2)
             for cand, dist in p['forward_cands']:
                 self.assertIsNot(cand, None)
                 self.assertLess(dist, self.sr[0])
 
         # round 1: search range 2; same
-        self.assertEquals(self.sr[1], 2.)
-        self.assertEquals(len(self.source[1]), 2)
-        self.assertEquals(len(self.dest[1]), 2)
+        self.assertEqual(self.sr[1], 2.)
+        self.assertEqual(len(self.source[1]), 2)
+        self.assertEqual(len(self.dest[1]), 2)
         for p in self.source[1]:
             for cand, dist in p['forward_cands']:
                 self.assertIsNot(cand, None)
@@ -837,9 +837,9 @@ class TestMockSubnetlinker(StrictTestCase):
 
         # round 2, both calls: search range 0.5, subnets separate
         for i in (2, 3):
-            self.assertEquals(self.sr[i], 0.5)
-            self.assertEquals(len(self.source[i]), 1)
-            self.assertEquals(len(self.dest[i]), 1)
+            self.assertEqual(self.sr[i], 0.5)
+            self.assertEqual(len(self.source[i]), 1)
+            self.assertEqual(len(self.dest[i]), 1)
             for p in self.source[i]:
-                self.assertEquals(len(p['forward_cands']), 1)
+                self.assertEqual(len(p['forward_cands']), 1)
                 self.assertAlmostEqual(p['forward_cands'][0][1], 0.1)
