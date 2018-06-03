@@ -125,18 +125,19 @@ Support
 
 This package was developed in part by Daniel Allan, as part of his
 PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
-University in Baltimore, MD. The work was supported by the National Science Foundation
+University in Baltimore, MD, USA. The work was supported by the National Science Foundation
 under grant number CBET-1033985.  Dan can be reached at dallan@pha.jhu.edu.
 
 This package was developed in part by Thomas A Caswell as part of his
 PhD thesis work in Sidney R Nagel's and Margaret L Gardel's groups at
-the University of Chicago, Chicago IL.  This work was supported in
+the University of Chicago, Chicago IL, USA.  This work was supported in
 part by NSF Grant DMR-1105145 and NSF-MRSEC DMR-0820054.  Tom can be
 reached at tcaswell@gmail.com.
 
-This package was developed in part by Nathan C. Keim, as part of his postdoctoral
-research in Paulo Arratia's group at the University of Pennsylvania,
-Philadelphia. This work was supported by NSF-MRSEC DMR-1120901.
+This package was developed in part by Nathan C. Keim at Cal Poly,
+San Luis Obispo, California, USA and supported by NSF Grant DMR-1708870.
+Portions were also developed at the University of Pennsylvania,
+Philadelphia, USA, supported by NSF-MRSEC DMR-1120901.
 
 This package was developed in part by Casper van der Wel, as part of his
 PhD thesis work in Daniela Kraft’s group at the Huygens-Kamerlingh-Onnes laboratory,
