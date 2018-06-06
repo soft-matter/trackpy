@@ -1,3 +1,20 @@
+v0.4.2
+------
+
+
+API Changes
+~~~~~~~~~~~
+
+- "trackpy.legacy.linking.link_df" does not copy a DataFrame automatically
+  anymore if the provided DataFrame is a view. (:issue:`503`)
+
+
+Bug fixes
+~~~~~~~~~
+
+- Removed warnings in case Pandas 0.23 is used (:issue:`503`)
+
+
 v0.4.1
 ------
 

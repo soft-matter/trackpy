@@ -361,27 +361,6 @@ else:
     pandas_concat = pd.concat
 
 
-def _pandas_is_copy_pre_016(df):
-    # I don't know how to do this for pandas < 0.16
-    return True
-
-
-def _pandas_is_copy_pre_023(df):
-    return df.is_copy
-
-
-def _pandas_is_copy_post_023(df):
-    return df._is_copy
-
-
-if is_pandas_since_023:
-    pandas_is_copy = _pandas_is_copy_post_023
-elif is_pandas_since_016:
-    pandas_is_copy = _pandas_is_copy_pre_023
-else:
-    pandas_is_copy = _pandas_is_copy_pre_016
-
-
 def guess_pos_columns(f):
     """ Guess the position columns from a given feature DataFrame """
     if 'z' in f:

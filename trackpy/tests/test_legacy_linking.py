@@ -299,16 +299,6 @@ class CommonTrackingTests(object):
         else:
             assert_traj_equal(actual, f_inplace)
 
-        # When DataFrame is actually a view, link_df should produce a warning
-        # and then copy the DataFrame. This only happens for pd 0.16 to 0.23.
-        if is_pandas_since_016:
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter('ignore')
-                warnings.simplefilter('always', UserWarning)
-                actual = self.link_df(f[f['frame'] > 0], 5)
-                assert len(w) == 1
-            assert 'particle' not in f.columns
-
         # Should copy
         actual = self.link_df(f, 5, copy_features=True)
         assert_traj_equal(actual, expected)

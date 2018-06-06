@@ -4,17 +4,14 @@ import six
 from six.moves import zip, range
 import logging
 from warnings import warn
-from copy import copy
 import itertools
 import functools
-from collections import deque
 
 import numpy as np
 import pandas as pd
 
 from ..try_numba import NUMBA_AVAILABLE
-from ..utils import (pandas_is_copy, pandas_sort,
-                     cKDTree, validate_tuple, is_isotropic)
+from ..utils import pandas_sort, cKDTree, validate_tuple, is_isotropic
 from .utils import (TrackUnstored, points_to_arr, UnknownLinkingError,
                     SubnetOversizeException)
 from .subnetlinker import (recursive_linker_obj, nonrecursive_link, drop_link,
@@ -519,14 +516,6 @@ def link_df(features, search_range, memory=0,
     if hash_size is None:
         MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
-
-    # Check if DataFrame is writeable.
-    # for pandas < 0.16, it is assumed that it is writable
-    if not copy_features and pandas_is_copy(features):
-        warn('The features DataFrame could be a view, so it may not be'
-             'writeable. The results will be output to a copy. Use'
-             'copy_features=True to prevent this warning message.')
-        copy_features = True
 
     # Group the DataFrame by time steps and make a 'level' out of each
     # one, using the index to keep track of Points.
