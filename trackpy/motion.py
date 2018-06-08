@@ -7,7 +7,8 @@ from pandas import DataFrame, Series
 
 import warnings
 from warnings import warn
-from .utils import pandas_sort, pandas_rolling, guess_pos_columns
+from .utils import (pandas_sort, pandas_concat, pandas_rolling,
+                    guess_pos_columns)
 
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
@@ -196,7 +197,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=None):
     for pid, ptraj in traj.groupby('particle'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, False, pos_columns))
         ids.append(pid)
-    results = pd.concat(msds, keys=ids)
+    results = pandas_concat(msds, keys=ids)
     # Swap MultiIndex levels so that unstack() makes particles into columns.
     results = results.swaplevel(0, 1)[statistic].unstack()
     lagt = results.index.values.astype('float64')/float(fps)
@@ -233,7 +234,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     for pid, ptraj in traj.reset_index(drop=True).groupby('particle'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, True, pos_columns))
         ids.append(pid)
-    msds = pd.concat(msds, keys=ids, names=['particle', 'frame'])
+    msds = pandas_concat(msds, keys=ids, names=['particle', 'frame'])
     results = msds.mul(msds['N'], axis=0).mean(level=1)  # weighted average
     results = results.div(msds['N'].mean(level=1), axis=0)  # weights normalized
     # Above, lagt is lumped in with the rest for simplicity and speed.

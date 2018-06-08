@@ -2,12 +2,11 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 
-import nose
 import numpy as np
-import pandas as pd
 from numpy.testing import assert_allclose
-from pandas import DataFrame, Series
+from pandas import DataFrame
 from trackpy.tests.common import StrictTestCase
+from trackpy.utils import pandas_concat
 
 import trackpy as tp
 
@@ -24,7 +23,7 @@ class TestCorrelations(StrictTestCase):
         b['particle'] = np.arange(N)
         a['frame'] = 0
         b['frame'] = 1
-        self.random_walk = pd.concat([a, b])
+        self.random_walk = pandas_concat([a, b])
 
     def test_no_correlations(self):
         v = tp.velocity_corr(self.random_walk, 0, 1)

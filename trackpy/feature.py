@@ -6,12 +6,12 @@ import logging
 
 import numpy as np
 import pandas as pd
-from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import (record_meta, validate_tuple, is_isotropic,
-                    default_pos_columns, default_size_columns)
+                    default_pos_columns, default_size_columns,
+                    pandas_concat)
 from .find import grey_dilation, where_close
 from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
@@ -443,7 +443,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
             refined_coords['ep'] = ep
         else:
             ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
-            refined_coords = pd.concat([refined_coords, ep], axis=1)
+            refined_coords = pandas_concat([refined_coords, ep], axis=1)
 
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.
@@ -595,7 +595,7 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
 
     if output is None:
         if len(all_features) > 0:
-            return pd.concat(all_features).reset_index(drop=True)
+            return pandas_concat(all_features).reset_index(drop=True)
         else:  # return empty DataFrame
             warnings.warn("No maxima found in any frame.")
             return pd.DataFrame(columns=list(features.columns) + ['frame'])

@@ -3,9 +3,9 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from .utils import cKDTree, guess_pos_columns
 import numpy as np
-import pandas as pd
 from pandas import DataFrame
-from warnings import warn
+
+from .utils import pandas_concat
 
 # Maximum number of elements in the array of all distances.
 # Should be roughly (bytes of available memory)/16
@@ -487,7 +487,7 @@ def cluster(f, separation, pos_columns=None, t_column='frame'):
     else:
         remove_t_column = False
 
-    result = pd.concat((x[1] for x in cluster_iter(f, separation, pos_columns,
+    result = pandas_concat((x[1] for x in cluster_iter(f, separation, pos_columns,
                                                    t_column)))
 
     if remove_t_column:

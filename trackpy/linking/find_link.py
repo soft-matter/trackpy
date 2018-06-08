@@ -4,15 +4,14 @@ import six
 from six.moves import range, zip
 import warnings
 import logging
-import itertools, functools
 
 import numpy as np
-import pandas as pd
 from scipy import ndimage
 
 from ..masks import slice_image, mask_image
 from ..find import grey_dilation, drop_close
-from ..utils import default_pos_columns, is_isotropic, validate_tuple
+from ..utils import (default_pos_columns, is_isotropic, validate_tuple,
+                     pandas_concat)
 from ..preprocessing import bandpass
 from ..refine import refine_com_arr
 from ..feature import characterize
@@ -162,7 +161,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
             continue
         features.append(f_frame)
 
-    features = pd.concat(features, ignore_index=False)
+    features = pandas_concat(features, ignore_index=False)
     return features
 
 

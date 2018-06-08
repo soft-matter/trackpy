@@ -10,15 +10,14 @@ from numpy.testing import assert_array_equal
 import pandas as pd
 from pandas import DataFrame
 import nose
-from pandas.util.testing import assert_frame_equal, assert_series_equal
 
-import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking.legacy import (link, link_df, link_df_iter,
                                     PointND, Hash_table, strip_diagnostics,
                                     SubnetOversizeException)
-from trackpy.utils import is_pandas_since_016, pandas_sort, validate_tuple
-from trackpy.tests.common import StrictTestCase
+from trackpy.utils import (is_pandas_since_016,
+                           pandas_sort, pandas_concat, validate_tuple)
+from trackpy.tests.common import StrictTestCase, assert_traj_equal
 
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -64,7 +63,7 @@ def contracting_grid():
     pts1.frame = 1
     pts1.x = pts1.x * 0.9
     pts1.y = pts1.y * 0.9
-    allpts = pd.concat([pts0, pts1], ignore_index=True)
+    allpts = pandas_concat([pts0, pts1], ignore_index=True)
     allpts.x += 100  # Because BTree doesn't allow negative coordinates
     allpts.y += 100
     return allpts
@@ -80,9 +79,9 @@ class CommonTrackingTests(object):
         expected = f.copy()
         expected['particle'] = np.zeros(N)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(10, 2))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
         if self.do_diagnostics:
             assert 'diag_search_range' in self.diag.columns
             # Except for first frame, all particles should have been labeled
@@ -97,29 +96,29 @@ class CommonTrackingTests(object):
         # established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
         actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
     def test_two_isolated_steppers_one_gapped(self):
         N = 5
@@ -131,32 +130,32 @@ class CommonTrackingTests(object):
         a = a.drop(3).reset_index(drop=True)
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 
                       'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy()
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
         # link_df_iter() tests not performed, because hash_size is
         # not knowable from the first frame alone.
 
         # Sort rows by frame (normal use)
         actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
     def test_isolated_continuous_random_walks(self):
         # Two 2D random walks
@@ -166,14 +165,14 @@ class CommonTrackingTests(object):
         M = 20 # margin, because negative values raise OutOfHash
         a = DataFrame({'x': M + random_walk(N), 'y': M + random_walk(N), 'frame': np.arange(N)})
         b = DataFrame({'x': M + random_walk(N - 1), 'y': M + Y + random_walk(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(2*M, Y + 2*M))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Many 2D random walks
         np.random.seed(0)
@@ -185,14 +184,14 @@ class CommonTrackingTests(object):
             return DataFrame({'x': x + random_walk(N - i), 
                               'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
+        f = pandas_concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(200 + M, 200 + M))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
     def test_start_at_frame_other_than_zero(self):
         # One 1D stepper
@@ -203,9 +202,9 @@ class CommonTrackingTests(object):
         expected = f.copy()
         expected['particle'] = np.zeros(N)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(6, 2))
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
 
     def test_blank_frame_no_memory(self):
         N = 5
@@ -216,13 +215,13 @@ class CommonTrackingTests(object):
         # Using link_df, the particle will be given a new ID after the gap.
         expected['particle'] = np.array([0, 0, 0, 1, 1], dtype=np.float64)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
 
         # link_df_iter will (in this test suite) iterate over only the frames
         # present in the dataframe, so the gap will be ignored.
         expected['particle'] = 0.0
         actual = self.link_df_iter(f, 5, hash_size=(10, 10))
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
 
 
     def test_real_data_that_causes_duplicate_bug(self):
@@ -294,30 +293,20 @@ class CommonTrackingTests(object):
         # Should add particle column in-place
         # UNLESS diagnostics are enabled (or input dataframe is not writeable)
         actual = self.link_df(f_inplace, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         if self.do_diagnostics:
             assert 'particle' not in f_inplace.columns
         else:
-            assert_frame_equal(actual, f_inplace)
-
-        # When DataFrame is actually a view, link_df should produce a warning
-        # and then copy the DataFrame. This only happens for pandas >= 0.16.
-        if is_pandas_since_016:
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter('ignore')
-                warnings.simplefilter('always', UserWarning)
-                actual = self.link_df(f[f['frame'] > 0], 5)
-                assert len(w) == 1
-            assert 'particle' not in f.columns
+            assert_traj_equal(actual, f_inplace)
 
         # Should copy
         actual = self.link_df(f, 5, copy_features=True)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         assert 'particle' not in f.columns
 
         # Should copy
         actual_iter = self.link_df_iter(f, 5, hash_size=(10, 2))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
         assert 'particle' not in f.columns
 
     @nose.tools.raises(SubnetOversizeException)
@@ -343,7 +332,7 @@ class CommonTrackingTests(object):
         kwargs['diagnostics'] = self.do_diagnostics
         args = list(args)
         features = args.pop(0)
-        res = pd.concat(link_df_iter(
+        res = pandas_concat(link_df_iter(
             (df for fr, df in features.groupby('frame')), *args, **kwargs))
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
@@ -384,29 +373,29 @@ class SubnetNeededTests(CommonTrackingTests):
         # established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
         actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         if self.do_diagnostics:
             assert 'diag_subnet' in self.diag.columns
@@ -427,30 +416,30 @@ class SubnetNeededTests(CommonTrackingTests):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Sort rows by frame (normal use)
         actual = self.link_df(pandas_sort(f, 'frame'), 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual_iter = self.link_df_iter(f1, 5, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
 
     def test_nearby_continuous_random_walks(self):
         # Two 2D random walks
@@ -464,14 +453,14 @@ class SubnetNeededTests(CommonTrackingTests):
         b = DataFrame({'x': M + random_walk(N - 1),
                        'y': M + Y + random_walk(N - 1),
                        'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M + Y))
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
 
         # Several 2D random walks
         np.random.seed(0)
@@ -484,23 +473,23 @@ class SubnetNeededTests(CommonTrackingTests):
             return DataFrame({'x': x + random_walk(N - i),
                               'y': y + random_walk(N - i),
                               'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
+        f = pandas_concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         actual = self.link_df(f, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual = self.link_df_iter(f, 5, hash_size=(2*M, 2*M))
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
 
         # Shuffle rows (crazy!)
         np.random.seed(0)
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         actual = self.link_df_iter(f1, 5, hash_size=(2*M, 2*M))
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
 
     def test_quadrature_sum(self):
         """A simple test to check whether the subnet linker adds
@@ -598,28 +587,28 @@ class SubnetNeededTests(CommonTrackingTests):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
         expected.reset_index(drop=True, inplace=True)
         actual = self.link_df(f, 5, memory=1)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
         actual_iter = self.link_df_iter(f, 5, hash_size=(50, 50), memory=1)
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
 
         # Sort rows by frame (normal use)
         actual = self.link_df(pandas_sort(f, 'frame'), 5, memory=1)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
         actual_iter = self.link_df_iter(pandas_sort(f, 'frame'), 5,
                                         memory=1, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
 
@@ -628,11 +617,11 @@ class SubnetNeededTests(CommonTrackingTests):
         f1 = f.reset_index(drop=True)
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link_df(f1, 5, memory=1)
-        assert_frame_equal(actual, expected)
+        assert_traj_equal(actual, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
         actual_iter = self.link_df_iter(f1, 5, memory=1, hash_size=(50, 50))
-        assert_frame_equal(actual_iter, expected)
+        assert_traj_equal(actual_iter, expected)
         if self.do_diagnostics:
             assert 'diag_remembered' in self.diag.columns
 
@@ -678,7 +667,7 @@ class DiagnosticsTests(CommonTrackingTests):
     def link_df_iter(self, *args, **kwargs):
         df = self._strip_diag(
             super(DiagnosticsTests, self).link_df_iter(*args, **kwargs))
-        # pd.concat() can mess with the column order if not all columns
+        # pandas_concat() can mess with the column order if not all columns
         # are present in all DataFrames. So we enforce it here.
         return df.reindex(columns=['frame', 'x', 'y', 'particle'])
 
@@ -727,7 +716,7 @@ class TestKDTreeWithDropLink(CommonTrackingTests, StrictTestCase):
         # comparing with expected values is tricky.
         # We just check for the creation of 2 new trajectories.
         without_subnet = self.link_df(f, 1.5, retain_index=True)
-        assert_frame_equal(without_subnet, f_expected_without_subnet, check_dtype=False)
+        assert_traj_equal(without_subnet, f_expected_without_subnet)
         with_subnet = self.link_df(f, 5, retain_index=True)
         assert set(with_subnet.particle) == set((0, 1, 2))
 
