@@ -525,20 +525,12 @@ def batch(frames, diameter, output=None, meta=None, processes=1,
             source = frames.filename
         except AttributeError:
             source = None
-
         meta_info = dict(
             timestamp=pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S'),
             trackpy_version=trackpy.__version__,
             source=source,
-            # Use default values of `locate`...
-            minmass=None, maxsize=None, separation=None, noise_size=1,
-            smoothing_size=None, threshold=None, invert=False, percentile=64,
-            topn=None, preprocess=True, max_iterations=10, filter_before=None,
-            filter_after=None, characterize=True, engine='auto'
+            **kwargs
         )
-        # ... and overwrite with provided keyword arguments
-        meta_info.update(kwargs)
-
         if isinstance(meta, six.string_types):
             with open(meta, 'w') as file_obj:
                 record_meta(meta_info, file_obj)
