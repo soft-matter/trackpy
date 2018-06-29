@@ -47,6 +47,7 @@ Linking
     link
     link_iter
     link_df_iter
+    link_partial
 
 
 :func:`~trackpy.linking.link` and :func:`~trackpy.linking.link_df_iter` run
@@ -56,6 +57,9 @@ DataFrame containing data for an entire movie.
 in the form of one DataFrame for each video frame.
 :func:`~trackpy.linking.link_iter` streams through a series of numpy
 ndarrays.
+:func:`~trackpy.linking.link_partial` can patch a region of trajectories in
+an already linked dataset.
+
 
 See the tutorial on large data sets for more.
 

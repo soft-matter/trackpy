@@ -20,6 +20,8 @@ Enhancements
 
 - Added support for multiprocessing to "trackpy.batch". (:issue:`499`)
 
+- Added "trackpy.linking.link_partial" (:issue:`445`)
+
 
 Bug fixes
 ~~~~~~~~~
