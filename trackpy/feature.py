@@ -3,6 +3,8 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import warnings
 import logging
+from functools import partial
+from multiprocessing.pool import Pool
 
 import numpy as np
 import pandas as pd
@@ -452,11 +454,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     return refined_coords
 
 
-def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
-          noise_size=1, smoothing_size=None, threshold=None, invert=False,
-          percentile=64, topn=None, preprocess=True, max_iterations=10,
-          filter_before=None, filter_after=None, characterize=True,
-          engine='auto', output=None, meta=None):
+def batch(frames, diameter, output=None, meta=None, processes=1,
+          after_locate=None, **kwargs):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -467,52 +466,13 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     Parameters
     ----------
     frames : list (or iterable) of images
+        The frames to process.
     diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : float
-        The minimum integrated brightness.
-        Default is 100 for integer images and 1 for float images, but a good
-        value is often much higher. This is a crucial parameter for eliminating
-        spurious features.
-        .. warning:: The mass value was changed since v0.3.3
-    maxsize : float
-        maximum radius-of-gyration of brightness, default None
-    separation : float or tuple
-        Minimum separtion between features.
-        Default is diameter + 1. May be a tuple, see diameter for details.
-    noise_size : float or tuple
-        Width of Gaussian blurring kernel, in pixels
-        Default is 1. May be a tuple, see diameter for details.
-    smoothing_size : float or tuple
-        The size of the sides of the square kernel used in boxcar (rolling
-        average) smoothing, in pixels
-        Default is diameter. May be a tuple, making the kernel rectangular.
-    threshold : float
-        Clip bandpass result below this value.
-        Default, None, defers to default settings of the bandpass function.
-    invert : boolean
-        Set to True if features are darker than background. False by default.
-    percentile : float
-        Features must have a peak brighter than pixels in this
-        percentile. This helps eliminate spurious peaks.
-    topn : integer
-        Return only the N brightest features above minmass.
-        If None (default), return all features above minmass.
-    preprocess : boolean
-        Set to False to turn off bandpass preprocessing.
-    max_iterations : integer
-        max number of loops to refine the center of mass, default 10
-    filter_before : boolean
-        filter_before is no longer supported as it does not improve performance.
-    filter_after : boolean
-        This parameter has been deprecated: use minmass and maxsize.
-    characterize : boolean
-        Compute "extras": eccentricity, signal, ep. True by default.
-    engine : {'auto', 'python', 'numba'}
     output : {None, trackpy.PandasHDFStore, SomeCustomClass}
         If None, return all results as one big DataFrame. Otherwise, pass
         results from each frame, one at a time, to the put() method
@@ -521,6 +481,20 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         If specified, information relevant to reproducing this batch is saved
         as a YAML file, a plain-text machine- and human-readable format.
         By default, this is None, and no file is saved.
+    processes : integer or "auto", optional
+        The number of processes to use in parallel. If <= 1, multiprocessing is
+        disabled. If "auto", the number returned by `os.cpu_count()`` is used.
+    after_locate : function, optional
+        Specify a custom function to apply to the detected features in each
+        processed frame. It must accept the following arguments:
+
+        - ``frame_no``: an integer specifying the number of the current frame.
+        - ``features``: a DataFrame containing the detected features.
+
+        Furthermore it must return a DataFrame like ``features``.
+    **kwargs :
+        Keyword arguments that are passed to the wrapped `trackpy.locate`.
+        Refer to its docstring for further details.
 
     Returns
     -------
@@ -532,38 +506,31 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     See Also
     --------
     locate : performs location on a single image
-    minmass_v03_change : to convert minmass from v0.2.4 to v0.3.0
-    minmass_v04_change : to convert minmass from v0.3.3 to v0.4.0
 
     Notes
     -----
-    This is an implementation of the Crocker-Grier centroid-finding algorithm.
-    [1]_
-
-    Locate works with a coordinate system that has its origin at the center of
-    pixel (0, 0). In almost all cases this will be the topleft pixel: the
-    y-axis is pointing downwards.
-
-    References
-    ----------
-    .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
-
+    This is a convenience function that wraps `trackpy.locate` (see its
+    docstring for further details) and allows batch processing of multiple
+    frames, optionally in parallel by using multiprocessing.
     """
-    # Gather meta information and save as YAML in current directory.
-    timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S')
-    try:
-        source = frames.filename
-    except:
-        source = None
-    meta_info = dict(timestamp=timestamp,
-                     trackpy_version=trackpy.__version__,
-                     source=source, diameter=diameter, minmass=minmass,
-                     maxsize=maxsize, separation=separation,
-                     noise_size=noise_size, smoothing_size=smoothing_size,
-                     invert=invert, percentile=percentile, topn=topn,
-                     preprocess=preprocess, max_iterations=max_iterations)
+    if "raw_image" in kwargs:
+        raise KeyError("the argument `raw_image` musn't be in `kwargs`, it is "
+                       "provided internally by `frames`")
+    # Add required keyword argument
+    kwargs["diameter"] = diameter
 
     if meta:
+        # Gather meta information and save as YAML in current directory.
+        try:
+            source = frames.filename
+        except AttributeError:
+            source = None
+        meta_info = dict(
+            timestamp=pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S'),
+            trackpy_version=trackpy.__version__,
+            source=source,
+            **kwargs
+        )
         if isinstance(meta, six.string_types):
             with open(meta, 'w') as file_obj:
                 record_meta(meta_info, file_obj)
@@ -571,27 +538,51 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             # Interpret meta to be a file handle.
             record_meta(meta_info, meta)
 
-    all_features = []
-    for i, image in enumerate(frames):
-        features = locate(image, diameter, minmass, maxsize, separation,
-                          noise_size, smoothing_size, threshold, invert,
-                          percentile, topn, preprocess, max_iterations,
-                          filter_before, filter_after, characterize,
-                          engine)
-        if hasattr(image, 'frame_no') and image.frame_no is not None:
-            frame_no = image.frame_no
-            # If this works, locate created a 'frame' column.
-        else:
-            frame_no = i
-            features['frame'] = i  # just counting iterations
-        logger.info("Frame %d: %d features", frame_no, len(features))
-        if len(features) == 0:
-            continue
+    # Prepare wrapped function for mapping to `frames`
+    curried_locate = partial(locate, **kwargs)
 
-        if output is None:
-            all_features.append(features)
-        else:
-            output.put(features)
+    # Handle & validate argument `processes`
+    if processes == "auto":
+        processes = None  # Is replaced with `os.cpu_count` in Pool
+    elif not isinstance(processes, six.integer_types):
+        raise TypeError("`processes` must either be an integer or 'auto', "
+                        "was type {}".format(type(processes)))
+
+    if processes is None or processes > 1:
+        # Use multiprocessing
+        pool = Pool(processes=processes)
+        map_func = pool.imap
+    else:
+        pool = None
+        map_func = map
+
+    if after_locate is None:
+        def after_locate(frame_no, features):
+            return features
+
+    try:
+        all_features = []
+        for i, features in enumerate(map_func(curried_locate, frames)):
+            image = frames[i]
+            if hasattr(image, 'frame_no') and image.frame_no is not None:
+                frame_no = image.frame_no
+                # If this works, locate created a 'frame' column.
+            else:
+                frame_no = i
+                features['frame'] = i  # just counting iterations
+            features = after_locate(frame_no, features)
+
+            logger.info("Frame %d: %d features", frame_no, len(features))
+            if len(features) > 0:
+                # Store if features were found
+                if output is None:
+                    all_features.append(features)
+                else:
+                    output.put(features)
+    finally:
+        if pool:
+            # Ensure correct termination of Pool
+            pool.terminate()
 
     if output is None:
         if len(all_features) > 0:

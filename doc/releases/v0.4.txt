@@ -7,6 +7,18 @@ API Changes
 
 - "trackpy.legacy.linking.link_df" does not copy a DataFrame automatically
   anymore if the provided DataFrame is a view. (:issue:`503`)
+- The "locate" options in "trackpy.batch" are now collected in "**kwargs"
+  (except for "diameter") and passed to the wrapped "trackpy.locate" function.
+  This means when using the "meta" option of "trackpy.batch" only explicitly
+  given options for the wrapped "trackpy.locate" are saved to the file;
+  unspecified options using default values from "locate" aren't saved.
+  (:issue:`499`)
+
+
+Enhancements
+~~~~~~~~~~~~
+
+- Added support for multiprocessing to "trackpy.batch". (:issue:`499`)
 
 
 Bug fixes
