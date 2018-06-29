@@ -1,3 +1,9 @@
+""" Functions to evaluate all possible links between two groups of features.
+
+These are low-level functions that rigorously resolve cases when features
+can be linked in more than one way.
+"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
@@ -7,7 +13,7 @@ from collections import deque
 import numpy as np
 
 from .utils import SubnetOversizeException
-from ..try_numba import try_numba_autojit
+from ..try_numba import try_numba_jit
 
 
 def recursive_linker_obj(s_sn, dest_size, search_range, max_size=30, diag=False):
@@ -232,7 +238,7 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     dest_results = [dcands[i] if i >= 0 else None for i in best_assignments]
     return source_results, dest_results
 
-@try_numba_autojit(nopython=True)
+@try_numba_jit(nopython=True)
 def _numba_subnet_norecur(ncands, candsarray, dists2array, cur_assignments,
                           cur_sums, tmp_assignments, best_assignments):
     """Find the optimal track assignments for a subnetwork, without recursion.
@@ -380,9 +386,9 @@ def subnet_linker_recursive(source_set, dest_set, search_range, **kwargs):
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # sort candidates and add in penalty for not linking
+    # Add the null candidate that is required by the subnet linker.
+    # Forward candidates were already sorted by Linker.assign_links()
     for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
 
     snl = SubnetLinker(source_set, len(dest_set), search_range, **kwargs)
@@ -407,9 +413,9 @@ def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # sort candidates and add in penalty for not linking
+    # Add the null candidate that is required by the subnet linker.
+    # Forward candidates were already sorted by Linker.assign_links()
     for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
 
     sn_spl, sn_dpl = nonrecursive_link(source_set, len(dest_set), search_range, **kwargs)
@@ -421,24 +427,42 @@ def subnet_linker_nonrecursive(source_set, dest_set, search_range, **kwargs):
 
     return sn_spl, sn_dpl
 
+def subnet_linker_numba(source_set, dest_set, search_range,
+                        hybrid=True, **kwargs):
+    """Link a subnet using a numba-accelerated algorithm.
 
-def subnet_linker_numba(source_set, dest_set, search_range, **kwargs):
-    if len(source_set) == 0 and len(dest_set) == 1:
+    Since this is meant to be the highest-performance option, it
+    has some special behaviors:
+
+    - Each source particle's forward_cands must be sorted by distance.
+    - If the 'hybrid' option is true, subnets with only 1 source or
+      destination particle, or with at most 4 source particles and
+      4 destination particles, are solved using the recursive
+      pure-Python algorithm, which has much less overhead since
+      it does not convert to a numpy representation.
+    """
+    lss = len(source_set)
+    lds = len(dest_set)
+    if lss == 0 and lds == 1:
         # no backwards candidates: particle will get a new track
         return [None], [dest_set.pop()]
-    elif len(source_set) == 1 and len(dest_set) == 1:
+    elif lss == 1 and lds == 1:
         # one backwards candidate and one forward candidate
         return [source_set.pop()], [dest_set.pop()]
-    elif len(source_set) == 1 and len(dest_set) == 0:
+    elif lss == 1 and lds == 0:
         # particle is lost. Not possible with default Linker implementation.
         return [source_set.pop()], [None]
 
-    # sort candidates and add in penalty for not linking
+    # Add the null candidate that is required by the subnet linker.
+    # Forward candidates were already sorted by Linker.assign_links()
     for _s in source_set:
-        _s.forward_cands.sort(key=lambda x: x[1])
         _s.forward_cands.append((None, search_range))
 
-    sn_spl, sn_dpl = numba_link(source_set, len(dest_set), search_range, **kwargs)
+    # Shortcut for small subnets, because the numba linker has significant overhead
+    if (lds == 1 or lss == 1 or (lds <= 3 and lss <= 3)) and hybrid:
+        sn_spl, sn_dpl = recursive_linker_obj(source_set, lds, search_range, **kwargs)
+    else:
+        sn_spl, sn_dpl = numba_link(source_set, lds, search_range, **kwargs)
 
     for dp in dest_set - set(sn_dpl):
         # Unclaimed destination particle in subnet

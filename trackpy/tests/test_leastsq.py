@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_allclose
+
 from trackpy.utils import validate_tuple
 from trackpy.refine import refine_com, refine_leastsq
 from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
@@ -12,6 +13,7 @@ from trackpy.refine.least_squares import (dimer, trimer, tetramer, dimer_global,
 from trackpy.tests.common import assert_coordinates_close, StrictTestCase
 from scipy.optimize.slsqp import approx_jacobian
 from nose import SkipTest
+from nose.plugins.attrib import attr
 
 
 EPSILON = 1E-7
@@ -205,17 +207,6 @@ class RefineTsts(object):
         else:
             size = df[self.size_columns].values
         return pos, signal, size, pos_err
-
-    def from_tp_ndarray(self, ndarray):
-        ndim = self.ndim
-        pos = ndarray[:, ndim-1:None:-1]
-        if self.isotropic:
-            size = ndarray[:, ndim + 1]
-            signal = ndarray[:, ndim + 3]
-        else:
-            size = ndarray[:, 2*ndim:ndim:-1]
-            signal = ndarray[:, 2*ndim + 2]
-        return pos, signal, size, None
 
     def get_deviations(self, actual_pos, expected_pos, cluster_size,
                        expected_center, expected_angle):
@@ -412,7 +403,7 @@ class RefineTsts(object):
 
         actual = refine_com(image, image, self.radius, p0_pos, **kwargs)
 
-        actual = self.from_tp_ndarray(actual)
+        actual = self.from_dataframe(actual)
         return self.compute_deviations(actual, expected)
 
 
@@ -508,7 +499,7 @@ class RefineTsts(object):
 
         actual = refine_com(image, image, self.radius, p0_pos, **kwargs)
 
-        actual = self.from_tp_ndarray(actual)
+        actual = self.from_dataframe(actual)
         actual_pos, actual_signal, actual_size, pos_err = actual
         deviations = self.get_deviations(actual_pos, expected_pos, cluster_size,
                                          expected_center, expected_angle)
@@ -662,6 +653,7 @@ class RefineTsts(object):
         self.assertLess(devs['parr_mean'], self.accuracy_constrained * max(self.size))
         self.assertLess(devs['perp_rms'], self.precision_perfect)
 
+    @attr('slow')
     def test_trimer_constrained(self):
         hard_radius = 1.
         constraints = trimer(2*np.array(self.size)*hard_radius, self.ndim)
@@ -674,6 +666,7 @@ class RefineTsts(object):
 
         self.assertLess(devs['pos'], self.precision_perfect)
 
+    @attr('slow')
     def test_tetramer_constrained(self):
         if self.ndim != 3:
             raise SkipTest('Tetramers are only tested in 3D')
@@ -703,6 +696,7 @@ class TestFit_gauss2D(RefineTsts, StrictTestCase):
 #      fit_func = 'gauss'
 
 
+@attr('slow')
 class TestFit_gauss3D(RefineTsts, StrictTestCase):
      size = SIZE_3D
      ndim = 3
@@ -710,6 +704,7 @@ class TestFit_gauss3D(RefineTsts, StrictTestCase):
      fit_func = 'gauss'
 
 
+@attr('slow')
 class TestFit_gauss3D_a(RefineTsts, StrictTestCase):
      size = SIZE_3D_ANISOTROPIC
      ndim = 3
@@ -845,6 +840,7 @@ class TestMultiple(StrictTestCase):
         assert_coordinates_close(result[self.im.pos_columns].values,
                                  self.im.coords, 0.1)
 
+    @attr('slow')
     def test_var_global(self):
         self.im.clear()
         self.im.draw_features(100, 15, self.diameter)

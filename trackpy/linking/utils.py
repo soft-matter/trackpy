@@ -100,6 +100,8 @@ class Point(object):
     :py:meth:`Point.__init__`.  (See :py:class:`~trackpy.linking.PointND` for
     example. )
     '''
+    __slots__ = ['_track', 'uuid', 't', 'pos', 'id', 'extra_data', 
+                 'forward_cands', 'subnet', 'relocate_neighbors', '__dict__']
     @classmethod
     def reset_counter(cls, c=0):
         cls.counter = itertools.count(c)
@@ -178,6 +180,7 @@ class TrackUnstored(object):
         The first feature in the track
 
     """
+    __slots__ = ['id', 'indx', '__dict__']
     @classmethod
     def reset_counter(cls, c=0):
         cls.counter = itertools.count(c)

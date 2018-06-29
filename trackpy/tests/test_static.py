@@ -3,9 +3,10 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from trackpy.static import *
-import pandas
+import pandas as pd
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_array_less
+from nose.plugins.attrib import attr
 from trackpy.static import cluster
 from trackpy.tests.common import StrictTestCase
 
@@ -98,7 +99,7 @@ class TestPairCorrelation(StrictTestCase):
         r = peaks.max() * 1/x**2
         self.assertTrue( np.allclose(peaks, r, atol=.02) )
 
-
+    @attr('slow')
     def test_correlation_3d_lattice(self):
         ### Lattice Test 
         # With proper edge handling, g(r) of the particle at the center should 
@@ -138,7 +139,7 @@ class TestPairCorrelation(StrictTestCase):
                 x.append(i)
                 y.append(j)
 
-        return pandas.DataFrame({'x':x, 'y':y})
+        return pd.DataFrame({'x':x, 'y':y})
 
 
     def _rings_2d(self):
@@ -154,7 +155,7 @@ class TestPairCorrelation(StrictTestCase):
             i += 10
         points[:10] = 0
 
-        return pandas.DataFrame(points, columns = ['x', 'y'])
+        return pd.DataFrame(points, columns = ['x', 'y'])
 
 
     def _lattice_3d(self, n = 20):
@@ -167,7 +168,7 @@ class TestPairCorrelation(StrictTestCase):
                     y.append(j)
                     z.append(k)
 
-        return pandas.DataFrame({'x':x, 'y':y, 'z':z})
+        return pd.DataFrame({'x':x, 'y':y, 'z':z})
 
 
     def _rings_3d(self):
@@ -175,12 +176,12 @@ class TestPairCorrelation(StrictTestCase):
         epsilon = .02
         r = np.arange(1, 10, 1) + epsilon
         refx, refy, refz = _points_ring3D(r, 0, 500)
-        df = pandas.DataFrame({'x': np.concatenate(refx), 
+        df = pd.DataFrame({'x': np.concatenate(refx),
                                'y': np.concatenate(refy),
                                'z': np.concatenate(refz)})
         
         # The last index is the center particle, which is used to calculate g_r 
-        df = df.append(pandas.DataFrame({'x': [0.], 'y': [0.], 'z':[0.]}))
+        df = df.append(pd.DataFrame({'x': [0.], 'y': [0.], 'z':[0.]}))
         return df
 
 

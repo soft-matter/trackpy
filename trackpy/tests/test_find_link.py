@@ -9,10 +9,10 @@ import nose
 from numpy.testing import assert_equal
 
 from trackpy.utils import pandas_sort
-from trackpy.artificial import CoordinateReader
 from trackpy.linking import find_link
-from trackpy.tests.common import assert_traj_equal, StrictTestCase
-from trackpy.tests.test_linking import SubnetNeededTests
+from trackpy.tests.common import (assert_traj_equal, StrictTestCase,
+                                  CoordinateReader)
+from trackpy.tests.test_linking import SubnetNeededTests, _skip_if_no_sklearn
 
 
 class FindLinkTests(SubnetNeededTests):
@@ -20,8 +20,11 @@ class FindLinkTests(SubnetNeededTests):
         super(FindLinkTests, self).setUp()
         self.linker_opts['separation'] = 10
         self.linker_opts['diameter'] = 15
+        self.linker_opts['preprocess'] = False
 
     def link(self, f, search_range, *args, **kwargs):
+        if 'pos_columns' in kwargs:
+            raise nose.SkipTest('Skipping find_link tests with custom pos_columns.')
         # the minimal spacing between features in f is assumed to be 1.
 
         # from scipy.spatial import cKDTree
@@ -62,6 +65,13 @@ class FindLinkTests(SubnetNeededTests):
         # Should not raise
         actual = self.link(f, 5.2, separation=9.5, diameter=15.2)
         assert_traj_equal(actual, expected)
+
+
+class FindLinkTestsBTree(FindLinkTests):
+    def setUp(self):
+        _skip_if_no_sklearn()
+        super(FindLinkTestsBTree, self).setUp()
+        self.linker_opts['neighbor_strategy'] = 'BTree'
 
 
 class FindLinkOneFailedFindTests(FindLinkTests):
@@ -132,14 +142,15 @@ class FindLinkSpecialCases(StrictTestCase):
     def setUp(self):
         self.linker_opts = dict()
         self.search_range = 12
-        self.separation = 4
+        self.separation = 7
         self.diameter = 12  # only for characterization
         self.size = 3
 
     def link(self, f, shape, remove=None, **kwargs):
         _kwargs = dict(diameter=self.diameter,
                        search_range=self.search_range,
-                       separation=self.separation)
+                       separation=self.separation,
+                       preprocess=False)
         _kwargs.update(kwargs)
         if remove is not None:
             callback_coords = f.loc[f['frame'] == 1, ['y', 'x']].values
@@ -176,7 +187,7 @@ class FindLinkSpecialCases(StrictTestCase):
     def test_two_isolated(self):
         shape = (32, 32)
         expected = DataFrame({'x': [8, 16, 24, 16], 'y': [8, 8, 24, 24],
-                                 'frame': [0, 1, 0, 1], 'particle': [0, 0, 1, 1]})
+                              'frame': [0, 1, 0, 1], 'particle': [0, 0, 1, 1]})
         for remove in [[], [0], [1], [0, 1]]:
             actual = self.link(expected, shape=shape, remove=remove)
             assert_traj_equal(actual, expected)

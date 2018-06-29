@@ -17,6 +17,8 @@ import pandas as pd
 
 from . import linking
 
+from .utils import pandas_concat
+
 
 def predictor(predict_func):
     """Decorator to vectorize a predictor function for a single particle.
@@ -79,7 +81,7 @@ class NullPredict(object):
         if kw.get('t_column') is None:
             kw['t_column'] = 'frame'
         features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
-        return pd.concat(linking_fcn(*([features_iter, ] + args), **kw))
+        return pandas_concat(linking_fcn(*([features_iter, ] + args), **kw))
 
     def link_df_iter(self, *args, **kw):
         """Wrapper for linking.link_df_iter() that causes it to use this predictor."""

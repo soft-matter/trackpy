@@ -4,17 +4,14 @@ import six
 from six.moves import zip, range
 import logging
 from warnings import warn
-from copy import copy
 import itertools
 import functools
-from collections import deque
 
 import numpy as np
 import pandas as pd
 
 from ..try_numba import NUMBA_AVAILABLE
-from ..utils import (is_pandas_since_016, pandas_sort, cKDTree, validate_tuple,
-                     is_isotropic)
+from ..utils import pandas_sort, cKDTree, validate_tuple, is_isotropic
 from .utils import (TrackUnstored, points_to_arr, UnknownLinkingError,
                     SubnetOversizeException)
 from .subnetlinker import (recursive_linker_obj, nonrecursive_link, drop_link,
@@ -519,15 +516,6 @@ def link_df(features, search_range, memory=0,
     if hash_size is None:
         MARGIN = 1  # avoid OutOfHashException
         hash_size = features[pos_columns].max() + MARGIN
-
-    # Check if DataFrame is writeable.
-    # I don't know how to do this for pandas < 0.16.
-    if (is_pandas_since_016 and features.is_copy is not None and
-            not copy_features):
-        warn('The features DataFrame is a view, so it is not writeable. '
-             'The results will be output to a copy. Use copy_features='
-             'True to prevent this warning message.')
-        copy_features = True
 
     # Group the DataFrame by time steps and make a 'level' out of each
     # one, using the index to keep track of Points.
@@ -1148,11 +1136,12 @@ class Linker(object):
                         dest_set.discard(c_dp[0])
                 done_flg = (len(d_sn) == d_sn_sz) and (len(s_sn) == s_sn_sz)
 
-            # add in penalty for not linking
+            # sort and add in penalty for not linking
             for _s in s_sn:
                 # If we end up having to recurse for adaptive search, this final
                 # element will be dropped and re-added, because search_range is
                 # decreasing.
+                _s.forward_cands.sort(key=lambda x: x[1])
                 _s.forward_cands.append((None, search_range))
 
             try:

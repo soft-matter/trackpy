@@ -45,9 +45,12 @@ extensions = ['sphinx.ext.autodoc',
 extlinks = {'issue': ('https://github.com/soft-matter/trackpy/issues/%s',
                       'GH')}
 
+mathjax_path = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/MathJax.js'
+
 # Generate the API documentation when building
 autosummary_generate = True
 numpydoc_show_class_members = False
+autodoc_docstring_signature = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

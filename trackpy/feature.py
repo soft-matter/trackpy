@@ -3,17 +3,19 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import warnings
 import logging
+from functools import partial
+from multiprocessing.pool import Pool
 
 import numpy as np
 import pandas as pd
-from pandas import DataFrame
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import (record_meta, validate_tuple, is_isotropic,
-                    default_size_columns)
+                    default_pos_columns, default_size_columns,
+                    pandas_concat)
 from .find import grey_dilation, where_close
-from .refine import refine_com
+from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
@@ -22,9 +24,9 @@ import trackpy  # to get trackpy.__version__
 logger = logging.getLogger(__name__)
 
 
-def minmass_version_change(raw_image, old_minmass, preprocess=True,
-                           invert=False, noise_size=1, smoothing_size=None,
-                           threshold=None):
+def minmass_v03_change(raw_image, old_minmass, preprocess=True,
+                       invert=False, noise_size=1, smoothing_size=None,
+                       threshold=None):
     """Convert minmass value from v0.2.4 to v0.3.
 
     From trackpy version 0.3.0, the mass calculation is changed. Before
@@ -73,7 +75,84 @@ def minmass_version_change(raw_image, old_minmass, preprocess=True,
 
     scale_factor = scalefactor_to_gamut(image, dtype)
 
-    return int(old_minmass / scale_factor)
+    return old_minmass / scale_factor
+
+
+def minmass_v04_change(raw_image, old_minmass, diameter, preprocess=True,
+                       old_smoothing_size=None, new_smoothing_size=None):
+    """Convert minmass value from v0.3 to v0.4.
+
+    From trackpy version 0.4.0, the default image preprocessing is changed.
+    Before version 0.4.0 a blurred out image (rolling or boxcar average) with
+    a circular kernel with radius `diameter` was subtracted from the image
+    before refinement and mass calculation. From version 0.4.0, this has
+    changed to a square kernel with sides `diameter`, more or less twice as
+    small. This increases tracking accuracy, and reduces the mass.
+
+    This function estimates this difference and applies it to calculate the
+    new minmass value.
+
+    Here the following approximate relation between the "real" mass of the
+    feature and the mass apparent from the bandpassed image is used:
+
+    .. math::
+
+        M_{bp} = M_{real} \\left( 1 - \\frac{n_r}{n_{bp}} \\right)
+
+    Where :math:`n_r` denotes the number of pixels in the (circular)
+    refine mask and :math:`n_{bp}` the number of pixels in the (square)
+    rolling average kernel.
+
+    This follows from a simple model where the bandpassed image :math:`I_{bp}`
+    relates to the "real" feature :math:`F` and the noise :math:`N` by:
+
+    .. math::
+
+        I_{bp} = F + N - \\left(N + \\frac{M_{real}}{n_{bp}} \\right)
+
+    Parameters
+    ----------
+    raw_image : ndarray
+    old_minmass : number
+    diameter : number or tuple
+        Odd-valued number that is used in locate
+    preprocess : boolean, optional
+        Defaults to True. Minmass is not changed when preprocess=False.
+    old_smoothing_size : number or tuple, optional
+        The smoothing size used in the old (pre v0.4) trackpy version (the
+        radius of the circular kernel). Defaults to diameter.
+    new_smoothing_size : number or tuple, optional
+        The smoothing size used in the new (post v0.4) trackpy version (the
+        size of the sides of the square kernel). Defaults to diameter.
+
+    Returns
+    -------
+    New minmass
+    """
+    if not preprocess:
+        return old_minmass
+
+    ndim = raw_image.ndim
+    diameter = validate_tuple(diameter, ndim)
+    if old_smoothing_size is None:
+        old_smoothing_size = diameter
+    else:
+        old_smoothing_size = validate_tuple(old_smoothing_size, ndim)
+    if new_smoothing_size is None:
+        new_smoothing_size = diameter
+    else:
+        new_smoothing_size = validate_tuple(new_smoothing_size, ndim)
+
+    radius = tuple((int(d / 2) for d in diameter))
+    old_bp_size = tuple((s * 2 + 1 for s in old_smoothing_size))
+
+    n_px_refine = N_binary_mask(radius, ndim)
+    n_px_old_bp = N_binary_mask(old_bp_size, ndim)
+    n_px_new_bp = np.prod(new_smoothing_size)
+
+    real_minmass = old_minmass / (1 - n_px_refine / n_px_old_bp)
+    new_minmass = real_minmass * (1 - n_px_refine / n_px_new_bp)
+    return new_minmass
 
 
 def local_maxima(image, radius, percentile=64, margin=None):
@@ -114,41 +193,14 @@ def estimate_size(image, radius, coord, estimated_mass):
 
 
 def refine(*args, **kwargs):
-    """Find the center of mass of a bright feature starting from an estimate.
-    This function will be deprecated. Please use the routines in trackpy.refine.
-
-    Characterize the neighborhood of a local maximum, and iteratively
-    hone in on its center-of-brightness. Return its coordinates, integrated
-    brightness, size (Rg), eccentricity (0=circular), and signal strength.
-
-    Parameters
-    ----------
-    raw_image : array (any dimensions)
-        used for final characterization
-    image : array (any dimension)
-        processed image, used for locating center of mass
-    coord : array
-        estimated position
-    separation : float or tuple
-        Minimum separtion between features.
-        Default is 0. May be a tuple, see diameter for details.
-    max_iterations : integer
-        max number of loops to refine the center of mass, default 10
-    engine : {'python', 'numba'}
-        Numba is faster if available, but it cannot do walkthrough.
-    shift_thresh : float, optional
-        Default 0.6 (unit is pixels).
-        If the brightness centroid is more than this far off the mask center,
-        shift mask to neighboring pixel. The new mask will be used for any
-        remaining iterations.
-    break_thresh : float, optional
-        Deprecated
-    characterize : boolean, True by default
-        Compute and return mass, size, eccentricity, signal.
-    walkthrough : boolean, False by default
-        Print the offset on each loop and display final neighborhood image.
     """
-    warnings.warn("trackpy.feature.refine will be deprecated: please use routines in "
+    Deprecated.
+
+    See also
+    --------
+    trackpy.refine.refine_com
+    """
+    warnings.warn("trackpy.feature.refine is deprecated: please use routines in "
                   "trackpy.refine", PendingDeprecationWarning)
     return refine_com(*args, **kwargs)
 
@@ -191,8 +243,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         Width of Gaussian blurring kernel, in pixels
         Default is 1. May be a tuple, see diameter for details.
     smoothing_size : float or tuple
-        Half size of boxcar smoothing, in pixels
-        Default is diameter. May be a tuple, see diameter for details.
+        The size of the sides of the square kernel used in boxcar (rolling
+        average) smoothing, in pixels
+        Default is diameter. May be a tuple, making the kernel rectangular.
     threshold : float
         Clip bandpass result below this value. Thresholding is done on the
         already background-subtracted image.
@@ -321,27 +374,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # Normalize_to_int does nothing if image is already of integer type.
     scale_factor, image = convert_to_int(image, dtype)
 
-    # Set up a DataFrame for the final results.
-    if image.ndim < 4:
-        coord_columns = ['x', 'y', 'z'][:image.ndim]
-    else:
-        coord_columns = map(lambda i: 'x' + str(i), range(image.ndim))
-    MASS_COLUMN_INDEX = len(coord_columns)
-    columns = coord_columns + ['mass']
-    if characterize:
-        if isotropic:
-            SIZE_COLUMN_INDEX = len(columns)
-            columns += ['size']
-        else:
-            SIZE_COLUMN_INDEX = range(len(columns),
-                                      len(columns) + len(coord_columns))
-            columns += ['size_' + cc for cc in coord_columns]
-        SIGNAL_COLUMN_INDEX = len(columns) + 1
-        columns += ['ecc', 'signal', 'raw_mass']
-        if isotropic and np.all(noise_size[1:] == noise_size[:-1]):
-            columns += ['ep']
-        else:
-            columns += ['ep_' + cc for cc in coord_columns]
+    pos_columns = default_pos_columns(image.ndim)
 
     # Find local maxima.
     # Define zone of exclusion at edges of image, avoiding
@@ -355,79 +388,74 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # excludes detection of small features close to large, bright features
     # using the `maxsize` argument.
     coords = grey_dilation(image, separation, percentile, margin, precise=False)
-    count_maxima = coords.shape[0]
-
-    if count_maxima == 0:
-        return DataFrame(columns=columns)
 
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine_com(raw_image, image, radius, coords,
-                                separation=separation,
                                 max_iterations=max_iterations,
                                 engine=engine, characterize=characterize)
+    if len(refined_coords) == 0:
+        return refined_coords
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
     if np.all(np.greater(separation, 0)):
-        positions = refined_coords[:, :MASS_COLUMN_INDEX]
-        mass = refined_coords[:, MASS_COLUMN_INDEX]
-        to_drop = where_close(positions, list(reversed(separation)), mass)
-        refined_coords = np.delete(refined_coords, to_drop, 0)
+        to_drop = where_close(refined_coords[pos_columns], separation,
+                              refined_coords['mass'])
+        refined_coords.drop(to_drop, axis=0, inplace=True)
 
     # mass and signal values has to be corrected due to the rescaling
     # raw_mass was obtained from raw image; size and ecc are scale-independent
-    refined_coords[:, MASS_COLUMN_INDEX] *= 1. / scale_factor
-    if characterize:
-        refined_coords[:, SIGNAL_COLUMN_INDEX] *= 1. / scale_factor
+    refined_coords['mass'] /= scale_factor
+    if 'signal' in refined_coords:
+        refined_coords['signal'] /= scale_factor
 
     # Filter on mass and size, if set.
-    condition = refined_coords[:, MASS_COLUMN_INDEX] > minmass
+    condition = refined_coords['mass'] > minmass
     if maxsize is not None:
-        condition &= refined_coords[:, SIZE_COLUMN_INDEX] < maxsize
-    refined_coords = refined_coords[condition]
-    count_qualified = refined_coords.shape[0]
+        condition &= refined_coords['size'] < maxsize
+    if not condition.all():  # apply the filter
+        # making a copy to avoid SettingWithCopyWarning
+        refined_coords = refined_coords.loc[condition].copy()
 
-    if count_qualified == 0:
+    if len(refined_coords) == 0:
         warnings.warn("No maxima survived mass- and size-based filtering. "
                       "Be advised that the mass computation was changed from "
-                      "version 0.2.4 to 0.3.0. See the documentation and the "
-                      "convenience function minmass_version_change.")
-        return DataFrame(columns=columns)
+                      "version 0.2.4 to 0.3.0 and from 0.3.3 to 0.4.0. "
+                      "See the documentation and the convenience functions "
+                      "'minmass_v03_change' and 'minmass_v04_change'.")
+        return refined_coords
 
-    if topn is not None and count_qualified > topn:
-        mass = refined_coords[:, MASS_COLUMN_INDEX]
+    if topn is not None and len(refined_coords) > topn:
+        # go through numpy for easy pandas backwards compatibility
+        mass = refined_coords['mass'].values
         if topn == 1:
             # special case for high performance and correct shape
-            refined_coords = refined_coords[np.argmax(mass)]
-            refined_coords = refined_coords.reshape(1, -1)
+            refined_coords = refined_coords.iloc[[np.argmax(mass)]]
         else:
-            refined_coords = refined_coords[np.argsort(mass)][-topn:]
+            refined_coords = refined_coords.iloc[np.argsort(mass)[-topn:]]
 
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
     if characterize:
-        if preprocess:  # identify background regions from the processed image
-            black_level, noise = measure_noise(image, raw_image, radius)
-        else:  # identify background regions from the provided image
-            black_level, noise = measure_noise(image, raw_image, radius)
+        black_level, noise = measure_noise(image, raw_image, radius)
         Npx = N_binary_mask(radius, ndim)
-        mass = refined_coords[:, SIGNAL_COLUMN_INDEX + 1] - Npx * black_level
-        ep = _static_error(mass, noise, radius[::-1], noise_size[::-1])
-        refined_coords = np.column_stack([refined_coords, ep])
+        mass = refined_coords['raw_mass'].values - Npx * black_level
+        ep = _static_error(mass, noise, radius, noise_size)
 
-    f = DataFrame(refined_coords, columns=columns)
+        if ep.ndim == 1:
+            refined_coords['ep'] = ep
+        else:
+            ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
+            refined_coords = pandas_concat([refined_coords, ep], axis=1)
 
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.
     if hasattr(raw_image, 'frame_no') and raw_image.frame_no is not None:
-        f['frame'] = raw_image.frame_no
-    return f
+        refined_coords['frame'] = int(raw_image.frame_no)
+    return refined_coords
 
 
-def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
-          noise_size=1, smoothing_size=None, threshold=None, invert=False,
-          percentile=64, topn=None, preprocess=True, max_iterations=10,
-          filter_before=None, filter_after=None, characterize=True,
-          engine='auto', output=None, meta=None):
+def batch(frames, diameter, output=None, meta=None, processes=1,
+          after_locate=None, **kwargs):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -438,51 +466,13 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     Parameters
     ----------
     frames : list (or iterable) of images
+        The frames to process.
     diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : float
-        The minimum integrated brightness.
-        Default is 100 for integer images and 1 for float images, but a good
-        value is often much higher. This is a crucial parameter for eliminating
-        spurious features.
-        .. warning:: The mass value was changed since v0.3.0
-    maxsize : float
-        maximum radius-of-gyration of brightness, default None
-    separation : float or tuple
-        Minimum separtion between features.
-        Default is diameter + 1. May be a tuple, see diameter for details.
-    noise_size : float or tuple
-        Width of Gaussian blurring kernel, in pixels
-        Default is 1. May be a tuple, see diameter for details.
-    smoothing_size : float or tuple
-        Size of boxcar smoothing, in pixels
-        Default is diameter. May be a tuple, see diameter for details.
-    threshold : float
-        Clip bandpass result below this value.
-        Default, None, defers to default settings of the bandpass function.
-    invert : boolean
-        Set to True if features are darker than background. False by default.
-    percentile : float
-        Features must have a peak brighter than pixels in this
-        percentile. This helps eliminate spurious peaks.
-    topn : integer
-        Return only the N brightest features above minmass.
-        If None (default), return all features above minmass.
-    preprocess : boolean
-        Set to False to turn off bandpass preprocessing.
-    max_iterations : integer
-        max number of loops to refine the center of mass, default 10
-    filter_before : boolean
-        filter_before is no longer supported as it does not improve performance.
-    filter_after : boolean
-        This parameter has been deprecated: use minmass and maxsize.
-    characterize : boolean
-        Compute "extras": eccentricity, signal, ep. True by default.
-    engine : {'auto', 'python', 'numba'}
     output : {None, trackpy.PandasHDFStore, SomeCustomClass}
         If None, return all results as one big DataFrame. Otherwise, pass
         results from each frame, one at a time, to the put() method
@@ -491,6 +481,20 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
         If specified, information relevant to reproducing this batch is saved
         as a YAML file, a plain-text machine- and human-readable format.
         By default, this is None, and no file is saved.
+    processes : integer or "auto", optional
+        The number of processes to use in parallel. If <= 1, multiprocessing is
+        disabled. If "auto", the number returned by `os.cpu_count()`` is used.
+    after_locate : function, optional
+        Specify a custom function to apply to the detected features in each
+        processed frame. It must accept the following arguments:
+
+        - ``frame_no``: an integer specifying the number of the current frame.
+        - ``features``: a DataFrame containing the detected features.
+
+        Furthermore it must return a DataFrame like ``features``.
+    **kwargs :
+        Keyword arguments that are passed to the wrapped `trackpy.locate`.
+        Refer to its docstring for further details.
 
     Returns
     -------
@@ -502,37 +506,31 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
     See Also
     --------
     locate : performs location on a single image
-    minmass_version_change : to convert minmass from v0.2.4 to v0.3.0
 
     Notes
     -----
-    This is an implementation of the Crocker-Grier centroid-finding algorithm.
-    [1]_
-
-    Locate works with a coordinate system that has its origin at the center of
-    pixel (0, 0). In almost all cases this will be the topleft pixel: the
-    y-axis is pointing downwards.
-
-    References
-    ----------
-    .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
-
+    This is a convenience function that wraps `trackpy.locate` (see its
+    docstring for further details) and allows batch processing of multiple
+    frames, optionally in parallel by using multiprocessing.
     """
-    # Gather meta information and save as YAML in current directory.
-    timestamp = pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S')
-    try:
-        source = frames.filename
-    except:
-        source = None
-    meta_info = dict(timestamp=timestamp,
-                     trackpy_version=trackpy.__version__,
-                     source=source, diameter=diameter, minmass=minmass,
-                     maxsize=maxsize, separation=separation,
-                     noise_size=noise_size, smoothing_size=smoothing_size,
-                     invert=invert, percentile=percentile, topn=topn,
-                     preprocess=preprocess, max_iterations=max_iterations)
+    if "raw_image" in kwargs:
+        raise KeyError("the argument `raw_image` musn't be in `kwargs`, it is "
+                       "provided internally by `frames`")
+    # Add required keyword argument
+    kwargs["diameter"] = diameter
 
     if meta:
+        # Gather meta information and save as YAML in current directory.
+        try:
+            source = frames.filename
+        except AttributeError:
+            source = None
+        meta_info = dict(
+            timestamp=pd.datetime.utcnow().strftime('%Y-%m-%d-%H%M%S'),
+            trackpy_version=trackpy.__version__,
+            source=source,
+            **kwargs
+        )
         if isinstance(meta, six.string_types):
             with open(meta, 'w') as file_obj:
                 record_meta(meta_info, file_obj)
@@ -540,31 +538,55 @@ def batch(frames, diameter, minmass=100, maxsize=None, separation=None,
             # Interpret meta to be a file handle.
             record_meta(meta_info, meta)
 
-    all_features = []
-    for i, image in enumerate(frames):
-        features = locate(image, diameter, minmass, maxsize, separation,
-                          noise_size, smoothing_size, threshold, invert,
-                          percentile, topn, preprocess, max_iterations,
-                          filter_before, filter_after, characterize,
-                          engine)
-        if hasattr(image, 'frame_no') and image.frame_no is not None:
-            frame_no = image.frame_no
-            # If this works, locate created a 'frame' column.
-        else:
-            frame_no = i
-            features['frame'] = i  # just counting iterations
-        logger.info("Frame %d: %d features", frame_no, len(features))
-        if len(features) == 0:
-            continue
+    # Prepare wrapped function for mapping to `frames`
+    curried_locate = partial(locate, **kwargs)
 
-        if output is None:
-            all_features.append(features)
-        else:
-            output.put(features)
+    # Handle & validate argument `processes`
+    if processes == "auto":
+        processes = None  # Is replaced with `os.cpu_count` in Pool
+    elif not isinstance(processes, six.integer_types):
+        raise TypeError("`processes` must either be an integer or 'auto', "
+                        "was type {}".format(type(processes)))
+
+    if processes is None or processes > 1:
+        # Use multiprocessing
+        pool = Pool(processes=processes)
+        map_func = pool.imap
+    else:
+        pool = None
+        map_func = map
+
+    if after_locate is None:
+        def after_locate(frame_no, features):
+            return features
+
+    try:
+        all_features = []
+        for i, features in enumerate(map_func(curried_locate, frames)):
+            image = frames[i]
+            if hasattr(image, 'frame_no') and image.frame_no is not None:
+                frame_no = image.frame_no
+                # If this works, locate created a 'frame' column.
+            else:
+                frame_no = i
+                features['frame'] = i  # just counting iterations
+            features = after_locate(frame_no, features)
+
+            logger.info("Frame %d: %d features", frame_no, len(features))
+            if len(features) > 0:
+                # Store if features were found
+                if output is None:
+                    all_features.append(features)
+                else:
+                    output.put(features)
+    finally:
+        if pool:
+            # Ensure correct termination of Pool
+            pool.terminate()
 
     if output is None:
         if len(all_features) > 0:
-            return pd.concat(all_features).reset_index(drop=True)
+            return pandas_concat(all_features).reset_index(drop=True)
         else:  # return empty DataFrame
             warnings.warn("No maxima found in any frame.")
             return pd.DataFrame(columns=list(features.columns) + ['frame'])

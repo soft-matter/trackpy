@@ -557,8 +557,8 @@ def annotate3d(centroids, image, **kwargs):
     annotate : annotation of 2D images
     """
     if plots_to_frame is None:
-        raise ImportError('annotate3d requires pims 0.3 or later, please '
-                          'update pims')
+        raise ImportError('annotate3d requires pims 0.3 or later. Please '
+                          'install/update pims')
 
     import matplotlib as mpl
     import matplotlib.pyplot as plt

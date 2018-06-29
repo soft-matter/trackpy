@@ -11,17 +11,21 @@ import pandas as pd
 from .utils import points_to_arr
 from ..utils import default_pos_columns, cKDTree
 
+try:
+    from sklearn.neighbors import BallTree
+except ImportError:
+    BallTree = None
 
-class TreeFinder(object):
-    def __init__(self, points, search_range):
+
+class HashBase(object):
+    """ Base for classes that efficiently find features near a point. """
+    def __init__(self, points, ndim):
         """Takes a list of particles."""
-        self.ndim = len(search_range)
-        self.search_range = np.atleast_2d(search_range)
+        self.ndim = ndim
         if not isinstance(points, list):
             points = list(points)
         self.points = points
         self.set_predictor(None)
-        self.rebuild()
 
     def __len__(self):
         return len(self.points)
@@ -31,7 +35,7 @@ class TreeFinder(object):
         self._clean = False
 
     def set_predictor(self, predictor, t=None):
-        """Sets a predictor to the TreeFinder
+        """Sets a predictor to the Hash
 
         predictor : function, optional
 
@@ -39,54 +43,34 @@ class TreeFinder(object):
             "effective" locations, as an N x d array (or any iterable).
             Used for prediction (see "predict" module).
         """
-        if predictor is None:
-            self.coord_mapping = functools.partial(_default_coord_mapping,
-                                                   self.search_range)
-        else:
-            self.coord_mapping = _wrap_predictor(self.search_range,
-                                                 predictor, t)
+        self.t = t
+        self.predictor = predictor
         self._clean = False
 
-    @property
-    def kdtree(self):
-        if not self._clean:
-            self.rebuild()
-        return self._kdtree
-
-    def rebuild(self):
-        """Rebuilds tree from ``points`` attribute.
-
-        coord_map : function, optional
-
-            Called with a list of N Point instances, returns their
-            "effective" locations, as an N x d array (or list of tuples).
-            Used for prediction (see "predict" module).
-
-        rebuild() needs to be called after ``add_point()`` and
-        before tree is used for spatial queries again (i.e. when
-        memory is turned on).
-        """
-        self._clean = False
-        if len(self.points) == 0:
-            self._kdtree = None
-        else:
-            coords_mapped = self.coord_mapping(self.points)
-            self._kdtree = cKDTree(coords_mapped, 15)
-        # This could be tuned
-        self._clean = True
+    def predict(self, points):
+        """Predict and convert points to an array."""
+        if self.predictor is None:
+            return points_to_arr(points)
+        try:
+            for p in points:
+                p.pos = p.pos[::-1]
+            result = np.array(list(self.predictor(self.t, points)))
+        finally:
+            for p in points:  # swap axes order back
+                p.pos = p.pos[::-1]
+        return result[:, ::-1]
 
     @property
     def coords(self):
         return points_to_arr(self.points)
 
     @property
-    def coords_mapped(self):
-        if not self._clean:
-            self.rebuild()
-        if self._kdtree is None:
-            return np.empty((0, self.ndim))
+    def coords_predict(self):
+        """ Maps coordinates using a predictor class."""
+        if self.predictor is None:
+            return self.coords
         else:
-            return self._kdtree.data
+            return self.predict(self.points)
 
     @property
     def coords_df(self):
@@ -106,11 +90,66 @@ class TreeFinder(object):
                 data.loc[p.uuid, col] = p.extra_data[col]
         return data
 
-    def query_points(self, pos, max_dist_normed=1.):
-        if self.kdtree is None:
+
+class HashKDTree(HashBase):
+    """ Implementation of hash using scipy.spatial.cKDTree """
+    def __init__(self, points, ndim, to_eucl=None, dist_func=None):
+        """Takes a list of particles."""
+        if dist_func is not None:
+            raise ValueError("For custom distance functions please use "
+                             "the 'BTree' neighbor_strategy.")
+        super(HashKDTree, self).__init__(points, ndim)
+        if to_eucl is None:
+            self.to_eucl = lambda x: x
+        else:
+            self.to_eucl = to_eucl
+
+    @property
+    def tree(self):
+        if not self._clean:
+            self.rebuild()
+        return self._kdtree
+
+    @property
+    def coords_mapped(self):
+        if not self._clean:
+            self.rebuild()
+        if self._kdtree is None:
+            return np.empty((0, self.ndim))
+        else:
+            return self._kdtree.data
+
+    def rebuild(self):
+        """Rebuilds tree from ``points`` attribute."""
+        self._clean = False
+        if len(self.points) == 0:
+            self._kdtree = None
+        else:
+            coords_mapped = self.to_eucl(self.coords_predict)
+            self._kdtree = cKDTree(coords_mapped, 15)
+        # This could be tuned
+        self._clean = True
+
+    def query(self, pos, max_neighbors, search_range, rescale=True):
+        """Find `max_neighbors` nearest neighbors of `pos` in the hash, with a
+        maximum distance of `search_range`. `rescale` determines whether `pos`
+        will be rescaled to internal hash coordinates."""
+        if self.tree is None:
             return
-        pos_norm = pos / self.search_range
-        found = self.kdtree.query_ball_point(pos_norm, max_dist_normed)
+        if rescale:
+            pos = self.to_eucl(pos)
+        return self.tree.query(pos, max_neighbors,
+                               distance_upper_bound=search_range + 1e-7)
+
+    def query_points(self, pos, search_range, rescale=True):
+        """Find the nearest neighbors of `pos` in the hash, with a maximum
+        distance of `search_range`. `rescale` determines whether `pos` will
+        be rescaled to internal hash coordinates."""
+        if self.tree is None:
+            return
+        if rescale:
+            pos = self.to_eucl(pos)
+        found = self.tree.query_ball_point(pos, search_range)
         found = set([i for sl in found for i in sl])  # ravel
         if len(found) == 0:
             return
@@ -118,23 +157,82 @@ class TreeFinder(object):
             return self.coords[list(found)]
 
 
-def _default_coord_mapping(search_range, level):
-    """ Convert a list of Points to an ndarray of coordinates """
-    return points_to_arr(level) / search_range
+class HashBTree(HashBase):
+    """ Implementation of hash using sklearn.neighbors.BallTree """
+    def __init__(self, points, ndim, to_eucl=None, dist_func=None):
+        """Takes a list of particles."""
+        if BallTree is None:
+            raise ImportError("Scikit-learn (sklearn) is required "
+                              "for using the 'BTree' neighbor_strategy.")
+        super(HashBTree, self).__init__(points, ndim)
+        if to_eucl is None:
+            self.to_eucl = lambda x: x
+        else:
+            self.to_eucl = to_eucl
+        self.dist_func = dist_func
+        self.rebuild()
 
+    @property
+    def btree(self):
+        if not self._clean:
+            self.rebuild()
+        return self._btree
 
-def _wrap_predictor(search_range, predictor, t):
-    """ Create a function that maps coordinates using a predictor class."""
-    def coord_mapping(level):
-        # swap axes order (need to do inplace to preserve the Point attributes)
-        for p in level:
-            p.pos = p.pos[::-1]
-        result = np.array(list(predictor(t, level)))
-        for p in level:  # swap axes order back
-            p.pos = p.pos[::-1]
-        return result[:, ::-1] / search_range
+    @property
+    def coords_mapped(self):
+        if not self._clean:
+            self.rebuild()
+        if self._btree is None:
+            return np.empty((0, self.ndim))
+        else:
+            return self._btree.data
 
-    return coord_mapping
+    def rebuild(self):
+        """Rebuilds tree from ``points`` attribute."""
+        self._clean = False
+        if len(self.points) == 0:
+            self._btree = None
+        else:
+            coords_mapped = self.to_eucl(self.coords_predict)
+
+            if self.dist_func is None:
+                self._btree = BallTree(coords_mapped)
+            else:
+                self._btree = BallTree(coords_mapped,
+                                       metric='pyfunc', func=self.dist_func)
+        # This could be tuned
+        self._clean = True
+
+    def query(self, pos, max_neighbors, search_range, rescale=True):
+        """Find `max_neighbors` nearest neighbors of `pos` in the hash, with a
+        maximum distance of `search_range`. `rescale` determines whether `pos`
+        will be rescaled to internal hash coordinates."""
+        if self.btree is None:
+            return
+        if rescale:
+            pos = self.to_eucl(pos)
+        if max_neighbors > len(self):
+            max_neighbors = len(self)
+        dists, inds = self.btree.query(pos, k=max_neighbors)
+        mask = dists > search_range
+        dists[mask] = np.inf
+        inds[mask] = len(pos) + 1
+        return dists, inds
+
+    def query_points(self, pos, search_range, rescale=True):
+        """Find the nearest neighbors of `pos` in the hash, with a maximum
+        distance of `search_range`. `rescale` determines whether `pos` will
+        be rescaled to internal hash coordinates."""
+        if self.btree is None:
+            return
+        if rescale:
+            pos = self.to_eucl(pos)
+        dists, found = self.btree.query(pos, return_distance=True)
+        found = set(found[dists <= search_range])
+        if len(found) == 0:
+            return
+        else:
+            return self.coords[list(found)]
 
 
 def assign_subnet(source, dest, subnets):
@@ -145,15 +243,15 @@ def assign_subnet(source, dest, subnets):
         raise ValueError("No subnet for added destination particle")
     if i1 == i2:  # if a and b are already in the same subnet, do nothing
         return
-    if i1 is None:  # source did not belong to a subset before
+    if i1 is None:  # source did not belong to a subnet before
         # just add it
         subnets[i2][0].add(source)
         source.subnet = i2
-    elif i2 is None:  # dest did not belong to a subset before
+    elif i2 is None:  # dest did not belong to a subnet before
         # just add it
         subnets[i1][1].add(dest)
         dest.subnet = i1
-    else:  # source belongs to subset i1 before
+    else:  # source belongs to subnet i1 before
         # merge the subnets
         subnets[i2][0].update(subnets[i1][0])
         subnets[i2][1].update(subnets[i1][1])
@@ -165,24 +263,44 @@ def assign_subnet(source, dest, subnets):
 
 
 def split_subnet(source, dest, new_range):
-    # Clear the subnets and candidates for all points in both frames
+    """Break apart a subnet by using a reduced search_range."""
     subnets = dict()
-    for sp in source:
-        sp.subnet = None
+    # Each destination particle gets its own fresh subnet.
+    # These are numbered differently from the "global" dictionary
+    # of subnets maintained by the instance of the Subnet class.
     for i, dp in enumerate(dest):
         dp.subnet = i
         subnets[i] = set(), {dp}
-
+    # Clear source particles' subnets, and prune their forward candidates
+    # according to new_range.
+    # The pruning step is crucial because some subnet linkers ignore
+    # the destination set and use the source particles' forward candidates
+    # exclusively.
     for sp in source:
+        sp.subnet = None
+        new_fcs = []
         for dp, dist in sp.forward_cands:
-            if dist > new_range:
-                continue
+            # Remove particles that are outside new_range
+            # (including, presumably, the null candidate)
+            if dist <= new_range:
+                new_fcs.append((dp, dist))
+            else:
+                break  # List was sorted by distance
+        # There's no need to re-add the null candidate here; that will be done by the
+        # subnet linker if needed
+        # new_fcs.append((None, new_range))
+        sp.forward_cands = new_fcs
+
+        for dp, dist in new_fcs:
+            # Null candidates were removed
+            # if dp is None:
+            #     continue
             assign_subnet(sp, dp, subnets=subnets)
     return (subnets[key] for key in subnets)
 
 
 class Subnets(object):
-    """ Class that evaluates the possible links between two groups of features.
+    """ Class that identifies the possible links between two groups of features.
 
     Candidates and subnet indices are stored inside the Point objects that are
     inside the provided TreeFinder objects.
@@ -192,12 +310,16 @@ class Subnets(object):
     If subnets with only one source point need to be included, call the
     method `include_lost`. In that case, the method `lost` will raise.
 
+    In general, subnets computed by this class need to be further evaluated
+    to determine the best way to link the source and destination features.
+
     Parameters
     ----------
     source_hash : TreeFinder object
         The hash of the first (source) frame
     dest_hash : TreeFinder object
         The hash of the second (destination) frame
+    search_range : float
     max_neighbors : int, optional
         The maximum number of linking candidates for one feature. Default 10.
 
@@ -214,10 +336,11 @@ class Subnets(object):
     includes_lost : Boolean
         Whether the source points without linking candidates are included.
     """
-    def __init__(self, source_hash, dest_hash, max_neighbors=10):
+    def __init__(self, source_hash, dest_hash, search_range, max_neighbors=10):
         self.max_neighbors = max_neighbors
         self.source_hash = source_hash
         self.dest_hash = dest_hash
+        self.search_range = search_range
         self.includes_lost = False
         self.reset()
         self.compute()
@@ -232,17 +355,16 @@ class Subnets(object):
             p.subnet = i
             self.subnets[i] = set(), {p}
 
-    def compute(self, search_range=1.):
+    def compute(self):
         """ Evaluate the linking candidates and corresponding subnets, using
-        given `search_range` (rescaled to 1.)."""
+        given `search_range`."""
         source_hash = self.source_hash
         dest_hash = self.dest_hash
         if len(source_hash.points) == 0 or len(dest_hash.points) == 0:
             return
-        search_range = float(search_range) + 1e-7
-        dists, inds = source_hash.kdtree.query(dest_hash.coords_mapped,
-                                               self.max_neighbors,
-                                               distance_upper_bound=search_range)
+        dists, inds = source_hash.query(dest_hash.coords_mapped,
+                                        self.max_neighbors, rescale=False,
+                                        search_range=self.search_range)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(dest_hash.points):
             for j in range(nn[i]):
@@ -260,7 +382,7 @@ class Subnets(object):
         else:
             return [p for p in self.source_hash.points if p.subnet is None]
 
-    def add_dest_points(self, source_points, dest_points):
+    def add_dest_points(self, source_points, dest_points, search_range):
         """ Add destination points, evaluate candidates and subnets.
 
         This code cannot generate new subnets. The given points have to be such
@@ -278,11 +400,13 @@ class Subnets(object):
         if len(dest_points) == 0:
             return
         source_points = list(source_points)
-        source_coord = self.source_hash.coord_mapping(source_points)
-        new_dest_hash = TreeFinder(dest_points, self.dest_hash.search_range)
-        dists, inds = new_dest_hash.kdtree.query(source_coord,
-                                                 max(len(source_points), 2),
-                                                 distance_upper_bound=1+1e-7)
+        source_hash = self.source_hash
+        source_coord = source_hash.predict(source_points)
+        new_dest_hash = source_hash.__class__(dest_points, search_range)
+        dists, inds = new_dest_hash.query(source_coord,
+                                          max(len(source_points), 2),
+                                          rescale=True,
+                                          search_range=search_range)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, source in enumerate(source_points):
             for j in range(nn[i]):
@@ -311,7 +435,7 @@ class Subnets(object):
 
         self.includes_lost = True
 
-    def merge_lost_subnets(self):
+    def merge_lost_subnets(self, search_range):
         """ Merge subnets that have lost features and that are closer than
         twice the search range together, in order to account for the possibility
         that relocated points will join subnets together."""
@@ -328,9 +452,12 @@ class Subnets(object):
 
         if len(lost_source) == 0:
             return
-        lost_coords = self.source_hash.coord_mapping(lost_source)
-        dists, inds = self.source_hash.kdtree.query(lost_coords, self.max_neighbors,
-                                                    distance_upper_bound=2+1e-7)
+
+        source_hash = self.source_hash
+        lost_coords = source_hash.predict(lost_source)
+        dists, inds = source_hash.query(lost_coords, self.max_neighbors,
+                                        rescale=True,
+                                        search_range=search_range*2)
         nn = np.sum(np.isfinite(dists), 1)  # Number of neighbors of each particle
         for i, p in enumerate(lost_source):
             for j in range(nn[i]):

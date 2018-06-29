@@ -11,7 +11,7 @@ import pandas
 import trackpy
 from trackpy import predict
 from trackpy.tests.common import StrictTestCase
-from .test_find_link import CoordinateReader
+from trackpy.tests.test_find_link import CoordinateReader
 
 
 def mkframe(n=1, Nside=3):

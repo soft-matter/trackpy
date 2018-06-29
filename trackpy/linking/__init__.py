@@ -1,4 +1,4 @@
-from .linking import (TreeFinder, link, link_df, link_iter, link_df_iter,
+from .linking import (link, link_df, link_iter, link_df_iter,
                       logger, Linker, adaptive_link_wrap)
 from .partial import link_partial, reconnect_traj_patch
 from .find_link import find_link, find_link_iter

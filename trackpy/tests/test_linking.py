@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import os
+from copy import copy
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
@@ -9,9 +10,10 @@ import nose
 from numpy.testing import assert_equal
 
 from trackpy.try_numba import NUMBA_AVAILABLE
-from trackpy.utils import pandas_sort
+from trackpy.utils import pandas_sort, pandas_concat
 from trackpy.linking import (link, link_iter, link_df_iter, verify_integrity,
-                             SubnetOversizeException, link_partial)
+                             SubnetOversizeException, Linker, link_partial)
+from trackpy.linking.subnetlinker import subnet_linker_recursive
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -22,14 +24,25 @@ def random_walk(N):
     return np.cumsum(np.random.randn(N))
 
 
+
 def _skip_if_no_numba():
     if not NUMBA_AVAILABLE:
         raise nose.SkipTest('numba not installed. Skipping.')
 
 
+SKLEARN_AVAILABLE = True
+try:
+    from sklearn.neighbors import BallTree
+except ImportError:
+    SKLEARN_AVAILABLE = False
+
+
+def _skip_if_no_sklearn():
+    if not SKLEARN_AVAILABLE:
+        raise nose.SkipTest('Scikit-learn not installed. Skipping.')
+
 def unit_steps():
     return pd.DataFrame(dict(x=np.arange(5), y=5, frame=np.arange(5)))
-
 
 random_x = np.random.randn(5).cumsum()
 random_x -= random_x.min()  # All x > 0
@@ -55,7 +68,7 @@ def contracting_grid():
     pts1.frame = 1
     pts1.x = pts1.x * 0.9
     pts1.y = pts1.y * 0.9
-    allpts = pd.concat([pts0, pts1], ignore_index=True)
+    allpts = pandas_concat([pts0, pts1], ignore_index=True)
     allpts.x += 200  # Because BTree doesn't allow negative coordinates
     allpts.y += 200
     return allpts
@@ -83,16 +96,16 @@ class CommonTrackingTests(StrictTestCase):
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
-        assert np.issubdtype(actual['particle'], np.int)
-        assert np.issubdtype(actual['frame'], np.int)
+        assert np.issubdtype(actual['particle'], np.integer)
+        assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input
         f['frame'] = f['frame'].astype(np.float)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
-        assert np.issubdtype(actual['particle'], np.int)
-        assert np.issubdtype(actual['frame'], np.int)
+        assert np.issubdtype(actual['particle'], np.integer)
+        assert np.issubdtype(actual['frame'], np.integer)
 
     def test_two_isolated_steppers(self):
         N = 5
@@ -101,7 +114,7 @@ class CommonTrackingTests(StrictTestCase):
         # labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -129,7 +142,7 @@ class CommonTrackingTests(StrictTestCase):
         a = a.drop(3).reset_index(drop=True)
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1),
                       'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy()
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -158,7 +171,7 @@ class CommonTrackingTests(StrictTestCase):
         M = 20 # margin, because negative values raise OutOfHash
         a = DataFrame({'x': M + random_walk(N), 'y': M + random_walk(N), 'frame': np.arange(N)})
         b = DataFrame({'x': M + random_walk(N - 1), 'y': M + Y + random_walk(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -175,7 +188,7 @@ class CommonTrackingTests(StrictTestCase):
             return DataFrame({'x': x + random_walk(N - i),
                               'y': y + random_walk(N - i),
                              'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
+        f = pandas_concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -258,6 +271,38 @@ class CommonTrackingTests(StrictTestCase):
         assert_traj_equal(actual, expected)
         assert 'particle' not in f.columns
 
+    def test_custom_to_eucl(self):
+        # Several 2D random walkers
+        N = 5
+        length = 5
+        step_size = 2
+        search_range = 3
+
+        steps = (np.random.random((2, length, N)) - 0.5) * step_size
+        x, y = np.cumsum(steps, axis=2)
+        f = DataFrame(dict(x=x.ravel(), y=y.ravel(),
+                           frame=np.repeat(np.arange(length), N)))
+
+        # link in normal (2D Euclidean) coordinates
+        expected = self.link(f, search_range)
+
+        # compute radial coordinates
+        f_radial = f.copy()
+        f_radial['angle'] = np.arctan2(f_radial['y'], f_radial['x'])
+        f_radial['r'] = np.sqrt(f_radial['y'] ** 2 + f_radial['x'] ** 2)
+        # leave x, y for the comparison at the end
+
+        def to_eucl(arr):
+            r, angle = arr.T
+            x = r * np.cos(angle)
+            y = r * np.sin(angle)
+            return np.array([x, y]).T
+
+        # link using a custom distance function
+        actual = self.link(f_radial, search_range, pos_columns=['r', 'angle'],
+                           to_eucl=to_eucl)
+        assert_traj_equal(actual, expected)
+
     @nose.tools.raises(SubnetOversizeException)
     def test_oversize_fail(self):
         df = contracting_grid()
@@ -281,7 +326,7 @@ class SubnetNeededTests(CommonTrackingTests):
         # labeling (0, 1) is established and not arbitrary.
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -307,7 +352,7 @@ class SubnetNeededTests(CommonTrackingTests):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 2]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -338,7 +383,7 @@ class SubnetNeededTests(CommonTrackingTests):
         b = DataFrame({'x': M + random_walk(N - 1),
                        'y': M + Y + random_walk(N - 1),
                        'frame': np.arange(1, N)})
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.zeros(N), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -355,7 +400,7 @@ class SubnetNeededTests(CommonTrackingTests):
             return DataFrame({'x': x + random_walk(N - i),
                               'y': y + random_walk(N - i),
                               'frame': np.arange(i, N)})
-        f = pd.concat([walk(*pos) for pos in initial_positions])
+        f = pandas_concat([walk(*pos) for pos in initial_positions])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([i*np.ones(N - i) for i in range(len(initial_positions))])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -463,7 +508,7 @@ class SubnetNeededTests(CommonTrackingTests):
         a = unit_steps()
         b = random_walk_legacy()
         # b[2] is intentionally omitted below.
-        gapped = pd.concat([a, b[b['frame'] != 2]])
+        gapped = pandas_concat([a, b[b['frame'] != 2]])
 
         safe_disp = 1 + random_x.max() - random_x.min()  # Definitely large enough
         t0 = self.link(gapped, safe_disp, memory=0)
@@ -487,7 +532,7 @@ class SubnetNeededTests(CommonTrackingTests):
     def test_memory_with_late_appearance(self):
         a = unit_steps()
         b = random_walk_legacy()
-        gapped = pd.concat([a, b[b['frame'].isin([1, 4])]])
+        gapped = pandas_concat([a, b[b['frame'].isin([1, 4])]])
 
         safe_disp = 1 + random_x.max() - random_x.min()  # large enough
         t0 = self.link(gapped, safe_disp, memory=1)
@@ -503,7 +548,7 @@ class SubnetNeededTests(CommonTrackingTests):
         a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.ones(N - 1), 'frame': np.arange(1, N)})
         a = a.drop(3).reset_index(drop=True)
-        f = pd.concat([a, b])
+        f = pandas_concat([a, b])
         expected = f.copy().reset_index(drop=True)
         expected['particle'] = np.concatenate([np.array([0, 0, 0, 0]), np.ones(N - 1)])
         pandas_sort(expected, ['particle', 'frame'], inplace=True)
@@ -552,15 +597,16 @@ class SubnetNeededTests(CommonTrackingTests):
         only1 = list(set(tr1.index) - set(tr0.index))
         # From the first frame, the outermost particles should have been lost.
         assert all(
-            (tr0.x.ix[only0].abs() > 19) | (tr0.y.ix[only0].abs() > 19))
+            (tr0.x.loc[only0].abs() > 19) | (tr0.y.loc[only0].abs() > 19))
         # There should be new tracks in the second frame, corresponding to the
         # middle radii.
         assert all(
-            (tr1.x.ix[only1].abs() == 9) | (tr1.y.ix[only1].abs() == 9))
+            (tr1.x.loc[only1].abs() == 9) | (tr1.y.loc[only1].abs() == 9))
 
 
 class SimpleLinkingTestsIter(CommonTrackingTests):
     def link(self, f, search_range, *args, **kwargs):
+        pos_columns = kwargs.pop('pos_columns', ['y', 'x'])
 
         def f_iter(f, first_frame, last_frame):
             """ link_iter requires an (optionally enumerated) generator of
@@ -568,7 +614,7 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
             for t in np.arange(first_frame, last_frame + 1,
                                dtype=f['frame'].dtype):
                 f_filt = f[f['frame'] == t]
-                yield t, f_filt[['y', 'x']].values
+                yield t, f_filt[pos_columns].values
 
         res = f.copy()
         res['particle'] = -1
@@ -586,14 +632,14 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
-        assert np.issubdtype(actual['particle'], np.int)
-        assert np.issubdtype(actual['frame'], np.int)
+        assert np.issubdtype(actual['particle'], np.integer)
+        assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input: frame column type is propagated in link_iter
         f['frame'] = f['frame'].astype(np.float)
         actual = self.link(f, 5)
-        assert np.issubdtype(actual['particle'], np.int)
-        assert np.issubdtype(actual['frame'], np.float)
+        assert np.issubdtype(actual['particle'], np.integer)
+        assert np.issubdtype(actual['frame'], np.floating)
 
 
 class SimpleLinkingTestsDfIter(CommonTrackingTests):
@@ -606,7 +652,7 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
 
         res_iter = link_df_iter(df_iter(f, 0, int(f['frame'].max())),
                                 search_range, *args, **kwargs)
-        res = pd.concat(res_iter)
+        res = pandas_concat(res_iter)
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
     def test_output_dtypes(self):
@@ -618,14 +664,14 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
-        assert np.issubdtype(actual['particle'], np.int)
-        assert np.issubdtype(actual['frame'], np.int)
+        assert np.issubdtype(actual['particle'], np.integer)
+        assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input: frame column type is propagated in link_df_iter
         f['frame'] = f['frame'].astype(np.float)
         actual = self.link(f, 5)
-        assert np.issubdtype(actual['particle'], np.int)
-        assert np.issubdtype(actual['frame'], np.float)
+        assert np.issubdtype(actual['particle'], np.integer)
+        assert np.issubdtype(actual['frame'], np.floating)
 
 
 class TestDropLink(CommonTrackingTests):
@@ -653,12 +699,150 @@ class TestDropLink(CommonTrackingTests):
 
 class TestNumbaLink(SubnetNeededTests):
     def setUp(self):
+        _skip_if_no_numba()
         self.linker_opts = dict(link_strategy='numba')
+
+
+class TestHybridLink(SubnetNeededTests):
+    def setUp(self):
+        _skip_if_no_numba()
+        self.linker_opts = dict(link_strategy='hybrid')
 
 
 class TestNonrecursiveLink(SubnetNeededTests):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive')
+
+
+class TestBTreeLink(SubnetNeededTests):
+    def setUp(self):
+        _skip_if_no_sklearn()
+        self.linker_opts = dict(neighbor_strategy='BTree')
+
+    def test_custom_dist_func(self):
+        # Several 2D random walkers
+        N = 5
+        length = 5
+        step_size = 2
+        search_range = 3
+
+        steps = (np.random.random((2, length, N)) - 0.5) * step_size
+        x, y = np.cumsum(steps, axis=2)
+        f = DataFrame(dict(x=x.ravel(), y=y.ravel(),
+                           frame=np.repeat(np.arange(length), N)))
+
+        # link in normal (2D Euclidean) coordinates
+        expected = self.link(f, search_range)
+
+        # compute radial coordinates
+        f_radial = f.copy()
+        f_radial['angle'] = np.arctan2(f_radial['y'], f_radial['x'])
+        f_radial['r'] = np.sqrt(f_radial['y']**2 + f_radial['x']**2)
+        # leave x, y for the comparison at the end
+
+        def dist_func(a, b):
+            x1 = a[0] * np.cos(a[1])
+            y1 = a[0] * np.sin(a[1])
+            x2 = b[0] * np.cos(b[1])
+            y2 = b[0] * np.sin(b[1])
+
+            return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+
+        # link using a custom distance function
+        actual = self.link(f_radial, search_range, pos_columns=['r', 'angle'],
+                           dist_func=dist_func)
+        assert_traj_equal(actual, expected)
+
+
+class TestMockSubnetlinker(StrictTestCase):
+    def setUp(self):
+        self.dest = []
+        self.source = []
+        self.sr = []
+
+        def copy_point(point):
+            return dict(id=point.id, pos=point.pos, t=point.t,
+                        forward_cands=copy(point.forward_cands))
+
+        def mock_subnetlinker(source_set, dest_set, search_range, **kwargs):
+            self.source.append([copy_point(p) for p in source_set])
+            self.dest.append([copy_point(p) for p in dest_set])
+            self.sr.append(search_range)
+
+            return subnet_linker_recursive(source_set, dest_set, search_range,
+                                           **kwargs)
+
+        self.linker_opts = dict(link_strategy=mock_subnetlinker)
+        self.default_max_size = Linker.MAX_SUB_NET_SIZE_ADAPTIVE
+
+    def tearDown(self):
+        Linker.MAX_SUB_NET_SIZE_ADAPTIVE = self.default_max_size
+
+    def link(self, *args, **kwargs):
+        kwargs.update(self.linker_opts)
+        return link(*args, **kwargs)
+
+    def test_single_subnet(self):
+        f = DataFrame({'x': [0, 1, 2, 3, 4],
+                       'frame': [0, 1, 1, 1, 1]})
+        search_range = 10.
+
+        self.link(f, search_range=search_range, pos_columns=['x'])
+
+        source = self.source[0]
+        dest = self.dest[0]
+        sr = self.sr[0]
+
+        self.assertEqual(sr, search_range)
+        self.assertEqual(len(source), 1)
+        self.assertEqual(len(dest), 4)
+
+        fwd_cds = source[0]['forward_cands']
+
+        # there are no forward candidates inside search_range
+        for p, dist in fwd_cds:
+            self.assertLessEqual(dist, search_range)
+
+        # the forward candidate distances are sorted in ascending order
+        for i in range(len(fwd_cds) - 1):
+            self.assertLess(fwd_cds[i][1], fwd_cds[i + 1][1])
+
+    def test_adaptive_subnet(self):
+        Linker.MAX_SUB_NET_SIZE_ADAPTIVE = 1
+
+        f = DataFrame({'x': [0.0, 1.0, 0.1, 1.1],
+                       'frame': [0, 0, 1, 1]})
+        search_range = 8
+        self.link(f, search_range=search_range, pos_columns=['x'],
+                  adaptive_step=0.25, adaptive_stop=0.25)
+
+        # round 0: search range 8, one call to subnetlinker
+        self.assertEqual(self.sr[0], 8.)
+        self.assertEqual(len(self.source[0]), 2)
+        self.assertEqual(len(self.dest[0]), 2)
+        for p in self.source[0]:
+            self.assertEqual(len(p['forward_cands']), 2)
+            for cand, dist in p['forward_cands']:
+                self.assertIsNot(cand, None)
+                self.assertLess(dist, self.sr[0])
+
+        # round 1: search range 2; same
+        self.assertEqual(self.sr[1], 2.)
+        self.assertEqual(len(self.source[1]), 2)
+        self.assertEqual(len(self.dest[1]), 2)
+        for p in self.source[1]:
+            for cand, dist in p['forward_cands']:
+                self.assertIsNot(cand, None)
+                self.assertLess(dist, self.sr[1])
+
+        # round 2, both calls: search range 0.5, subnets separate
+        for i in (2, 3):
+            self.assertEqual(self.sr[i], 0.5)
+            self.assertEqual(len(self.source[i]), 1)
+            self.assertEqual(len(self.dest[i]), 1)
+            for p in self.source[i]:
+                self.assertEqual(len(p['forward_cands']), 1)
+                self.assertAlmostEqual(p['forward_cands'][0][1], 0.1)
 
 
 class TestPartialLink(CommonTrackingTests):

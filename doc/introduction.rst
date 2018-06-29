@@ -69,7 +69,8 @@ Special Capabilities
 Citing Trackpy
 ^^^^^^^^^^^^^^
 
-Trackpy can be cited using a DOI provided through Zenodo. To direct your
+Trackpy can be cited using a DOI provided through our Zenodo
+`record page <https://zenodo.org/record/1213240>`_. To direct your
 readers to the specific version of trackpy that they can use to reproduce
 your results, cite the release of trackpy that you used for your work. The
 record pages linked below contain author lists, other details, and complete
@@ -77,17 +78,19 @@ citations in various formats. If your citation style allows for a URL,
 please include a link to the github repository:
 `github.com/soft-matter/trackpy`.
 
-================= ================================================= ====================
-Release (version) Zenodo Record Pages with info and citations       DOI
-================= ================================================= ====================
-v0.3.2            `Record Page <https://zenodo.org/record/60550>`__ 10.5281/zenodo.60550
-v0.3.1            `Record Page <https://zenodo.org/record/55143>`__ 10.5281/zenodo.55143
-v0.3.0            `Record Page <https://zenodo.org/record/34028>`__ 10.5281/zenodo.34028
-v0.2.4            `Record Page <https://zenodo.org/record/12255>`__ 10.5281/zenodo.12255
-v0.2.3            `Record Page <https://zenodo.org/record/11956>`__ 10.5281/zenodo.11956
-v0.2.2            `Record Page <https://zenodo.org/record/11132>`__ 10.5281/zenodo.11132
-v0.2              `Record Page <https://zenodo.org/record/9971>`__  10.5281/zenodo.9971
-================= ================================================= ====================
+================= =================================================== ======================
+Release (version) Zenodo Record Pages with info and citations         DOI
+================= =================================================== ======================
+v0.4.1            `Record Page <https://zenodo.org/record/1226458>`__ 10.5281/zenodo.1226458
+v0.4              `Record Page <https://zenodo.org/record/1213241>`__ 10.5281/zenodo.1213241
+v0.3.2            `Record Page <https://zenodo.org/record/60550>`__   10.5281/zenodo.60550
+v0.3.1            `Record Page <https://zenodo.org/record/55143>`__   10.5281/zenodo.55143
+v0.3.0            `Record Page <https://zenodo.org/record/34028>`__   10.5281/zenodo.34028
+v0.2.4            `Record Page <https://zenodo.org/record/12255>`__   10.5281/zenodo.12255
+v0.2.3            `Record Page <https://zenodo.org/record/11956>`__   10.5281/zenodo.11956
+v0.2.2            `Record Page <https://zenodo.org/record/11132>`__   10.5281/zenodo.11132
+v0.2              `Record Page <https://zenodo.org/record/9971>`__    10.5281/zenodo.9971
+================= =================================================== ======================
 
 Related Projects
 ^^^^^^^^^^^^^^^^
@@ -122,18 +125,19 @@ Support
 
 This package was developed in part by Daniel Allan, as part of his
 PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
-University in Baltimore, MD. The work was supported by the National Science Foundation
+University in Baltimore, MD, USA. The work was supported by the National Science Foundation
 under grant number CBET-1033985.  Dan can be reached at dallan@pha.jhu.edu.
 
 This package was developed in part by Thomas A Caswell as part of his
 PhD thesis work in Sidney R Nagel's and Margaret L Gardel's groups at
-the University of Chicago, Chicago IL.  This work was supported in
+the University of Chicago, Chicago IL, USA.  This work was supported in
 part by NSF Grant DMR-1105145 and NSF-MRSEC DMR-0820054.  Tom can be
 reached at tcaswell@gmail.com.
 
-This package was developed in part by Nathan C. Keim, as part of his postdoctoral
-research in Paulo Arratia's group at the University of Pennsylvania,
-Philadelphia. This work was supported by NSF-MRSEC DMR-1120901.
+This package was developed in part by Nathan C. Keim at Cal Poly,
+San Luis Obispo, California, USA and supported by NSF Grant DMR-1708870.
+Portions were also developed at the University of Pennsylvania,
+Philadelphia, USA, supported by NSF-MRSEC DMR-1120901.
 
 This package was developed in part by Casper van der Wel, as part of his
 PhD thesis work in Daniela Kraft’s group at the Huygens-Kamerlingh-Onnes laboratory,

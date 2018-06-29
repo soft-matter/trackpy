@@ -8,13 +8,13 @@ import itertools, functools
 
 import numpy as np
 
-from ..utils import (default_pos_columns, guess_pos_columns,
-                     validate_tuple, pandas_sort)
+from ..utils import (guess_pos_columns, default_pos_columns,
+                     validate_tuple, is_isotropic, pandas_sort)
 from ..try_numba import NUMBA_AVAILABLE
 from .utils import (Point, TrackUnstored, points_from_arr,
                     coords_from_df, coords_from_df_iter,
                     SubnetOversizeException)
-from .subnet import TreeFinder, Subnets, split_subnet
+from .subnet import HashBTree, HashKDTree, Subnets, split_subnet
 from .subnetlinker import (subnet_linker_recursive, subnet_linker_drop,
                            subnet_linker_numba, subnet_linker_nonrecursive)
 
@@ -22,11 +22,49 @@ logger = logging.getLogger(__name__)
 
 
 def link_iter(coords_iter, search_range, **kwargs):
-    """Link an iterable of per-frame coordinates into trajectories.
+    """
+    link_iter(coords_iter, search_range, memory=0, predictor=None,
+        adaptive_stop=None, adaptive_step=0.95, neighbor_strategy=None,
+        link_strategy=None, dist_func=None, to_eucl=None)
+
+    Link an iterable of per-frame coordinates into trajectories.
 
     Parameters
     ----------
-    coords_iter : iterable or enumerated iterable of 2d numpy arrays
+    coords_iter : iterable
+        the iterable produces 2d numpy arrays of coordinates (shape: N, ndim).
+        to tell link_iter what frame number each array is, the iterable may
+        be enumerated so that it produces (number, 2d array) tuples
+    search_range : float or tuple
+        the maximum distance features can move between frames,
+        optionally per dimension
+    memory : integer, optional
+        the maximum number of frames during which a feature can vanish,
+        then reappear nearby, and be considered the same particle. Default: 0
+    predictor : function, optional
+        Improve performance by guessing where a particle will be in
+        the next frame.
+        For examples of how this works, see the "predict" module.
+    adaptive_stop : float, optional
+        If not None, when encountering an oversize subnet, retry by progressively
+        reducing search_range until the subnet is solvable. If search_range
+        becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
+    adaptive_step : float, optional
+        Reduce search_range by multiplying it by this factor.
+    neighbor_strategy : {'KDTree', 'BTree'}
+        algorithm used to identify nearby features. Default 'KDTree'.
+    link_strategy : {'recursive', 'nonrecursive', 'hybrid', 'numba', 'drop', 'auto'}
+        algorithm used to resolve subnetworks of nearby particles
+        'auto' uses hybrid (numba+recursive) if available
+        'drop' causes particles in subnetworks to go unlinked
+    dist_func : function, optional
+        a custom distance function that takes two 1D arrays of coordinates and
+        returns a float. Must be used with the 'BTree' neighbor_strategy.
+    to_eucl : function, optional
+        function that transforms a N x ndim array of positions into coordinates
+        in Euclidean space. Useful for instance to link by Euclidean distance
+        starting from radial coordinates. If search_range is anisotropic, this
+        parameter cannot be used.
 
     Yields
     ------
@@ -48,10 +86,6 @@ def link_iter(coords_iter, search_range, **kwargs):
     else:
         t, coords = val
 
-    #  obtain dimensionality
-    ndim = coords.shape[1]
-    search_range = validate_tuple(search_range, ndim)
-
     # initialize the linker and yield the particle ids of the first frame
     linker = Linker(search_range, **kwargs)
     linker.init_level(coords, t)
@@ -59,11 +93,18 @@ def link_iter(coords_iter, search_range, **kwargs):
 
     for t, coords in coords_iter:
         linker.next_level(coords, t)
+        logger.info("Frame {0}: {1} trajectories present.".format(t, len(linker.particle_ids)))
         yield t, linker.particle_ids
 
 
 def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
-    """Link a DataFrame of coordinates into trajectories.
+    """
+    link(f, search_range, pos_columns=None, t_column='frame', memory=0,
+        predictor=None, adaptive_stop=None, adaptive_step=0.95,
+        neighbor_strategy=None, link_strategy=None, dist_func=None,
+        to_eucl=None)
+
+    Link a DataFrame of coordinates into trajectories.
 
     Parameters
     ----------
@@ -75,13 +116,13 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
     search_range : float or tuple
         the maximum distance features can move between frames,
         optionally per dimension
-    memory : integer, optional
-        the maximum number of frames during which a feature can vanish,
-        then reappear nearby, and be considered the same particle. 0 by default.
     pos_columns : list of str, optional
         Default is ['y', 'x'], or ['z', 'y', 'x'] when 'z' is present in f
     t_column : str, optional
         Default is 'frame'
+    memory : integer, optional
+        the maximum number of frames during which a feature can vanish,
+        then reappear nearby, and be considered the same particle. 0 by default.
     predictor : function, optional
         Improve performance by guessing where a particle will be in
         the next frame.
@@ -92,19 +133,32 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
         becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
     adaptive_step : float, optional
         Reduce search_range by multiplying it by this factor.
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'drop', 'auto'}
+    neighbor_strategy : {'KDTree', 'BTree'}
+        algorithm used to identify nearby features. Default 'KDTree'.
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
-        'auto' uses numba if available
+        'auto' uses hybrid (numba+recursive) if available
         'drop' causes particles in subnetworks to go unlinked
+    dist_func : function, optional
+        a custom distance function that takes two 1D arrays of coordinates and
+        returns a float. Must be used with the 'BTree' neighbor_strategy.
+    to_eucl : function, optional
+        function that transforms a N x ndim array of positions into coordinates
+        in Euclidean space. Useful for instance to link by Euclidean distance
+        starting from radial coordinates. If search_range is anisotropic, this
+        parameter cannot be used.
 
     Returns
     -------
     DataFrame with added column 'particle' containing trajectory labels.
-    The t_column (by default: 'frame') will be coerced to integer."""
+    The t_column (by default: 'frame') will be coerced to integer.
+
+    See also
+    --------
+    link_iter
+    """
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
-    ndim = len(pos_columns)
-    search_range = validate_tuple(search_range, ndim)
 
     # copy the dataframe
     f = f.copy()
@@ -127,11 +181,58 @@ link_df = link
 
 def link_df_iter(f_iter, search_range, pos_columns=None,
                  t_column='frame', **kwargs):
-    """Link an iterable of DataFrames into trajectories.
+    """
+    link_df_iter(f_iter, search_range, pos_columns=None, t_column='frame',
+        memory=0, predictor=None, adaptive_stop=None, adaptive_step=0.95,
+        neighbor_strategy=None, link_strategy=None, dist_func=None,
+        to_eucl=None)
+
+    Link an iterable of DataFrames into trajectories.
 
     Parameters
     ----------
-    f_iter : iterable of DataFrames with feature positions, frame indices
+    f_iter : iterable of DataFrames
+        Each DataFrame must include any number of column(s) for position and a
+        column of frame numbers. By default, 'x' and 'y' are expected for
+        position, and 'frame' is expected for frame number. For optimal
+        performance, explicitly specify the column names using `pos_columns`
+        and `t_column` kwargs.
+    search_range : float or tuple
+        the maximum distance features can move between frames,
+        optionally per dimension
+    pos_columns : list of str, optional
+        Default is ['y', 'x'], or ['z', 'y', 'x'] when 'z' is present in f
+        If this is not supplied, f_iter will be investigated, which might cost
+        performance. For optimal performance, always supply this parameter.
+    t_column : str, optional
+        Default is 'frame'
+    memory : integer, optional
+        the maximum number of frames during which a feature can vanish,
+        then reappear nearby, and be considered the same particle. 0 by default.
+    predictor : function, optional
+        Improve performance by guessing where a particle will be in
+        the next frame.
+        For examples of how this works, see the "predict" module.
+    adaptive_stop : float, optional
+        If not None, when encountering an oversize subnet, retry by progressively
+        reducing search_range until the subnet is solvable. If search_range
+        becomes <= adaptive_stop, give up and raise a SubnetOversizeException.
+    adaptive_step : float, optional
+        Reduce search_range by multiplying it by this factor.
+    neighbor_strategy : {'KDTree', 'BTree'}
+        algorithm used to identify nearby features. Default 'KDTree'.
+    link_strategy : {'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
+        algorithm used to resolve subnetworks of nearby particles
+        'auto' uses hybrid (numba+recursive) if available
+        'drop' causes particles in subnetworks to go unlinked
+    dist_func : function, optional
+        a custom distance function that takes two 1D arrays of coordinates and
+        returns a float. Must be used with the 'BTree' neighbor_strategy.
+    to_eucl : function, optional
+        function that transforms a N x ndim array of positions into coordinates
+        in Euclidean space. Useful for instance to link by Euclidean distance
+        starting from radial coordinates. If search_range is anisotropic, this
+        parameter cannot be used.
 
     Yields
     ------
@@ -147,8 +248,6 @@ def link_df_iter(f_iter, search_range, pos_columns=None,
         f0 = next(f_iter_dummy)
         pos_columns = guess_pos_columns(f0)
         del f_iter_dummy, f0
-    ndim = len(pos_columns)
-    search_range = validate_tuple(search_range, ndim)
 
     f_iter, f_coords_iter = itertools.tee(f_iter)
     coords_iter = coords_from_df_iter(f_coords_iter, pos_columns, t_column)
@@ -203,7 +302,7 @@ class Linker(object):
 
     Attributes
     ----------
-    hash : TreeFinder
+    hash : Hash object
         The hash containing the points of the current level
     mem_set : set of points
     mem_history : list of sets of points
@@ -248,24 +347,44 @@ class Linker(object):
     # Maximum number of candidates per particle
     MAX_NEIGHBORS = 10
 
-    def __init__(self, search_range, memory=0, link_strategy=None,
-                 predictor=None, adaptive_stop=None, adaptive_step=0.95):
+    def __init__(self, search_range, memory=0, predictor=None,
+                 adaptive_stop=None, adaptive_step=0.95,
+                 neighbor_strategy=None, link_strategy=None,
+                 dist_func=None, to_eucl=None):
         self.memory = memory
         self.predictor = predictor
         self.track_cls = TrackUnstored
-        self.adaptive_stop = adaptive_stop
-        self.adaptive_step = adaptive_step
+        self.ndim = None  # unknown at this point; inferred at init_level()
+
+        if neighbor_strategy is None:
+            if dist_func is None:
+                neighbor_strategy = 'KDTree'
+            else:
+                neighbor_strategy = 'BTree'
+        elif neighbor_strategy not in ['KDTree', 'BTree']:
+            raise ValueError("neighbor_strategy must be 'KDTree' or 'BTree'")
+        elif neighbor_strategy != 'BTree' and dist_func is not None:
+            raise ValueError("For custom distance functions please use "
+                             "the 'BTree' neighbor_strategy.")
+
+        self.hash_cls = dict(KDTree=HashKDTree,
+                             BTree=HashBTree)[neighbor_strategy]
+        self.dist_func = dist_func  # a custom distance function
+        self.to_eucl = to_eucl      # to euclidean coordinates
 
         if link_strategy is None or link_strategy == 'auto':
             if NUMBA_AVAILABLE:
-                link_strategy = 'numba'
+                link_strategy = 'hybrid'
             else:
                 link_strategy = 'recursive'
 
         if link_strategy == 'recursive':
             subnet_linker = subnet_linker_recursive
-        elif link_strategy == 'numba':
+        elif link_strategy == 'hybrid':
             subnet_linker = subnet_linker_numba
+        elif link_strategy == 'numba':
+            subnet_linker = functools.partial(subnet_linker_numba,
+                                              hybrid=False)
         elif link_strategy == 'nonrecursive':
             subnet_linker = subnet_linker_nonrecursive
         elif link_strategy == 'drop':
@@ -275,15 +394,29 @@ class Linker(object):
         else:
             raise ValueError("Unknown linking strategy '{}'".format(link_strategy))
 
-        self.ndim = len(search_range)
-        self.search_range = np.array(search_range)
+        # if search_range is anisotropic, transform coordinates to a rescaled
+        # space with search_range == 1.
+        if is_isotropic(search_range):
+            if hasattr(search_range, '__iter__'):
+                self.search_range = float(search_range[0])
+            else:
+                self.search_range = float(search_range)
+        elif self.to_eucl is not None:
+            raise ValueError('Cannot use anisotropic search ranges in '
+                             'combination with a coordinate transformation.')
+        else:
+            search_range = np.atleast_2d(search_range)
+            self.to_eucl = lambda x: x / search_range
+            self.search_range = 1.
+            # also rescale adaptive_stop
+            if adaptive_stop is not None:
+                adaptive_stop = np.max(adaptive_stop / search_range)
+
         self.hash = None
         self.mem_set = set()
 
-        if self.adaptive_stop is not None:
-            # internal adaptive_stop is a fraction of search range
-            adaptive_stop = np.max(adaptive_stop / self.search_range)
-            if 1 * self.adaptive_stop <= 0:
+        if adaptive_stop is not None:
+            if 1 * adaptive_stop <= 0:
                 raise ValueError("adaptive_stop must be positive.")
             self.subnet_linker = functools.partial(adaptive_link_wrap,
                                                    subnet_linker=subnet_linker,
@@ -295,17 +428,14 @@ class Linker(object):
                                                    max_size=self.MAX_SUB_NET_SIZE)
 
     def update_hash(self, coords, t, extra_data=None):
+        if self.ndim is None:
+            raise RuntimeError("The Linker was not initialized. Please use "
+                               "`init_level` for the first level.")
         prev_hash = self.hash
         # add memory points to prev_hash (to be used as the next source)
         for m in self.mem_set:
             # add points to the hash
             prev_hash.add_point(m)
-            # Record how many times this particle got "held back".
-            # Since this particle has already been yielded in a previous
-            # level, we can't store it there. We'll have to put it in the
-            # track object, then copy this info to the point in cur_hash
-            # if/when we make a link.
-            m.track.incr_memory()
             # re-create the forward_cands list
             m.forward_cands = []
 
@@ -314,13 +444,15 @@ class Linker(object):
         if prev_hash is not None and self.predictor is not None:
             prev_hash.set_predictor(self.predictor, t)  # Rewrite positions
 
-        self.hash = TreeFinder(points_from_arr(coords, t, extra_data),
-                               self.search_range)
+        self.hash = self.hash_cls(points_from_arr(coords, t, extra_data),
+                                  ndim=self.ndim, to_eucl=self.to_eucl,
+                                  dist_func=self.dist_func)
         return prev_hash
 
     def init_level(self, coords, t, extra_data=None):
         Point.reset_counter()
         TrackUnstored.reset_counter()
+        self.ndim = coords.shape[1]
         self.mem_set = set()
         # Initialize memory with empty sets.
         self.mem_history = []
@@ -360,14 +492,19 @@ class Linker(object):
     def next_level(self, coords, t, extra_data=None):
         prev_hash = self.update_hash(coords, t, extra_data)
 
-        self.subnets = Subnets(prev_hash, self.hash, self.MAX_NEIGHBORS)
+        self.subnets = Subnets(prev_hash, self.hash, self.search_range,
+                               self.MAX_NEIGHBORS)
         spl, dpl = self.assign_links()
         self.apply_links(spl, dpl)
 
     def assign_links(self):
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
-            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
+            for sp in source_set:
+                sp.forward_cands.sort(key=lambda x: x[1])
+
+            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set,
+                                                self.search_range)
             spl.extend(sn_spl)
             dpl.extend(sn_dpl)
 

@@ -8,7 +8,7 @@ import warnings
 import nose
 import numpy as np
 from pandas import DataFrame
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_less
 from pandas.util.testing import assert_produces_warning
 
 import trackpy as tp
@@ -16,15 +16,16 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array,
                                 gen_nonoverlapping_locations)
 from trackpy.utils import pandas_sort
-from trackpy.refine import refine_com
+from trackpy.refine import refine_com_arr
 from trackpy.tests.common import sort_positions, StrictTestCase
 from trackpy.preprocessing import invert_image
+from trackpy.uncertainty import measure_noise
 
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-def compare(shape, count, radius, noise_level, engine):
+def compare(shape, count, radius, noise_level, **kwargs):
     radius = tp.utils.validate_tuple(radius, len(shape))
     # tp.locate ignores a margin of size radius, take 1 px more to be safe
     margin = tuple([r + 1 for r in radius])
@@ -34,7 +35,7 @@ def compare(shape, count, radius, noise_level, engine):
     cols = ['x', 'y', 'z'][:len(shape)][::-1]
     pos = gen_nonoverlapping_locations(shape, count, separation, margin)
     image = draw_spots(shape, pos, size, noise_level)
-    f = tp.locate(image, diameter, engine=engine)
+    f = tp.locate(image, diameter, **kwargs)
     actual = pandas_sort(f[cols], cols)
     expected = pandas_sort(DataFrame(pos, columns=cols), cols)
     return actual, expected
@@ -51,14 +52,20 @@ class OldMinmass(StrictTestCase):
         self.N = len(self.pos)
         self.size = 4.5
         self.tp_diameter = 15
+
+    def minmass_v02_to_v04(self, im, old_minmass, invert=False):
+        minmass_v03 = tp.minmass_v03_change(im, old_minmass, invert=invert,
+                                            smoothing_size=self.tp_diameter)
+        minmass_v04 = tp.minmass_v04_change(im, minmass_v03,
+                                            diameter=self.tp_diameter)
+        return minmass_v04
     
     def test_oldmass_8bit(self):
         old_minmass = 11000
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=8,
                         noise_level=50)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
@@ -67,8 +74,7 @@ class OldMinmass(StrictTestCase):
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=12,
                         noise_level=500)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
@@ -77,8 +83,7 @@ class OldMinmass(StrictTestCase):
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=16,
                         noise_level=10000)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
@@ -88,8 +93,7 @@ class OldMinmass(StrictTestCase):
                         noise_level=50)
         im = (im / im.max()).astype(np.float)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
         
@@ -99,15 +103,13 @@ class OldMinmass(StrictTestCase):
                         noise_level=500)
         im = (im.max() - im + 10000)
 
-        new_minmass = tp.minmass_version_change(im, old_minmass, invert=True,
-                                                smoothing_size=self.tp_diameter)
+        new_minmass = self.minmass_v02_to_v04(im, old_minmass, invert=True)
 
         f = tp.locate(invert_image(im), self.tp_diameter, minmass=new_minmass)
         assert len(f) == self.N
 
 
 class CommonFeatureIdentificationTests(object):
-
     def check_skip(self):
         pass
 
@@ -445,14 +447,16 @@ class CommonFeatureIdentificationTests(object):
 
     def test_multiple_noisy_sparse(self):
         self.check_skip()
-        actual, expected = compare((200, 300), 4, 2, noise_level=1,
-                                   engine=self.engine)
+        #  4% noise
+        actual, expected = compare((200, 300), 4, 2, noise_level=10,
+                                   engine=self.engine, minmass=100)
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_more_noisy_sparse(self):
         self.check_skip()
-        actual, expected = compare((200, 300), 4, 2, noise_level=2,
-                                   engine=self.engine)
+        # 20% noise
+        actual, expected = compare((200, 300), 4, 2, noise_level=51,
+                                   engine=self.engine, minmass=100)
         assert_allclose(actual, expected, atol=0.5)
 
     def test_multiple_anisotropic_3D_simple(self):
@@ -655,25 +659,28 @@ class CommonFeatureIdentificationTests(object):
         # background average and standard deviation can be estimated within 1%
         # accuracy.
 
-        # The tolerance for ep in this test is 0.001 px or 10%.
+        # The tolerance for ep in this test is 0.001 px or 20%.
         # This amounts to roughly the following rms error values:
-        # noise / signal = 0.01 : 0.004+-0.001px
-        # noise / signal = 0.02 : 0.008+-0.001 px
-        # noise / signal = 0.05 : 0.02+-0.002 px
-        # noise / signal = 0.1 : 0.04+-0.004 px
-        # noise / signal = 0.2 : 0.08+-0.008 px
-        # noise / signal = 0.3 : 0.12+-0.012 px
-        # noise / signal = 0.5 : 0.2+-0.02 px
+        # noise / signal = 0.01 : 0.004+-0.001 px
+        # noise / signal = 0.02 : 0.008+-0.002 px
+        # noise / signal = 0.05 : 0.02+-0.004 px
+        # noise / signal = 0.1 : 0.04+-0.008 px
+        # noise / signal = 0.2 : 0.08+-0.016 px
+        # noise / signal = 0.3 : 0.12+-0.024 px
+        # noise / signal = 0.5 : 0.2+-0.04 px
         # Parameters are tweaked so that there is no deviation due to a too
         # small mask size. Noise/signal ratios up to 50% are tested.
         self.check_skip()
         draw_size = 4.5
         locate_diameter = 21
         N = 200
-        noise_expectation = np.array([1/2., np.sqrt(1/12.)])  # average, stdev
+        noise_levels = (np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]) * (2**12 - 1)).astype(np.int)
+        real_rms_dev = []
+        eps = []
+        actual_black_level = []
+        actual_noise = []
         expected, image = draw_array(N, draw_size, bitdepth=12)
-        for n, noise in enumerate([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]):
-            noise_level = int((2**12 - 1) * noise)
+        for n, noise_level in enumerate(noise_levels):
             image_noisy = image + np.array(np.random.randint(0, noise_level,
                                                              image.shape),
                                            dtype=image.dtype)
@@ -683,13 +690,22 @@ class CommonFeatureIdentificationTests(object):
 
             _, actual = sort_positions(f[['y', 'x']].values, expected)
             rms_dev = np.sqrt(np.mean(np.sum((actual-expected)**2, 1)))
-            assert_allclose(rms_dev, f['ep'].mean(), rtol=0.1, atol=0.001)
+
+            real_rms_dev.append(rms_dev)
+            eps.append(f['ep'].mean())
 
             # Additionally test the measured noise
-            actual_noise = tp.uncertainty.measure_noise(image, image_noisy,
-                                                        locate_diameter // 2)
-            assert_allclose(actual_noise, noise_expectation * noise_level,
-                            rtol=0.01, atol=1)
+            black_level, noise = measure_noise(image, image_noisy,
+                                               locate_diameter // 2)
+            actual_black_level.append(black_level)
+            actual_noise.append(noise)
+
+        assert_allclose(actual_black_level, 1/2 * noise_levels,
+                        rtol=0.01, atol=1)
+        assert_allclose(actual_noise, np.sqrt(1/12.) * noise_levels,
+                        rtol=0.01, atol=1)
+        assert_allclose(real_rms_dev, eps, rtol=0.2, atol=0.001)
+        assert_array_less(real_rms_dev, eps)
 
     def test_ep_anisotropic(self):
         # The separate columns 'ep_x' and 'ep_y' reflect the static errors
@@ -723,23 +739,23 @@ class CommonFeatureIdentificationTests(object):
         draw_feature(image, pos, 3.75)
 
         guess = np.array([[6, 13]])
-        actual = refine_com(image, image, 6, guess,characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess,characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 12]])
-        actual = refine_com(image, image, 6, guess, characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess, characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[7, 14]])
-        actual = refine_com(image, image, 6, guess, characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess, characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
         guess = np.array([[6, 12]])
-        actual = refine_com(image, image, 6, guess, characterize=False,
-                            engine=self.engine)[:, :2][:, ::-1]
+        actual = refine_com_arr(image, image, 6, guess, characterize=False,
+                                engine=self.engine)[:, :2]
         assert_allclose(actual, expected, atol=0.1)
 
     def test_uncertainty_failure(self):

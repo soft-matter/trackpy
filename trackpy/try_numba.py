@@ -1,65 +1,41 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-
 import sys
-import inspect
-from warnings import warn
-import logging
-from distutils.version import LooseVersion
 
-
-def _hush_llvm():
-    # Necessary for current stable release 0.11.
-    # Not necessary (and unimplemented) in numba >= 0.12 (February 2014)
-    # See http://stackoverflow.com/a/20663852/1221924
-    try:
-        import numba.codegen.debug
-        llvmlogger = logging.getLogger('numba.codegen.debug')
-        llvmlogger.setLevel(logging.INFO)
-    except ImportError:
-        pass
-
+# re-import some builtins for legacy numba versions if future is installed
+from six.moves import range
+try:
+    from __builtin__ import int, round
+except ImportError:
+    from builtins import int, round
 
 ENABLE_NUMBA_ON_IMPORT = True
 _registered_functions = list()  # functions that can be numba-compiled
 
-NUMBA_AVAILABLE = False
+NUMBA_AVAILABLE = True
+message = ''
 
 try:
     import numba
 except ImportError:
+    NUMBA_AVAILABLE = False
     message = ("To use numba-accelerated variants of core "
                "functions, you must install numba.")
-else:
-    v = numba.__version__
-    if LooseVersion(v) == LooseVersion('0.12.0'):
-        # Importing numba code will take forever. Disable numba.
-        message = ("Trackpy does not support numba 0.12.0. "
-                   "Version {0} is currently installed. Trackpy will run "
-                   "with numba disabled. Please downgrade numba to version "
-                   "0.11, or update to latest version.".format(v))
-        warn(message)
-    else:
-        NUMBA_AVAILABLE = True
-        _hush_llvm()
 
 
 class RegisteredFunction(object):
-    "Enable toggling between original function and numba-compiled one."
+    """Enable toggling between original function and numba-compiled one."""
 
-    def __init__(self, func, fallback=None, autojit_kw=None):
+    def __init__(self, func, fallback=None, jit_kwargs=None):
         self.func = func
         # This covers a Python 2/3 change not covered by six
         try:
             self.func_name = func.__name__
         except AttributeError:
             self.func_name = func.func_name
-        module_name = inspect.getmodulename(
-            six.get_function_globals(func)['__file__'])
-        module_name = '.'.join(['trackpy', module_name])
-        self.module_name = module_name
-        self.autojit_kw = autojit_kw
+        self.module_name = func.__module__
+        self.jit_kwargs = jit_kwargs
         if fallback is not None:
             self.ordinary = fallback
         else:
@@ -69,10 +45,10 @@ class RegisteredFunction(object):
     def compiled(self):
         # Compile it if this is the first time.
         if (not hasattr(self, '_compiled')) and NUMBA_AVAILABLE:
-            if self.autojit_kw is not None:
-                self._compiled = numba.autojit(**self.autojit_kw)(self.func)
+            if self.jit_kwargs is not None:
+                self._compiled = numba.jit(**self.jit_kwargs)(self.func)
             else:
-                self._compiled = numba.autojit(self.func)
+                self._compiled = numba.jit(self.func)
         return self._compiled
 
     def point_to_compiled_func(self):
@@ -82,17 +58,17 @@ class RegisteredFunction(object):
         setattr(sys.modules[self.module_name], self.func_name, self.ordinary)
 
 
-def try_numba_autojit(func=None, **kw):
-    """Wrapper for numba.autojit() that treats the function as pure Python if numba is missing.
+def try_numba_jit(func=None, **kwargs):
+    """Wrapper for numba.jit() that treats the function as pure Python if numba is missing.
 
-    Usage is as with autojit(): Either as a bare decorator (no parentheses), or with keyword
+    Usage is as with jit(): Either as a bare decorator (no parentheses), or with keyword
     arguments.
 
     The resulting compiled numba function can subsequently be turned on or off with
     enable_numba() and disable_numba(). It will be on by default."""
     def return_decorator(func):
         # Register the function with a global list of numba-enabled functions.
-        f = RegisteredFunction(func, autojit_kw=kw)
+        f = RegisteredFunction(func, jit_kwargs=kwargs)
         _registered_functions.append(f)
 
         if ENABLE_NUMBA_ON_IMPORT and NUMBA_AVAILABLE:
@@ -107,13 +83,13 @@ def try_numba_autojit(func=None, **kw):
         return return_decorator(func)
 
 def disable_numba():
-    "Do not use numba-accelerated functions, even if numba is available."
+    """Do not use numba-accelerated functions, even if numba is available."""
     for f in _registered_functions:
         f.point_to_ordinary_func()
 
 
 def enable_numba():
-    "Use numba-accelerated variants of core functions."
+    """Use numba-accelerated variants of core functions."""
     if NUMBA_AVAILABLE:
         for f in _registered_functions:
             f.point_to_compiled_func()

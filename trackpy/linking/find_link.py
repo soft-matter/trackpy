@@ -4,18 +4,16 @@ import six
 from six.moves import range, zip
 import warnings
 import logging
-import itertools, functools
 
 import numpy as np
-import pandas as pd
 from scipy import ndimage
 
 from ..masks import slice_image, mask_image
 from ..find import grey_dilation, drop_close
-from ..utils import (default_pos_columns, is_isotropic,
-                     cKDTree, validate_tuple)
+from ..utils import (default_pos_columns, is_isotropic, validate_tuple,
+                     pandas_concat)
 from ..preprocessing import bandpass
-from ..refine import refine_com
+from ..refine import refine_com_arr
 from ..feature import characterize
 
 from .utils import points_from_arr
@@ -27,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 def find_link(reader, search_range, separation, diameter=None, memory=0,
               minmass=0, noise_size=1, smoothing_size=None, threshold=None,
-              percentile=64, before_link=None, after_link=None, refine=False,
-              **kwargs):
-    """Find and link features in an image sequence
+              percentile=64, preprocess=True, before_link=None,
+              after_link=None, refine=False, **kwargs):
+    """Find and link features, using image data to re-find lost features.
 
     Parameters
     ----------
@@ -59,6 +57,8 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     percentile : number, optional
         The upper percentile of intensities in the image are considered as
         feature locations. Default 64.
+    preprocess : boolean
+        Set to False to turn off bandpass preprocessing.
     before_link : function, optional
         This function is executed after the initial find of each frame, but
         but before the linking and relocating.
@@ -111,15 +111,22 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     """
     shape = reader[0].shape
     ndim = len(shape)
-    if smoothing_size is None:
-        smoothing_size = separation
-    smoothing_size = validate_tuple(smoothing_size, ndim)
-    smoothing_size = tuple([int(s) for s in smoothing_size])
     separation = validate_tuple(separation, ndim)
     if diameter is None:
         diameter = separation
     else:
         diameter = validate_tuple(diameter, ndim)
+
+    if preprocess:
+        if smoothing_size is None:
+            smoothing_size = separation
+        smoothing_size = validate_tuple(smoothing_size, ndim)
+        # make smoothing_size an odd integer
+        smoothing_size = tuple([int((s - 1) / 2) * 2 + 1 for s in smoothing_size])
+        proc_func = lambda x: bandpass(x, noise_size, smoothing_size,
+                                       threshold)
+    else:
+        proc_func = None
 
     if refine:
         if after_link is not None:
@@ -132,13 +139,12 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
             if len(coords) == 0:
                 return features
             # no separation filtering, because we use precise grey dilation
-            coords = refine_com(image, image_proc, radius, coords, separation=0,
-                                characterize=False)
+            coords = refine_com_arr(image, image_proc, radius, coords, separation=0,
+                                    characterize=False)
             features[refine_columns] = coords
             return features
 
     features = []
-    proc_func = lambda x: bandpass(x, noise_size, smoothing_size, threshold)
     generator = find_link_iter(reader, search_range, separation,
                                diameter=diameter, memory=memory,
                                percentile=percentile, minmass=minmass,
@@ -155,7 +161,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
             continue
         features.append(f_frame)
 
-    features = pd.concat(features, ignore_index=False)
+    features = pandas_concat(features, ignore_index=False)
     return features
 
 
@@ -258,7 +264,7 @@ def find_link_iter(reader, search_range, separation, diameter=None,
 
 
 class FindLinker(Linker):
-    """ Linker that relocates lost features.
+    """ Linker that uses image data to re-find lost features.
 
     Newly found features are farther than ``separation`` from any other feature
     in the current frame, closer than ``search_range`` to a feature in the
@@ -298,7 +304,13 @@ class FindLinker(Linker):
     """
     def __init__(self, search_range, separation, diameter=None,
                  minmass=0, percentile=64, **kwargs):
+        if 'dist_func' in kwargs:
+            warnings.warn("Custom distance functions are untested using "
+                          "the FindLinker and likely will cause issues!")
+        # initialize the Linker.
+        # beware: self.search_range is a scalar, while search_range is a tuple
         super(FindLinker, self).__init__(search_range, **kwargs)
+        self.ndim = len(search_range)
         if diameter is None:
             diameter = separation
         self.radius = tuple([int(d // 2) for d in diameter])
@@ -313,7 +325,7 @@ class FindLinker(Linker):
         # slice_radius: radius for relocate mask
         # search_range + feature radius + 1
         self.slice_radius = tuple([int(s + r + 1)
-                                   for (s, r) in zip(self.search_range,
+                                   for (s, r) in zip(search_range,
                                                      self.radius)])
         # background_radius: radius to make sure the already located features
         # do not fall inside slice radius
@@ -322,8 +334,11 @@ class FindLinker(Linker):
         # The big feature hashtable is normed to search_range. For performance,
         # we do not rebuild this large hashtable. apply the norm here and take
         # the largest value.
-        self.bg_radius = max([a / b for (a, b) in zip(bg_radius,
-                                                      self.search_range)])
+        if is_isotropic(search_range):
+            self.bg_radius = max(bg_radius)
+        else:
+            self.bg_radius = max([a / b for (a, b) in zip(bg_radius,
+                                                          search_range)])
         self.threshold = (None, None)
 
     def next_level(self, coords, t, image, extra_data=None):
@@ -331,7 +346,8 @@ class FindLinker(Linker):
         self.curr_t = t
         prev_hash = self.update_hash(coords, t, extra_data)
 
-        self.subnets = Subnets(prev_hash, self.hash, self.MAX_NEIGHBORS)
+        self.subnets = Subnets(prev_hash, self.hash, self.search_range,
+                               self.MAX_NEIGHBORS)
         spl, dpl = self.assign_links()
         self.apply_links(spl, dpl)
 
@@ -399,14 +415,18 @@ class FindLinker(Linker):
         if len(coords) == 0:
             return None, None
 
-        # drop points that are further than search range from any initial point
-        max_dist = np.atleast_2d(self.search_range)
-        kdtree = cKDTree(coords / max_dist, 30)
-        found = kdtree.query_ball_point((pos - origin) / max_dist, 1.)
-        if len(found) > 0:
-            coords = coords[list(set([i for sl in found for i in sl]))]
-        else:
+        # drop points that are further than search range from all initial points
+        # borrow the rescaling function from the hash
+        coords_rescaled = self.hash.to_eucl(origin + coords)
+        pos_rescaled = self.hash.to_eucl(pos)
+        coords_ok = []
+        for coord, coord_rescaled in zip(coords, coords_rescaled):
+            dists = np.sqrt(np.sum((coord_rescaled - pos_rescaled)**2, axis=1))
+            if np.any(dists <= self.search_range):
+                coords_ok.append(coord)
+        if len(coords_ok) == 0:
             return None, None
+        coords = np.array(coords_ok)
 
         # drop dimmer points that are closer than separation to each other
         coords = drop_close(coords, self.separation,
@@ -433,7 +453,7 @@ class FindLinker(Linker):
         # to account for lost particles that link subnets together. A possible
         # performance enhancement would be joining subnets together during
         # iterating over the subnets.
-        self.subnets.merge_lost_subnets()
+        self.subnets.merge_lost_subnets(self.search_range)
 
         spl, dpl = [], []
         for source_set, dest_set in self.subnets:
@@ -449,12 +469,17 @@ class FindLinker(Linker):
                     pos = [s.pos for s in source_set]
                 new_cands = self.relocate(pos, shortage)
                 # this adapts the dest_set inplace
-                self.subnets.add_dest_points(source_set, new_cands)
+                self.subnets.add_dest_points(source_set, new_cands,
+                                             self.search_range)
             else:
                 new_cands = set()
 
+            for sp in source_set:
+                sp.forward_cands.sort(key=lambda x: x[1])
+
             # link
-            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set, 1.)
+            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set,
+                                                self.search_range)
 
             # list the claimed destination particles and add them to the hash
             sn_dpl_set = set(sn_dpl)

@@ -33,6 +33,16 @@ try:
 except ValueError:  # Probably a development version
     is_pandas_since_017 = True
 
+try:
+    is_pandas_since_018 = (LooseVersion(pd.__version__) >=
+                           LooseVersion('0.18.0'))
+except ValueError:  # Probably a development version
+    is_pandas_since_018 = True
+try:
+    is_pandas_since_023 = (LooseVersion(pd.__version__) >=
+                           LooseVersion('0.23.0'))
+except ValueError:  # Probably a development version
+    is_pandas_since_023 = True
 
 # Wrap the scipy cKDTree to work around a bug in scipy 0.18.0
 try:
@@ -49,6 +59,11 @@ if is_scipy_018:
 else:
     from scipy.spatial import cKDTree
 
+try:
+    is_scipy_since_100 = LooseVersion(scipy.__version__) >= LooseVersion('1.0.0')
+except ValueError:  # Probably a development version
+    is_scipy_since_100 = True
+
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
@@ -63,7 +78,7 @@ def fit_powerlaw(data, plot=True, **kwargs):
         values[col] = [slope, np.exp(intercept)]
         fits[col] = x.apply(lambda x: np.exp(intercept)*x**slope)
     values = values.T
-    fits = pd.concat(fits, axis=1)
+    fits = pandas_concat(fits, axis=1)
     if plot:
         from trackpy import plots
         plots.fit(data, fits, logx=True, logy=True, legend=False, **kwargs)
@@ -306,7 +321,6 @@ if is_pandas_since_017:
 else:
     pandas_sort = _pandas_sort_pre_017
 
-
 def _pandas_iloc_pre_016(df, inds):
     """Workaround for bug, iloc with empty list, in pandas < 0.16"""
     if len(inds) > 0:
@@ -314,15 +328,37 @@ def _pandas_iloc_pre_016(df, inds):
     else:
         return df.iloc[:0]
 
-
 def _pandas_iloc_since_016(df, inds):
     return df.iloc[inds]
-
 
 if is_pandas_since_016:
     pandas_iloc = _pandas_iloc_since_016
 else:
     pandas_iloc = _pandas_iloc_pre_016
+
+def _pandas_rolling_pre_018(df, window, *args, **kwargs):
+    """Use rolling_mean() to compute a rolling average"""
+    return pd.rolling_mean(df, window, *args, **kwargs)
+
+def _pandas_rolling_since_018(df, window, *args, **kwargs):
+    """Use rolling() to compute a rolling average"""
+    return df.rolling(window, *args, **kwargs).mean()
+
+if is_pandas_since_018:
+    pandas_rolling = _pandas_rolling_since_018
+else:
+    pandas_rolling = _pandas_rolling_pre_018
+
+
+def _pandas_concat_post_023(*args, **kwargs):
+    """Pass sort = False. Breaks API by not sorting, but we don't care. """
+    kwargs.setdefault('sort', False)
+    return pd.concat(*args, **kwargs)
+
+if is_pandas_since_023:
+    pandas_concat = _pandas_concat_post_023
+else:
+    pandas_concat = pd.concat
 
 
 def guess_pos_columns(f):
@@ -336,16 +372,18 @@ def guess_pos_columns(f):
 
 def default_pos_columns(ndim):
     """ Sets the default position column names """
-    return ['z', 'y', 'x'][-ndim:]
+    if ndim < 4:
+        return ['z', 'y', 'x'][-ndim:]
+    else:
+        return map(lambda i: 'x' + str(i), range(ndim))
 
 
 def default_size_columns(ndim, isotropic):
     """ Sets the default size column names """
     if isotropic:
-        size_columns = ['size']
+        return ['size']
     else:
-        size_columns = ['size_z', 'size_y', 'size_x'][-ndim:]
-    return size_columns
+        return ['size_' + cc for cc in default_pos_columns(ndim)]
 
 
 def is_isotropic(value):
