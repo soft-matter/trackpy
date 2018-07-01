@@ -5,6 +5,8 @@ from six.moves import range, zip
 import warnings
 import logging
 import itertools, functools
+from concurrent import futures
+from multiprocessing import cpu_count
 
 import numpy as np
 
@@ -499,12 +501,19 @@ class Linker(object):
 
     def assign_links(self):
         spl, dpl = [], []
-        for source_set, dest_set in self.subnets:
+
+        def link_subnet(subnet_sets):
+            source_set, dest_set = subnet_sets
             for sp in source_set:
                 sp.forward_cands.sort(key=lambda x: x[1])
 
-            sn_spl, sn_dpl = self.subnet_linker(source_set, dest_set,
-                                                self.search_range)
+            return self.subnet_linker(source_set, dest_set,
+                                      self.search_range)
+
+        workers = futures.ThreadPoolExecutor(max_workers=cpu_count())
+        futs = [workers.submit(link_subnet, sub) for sub in self.subnets]
+        for fut in futures.as_completed(futs):
+            sn_spl, sn_dpl = fut.result()
             spl.extend(sn_spl)
             dpl.extend(sn_dpl)
 
