@@ -33,7 +33,7 @@ def link_partial(f, search_range, link_range,
     search_range : float or tuple
         the maximum distance features can move between frames,
         optionally per dimension
-    link_range : tuple
+    link_range : tuple of int
         Only in the range(start, stop) will be analyzed.
     memory : integer, optional
         the maximum number of frames during which a feature can vanish,
@@ -60,7 +60,38 @@ def link_partial(f, search_range, link_range,
     Returns
     -------
     DataFrame with added column 'particle' containing trajectory labels.
-    The t_column (by default: 'frame') will be coerced to integer."""
+    The t_column (by default: 'frame') will be coerced to integer.
+
+    Examples
+    --------
+    We purposely define a DataFrame with erroneously linked particles:
+
+    >>> df = pd.DataFrame({
+    ...     'x': [5., 10., 15., 20., 10., 14., 19.],
+    ...     'y': [0., 0., 0, 0., 2., 4., 6.],
+    ...     'particle': [5, 5, 8, 8, 8, 5, 5],
+    ...     'frame': [0, 1, 2, 3, 1, 2, 3]
+    ... })
+
+    We can fix the missed link at frame 1 by calling link_partial like so:
+
+    >>> link_partial(df, search_range=20., link_range=(1, 2))
+          x    y  particle  frame
+    0   5.0  0.0         5      0
+    1  10.0  0.0         5      1
+    4  10.0  2.0         8      1
+    2  15.0  0.0         5      2
+    5  14.0  4.0         8      2
+    3  20.0  0.0         5      3
+    6  19.0  6.0         8      3
+
+    Note that this partial link remapped the particle indices after the
+    link_range. This is done by the function ``reconnect_traj_patch``
+
+    See also
+    --------
+    reconnect_traj_patch
+    """
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
     ndim = len(pos_columns)
@@ -110,8 +141,15 @@ def link_partial(f, search_range, link_range,
 
 def reconnect_traj_patch(f, link_range, old_particle_column, t_column='frame'):
     """Reconnect the trajectory inside a range of frames to the trajectories
-    outside the range. Requires a column with the original particle indices."""
-    # TODO Does not yet work fully in combination with memory
+    outside the range.
+
+    Requires a column with the original particle indices. Does not work in
+    combination with memory. Changes the provided DataFrame inplace.
+
+    See also
+    --------
+    link_partial
+    """
     start, stop = link_range
     assert start < stop
     mapping_patch = dict()
