@@ -12,7 +12,7 @@ from numpy.testing import assert_equal
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.utils import pandas_sort, pandas_concat
 from trackpy.linking import (link, link_iter, link_df_iter, verify_integrity,
-                             SubnetOversizeException, Linker)
+                             SubnetOversizeException, Linker, link_partial)
 from trackpy.linking.subnetlinker import subnet_linker_recursive
 from trackpy.tests.common import assert_traj_equal, StrictTestCase
 
@@ -843,3 +843,44 @@ class TestMockSubnetlinker(StrictTestCase):
             for p in self.source[i]:
                 self.assertEqual(len(p['forward_cands']), 1)
                 self.assertAlmostEqual(p['forward_cands'][0][1], 0.1)
+
+
+class TestPartialLink(CommonTrackingTests):
+    def test_patch_single(self):
+        f = DataFrame({'x':        [0, 1, 2, 3],
+                       'y':        [1, 1, 1, 1],
+                       'frame':    [0, 1, 2, 3],
+                       'particle': [3, 3, 4, 4]})
+
+        actual = link_partial(f, 5, link_range=(1, 3))
+        assert_equal(actual['particle'].values, 3)
+
+    def test_patch_crossing(self):
+        f = DataFrame({'x':        [0, 1, 2, 3, 0, 1, 2, 3],
+                       'y':        [1, 1, 1, 1, 5, 5, 5, 5],
+                       'frame':    [0, 1, 2, 3, 0, 1, 2, 3],
+                       'particle': [3, 3, 4, 4, 4, 4, 3, 3]})
+
+        actual = link_partial(f, 5, link_range=(1, 3))
+        assert_equal(actual.loc[actual['y'] == 1, 'particle'].values[:4], 3)
+        assert_equal(actual.loc[actual['y'] == 5, 'particle'].values[4:], 4)
+
+    def test_patch_appearing(self):
+        f = DataFrame({'x':        [0, 1, 2, 3, 2, 3],
+                       'y':        [1, 1, 1, 1, 5, 5],
+                       'frame':    [0, 1, 2, 3, 2, 3],
+                       'particle': [3, 3, 4, 4, 3, 3]})
+
+        actual = link_partial(f, 5, link_range=(1, 3))
+        assert_equal(actual.loc[actual['y'] == 1, 'particle'].values[:4], 3)
+        assert_equal(actual.loc[actual['y'] == 5, 'particle'].values[4:], 4)
+
+    def test_patch_only_in(self):
+        f = DataFrame({'x':        [0, 1, 2, 3, 2, 3],
+                       'y':        [1, 1, 1, 1, 5, 5],
+                       'frame':    [0, 1, 2, 3, 1, 2],
+                       'particle': [3, 3, 4, 4, 3, 3]})
+
+        actual = link_partial(f, 5, link_range=(1, 3))
+        assert_equal(actual.loc[actual['y'] == 1, 'particle'].values[:4], 3)
+        assert_equal(actual.loc[actual['y'] == 5, 'particle'].values[4:], 0)
