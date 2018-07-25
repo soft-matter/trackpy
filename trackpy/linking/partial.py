@@ -21,7 +21,14 @@ def coords_from_df_partial(df, pos_columns, t_column, link_frame_nos):
 
 def link_partial(f, search_range, link_range,
                  pos_columns=None, t_column='frame', **kwargs):
-    """Link a DataFrame of coordinates into trajectories.
+    """Patch the trajectories in a DataFrame by linking only a range of frames
+
+    A por dataset can be divided into several patches (time intervals) and
+    linked separately with this function, for e.g. parallel processing. The
+    results can then be stitched back together with reconnect_traj_patch().
+
+    Another application is to link a portion of a dataset again with adjusted
+    parameters.
 
     Parameters
     ----------
@@ -61,6 +68,12 @@ def link_partial(f, search_range, link_range,
     -------
     DataFrame with added column 'particle' containing trajectory labels.
     The t_column (by default: 'frame') will be coerced to integer.
+
+    Notes
+    -----
+    The memory option cannot retain particles at the boundaries between
+    patches. Likewise, if a predictor depends on past trajectories, it may
+    work poorly at the start of each patch.
 
     Examples
     --------
