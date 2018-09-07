@@ -401,6 +401,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         to_drop = where_close(refined_coords[pos_columns], separation,
                               refined_coords['mass'])
         refined_coords.drop(to_drop, axis=0, inplace=True)
+        refined_coords.reset_index(drop=True, inplace=True)
 
     # mass and signal values has to be corrected due to the rescaling
     # raw_mass was obtained from raw image; size and ecc are scale-independent
