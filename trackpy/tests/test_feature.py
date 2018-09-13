@@ -553,7 +553,7 @@ class CommonFeatureIdentificationTests(object):
         rect = [slice(c - radius, c + radius + 1) for c in center]
         mask = tp.masks.binary_mask(radius, 2)
         Npx = mask.sum()
-        EXPECTED_MASS = (spot[rect] * mask).sum()
+        EXPECTED_MASS = (spot[tuple(rect)] * mask).sum()
 
         # Generate feature locations and make the image
         expected = gen_nonoverlapping_locations(shape, N, diameter, diameter)

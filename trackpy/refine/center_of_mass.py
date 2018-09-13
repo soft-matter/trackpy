@@ -229,8 +229,9 @@ def _refine(raw_image, image, radius, coords, max_iterations,
     for feat, coord in enumerate(coords):
         for iteration in range(max_iterations):
             # Define the circular neighborhood of (x, y).
-            rect = [slice(c - r, c + r + 1) for c, r in zip(coord, radius)]
-            neighborhood = mask*image[rect]
+            rect = tuple([slice(c - r, c + r + 1)
+                          for c, r in zip(coord, radius)])
+            neighborhood = mask * image[rect]
             cm_n = _safe_center_of_mass(neighborhood, radius, ogrid)
             cm_i = cm_n - radius + coord  # image coords
 
@@ -272,7 +273,7 @@ def _refine(raw_image, image, radius, coords, max_iterations,
         else:
             ecc[feat] = np.nan
         signal[feat] = neighborhood.max()  # based on bandpassed image
-        raw_neighborhood = mask*raw_image[rect]
+        raw_neighborhood = mask * raw_image[rect]
         raw_mass[feat] = raw_neighborhood.sum()  # based on raw image
 
     if not characterize:

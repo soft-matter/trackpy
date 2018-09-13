@@ -622,7 +622,7 @@ def characterize(coords, image, radius, scale_factor=1.):
                    for c, r, sh in zip(coord, radius, shape)]):
             continue
         rect = [slice(c - r, c + r + 1) for c, r in zip(coord, radius)]
-        neighborhood = mask * image[rect]
+        neighborhood = mask * image[tuple(rect)]
         mass[feat] = neighborhood.sum() / scale_factor
         signal[feat] = neighborhood.max() / scale_factor
         if isotropic:

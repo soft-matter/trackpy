@@ -121,7 +121,7 @@ def get_slice(coords, shape, radius):
         slices[i] = slice(int(round(lower_bound_trunc)),
                           int(round(upper_bound_trunc)))
         origin[i] = lower_bound_trunc
-    return slices, origin
+    return tuple(slices), origin
 
 
 def slice_image(pos, image, radius):
