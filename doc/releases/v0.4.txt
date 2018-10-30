@@ -1,3 +1,13 @@
+Development version
+-------------------
+
+API Changes
+~~~~~~~~~~~
+
+- "trackpy.locate" and associated functions now report "ep" to be NaN when
+  there is only one usable background pixel to sample. (:issue:`519`)
+
+
 v0.4.2
 ------
 

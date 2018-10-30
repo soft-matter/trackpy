@@ -30,8 +30,11 @@ def measure_noise(image_bp, image_raw, radius):
     """
     structure = binary_mask(radius, image_bp.ndim)
     background = ~morphology.binary_dilation(image_bp, structure=structure)
-    if background.sum() == 0:  # edge case of no background identified
+    n_background = background.sum()
+    if n_background == 0:  # edge case of no background identified
         return np.nan, np.nan
+    elif n_background == 1:  # edge case of not enough background identified
+        return image_raw[background].mean(), np.nan
     else:
         return image_raw[background].mean(), image_raw[background].std()
 
