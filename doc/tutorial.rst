@@ -31,4 +31,4 @@ Extending & Customizing Trackpy
 .. toctree::
    :maxdepth: 2
 
-   Bubble Tracking in Foams <tutorial/custom-feature-detection>
+   Tracking Large Features Such As Bubbles <tutorial/custom-feature-detection>

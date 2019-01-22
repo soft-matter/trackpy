@@ -101,7 +101,7 @@ release or the `developer <https://http://soft-matter.github.io/trackpy/dev/>`_ 
    Streaming <tutorial/on-disk>
    Performance <tutorial/performance>
    Parallelized Feature Finding <tutorial/parallel-locate>
-   Bubble Tracking in Foams <tutorial/custom-feature-detection>
+   Tracking Large Features Such As Bubbles <tutorial/custom-feature-detection>
 
 .. raw:: html
 
