@@ -15,7 +15,6 @@ Basic Usage
    Uncertainty Estimation <tutorial/uncertainty>
    Advanced Linking <tutorial/subnets>
    Adaptive Linking <tutorial/adaptive-search>
-   Linking Diagnostics <tutorial/linking-diagnostics>
 
 Processing Large Data Sets
 --------------------------
