@@ -7,12 +7,14 @@ import numpy as np
 from pandas import (DataFrame,)
 
 from ..find import (grey_dilation, where_close)
+from ..refine import (refine_brightfield_ring,)
 from ..utils import (validate_tuple, default_pos_columns)
 from ..preprocessing import (bandpass, convert_to_int)
 
 
 def locate_brightfield_ring(raw_image, diameter, separation=None, noise_size=1,
-                            smoothing_size=None, threshold=None):
+                            smoothing_size=None, threshold=None,
+                            previous_coords=None):
     """Locate particles imaged in brightfield mode of some approximate size in
     an image.
 
@@ -44,6 +46,9 @@ def locate_brightfield_ring(raw_image, diameter, separation=None, noise_size=1,
         Clip bandpass result below this value. Thresholding is done on the
         already background-subtracted image.
         By default, 1 for integer images and 1/255 for float images.
+    previous_coords : DataFrame([x, y, size])
+        Optional previous particle positions from the preceding frame to use as
+        starting point for the refinement instead of the intensity peaks.
 
     Returns
     -------
@@ -120,32 +125,36 @@ def locate_brightfield_ring(raw_image, diameter, separation=None, noise_size=1,
 
     pos_columns = default_pos_columns(image.ndim)
 
-    # Find local maxima.
-    # Define zone of exclusion at edges of image, avoiding
-    #   - Features with incomplete image data ("radius")
-    #   - Extended particles that cannot be explored during subpixel
-    #       refinement ("separation")
-    #   - Invalid output of the bandpass step ("smoothing_size")
-    margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
-                    zip(radius, separation, smoothing_size)])
-    # Find features with minimum separation distance of `separation`. This
-    # excludes detection of small features close to large, bright features
-    # using the `maxsize` argument.
-    coords = grey_dilation(image, separation, margin=margin, precise=False)
+    if previous_coords is None or len(previous_coords) == 0:
+        # Find local maxima.
+        # Define zone of exclusion at edges of image, avoiding
+        #   - Features with incomplete image data ("radius")
+        #   - Extended particles that cannot be explored during subpixel
+        #       refinement ("separation")
+        #   - Invalid output of the bandpass step ("smoothing_size")
+        margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
+                        zip(radius, separation, smoothing_size)])
+        # Find features with minimum separation distance of `separation`. This
+        # excludes detection of small features close to large, bright features
+        # using the `maxsize` argument.
+        coords = grey_dilation(image, separation, margin=margin, precise=False)
 
-    coords_df = DataFrame(columns=pos_columns, data=coords)
+        coords_df = DataFrame(columns=pos_columns, data=coords)
+    else:
+        coords_df = previous_coords
 
     if len(coords_df) == 0:
         warnings.warn("No particles found in the image before refinement.")
         return coords_df
+
+    coords_df = refine_brightfield_ring(image, radius, coords_df,
+                                        pos_columns=pos_columns)
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
     if np.all(np.greater(separation, 0)):
         to_drop = where_close(coords_df[pos_columns], separation)
         coords_df.drop(to_drop, axis=0, inplace=True)
         coords_df.reset_index(drop=True, inplace=True)
-
-    # TODO: refine particle positions
 
     if len(coords_df) == 0:
         warnings.warn("No particles found in the image after refinement.")
