@@ -474,3 +474,111 @@ class SimulatedImage(object):
                 result[col] = float(s)
         return result
 
+def feat_brightfield(r, ndim, radii, dark_value, bright_value):
+    """ Brightfield particle at r = 0. """
+    image = np.zeros_like(r)
+
+    # TODO: anisotropic sizes
+    radius = radii[0]-0.5
+
+    thickness = 3
+    mask = r <= radius
+    mask_ring = mask & (r > (radius-thickness))
+    image[mask_ring] += dark_value
+    image[mask] += bright_value*np.exp(-(r[mask]/((radius-thickness/3.0)**2))**2)
+
+    return image
+
+def draw_feature_brightfield(image, position, size, **kwargs):
+    """ Draws a brightfield feature and adds it to the image at given
+    position. The given function will be evaluated at each pixel coordinate,
+    no averaging or convolution is done.
+
+    Parameters
+    ----------
+    image : ndarray
+        image to draw features on
+    position : iterable
+        coordinates of feature position
+    size : number
+        the size of the feature (meaning depends on feature, for feat_gauss,
+        it is the radius of gyration)
+    kwargs : keyword arguments are passed to draw_feature
+
+    See also
+    --------
+    draw_feature
+    """
+    kwargs['feat_func'] = feat_brightfield
+    kwargs['radii'] = np.array(size)/2.0
+    kwargs['dark_value'] = -0.3
+    kwargs['bright_value'] = 0.8
+    draw_feature(image, position, size, **kwargs)
+
+
+def draw_features_brightfield(shape, positions, size, noise_level=0, 
+                              bitdepth=8, background=0.5, **kwargs):
+    """ Generates an image with features at given positions. A feature with
+    position x will be centered around pixel x. In other words, the origin of
+    the output image is located at the center of pixel (0, 0).
+
+    Parameters
+    ----------
+    shape : tuple of int
+        the shape of the produced image
+    positions : iterable of tuples
+        an iterable of positions
+    size : number
+        the size of the feature (meaning depends on feature, for feat_gauss,
+        it is the radius of gyration)
+    noise_level : int, default: 0
+        white noise will be generated up to this level
+    bitdepth : int, default: 8
+        the desired bitdepth of the image (<=32 bits)
+    background : float, default: 0.5
+        the value of the background ranging from 0 (black) to 1 (white)
+    kwargs : keyword arguments are passed to draw_feature
+
+    See also
+    --------
+    draw_feature_brightfield
+    """
+    if bitdepth <= 8:
+        dtype = np.uint8
+        internaldtype = np.uint16
+    elif bitdepth <= 16:
+        dtype = np.uint16
+        internaldtype = np.uint32
+    elif bitdepth <= 32:
+        dtype = np.uint32
+        internaldtype = np.uint64
+    else:
+        raise ValueError('Bitdepth should be <= 32')
+    np.random.seed(0)
+
+    max_brightness = 2**bitdepth - 1
+
+    if background is None or background < 0 or background > 1:
+        background = 0.5
+
+    image = background*max_brightness*np.ones([int(s) for s in shape], 
+                                              dtype=internaldtype)
+
+    if noise_level > 0:
+        image += np.random.randint(0, noise_level + 1,
+                                   shape).astype(internaldtype)
+
+    if np.max(image) > max_brightness:
+        image = image/np.max(image)*max_brightness
+
+    for pos in positions:
+        draw_feature_brightfield(image, pos, size, max_value=max_brightness,
+                                 **kwargs)
+    result = image.clip(0, 2**bitdepth - 1).astype(dtype)
+
+    #import matplotlib.pyplot as plt
+    #plt.imshow(result, cmap='gray')
+    #plt.show(block=True)
+
+    return result
+
