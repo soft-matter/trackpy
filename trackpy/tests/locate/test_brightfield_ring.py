@@ -19,7 +19,7 @@ from trackpy.artificial import (draw_features_brightfield,
 from trackpy.utils import pandas_sort
 from trackpy.tests.common import sort_positions, StrictTestCase
 from trackpy.feature import locate
-from trackpy.locate.brightfield_ring import locate_brightfield_ring
+from trackpy.locate_functions.brightfield_ring import locate_brightfield_ring
 from trackpy.refine.brightfield_ring import (_min_edge, _fit_circle)
 
 path, _ = os.path.split(os.path.abspath(__file__))
