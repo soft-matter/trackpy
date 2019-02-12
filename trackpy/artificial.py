@@ -264,7 +264,6 @@ def draw_cluster(image, position, size, cluster_size, hard_radius=1., angle=0,
         draw_feature(image, pos, size, **kwargs)
     return coord
 
-
 class SimulatedImage(object):
     """ This class makes it easy to generate artificial pictures.
 
@@ -475,34 +474,33 @@ class SimulatedImage(object):
                 result[col] = float(s)
         return result
 
-def feat_brightfield(r, ndim, radii, dark_value, bright_value, dip):
+def feat_brightfield(r, ndim, radius, dark_value, bright_value, dip):
     """ Brightfield particle with intensity dip in center at r = 0. """
     image = np.zeros_like(r)
 
-    if not np.isclose(radii, radii[0]).all():
-        warnings.warn("Anisotropic particle sizes for brightfield features" +
-                      " are not supported! I'll use the first value as radius")
+    # by definition
+    r_rel = 1.0
+    r_factor = radius / r_rel
+    thickness = r_rel*0.1
 
-    radius = radii[0]-0.5
+    if thickness*r_factor < 2.0:
+        thickness = 2.0 / r_factor
 
-    thickness = radius*0.25
-
-    mask = r < radius
-    mask_ring = mask & (r > (radius-thickness))
+    mask = r < r_rel
+    mask_ring = mask & (r > (r_rel-thickness))
 
     if dip:
         mask_dip = r < thickness
         image[mask_dip] += 1.5*dark_value
 
-    image[mask_ring] += dark_value
-
-    gauss_radius = radius-1.6*thickness
+    gauss_radius = r_rel-1*thickness
     image[mask] += bright_value*np.exp(-(r[mask]/(gauss_radius**2))**2)
+
+    image[mask_ring] = dark_value
 
     return image
 
-
-def draw_features_brightfield(shape, positions, size, noise_level=0,
+def draw_features_brightfield(shape, positions, radius, noise_level=0,
                               bitdepth=8, background=0.5, dip=False, **kwargs):
     """ Generates an image with features at given positions. A feature with
     position x will be centered around pixel x. In other words, the origin of
@@ -514,9 +512,8 @@ def draw_features_brightfield(shape, positions, size, noise_level=0,
         the shape of the produced image
     positions : iterable of tuples
         an iterable of positions
-    size : number
-        the size of the feature (meaning depends on feature, for feat_gauss,
-        it is the radius of gyration)
+    radius : number
+        the radius of the feature
     noise_level : int, default: 0
         white noise will be generated up to this level
     bitdepth : int, default: 8
@@ -558,13 +555,13 @@ def draw_features_brightfield(shape, positions, size, noise_level=0,
         image = image/np.max(image)*max_brightness
 
     kwargs['feat_func'] = feat_brightfield
-    kwargs['radii'] = np.array(size)/2.0
     kwargs['dark_value'] = -0.3
     kwargs['bright_value'] = 0.8
     kwargs['dip'] = dip
+    kwargs['radius'] = radius[0]
 
     for pos in positions:
-        draw_feature(image, pos, size, max_value=max_brightness, **kwargs)
+        draw_feature(image, pos, radius, max_value=max_brightness, **kwargs)
     result = image.clip(0, 2**bitdepth - 1).astype(dtype)
 
     return result
