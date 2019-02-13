@@ -99,12 +99,14 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
 
     pos_columns = default_pos_columns(image.ndim)
 
+    has_user_input = False
     if previous_coords is None or len(previous_coords) == 0:
         coords_df = locate(raw_image, diameter, separation=separation,
                            characterize=False)
         coords_df = coords_df[pos_columns]
     else:
-        coords_df = previous_coords
+        coords_df = previous_coords[pos_columns]
+        has_user_input = True
 
     if len(coords_df) == 0:
         warnings.warn("No particles found in the image before refinement.")
@@ -113,10 +115,14 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
     coords_df = coords_df.astype(float)
 
     refined = {}
-    for i, coord_df in coords_df.iterrows():
-        result = refine_brightfield_ring(image, radius, coord_df,
+    for i, coords in coords_df.iterrows():
+        result = refine_brightfield_ring(image, radius, coords,
                                          pos_columns=pos_columns)
         if result is None:
+            if has_user_input:
+                warnings.warn(("Lost particle {:d} (x={:.0f}, y={:.0f})" +
+                               " after refinement.").format(i, coords['x'],
+                                                            coords['y']))
             continue
 
         refined[i] = result
