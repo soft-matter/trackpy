@@ -110,8 +110,9 @@ def _refine_brightfield_ring(image, radius, coords_df, threshold=0.5,
     intensity, pos, normal = _unwrap_ellipse(image, coords, rad_range)
 
     # Find the coordinates of the edge
-    intensity_threshold = (np.max(image)-np.min(image))*threshold
-    r_dev = _min_edge(intensity, intensity_threshold) + rad_range[0]
+    dark_value = (np.mean(image)-np.min(image))*0.8
+    bright_value = np.mean(image)+np.max(image)*0.1
+    r_dev = _min_edge(intensity, dark_value, bright_value) + rad_range[0]
     if np.sum(~np.isnan(r_dev))/len(r_dev) < min_points_frac:
         return None, None, None
 
@@ -168,14 +169,14 @@ def _refine_brightfield_ring(image, radius, coords_df, threshold=0.5,
 
     return result
 
-def _min_edge(arr, intensity_threshold, axis=1):
+def _min_edge(arr, dark_value, bright_value, axis=1):
     """ Find min value of each row """
     if axis == 0:
         arr = arr.T
     if np.issubdtype(arr.dtype, np.unsignedinteger):
         arr = arr.astype(np.int)
 
-    if np.nanmax(arr) < intensity_threshold:
+    if np.nanmax(arr) < bright_value:
         return np.array([np.nan]*arr.shape[0])
 
     values = np.nanmin(arr, axis=1)
@@ -188,7 +189,13 @@ def _min_edge(arr, intensity_threshold, axis=1):
             rdev.append(np.mean(argmin))
 
     r_dev = np.array(rdev)
-    r_dev[values > intensity_threshold] = np.nan
+    # threshold on inner part (should be bright on the left)
+    xcoords = np.tile(np.arange(0, arr.shape[1]), (arr.shape[0], 1))
+    left_mask = xcoords < np.tile(r_dev[:, np.newaxis], (1, arr.shape[1]))
+    mean_intensity_inside = np.mean(arr[left_mask], axis=0)
+    r_dev[mean_intensity_inside < bright_value] = np.nan
+    # threshold on edge
+    r_dev[values > dark_value] = np.nan
     return r_dev
 
 def _fit_circle(coords):

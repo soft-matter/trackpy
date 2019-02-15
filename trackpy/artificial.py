@@ -123,6 +123,17 @@ def gen_random_locations(shape, count, margin=0):
     return np.array(pos).T
 
 
+def gen_connected_locations(shape, count, separation, margin=0):
+    """ Generates `count` number of positions within `shape` that are touching.
+    If a `margin` is given, positions will be inside this margin. Margin may be
+    tuple-valued.  """
+    margin = validate_tuple(margin, len(shape))
+    center_pos = margin + np.round(np.subtract(shape, margin)/2.0)
+    indices = np.arange(0, count, 1) - np.round(count/2.0)
+    pos = np.array([np.add(center_pos, np.multiply(i, separation)) for i in indices])
+
+    return pos
+
 def gen_nonoverlapping_locations(shape, count, separation, margin=0):
     """ Generates `count` number of positions within `shape`, that have minimum
     distance `separation` from each other. The number of positions returned may

@@ -1,22 +1,16 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import six
-from six.moves import range
 import os
-import warnings
 import logging
 
 import nose
 import numpy as np
-from pandas import DataFrame
-import matplotlib.pyplot as plt
-from numpy.testing import assert_allclose, assert_array_less
-from pandas.util.testing import assert_produces_warning
+from numpy.testing import assert_allclose
 
 import trackpy as tp
 from trackpy.artificial import (draw_features_brightfield,
-                                gen_nonoverlapping_locations)
-from trackpy.utils import pandas_sort
+                                gen_nonoverlapping_locations,
+                                gen_connected_locations)
 from trackpy.tests.common import sort_positions, StrictTestCase
 from trackpy.feature import locate
 from trackpy.locate_functions.brightfield_ring import locate_brightfield_ring
@@ -25,19 +19,16 @@ from trackpy.refine.brightfield_ring import (_min_edge, _fit_circle)
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-def artificial_image(shape, count, radius, noise_level, dip=False, 
-                     traditional=False, **kwargs):
+def draw_artificial_image(shape, pos, radius, noise_level, dip=False,
+                          traditional=False, **kwargs):
     radius = tp.utils.validate_tuple(radius, len(shape))
 
     # tp.locate ignores a margin of size radius, take 1 px more to be safe
-    margin = tuple([r + 1 for r in radius])
     diameter = tuple([(r * 2) + 1 for r in radius])
     size = [d / 2 for d in diameter]
-    separation = tuple([d * 1.1 for d in diameter])
 
     cols = ['x', 'y', 'z'][:len(shape)][::-1]
 
-    pos = gen_nonoverlapping_locations(shape, count, separation, margin)
     image = draw_features_brightfield(shape, pos, size, noise_level, dip=dip)
 
     if not traditional:
@@ -50,6 +41,25 @@ def artificial_image(shape, count, radius, noise_level, dip=False,
     expected = np.sort(pos, axis=0)
 
     return result, expected
+
+def artificial_image(shape, count, radius, noise_level, dip=False,
+                     traditional=False, **kwargs):
+
+    radius = tp.utils.validate_tuple(radius, len(shape))
+    margin = tuple([r + 1 for r in radius])
+    separation = tuple([2.5*r for r in radius])
+    pos = gen_nonoverlapping_locations(shape, count, separation, margin)
+    return draw_artificial_image(shape, pos, radius, noise_level, dip,
+                                 traditional, **kwargs)
+
+def artificial_cluster(shape, count, radius, noise_level, dip=False,
+                       traditional=False, **kwargs):
+    radius = tp.utils.validate_tuple(radius, len(shape))
+    margin = tuple([r + 1 for r in radius])
+    separation = tuple([1.4*r for r in radius])
+    pos = gen_connected_locations(shape, count, separation, margin)
+    return draw_artificial_image(shape, pos, radius, noise_level, dip,
+                                 traditional, **kwargs)
 
 def generate_random_circle(r, x, y, num_samples=500, noise=0):
     np.random.seed(1)
@@ -67,6 +77,7 @@ def generate_random_circle(r, x, y, num_samples=500, noise=0):
 
     return np.squeeze(np.dstack((xc, yc))).T
 
+
 class TestLocateBrightfieldRing(StrictTestCase):
     def setUp(self):
         mpl_logger = logging.getLogger('matplotlib')
@@ -74,9 +85,11 @@ class TestLocateBrightfieldRing(StrictTestCase):
 
         self.pixel_tolerance = 0.9
         self.n_feat_sparse = 5
+        self.n_feat_cluster = 3
         self.n_feat_dense = 30
         self.image_size = (250, 350)
-        self.radius = 11
+        self.radius = 13
+        self.cluster_sep = 1.0*self.radius
 
     def test_multiple_simple_sparse(self):
         actual, expected = artificial_image(self.image_size,
@@ -156,6 +169,50 @@ class TestLocateBrightfieldRing(StrictTestCase):
                                             dip=True)
         assert_allclose(actual, expected, atol=self.pixel_tolerance)
 
+    def test_cluster(self):
+        actual, expected = artificial_cluster(self.image_size,
+                                              self.n_feat_cluster,
+                                              self.radius, noise_level=0,
+                                              separation=self.cluster_sep)
+        assert_allclose(actual, expected, atol=self.pixel_tolerance)
+
+    def test_cluster_noisy(self):
+        actual, expected = artificial_cluster(self.image_size,
+                                              self.n_feat_cluster,
+                                              self.radius, noise_level=10,
+                                              separation=self.cluster_sep)
+        assert_allclose(actual, expected, atol=self.pixel_tolerance)
+
+    def test_cluster_more_noisy(self):
+        actual, expected = artificial_cluster(self.image_size,
+                                              self.n_feat_cluster,
+                                              self.radius, noise_level=51,
+                                              separation=self.cluster_sep)
+        assert_allclose(actual, expected, atol=self.pixel_tolerance)
+
+    def test_cluster_dip(self):
+        actual, expected = artificial_cluster(self.image_size,
+                                              self.n_feat_cluster,
+                                              self.radius, noise_level=0,
+                                              dip=True,
+                                              separation=self.cluster_sep)
+        assert_allclose(actual, expected, atol=self.pixel_tolerance)
+
+    def test_cluster_noisy_dip(self):
+        actual, expected = artificial_cluster(self.image_size,
+                                              self.n_feat_cluster,
+                                              self.radius, noise_level=10,
+                                              dip=True,
+                                              separation=self.cluster_sep)
+        assert_allclose(actual, expected, atol=self.pixel_tolerance)
+
+    def test_cluster_more_noisy_dip(self):
+        actual, expected = artificial_cluster(self.image_size,
+                                              self.n_feat_cluster,
+                                              self.radius, noise_level=51,
+                                              dip=True,
+                                              separation=self.cluster_sep)
+        assert_allclose(actual, expected, atol=self.pixel_tolerance)
 
     def test_default_locate_multiple_more_noisy_dense_dip(self):
         # This shows where the locate function fails with the same parameters,
@@ -177,7 +234,7 @@ class TestLocateBrightfieldRing(StrictTestCase):
         ix = int(np.round(float(self.image_size[1])/2.0))
         image[:, [ix, ix+1]] = 0.0
 
-        result = _min_edge(image, 0.5)
+        result = _min_edge(image, 0.4, 0.6)
         assert_allclose(result, float(ix)+0.5, atol=0.1)
 
     def test_min_edge_noisy(self):
@@ -187,7 +244,9 @@ class TestLocateBrightfieldRing(StrictTestCase):
         ix = int(np.round(float(self.image_size[1])/2.0))
         image[:, [ix, ix+1]] = 0.0
 
-        result = _min_edge(image, 0.5)
+        print(image.min(), image.max(), image.mean())
+
+        result = _min_edge(image, 10, 50)
         assert_allclose(result, float(ix)+0.5, atol=0.1)
 
     def test_fit_circle(self):
