@@ -77,7 +77,6 @@ def generate_random_circle(r, x, y, num_samples=500, noise=0):
 
     return np.squeeze(np.dstack((xc, yc))).T
 
-
 class TestLocateBrightfieldRing(StrictTestCase):
     def setUp(self):
         mpl_logger = logging.getLogger('matplotlib')
@@ -230,11 +229,14 @@ class TestLocateBrightfieldRing(StrictTestCase):
             assert not equal_shape
 
     def test_min_edge(self):
-        image = np.ones(self.image_size, dtype=np.float)
-        ix = int(np.round(float(self.image_size[1])/2.0))
-        image[:, [ix, ix+1]] = 0.0
+        image = np.zeros(self.image_size, dtype=np.float)
 
-        result = _min_edge(image, 0.4, 0.6)
+        ix = int(np.round(float(self.image_size[1])/2.0))
+        image[:, :ix] += 230.0
+        image[:, [ix, ix+1]] = 0.0
+        image[:, ix+2:] += 100.0
+
+        result = _min_edge(image, 0.45, 2)
         assert_allclose(result, float(ix)+0.5, atol=0.1)
 
     def test_min_edge_noisy(self):
@@ -242,11 +244,11 @@ class TestLocateBrightfieldRing(StrictTestCase):
         image += np.random.randint(1, 255, image.shape).astype(float)
 
         ix = int(np.round(float(self.image_size[1])/2.0))
+        image[:, :ix] += np.mean(image)
         image[:, [ix, ix+1]] = 0.0
+        image[image > 255] = 255.0
 
-        print(image.min(), image.max(), image.mean())
-
-        result = _min_edge(image, 10, 50)
+        result = _min_edge(image, 0.45, 2)
         assert_allclose(result, float(ix)+0.5, atol=0.1)
 
     def test_fit_circle(self):

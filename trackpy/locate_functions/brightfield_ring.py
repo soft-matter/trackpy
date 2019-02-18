@@ -4,7 +4,7 @@ from __future__ import division, print_function, absolute_import
 
 import warnings
 import numpy as np
-from pandas import (DataFrame,concat)
+from pandas import (DataFrame, concat)
 
 from ..find import (grey_dilation, where_close)
 from ..refine import (refine_brightfield_ring,)
@@ -14,7 +14,7 @@ from ..feature import locate
 
 
 def locate_brightfield_ring(raw_image, diameter, separation=None,
-                            previous_coords=None):
+                            previous_coords=None, **kwargs):
     """Locate particles imaged in brightfield mode of some approximate size in
     an image.
 
@@ -38,6 +38,8 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
     previous_coords : DataFrame([x, y, r])
         Optional previous particle positions from the preceding frame to use as
         starting point for the refinement instead of the intensity peaks.
+    kwargs:
+        Passed to the refine function.
 
     Returns
     -------
@@ -105,19 +107,18 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
                            characterize=False)
         coords_df = coords_df[pos_columns]
     else:
-        coords_df = previous_coords[pos_columns]
+        coords_df = previous_coords
         has_user_input = True
 
     if len(coords_df) == 0:
         warnings.warn("No particles found in the image before refinement.")
         return coords_df
 
-    coords_df = coords_df.astype(float)
-
     refined = {}
     for i, coords in coords_df.iterrows():
-        result = refine_brightfield_ring(image, radius, coords,
-                                         pos_columns=pos_columns)
+        positions = coords[pos_columns]
+        result = refine_brightfield_ring(image, radius, positions,
+                                         pos_columns=pos_columns, **kwargs)
         if result is None:
             if has_user_input:
                 warnings.warn(("Lost particle {:d} (x={:.0f}, y={:.0f})" +
@@ -125,9 +126,15 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
                                                             coords['y']))
             continue
 
-        refined[i] = result
+        # Make a copy of old coords and overwrite with result
+        # In this way any extra columns from previous_coords are preserved
+        new_coords = coords.copy()
+        for column in result.index.tolist():
+            # make a new column if necessary, otherwise overwrite
+            new_coords[column] = result.get(column)
+        refined[i] = new_coords
 
-    columns = pos_columns+['r']
+    columns = np.unique(np.concatenate((pos_columns, ['r'], coords_df.columns)))
     if len(refined) == 0:
         warnings.warn("No particles found in the image after refinement.")
         return DataFrame(columns=columns)
