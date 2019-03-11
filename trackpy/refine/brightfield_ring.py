@@ -1,3 +1,7 @@
+"""
+Detect particles in brightfield mode by tracking a ring of dark pixels around a
+bright interior part. Based on https://github.com/caspervdw/circletracking
+"""
 import numpy as np
 import pandas as pd
 

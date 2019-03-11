@@ -1,5 +1,7 @@
-""" Detect particles in brightfield mode by tracking a ring of dark pixels
-    around a bright interior part. """
+"""
+Detect particles in brightfield mode by tracking a ring of dark pixels around a
+bright interior part. Based on https://github.com/caspervdw/circletracking
+"""
 from __future__ import division, print_function, absolute_import
 
 import warnings
