@@ -12,7 +12,7 @@ from ..utils import (validate_tuple, guess_pos_columns, default_pos_columns)
 
 
 def refine_brightfield_ring(image, radius, coords_df, pos_columns=None,
-                            rad_range=None):
+                            rad_range=None, **kwargs):
     """Find the center of mass of a brightfield feature starting from an
     estimate.
 
@@ -30,6 +30,8 @@ def refine_brightfield_ring(image, radius, coords_df, pos_columns=None,
         Defaults to ``['y', 'x']`` or ``['z', 'y', 'x']``, if ``'z'`` exists.
     rad_range : tuple(float, float)
         The initial search range and final search range in the last iteration
+    **kwargs:
+        Passed to the min_edge function.
 
     Returns
     -------
@@ -50,9 +52,10 @@ def refine_brightfield_ring(image, radius, coords_df, pos_columns=None,
         pos_columns = default_pos_columns(image.ndim)
 
     r = radius[0]
-    refined_r, refined_x, refined_y = _refine_brightfield_ring(image, r,
-                                                               coords_df,
-                                                               rad_range=rad_range)
+    result = _refine_brightfield_ring(image, r, coords_df, rad_range=rad_range,
+                                      **kwargs)
+
+    refined_r, refined_x, refined_y = result
 
     if refined_r is None or refined_y is None or refined_x is None:
         return None
@@ -63,9 +66,8 @@ def refine_brightfield_ring(image, radius, coords_df, pos_columns=None,
 
     return coords_df
 
-def _refine_brightfield_ring(image, radius, coords_df, threshold=0.45,
-                             max_dev=2, min_points_frac=0.35, max_ev=10,
-                             rad_range=None):
+def _refine_brightfield_ring(image, radius, coords_df, min_points_frac=0.35,
+                             max_ev=10, rad_range=None, **kwargs):
     """Find the center of mass of a brightfield feature starting from an
     estimate.
 
@@ -113,10 +115,13 @@ def _refine_brightfield_ring(image, radius, coords_df, threshold=0.45,
     intensity, pos, normal = _unwrap_ellipse(image, coords, rad_range)
 
     # Find the coordinates of the edge
-    r_dev = _min_edge(intensity, threshold, max_dev) + rad_range[0]
+    r_dev = _min_edge(intensity, **kwargs)
+    r_dev += rad_range[0]
     if np.sum(~np.isnan(r_dev))/len(r_dev) < min_points_frac:
-        return _retry(image, radius, coords_df, threshold, max_dev,
-                      min_points_frac, max_ev, rad_range)
+        print(0)
+        print(np.sum(~np.isnan(r_dev))/len(r_dev))
+        return _retry(image, radius, coords_df, min_points_frac, max_ev,
+                      rad_range, **kwargs)
 
     # Convert to cartesian
     coord_new = _to_cartesian(r_dev, pos, normal)
@@ -125,34 +130,38 @@ def _refine_brightfield_ring(image, radius, coords_df, threshold=0.45,
     try:
         r, (xc, yc) = _fit_circle(coord_new)
     except np.linalg.LinAlgError:
-        return _retry(image, radius, coords_df, threshold, max_dev,
-                      min_points_frac, max_ev, rad_range)
+        print(1)
+        return _retry(image, radius, coords_df, min_points_frac, max_ev,
+                      rad_range, **kwargs)
     if np.any(np.isnan([r, yc, xc])):
-        return _retry(image, radius, coords_df, threshold, max_dev,
-                      min_points_frac, max_ev, rad_range)
+        print(2)
+        return _retry(image, radius, coords_df, min_points_frac, max_ev,
+                      rad_range, **kwargs)
     if not rad_range[0] < r - radius < rad_range[1]:
-        return _retry(image, radius, coords_df, threshold, max_dev,
-                      min_points_frac, max_ev, rad_range)
+        print(3)
+        return _retry(image, radius, coords_df, min_points_frac, max_ev,
+                      rad_range, **kwargs)
 
     if np.abs(radius-r)/radius > 0.5:
-        return _retry(image, radius, coords_df, threshold, max_dev,
-                      min_points_frac, max_ev, rad_range)
+        print(4)
+        return _retry(image, radius, coords_df, min_points_frac, max_ev,
+                      rad_range, **kwargs)
 
     return r, xc, yc
 
-def _retry(image, radius, coords_df, threshold, max_dev, min_points_frac,
-           max_ev, rad_range):
+def _retry(image, radius, coords_df, min_points_frac, max_ev, rad_range,
+           **kwargs):
     # try again with different search range
     rad_range = np.multiply(1.03, rad_range)
     max_ev -= 1
     if max_ev > 0:
-        return _refine_brightfield_ring(image, radius, coords_df, threshold,
-                                        max_dev, min_points_frac, max_ev,
-                                        rad_range)
-    else:
-        return None, None, None
+        return _refine_brightfield_ring(image, radius, coords_df,
+                                        min_points_frac, max_ev,
+                                        rad_range, **kwargs)
+    return None, None, None
 
-def _min_edge(arr, threshold=0.45, max_dev=1, axis=1):
+def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
+              bright_left_factor=1.2):
     """ Find min value of each row """
     if axis == 0:
         arr = arr.T
@@ -170,27 +179,38 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1):
 
     r_dev = np.array(rdev)
 
-    abs_thr = threshold * np.nanmax(arr)
-
     # threshold on edge
+    mask = ~np.isnan(r_dev)
+    print('before threshold', np.sum(mask))
+
+    abs_thr = threshold * np.nanmax(arr)
     r_dev[values > abs_thr] = np.nan
+
+    mask = ~np.isnan(r_dev)
+    print('after threshold', np.sum(mask))
+
+    mask = ~np.isnan(r_dev)
+    if np.sum(mask) == 0:
+        print('  0')
+        return r_dev
 
     # filter by deviations from most occuring value
     max_dev = np.round(max_dev)
-    mask = ~np.isnan(r_dev)
-    if np.sum(mask) == 0:
-        return r_dev
-
     most_likely = stats.mode(r_dev[mask])[0][0]
     mask[mask] &= np.abs(r_dev[mask]-most_likely) > max_dev
     r_dev[mask] = np.nan
 
+    mask = ~np.isnan(r_dev)
+    print('after dev', np.sum(mask))
+
     # Check if left is brighter than right
-    split_i = int(np.round(most_likely))
-    left = np.nanmean(arr[:, :split_i])
-    right = np.nanmean(arr[:, split_i:])
-    if left < 1.2 * right:
-        return np.array(len(r_dev)*[np.nan], dtype=float)
+    if bright_left:
+        split_i = int(np.round(most_likely))
+        left = np.nanmean(arr[:, :split_i])
+        right = np.nanmean(arr[:, split_i:])
+        if left < bright_left_factor * right:
+            print('  1')
+            return np.array(len(r_dev)*[np.nan], dtype=float)
 
     return r_dev
 
