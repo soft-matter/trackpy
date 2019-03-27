@@ -118,8 +118,6 @@ def _refine_brightfield_ring(image, radius, coords_df, min_points_frac=0.35,
     r_dev = _min_edge(intensity, **kwargs)
     r_dev += rad_range[0]
     if np.sum(~np.isnan(r_dev))/len(r_dev) < min_points_frac:
-        print(0)
-        print(np.sum(~np.isnan(r_dev))/len(r_dev))
         return _retry(image, radius, coords_df, min_points_frac, max_ev,
                       rad_range, **kwargs)
 
@@ -130,20 +128,16 @@ def _refine_brightfield_ring(image, radius, coords_df, min_points_frac=0.35,
     try:
         r, (xc, yc) = _fit_circle(coord_new)
     except np.linalg.LinAlgError:
-        print(1)
         return _retry(image, radius, coords_df, min_points_frac, max_ev,
                       rad_range, **kwargs)
     if np.any(np.isnan([r, yc, xc])):
-        print(2)
         return _retry(image, radius, coords_df, min_points_frac, max_ev,
                       rad_range, **kwargs)
     if not rad_range[0] < r - radius < rad_range[1]:
-        print(3)
         return _retry(image, radius, coords_df, min_points_frac, max_ev,
                       rad_range, **kwargs)
 
     if np.abs(radius-r)/radius > 0.5:
-        print(4)
         return _retry(image, radius, coords_df, min_points_frac, max_ev,
                       rad_range, **kwargs)
 
@@ -180,18 +174,11 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
     r_dev = np.array(rdev)
 
     # threshold on edge
-    mask = ~np.isnan(r_dev)
-    print('before threshold', np.sum(mask))
-
     abs_thr = threshold * np.nanmax(arr)
     r_dev[values > abs_thr] = np.nan
 
     mask = ~np.isnan(r_dev)
-    print('after threshold', np.sum(mask))
-
-    mask = ~np.isnan(r_dev)
     if np.sum(mask) == 0:
-        print('  0')
         return r_dev
 
     # filter by deviations from most occuring value
@@ -201,7 +188,6 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
     r_dev[mask] = np.nan
 
     mask = ~np.isnan(r_dev)
-    print('after dev', np.sum(mask))
 
     # Check if left is brighter than right
     if bright_left:
@@ -209,7 +195,6 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
         left = np.nanmean(arr[:, :split_i])
         right = np.nanmean(arr[:, split_i:])
         if left < bright_left_factor * right:
-            print('  1')
             return np.array(len(r_dev)*[np.nan], dtype=float)
 
     return r_dev
