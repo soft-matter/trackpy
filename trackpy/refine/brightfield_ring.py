@@ -188,6 +188,8 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
     r_dev[mask] = np.nan
 
     mask = ~np.isnan(r_dev)
+    if np.sum(mask) == 0:
+        return r_dev
 
     # Check if left is brighter than right
     if bright_left:
