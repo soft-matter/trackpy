@@ -248,13 +248,13 @@ class PandasHDFStoreSingleNode(FramewiseData):
         self._t_column = t_column
         self.store = pd.HDFStore(self.filename, mode, **kwargs)
 
-        with pd.HDFStore(self.filename) as store:
-            try:
-                store[self.key]
-            except KeyError:
-                pass
-            else:
-                self._validate_node(use_tabular_copy)
+        store = pd.HDFStore(self.filename)
+        try:
+            store[self.key]
+        except KeyError:
+            pass
+        else:
+            self._validate_node(use_tabular_copy)
 
     @property
     def t_column(self):
