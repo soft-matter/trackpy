@@ -248,7 +248,7 @@ class PandasHDFStoreSingleNode(FramewiseData):
         self._t_column = t_column
         self.store = pd.HDFStore(self.filename, mode, **kwargs)
 
-        with pd.get_store(self.filename) as store:
+        with pd.HDFStore(self.filename) as store:
             try:
                 store[self.key]
             except KeyError:
