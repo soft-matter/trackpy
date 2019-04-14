@@ -255,6 +255,7 @@ class PandasHDFStoreSingleNode(FramewiseData):
             pass
         else:
             self._validate_node(use_tabular_copy)
+        store.close()
 
     @property
     def t_column(self):
