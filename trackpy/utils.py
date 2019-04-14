@@ -313,7 +313,17 @@ def _pandas_sort_pre_017(df, by, *args, **kwargs):
     return df.sort(*args, columns=by, **kwargs)
 
 def _pandas_sort_post_017(df, by, *args, **kwargs):
-    """Use sort_values() to sort a DataFrame"""
+    """
+    Use sort_values() to sort a DataFrame
+    This raises a ValueError if the given value is both
+    a column and an index label, i.e.:
+    ValueError: 'frame' is both an index level and a column
+    label, which is ambiguous.
+    Because we usually sort by columns, we can rename
+    the index to supress the ValueError.
+    """
+    if df.index.name is not None and df.index.name in by:
+        df.index.name += '_index'
     return df.sort_values(*args, by=by, **kwargs)
 
 if is_pandas_since_017:
