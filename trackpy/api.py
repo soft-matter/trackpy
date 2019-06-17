@@ -21,6 +21,7 @@ from .feature import locate, batch, local_maxima, \
 from .preprocessing import bandpass, invert_image
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
+from .locate_functions import locate_brightfield_ring
 from .refine import refine_com, refine_leastsq
 from . import predict
 from . import utils

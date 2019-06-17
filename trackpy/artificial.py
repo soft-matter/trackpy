@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import numpy as np
 import pandas as pd
+import warnings
 from trackpy.find import drop_close
 from trackpy.utils import validate_tuple
 from trackpy.preprocessing import bandpass
@@ -121,6 +122,17 @@ def gen_random_locations(shape, count, margin=0):
            for (s, m) in zip(shape, margin)]
     return np.array(pos).T
 
+
+def gen_connected_locations(shape, count, separation, margin=0):
+    """ Generates `count` number of positions within `shape` that are touching.
+    If a `margin` is given, positions will be inside this margin. Margin may be
+    tuple-valued.  """
+    margin = validate_tuple(margin, len(shape))
+    center_pos = margin + np.round(np.subtract(shape, margin)/2.0)
+    indices = np.arange(0, count, 1) - np.round(count/2.0)
+    pos = np.array([np.add(center_pos, np.multiply(i, separation)) for i in indices])
+
+    return pos
 
 def gen_nonoverlapping_locations(shape, count, separation, margin=0):
     """ Generates `count` number of positions within `shape`, that have minimum
@@ -262,7 +274,6 @@ def draw_cluster(image, position, size, cluster_size, hard_radius=1., angle=0,
     for pos in coord:
         draw_feature(image, pos, size, **kwargs)
     return coord
-
 
 class SimulatedImage(object):
     """ This class makes it easy to generate artificial pictures.
@@ -473,4 +484,96 @@ class SimulatedImage(object):
             for col, s in zip(self.size_columns, self.size):
                 result[col] = float(s)
         return result
+
+def feat_brightfield(r, ndim, radius, dark_value, bright_value, dip):
+    """ Brightfield particle with intensity dip in center at r = 0. """
+    image = np.zeros_like(r)
+
+    # by definition
+    r_rel = 1.0
+    r_factor = radius / r_rel
+    thickness = r_rel*0.1
+
+    if thickness*r_factor < 2.0:
+        thickness = 2.0 / r_factor
+
+    mask = r < r_rel
+    mask_ring = mask & (r > (r_rel-thickness))
+
+    if dip:
+        mask_dip = r < thickness
+        image[mask_dip] += 1.5*dark_value
+
+    gauss_radius = r_rel-1*thickness
+    image[mask] += bright_value*np.exp(-(r[mask]/(gauss_radius**2))**2)
+
+    image[mask_ring] = dark_value
+
+    return image
+
+def draw_features_brightfield(shape, positions, radius, noise_level=0,
+                              bitdepth=8, background=0.5, dip=False, **kwargs):
+    """ Generates an image with features at given positions. A feature with
+    position x will be centered around pixel x. In other words, the origin of
+    the output image is located at the center of pixel (0, 0).
+
+    Parameters
+    ----------
+    shape : tuple of int
+        the shape of the produced image
+    positions : iterable of tuples
+        an iterable of positions
+    radius : number
+        the radius of the feature
+    noise_level : int, default: 0
+        white noise will be generated up to this level
+    bitdepth : int, default: 8
+        the desired bitdepth of the image (<=32 bits)
+    background : float, default: 0.5
+        the value of the background ranging from 0 (black) to 1 (white)
+    kwargs : keyword arguments are passed to draw_feature
+
+    See also
+    --------
+    draw_feature_brightfield
+    """
+    if bitdepth <= 8:
+        dtype = np.uint8
+        internaldtype = np.uint16
+    elif bitdepth <= 16:
+        dtype = np.uint16
+        internaldtype = np.uint32
+    elif bitdepth <= 32:
+        dtype = np.uint32
+        internaldtype = np.uint64
+    else:
+        raise ValueError('Bitdepth should be <= 32')
+    np.random.seed(0)
+
+    max_brightness = 2**bitdepth - 1
+
+    if background is None or background < 0 or background > 1:
+        background = 0.5
+
+    image = background*max_brightness*np.ones([int(s) for s in shape], 
+                                              dtype=internaldtype)
+
+    if noise_level > 0:
+        image += np.random.randint(0, noise_level + 1,
+                                   shape).astype(internaldtype)
+
+    if np.max(image) > max_brightness:
+        image = image/np.max(image)*max_brightness
+
+    kwargs['feat_func'] = feat_brightfield
+    kwargs['dark_value'] = -0.3
+    kwargs['bright_value'] = 0.8
+    kwargs['dip'] = dip
+    kwargs['radius'] = radius[0]
+
+    for pos in positions:
+        draw_feature(image, pos, radius, max_value=max_brightness, **kwargs)
+    result = image.clip(0, 2**bitdepth - 1).astype(dtype)
+
+    return result
 
