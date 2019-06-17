@@ -72,7 +72,8 @@ Citing Trackpy
 Trackpy can be cited using a DOI provided through our Zenodo
 `record page <https://zenodo.org/record/1213240>`_. To direct your
 readers to the specific version of trackpy that they can use to reproduce
-your results, cite the release of trackpy that you used for your work. The
+your results, cite the release of trackpy that you used for your work
+(available from the variable ``trackpy.__version__``). The
 record pages linked below contain author lists, other details, and complete
 citations in various formats. If your citation style allows for a URL,
 please include a link to the github repository:
@@ -91,6 +92,12 @@ v0.2.3            `Record Page <https://zenodo.org/record/11956>`__   10.5281/ze
 v0.2.2            `Record Page <https://zenodo.org/record/11132>`__   10.5281/zenodo.11132
 v0.2              `Record Page <https://zenodo.org/record/9971>`__    10.5281/zenodo.9971
 ================= =================================================== ======================
+
+Users often also cite this publication describing the core feature-finding
+and linking algorithms that trackpy is based on:
+
+Crocker, J. C., & Grier, D. G. (1996). Methods of Digital Video Microscopy for Colloidal Studies.
+J. Colloid Interf. Sci., 179(1), 298–310. http://doi.org/10.1006/jcis.1996.0217
 
 Related Projects
 ^^^^^^^^^^^^^^^^

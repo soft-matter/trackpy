@@ -219,8 +219,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     Parameters
     ----------
-    image : array
-         any N-dimensional image
+    raw_image : array (any dimensions)
+        Image used for final characterization. Ideally, pixel values of
+        this image are not rescaled, but it can also be identical to
+        ``image``.
+    image : array (same size as raw_image)
+        Processed image used for centroid-finding and most particle
+        measurements.
     diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
@@ -237,7 +242,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     maxsize : float
         maximum radius-of-gyration of brightness, default None
     separation : float or tuple
-        Minimum separtion between features.
+        Minimum separation between features.
         Default is diameter + 1. May be a tuple, see diameter for details.
     noise_size : float or tuple
         Width of Gaussian blurring kernel, in pixels
@@ -274,10 +279,12 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc, signal])
-        where mass means total integrated brightness of the blob,
+    DataFrame([x, y, mass, size, ecc, signal, raw_mass])
+        where "x, y" are appropriate to the dimensionality of the image,
+        mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (0 is circular).
+        ecc is its eccentricity (0 is circular),
+        and raw_mass is the total integrated brightness in raw_image.
 
     See Also
     --------
@@ -287,7 +294,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     Notes
     -----
     Locate works with a coordinate system that has its origin at the center of
-    pixel (0, 0). In almost all cases this will be the topleft pixel: the
+    pixel (0, 0). In almost all cases this will be the top-left pixel: the
     y-axis is pointing downwards.
 
     This is an implementation of the Crocker-Grier centroid-finding algorithm.

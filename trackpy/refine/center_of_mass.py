@@ -35,20 +35,19 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
     """Find the center of mass of a bright feature starting from an estimate.
 
     Characterize the neighborhood of a local maximum, and iteratively
-    hone in on its center-of-brightness. Return its coordinates, integrated
-    brightness, size (Rg), eccentricity (0=circular), and signal strength.
+    hone in on its center-of-brightness.
 
     Parameters
     ----------
     raw_image : array (any dimensions)
-        used for final characterization
-    image : array (any dimension)
-        processed image, used for locating center of mass
+        Image used for final characterization. Ideally, pixel values of
+        this image are not rescaled, but it can also be identical to
+        ``image``.
+    image : array (same size as raw_image)
+        Processed image used for centroid-finding and most particle
+        measurements.
     coords : array or DataFrame
         estimated position
-    separation : float or tuple
-        Minimum separtion between features.
-        Default is 0. May be a tuple, see diameter for details.
     max_iterations : integer
         max number of loops to refine the center of mass, default 10
     engine : {'python', 'numba'}
@@ -63,6 +62,15 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
     pos_columns: list of strings, optional
         Column names that contain the position coordinates.
         Defaults to ``['y', 'x']`` or ``['z', 'y', 'x']``, if ``'z'`` exists.
+
+    Returns
+    -------
+    DataFrame([x, y, mass, size, ecc, signal, raw_mass])
+        where "x, y" are appropriate to the dimensionality of the image,
+        mass means total integrated brightness of the blob,
+        size means the radius of gyration of its Gaussian-like profile,
+        ecc is its eccentricity (0 is circular),
+        and raw_mass is the total integrated brightness in raw_image.
     """
     if isinstance(coords, pd.DataFrame):
         if pos_columns is None:

@@ -73,6 +73,15 @@ def link_iter(coords_iter, search_range, **kwargs):
     See also
     --------
     link
+
+    Notes
+    -----
+    This is an implementation of the Crocker-Grier linking algorithm.
+    [1]_
+
+    References
+    ----------
+    .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
     """
     # ensure that coords_iter is iterable
     coords_iter = iter(coords_iter)
@@ -156,6 +165,16 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
     See also
     --------
     link_iter
+
+    Notes
+    -----
+    This is an implementation of the Crocker-Grier linking algorithm.
+    [1]_
+
+    References
+    ----------
+    .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
+
     """
     if pos_columns is None:
         pos_columns = guess_pos_columns(f)
