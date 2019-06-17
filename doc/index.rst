@@ -100,9 +100,8 @@ release or the `developer <https://http://soft-matter.github.io/trackpy/dev/>`_ 
    Adaptive Linking <tutorial/adaptive-search>
    Streaming <tutorial/on-disk>
    Performance <tutorial/performance>
-   Linking Diagnostics <tutorial/linking-diagnostics>
    Parallelized Feature Finding <tutorial/parallel-locate>
-   Bubble Tracking in Foams <tutorial/custom-feature-detection>
+   Tracking Large Features Such As Bubbles <tutorial/custom-feature-detection>
 
 .. raw:: html
 
