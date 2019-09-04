@@ -108,7 +108,7 @@ def get_slice(coords, shape, radius):
     coords = coords[np.all(in_bounds, axis=0)]
     # return if no coordinates are left
     if len(coords) == 0:
-        return [slice(None, 0)] * ndim, None
+        return tuple([slice(None, 0)] * ndim), None
     # calculate the box
     lower = coords.min(axis=0) - radius
     upper = coords.max(axis=0) + radius + 1
