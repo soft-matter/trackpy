@@ -7,6 +7,6 @@ notebooks:
 	# the first line is a title, which is necessary for it to be included in the Sphinx toctree
 	@- $(foreach FILE, $(FILES), \
 	    jupyter nbconvert --to html $(NOTEBOOK_DIR)/$(FILE) --output $(CURDIR)/$(FILE:.ipynb=.html); \
-	    echo -e '$(FILE:.ipynb=)\n------------------------------------------------\n.. raw:: html\n    :file: '$(FILE:.ipynb=.html) > $(FILE:.ipynb=.rst); \
+	    bash -c 'echo -e "$(FILE:.ipynb=)\n------------------------------------------------\n.. raw:: html\n    :file: "$(FILE:.ipynb=.html)' > $(FILE:.ipynb=.rst); \
 	)
 
