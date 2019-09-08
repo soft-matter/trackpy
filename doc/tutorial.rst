@@ -31,4 +31,4 @@ Extending & Customizing Trackpy
 .. toctree::
    :maxdepth: 2
 
-   Tracking Large Features Such As Bubbles <tutorial/custom-feature-detection>
+   Tracking Large Features Such as Bubbles, and Visualizing a Velocity Field <tutorial/custom-feature-detection>
