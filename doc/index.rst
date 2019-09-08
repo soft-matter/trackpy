@@ -101,8 +101,8 @@ release or the `developer <https://http://soft-matter.github.io/trackpy/dev/>`_ 
    Streaming <tutorial/on-disk>
    Performance <tutorial/performance>
    Parallelized Feature Finding <tutorial/parallel-locate>
+   Tracking Large Features Such As Bubbles <tutorial/custom-feature-detection>
    Tracking Particles' Rings in Bright-Field Microscopy <tutorial/brightfield>
-   Tracking Large Features Such as Bubbles, and Visualizing a Velocity Field <tutorial/custom-feature-detection>
 
 .. raw:: html
 

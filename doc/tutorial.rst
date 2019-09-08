@@ -31,4 +31,5 @@ Extending & Customizing Trackpy
 .. toctree::
    :maxdepth: 2
 
+   Tracking Particles' Rings in Bright-Field Microscopy <tutorial/brightfield>
    Tracking Large Features Such as Bubbles, and Visualizing a Velocity Field <tutorial/custom-feature-detection>
