@@ -32,12 +32,13 @@ Enhancements
 
 - Added "trackpy.linking.link_partial" (:issue:`445`)
 
-
 Bug fixes
 ~~~~~~~~~
 
 - Removed warnings in case Pandas 0.23 is used (:issue:`503`)
 
+- "trackpy.diag.dependencies" now gives information about a more complete set
+  of packages.
 
 v0.4.1
 ------
