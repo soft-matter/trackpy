@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 from . import try_numba
 from . import preprocessing
+from . import __version__
 
 
 def performance_report():
@@ -30,8 +31,12 @@ def dependencies():
         optional dependency is not installed, None
     """
     packages = ['six', 'numpy', 'scipy', 'matplotlib', 'pandas',
-                'scikit-image', 'pyyaml', 'pytables', 'numba', 'pyfftw']
+                'skimage', 'pyyaml', 'tables', 'numba', 'pyfftw']
     result = OrderedDict()
+
+    # trackpy itself comes first
+    result['trackpy'] = __version__
+
     for package_name in packages:
         try:
             package = importlib.import_module(package_name)
@@ -43,9 +48,11 @@ def dependencies():
             except AttributeError:
                 version = package.version  # pyfftw does not have __version__
             result[package_name] = version
+
     # Build Python version string
     version_info = sys.version_info
     version_string = '.'.join(map(str, [version_info[0], version_info[1],
                                   version_info[2]]))
     result['python'] = version_string
+
     return result
