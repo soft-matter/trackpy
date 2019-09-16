@@ -31,7 +31,7 @@ def dependencies():
         optional dependency is not installed, None
     """
     packages = ['six', 'numpy', 'scipy', 'matplotlib', 'pandas',
-                'skimage', 'sklearn', 'pyyaml', 'tables', 'numba', 'pyfftw']
+                'skimage', 'sklearn', 'pyyaml', 'tables', 'numba', 'pims']
     result = OrderedDict()
 
     # trackpy itself comes first
@@ -43,11 +43,7 @@ def dependencies():
         except ImportError:
             result[package_name] = None
         else:
-            try:
-                version = package.__version__
-            except AttributeError:
-                version = package.version  # pyfftw does not have __version__
-            result[package_name] = version
+            result[package_name] = package.__version__
 
     # Build Python version string
     version_info = sys.version_info
