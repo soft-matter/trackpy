@@ -514,10 +514,10 @@ def velocity_corr(t, frame1, frame2):
     DataFrame, indexed by particle, including dx, dy, and direction
     """
     j = relate_frames(t, frame1, frame2)
-    cosine = np.cos(np.subtract.outer(j.direction, j.direction))
-    r = np.sqrt(np.subtract.outer(j.x, j.x)**2 +
-                np.subtract.outer(j.y, j.y)**2)
-    dot_product = cosine*np.abs(np.multiply.outer(j.dr, j.dr))
+    cosine = np.cos(np.subtract.outer(j.direction.values, j.direction.values))
+    r = np.sqrt(np.subtract.outer(j.x.values, j.x.values)**2 +
+                np.subtract.outer(j.y.values, j.y.values)**2)
+    dot_product = cosine*np.abs(np.multiply.outer(j.dr.values, j.dr.values))
     upper_triangle = np.triu_indices_from(r, 1)
     result = DataFrame({'r': r[upper_triangle],
                         'dot_product': dot_product[upper_triangle]})

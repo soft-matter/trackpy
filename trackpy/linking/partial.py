@@ -23,7 +23,7 @@ def link_partial(f, search_range, link_range,
                  pos_columns=None, t_column='frame', **kwargs):
     """Patch the trajectories in a DataFrame by linking only a range of frames
 
-    A por dataset can be divided into several patches (time intervals) and
+    A dataset can be divided into several patches (time intervals) and
     linked separately with this function, for e.g. parallel processing. The
     results can then be stitched back together with reconnect_traj_patch().
 
@@ -40,8 +40,8 @@ def link_partial(f, search_range, link_range,
     search_range : float or tuple
         the maximum distance features can move between frames,
         optionally per dimension
-    link_range : tuple of int
-        Only in the range(start, stop) will be analyzed.
+    link_range : tuple of 2 ints
+        Only frames in the range(start, stop) will be analyzed.
     memory : integer, optional
         the maximum number of frames during which a feature can vanish,
         then reappear nearby, and be considered the same particle. 0 by default.

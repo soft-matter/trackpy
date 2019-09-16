@@ -232,7 +232,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
-    minmass : float, optional
+    minmass : float
         The minimum integrated brightness. This is a crucial parameter for
         eliminating spurious features.
         Recommended minimum values are 100 for integer images and 1 for float
@@ -289,7 +289,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     See Also
     --------
     batch : performs location on many images in batch
-    minmass_version_change : to convert minmass from v0.2.4 to v0.3.0
+    minmass_v03_change : to convert minmass from v0.2.4 to v0.3.0
+    minmass_v04_change : to convert minmass from v0.3.x to v0.4.x
 
     Notes
     -----
@@ -485,14 +486,14 @@ def batch(frames, diameter, output=None, meta=None, processes=1,
         If None, return all results as one big DataFrame. Otherwise, pass
         results from each frame, one at a time, to the put() method
         of whatever class is specified here.
-    meta : filepath or file object, optional
+    meta : filepath or file object
         If specified, information relevant to reproducing this batch is saved
         as a YAML file, a plain-text machine- and human-readable format.
         By default, this is None, and no file is saved.
-    processes : integer or "auto", optional
+    processes : integer or "auto"
         The number of processes to use in parallel. If <= 1, multiprocessing is
         disabled. If "auto", the number returned by `os.cpu_count()`` is used.
-    after_locate : function, optional
+    after_locate : function
         Specify a custom function to apply to the detected features in each
         processed frame. It must accept the following arguments:
 
