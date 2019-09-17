@@ -25,7 +25,7 @@ Basics
 Following the `widely-used particle tracking algorithm <http://www.physics.emory.edu/~weeks/idl/tracking.html>`__,
 we separate *tracking* into three separate steps. In the first step, *feature finding*
 initial feature coordinates are obtained from the images. Subsequently, sub-pixel precision
-is obtained in coordinate *refinement*. Finally, the coordaintes are *linked* in time yielding
+is obtained in coordinate *refinement*. Finally, the coordinates are *linked* in time yielding
 the feature trajectories.
 
   * The tracking algorithm originally implemented by John Crocker and Eric Weeks in IDL was
