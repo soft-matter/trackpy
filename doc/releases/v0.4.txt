@@ -48,7 +48,6 @@ Enhancements
   feature-finding APIs. (:issue:`545`, :issue:`551`, :issue:`550`, 
   :issue:`522`, :issue:`540`, :issue:`542`)
 
-
 Bug fixes
 ~~~~~~~~~
 
@@ -56,6 +55,8 @@ Bug fixes
 - Removed warnings in case Pandas 0.23 is used (:issue:`503`)
 - Removed warnings in case Pandas 0.25 is used (:issue:`545`)
 
+- "trackpy.diag.dependencies" now gives information about a more complete set
+  of packages.
 
 v0.4.1
 ------
