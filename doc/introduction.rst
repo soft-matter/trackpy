@@ -82,7 +82,7 @@ please include a link to the github repository:
 ================= ========================================================================= ======================
 Release (version) Zenodo Record Pages with info and citations                               DOI
 ================= ========================================================================= ======================
-v0.4 and later    `Versioned Record Page <https://zenodo.org/badge/latestdoi/4744355>`__
+v0.4 and later    `Versioned Record Page <https://zenodo.org/badge/latestdoi/4744355>`__    (see Zenodo)
 v0.3.2            `Record Page <https://zenodo.org/record/60550>`__                         10.5281/zenodo.60550
 v0.3.1            `Record Page <https://zenodo.org/record/55143>`__                         10.5281/zenodo.55143
 v0.3.0            `Record Page <https://zenodo.org/record/34028>`__                         10.5281/zenodo.34028
