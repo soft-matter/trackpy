@@ -1,7 +1,7 @@
 trackpy
 =======
 
-[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy) [![Build status](https://ci.appveyor.com/api/projects/status/bc5umcboh3elm8oh?svg=true)](https://ci.appveyor.com/project/caspervdw/trackpy) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.3439749.svg)](https://dx.doi.org/10.5281/zenodo.3439749)
+[![build status](https://travis-ci.org/soft-matter/trackpy.png?branch=master)](https://travis-ci.org/soft-matter/trackpy) [![Build status](https://ci.appveyor.com/api/projects/status/bc5umcboh3elm8oh?svg=true)](https://ci.appveyor.com/project/caspervdw/trackpy) [![DOI](https://zenodo.org/badge/4744355.svg)](https://zenodo.org/badge/latestdoi/4744355)
 
 What is it?
 -----------
