@@ -25,7 +25,7 @@ Basics
 Following the `widely-used particle tracking algorithm <http://www.physics.emory.edu/~weeks/idl/tracking.html>`__,
 we separate *tracking* into three separate steps. In the first step, *feature finding*
 initial feature coordinates are obtained from the images. Subsequently, sub-pixel precision
-is obtained in coordinate *refinement*. Finally, the coordaintes are *linked* in time yielding
+is obtained in coordinate *refinement*. Finally, the coordinates are *linked* in time yielding
 the feature trajectories.
 
   * The tracking algorithm originally implemented by John Crocker and Eric Weeks in IDL was
@@ -70,7 +70,7 @@ Citing Trackpy
 ^^^^^^^^^^^^^^
 
 Trackpy can be cited using a DOI provided through our Zenodo
-`record page <https://zenodo.org/record/1213240>`_. To direct your
+`record page <https://zenodo.org/record/3439749>`_. To direct your
 readers to the specific version of trackpy that they can use to reproduce
 your results, cite the release of trackpy that you used for your work
 (available from the variable ``trackpy.__version__``). The
@@ -82,6 +82,7 @@ please include a link to the github repository:
 ================= =================================================== ======================
 Release (version) Zenodo Record Pages with info and citations         DOI
 ================= =================================================== ======================
+v0.4.2            `Record Page <https://zenodo.org/record/3439749>`__ 10.5281/zenodo.3439749
 v0.4.1            `Record Page <https://zenodo.org/record/1226458>`__ 10.5281/zenodo.1226458
 v0.4              `Record Page <https://zenodo.org/record/1213241>`__ 10.5281/zenodo.1213241
 v0.3.2            `Record Page <https://zenodo.org/record/60550>`__   10.5281/zenodo.60550
