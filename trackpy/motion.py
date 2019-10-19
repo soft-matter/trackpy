@@ -287,7 +287,7 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
     # Compute the per frame averages. Keep only deltas of the same particle,
     # and between frames that are consecutive.
     mask = (f_diff['particle'] == 0) & (f_diff['frame_diff'] == 1)
-    dx = f_diff.loc[mask, pos_columns + ['frame']].groupby('frame').mean()
+    dx = f_diff.loc[mask, list(pos_columns) + ['frame']].groupby('frame').mean()
     if smoothing > 0:
         dx = pandas_rolling(dx, smoothing, min_periods=0)
     return dx.cumsum()
