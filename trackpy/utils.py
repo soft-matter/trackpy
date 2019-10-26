@@ -2,7 +2,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import logging
-import collections
 import functools
 import re
 import sys
@@ -18,6 +17,12 @@ from scipy import stats
 import yaml
 
 import trackpy
+
+try:
+    from collections.abc import Hashable
+except ImportError:
+    # Necessary for Python 2.7 but depecated since 3.3
+    from collections import Hashable
 
 # Set is_pandas_since_016 for use elsewhere.
 # Pandas >= 0.16.0 lets us check if a DataFrame is a view.
@@ -96,7 +101,7 @@ class memo(object):
         functools.update_wrapper(self, func)
 
     def __call__(self, *args):
-        if not isinstance(args, collections.Hashable):
+        if not isinstance(args, Hashable):
             # uncacheable. a list, for instance.
             warnings.warn("A memoization cache is being used on an uncacheable " +
                           "object. Proceeding by bypassing the cache.",
