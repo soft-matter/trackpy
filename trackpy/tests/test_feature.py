@@ -776,10 +776,10 @@ class CommonFeatureIdentificationTests(object):
         # small bright spot surrounded by a dark annulus.
         draw_feature(image, pos, 1, max_value=-100)
         draw_feature(image, pos, 0.65, max_value=200)
-        
+
         actual = tp.locate(image, 9, 1, preprocess=False, engine=self.engine)
         assert np.allclose(actual[['x', 'y']], expected[['x', 'y']])
-        assert np.isnan(np.asscalar(actual.ep))
+        assert np.isnan(actual.ep.item())
 
 
 class TestFeatureIdentificationWithVanillaNumpy(
