@@ -2,10 +2,11 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import itertools
+import unittest
+
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-import nose
 from numpy.testing import assert_equal
 
 from trackpy.utils import pandas_sort
@@ -24,7 +25,7 @@ class FindLinkTests(SubnetNeededTests):
 
     def link(self, f, search_range, *args, **kwargs):
         if 'pos_columns' in kwargs:
-            raise nose.SkipTest('Skipping find_link tests with custom pos_columns.')
+            raise unittest.SkipTest('Skipping find_link tests with custom pos_columns.')
         # the minimal spacing between features in f is assumed to be 1.
 
         # from scipy.spatial import cKDTree
@@ -94,7 +95,7 @@ class FindLinkOneFailedFindTests(FindLinkTests):
         fail_frame = FAIL_FRAME.get(test_name, 3)
 
         if fail_frame is None:
-            nose.SkipTest()
+            unittest.SkipTest()
 
         def callback(image, coords, **unused_kwargs):
             if image.frame_no == fail_frame:
@@ -126,7 +127,7 @@ class FindLinkManyFailedFindTests(FindLinkTests):
         fail_frame = FAIL_FRAME.get(test_name, 3)
 
         if fail_frame is None:
-            raise nose.SkipTest()
+            raise unittest.SkipTest()
 
         def callback(image, coords, **unused_kwargs):
             if image.frame_no >= fail_frame:

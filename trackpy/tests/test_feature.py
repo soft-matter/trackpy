@@ -3,9 +3,9 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import range
 import os
+import unittest
 import warnings
 
-import nose
 import numpy as np
 from pandas import DataFrame
 from numpy.testing import assert_allclose, assert_array_less
@@ -797,14 +797,13 @@ class TestFeatureIdentificationWithNumba(
 
     def check_skip(self):
         if not NUMBA_AVAILABLE:
-            raise nose.SkipTest("Numba not installed. Skipping.")
+            raise unittest.SkipTest("Numba not installed. Skipping.")
 
     def skip_numba(self):
-        raise nose.SkipTest("This feature is not "
-                            "supported by the numba variant. Skipping.")
+        raise unittest.SkipTest("This feature is not "
+                                "supported by the numba variant. Skipping.")
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()

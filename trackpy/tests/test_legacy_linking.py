@@ -3,13 +3,13 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from copy import deepcopy
+import unittest
 import warnings
 
 import numpy as np
 from numpy.testing import assert_array_equal
 import pandas as pd
 from pandas import DataFrame
-import nose
 
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking.legacy import (link, link_df, link_df_iter,
@@ -41,7 +41,7 @@ def hash_generator(dims, box_size):
 
 def _skip_if_no_numba():
     if not NUMBA_AVAILABLE:
-        raise nose.SkipTest('numba not installed. Skipping.')
+        raise unittest.SkipTest('numba not installed. Skipping.')
 
 
 def random_walk(N):
@@ -309,14 +309,14 @@ class CommonTrackingTests(object):
         assert_traj_equal(actual_iter, expected)
         assert 'particle' not in f.columns
 
-    @nose.tools.raises(SubnetOversizeException)
     def test_oversize_fail(self):
-        self.link_df(contracting_grid(), 1)
+        with self.assertRaises(SubnetOversizeException):
+            self.link_df(contracting_grid(), 1)
 
-    @nose.tools.raises(SubnetOversizeException)
     def test_adaptive_fail(self):
         """Check recursion limit"""
-        self.link_df(contracting_grid(), 1, adaptive_stop=0.92)
+        with self.assertRaises(SubnetOversizeException):
+            self.link_df(contracting_grid(), 1, adaptive_stop=0.92)
 
     def link(self, *args, **kwargs):
         kwargs.update(self.linker_opts)
@@ -357,11 +357,11 @@ class TestOnce(StrictTestCase):
         f_iter = (frame for fnum, frame in f.groupby('arbitrary name'))
         list(link_df_iter(f_iter, 5, t_column=name, verify_integrity=True))
 
-    @nose.tools.raises(ValueError)
     def test_check_iter(self):
         """Check that link_df_iter() makes a useful error message if we
         try to pass a single DataFrame."""
-        list(link_df_iter(self.features.copy(), 5))
+        with self.assertRaises(ValueError):
+            list(link_df_iter(self.features.copy(), 5))
 
 
 class SubnetNeededTests(CommonTrackingTests):
@@ -770,7 +770,7 @@ class TestBTreeWithNumbaLink(NumbaOnlyTests, StrictTestCase):
         self.linker_opts = dict(link_strategy='numba',
                                 neighbor_strategy='BTree')
 
+
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()
