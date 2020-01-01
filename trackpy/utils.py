@@ -186,7 +186,7 @@ HH:MM:SS, H:MM:SS, MM:SS, and M:SS all OK.
     if not isinstance(partial_timestamp, str):
         # might be NaN or other unprocessable entry
         return partial_timestamp
-    input_format = '\d?\d?:?\d?\d:\d\d'
+    input_format = r'\d?\d?:?\d?\d:\d\d'
     if not re.match(input_format, partial_timestamp):
         raise ValueError("Input string cannot be regularized.")
     partial_digits = list(partial_timestamp)
