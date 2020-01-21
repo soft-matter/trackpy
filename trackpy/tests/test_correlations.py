@@ -32,7 +32,7 @@ class TestCorrelations(StrictTestCase):
         expected = np.zeros_like(actual)
         assert_allclose(actual, expected, atol=1e-3)
 
+
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()

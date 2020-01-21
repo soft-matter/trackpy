@@ -3,10 +3,11 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 from copy import copy
+import unittest
+
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-import nose
 from numpy.testing import assert_equal
 
 from trackpy.try_numba import NUMBA_AVAILABLE
@@ -27,7 +28,7 @@ def random_walk(N):
 
 def _skip_if_no_numba():
     if not NUMBA_AVAILABLE:
-        raise nose.SkipTest('numba not installed. Skipping.')
+        raise unittest.SkipTest('numba not installed. Skipping.')
 
 
 SKLEARN_AVAILABLE = True
@@ -39,7 +40,7 @@ except ImportError:
 
 def _skip_if_no_sklearn():
     if not SKLEARN_AVAILABLE:
-        raise nose.SkipTest('Scikit-learn not installed. Skipping.')
+        raise unittest.SkipTest('Scikit-learn not installed. Skipping.')
 
 def unit_steps():
     return pd.DataFrame(dict(x=np.arange(5), y=5, frame=np.arange(5)))
@@ -303,15 +304,15 @@ class CommonTrackingTests(StrictTestCase):
                            to_eucl=to_eucl)
         assert_traj_equal(actual, expected)
 
-    @nose.tools.raises(SubnetOversizeException)
     def test_oversize_fail(self):
-        df = contracting_grid()
-        self.link(df, search_range=2)
+        with self.assertRaises(SubnetOversizeException):
+            df = contracting_grid()
+            self.link(df, search_range=2)
 
-    @nose.tools.raises(SubnetOversizeException)
     def test_adaptive_fail(self):
         """Check recursion limit"""
-        self.link(contracting_grid(), search_range=2, adaptive_stop=1.84)
+        with self.assertRaises(SubnetOversizeException):
+            self.link(contracting_grid(), search_range=2, adaptive_stop=1.84)
 
     def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)

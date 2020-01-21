@@ -1,6 +1,6 @@
 
-from nose.plugins.attrib import attr
 import os
+import unittest
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,6 @@ from trackpy import plots
 from trackpy.utils import suppress_plotting, fit_powerlaw
 from trackpy.tests.common import StrictTestCase
 
-import nose
 # Quiet warnings about Axes not being compatible with tight_layout
 import warnings
 warnings.filterwarnings("ignore", message="This figure includes Axes that are not compatible with tight_layout")
@@ -28,17 +27,16 @@ else:
 
 def _skip_if_no_pims():
     if not PIMS_AVAILABLE:
-        raise nose.SkipTest('PIMS not installed. Skipping.')
+        raise unittest.SkipTest('PIMS not installed. Skipping.')
 
 
 class TestPlots(StrictTestCase):
     def setUp(self):
         # older matplotlib may raise an invalid error
         np.seterr(invalid='ignore')
-        self.sparse = pd.read_pickle(os.path.join(path, 'data', 
+        self.sparse = pd.read_pickle(os.path.join(path, 'data',
                                            'sparse_trajectories.df'))
 
-    @attr('slow')
     def test_labeling_sparse_trajectories(self):
         suppress_plotting()
         plots.plot_traj(self.sparse, label=True)
@@ -127,6 +125,5 @@ class TestPlots(StrictTestCase):
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()

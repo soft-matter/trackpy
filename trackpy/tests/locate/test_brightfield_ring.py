@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import logging
 
-import nose
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -274,6 +273,5 @@ class TestLocateBrightfieldRing(StrictTestCase):
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()

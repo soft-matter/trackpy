@@ -211,7 +211,6 @@ class TestMasking(StrictTestCase):
         assert_equal(sli.sum(), 13)
 
 
-
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb'], exit=False)
+    import unittest
+    unittest.main()

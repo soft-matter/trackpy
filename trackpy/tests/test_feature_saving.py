@@ -2,9 +2,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
 import functools
-import nose
-import warnings
 import os
+import unittest
+import warnings
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
@@ -42,7 +42,7 @@ def _skip_if_no_pytables():
     try:
         import tables
     except ImportError:
-        raise nose.SkipTest('pytables not installed. Skipping.')
+        raise unittest.SkipTest('pytables not installed. Skipping.')
 
 
 class FeatureSavingTester(object):
@@ -63,7 +63,7 @@ class FeatureSavingTester(object):
         try:
             s = self.storage_class(STORE_NAME)
         except IOError:
-            nose.SkipTest('Cannot make an HDF5 file. Skipping')
+            unittest.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
             tp.batch(self.v, output=s, engine='python', meta=False,
                      **self.PARAMS)
@@ -108,7 +108,7 @@ class TestPandasHDFStoreBig(FeatureSavingTester, StrictTestCase):
         try:
             s = self.storage_class(STORE_NAME)
         except IOError:
-            nose.SkipTest('Cannot make an HDF5 file. Skipping')
+            unittest.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
             framedata = self.expected[self.expected.frame == 0]
             def putfake(store, i):
@@ -175,6 +175,5 @@ class TestPandasHDFStoreSingleNodeCompressed(FeatureSavingTester,
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()

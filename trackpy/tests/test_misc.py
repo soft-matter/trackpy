@@ -1,17 +1,16 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import six
-import os
 import logging
-import warnings
+import os
 import types
+import unittest
+import warnings
 
 import trackpy
 import trackpy.diag
 from trackpy.tests.common import StrictTestCase
 from trackpy.try_numba import NUMBA_AVAILABLE
-
-import nose
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
@@ -50,7 +49,7 @@ class LoggerTests(StrictTestCase):
 class NumbaTests(StrictTestCase):
     def setUp(self):
         if not NUMBA_AVAILABLE:
-            raise nose.SkipTest("Numba not installed. Skipping.")
+            raise unittest.SkipTest("Numba not installed. Skipping.")
         self.funcs = trackpy.try_numba._registered_functions
 
     def tearDown(self):

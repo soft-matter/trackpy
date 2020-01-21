@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 
-from nose.plugins.attrib import attr
 import pandas as pd
 
 from trackpy import ptraj
@@ -15,14 +14,14 @@ path, _ = os.path.split(os.path.abspath(__file__))
 
 class TestLabeling(StrictTestCase):
     def setUp(self):
-        self.sparse = pd.read_pickle(os.path.join(path, 'data', 
+        self.sparse = pd.read_pickle(os.path.join(path, 'data',
                                            'sparse_trajectories.df'))
 
-    @attr('slow')
     def test_labeling_sparse_trajectories(self):
         suppress_plotting()
         ptraj(self.sparse, label=True) # No errors?
+
+
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()

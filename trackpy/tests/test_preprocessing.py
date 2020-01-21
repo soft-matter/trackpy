@@ -1,5 +1,7 @@
 from __future__ import division
-import nose
+
+import unittest
+
 from numpy.testing.utils import assert_allclose
 from trackpy.preprocessing import (bandpass, legacy_bandpass,
                                    legacy_bandpass_fftw)
@@ -24,12 +26,12 @@ class LegacyPreprocessingTests(StrictTestCase):
         try:
             import pyfftw
         except ImportError:
-            raise nose.SkipTest("pyfftw not installed. Skipping.")
+            raise unittest.SkipTest("pyfftw not installed. Skipping.")
         lbp_fftw = legacy_bandpass_fftw(self.frame, 2, 5)[self.margin:-self.margin,
                                                           self.margin:-self.margin]
         assert_allclose(lbp_fftw, self.bp_scipy, atol=1.1)
 
+
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    import unittest
+    unittest.main()

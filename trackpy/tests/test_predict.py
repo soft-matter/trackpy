@@ -3,8 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import functools
 
-from nose import SkipTest
-import nose.tools
+import unittest
 import numpy as np
 import pandas
 
@@ -97,13 +96,13 @@ class BaselinePredictTests(LinkWithPrediction, StrictTestCase):
                                 self.get_unwrapped_linker(), 45)
         assert not all(ll.values == 2)
 
-    @nose.tools.raises(trackpy.SubnetOversizeException)
     def test_subnet_fail(self):
-        Nside = Nside_oversize
-        ll = get_linked_lengths((mkframe(0, Nside),
-                                 mkframe(25, Nside),
-                                 mkframe(75, Nside)),
-                                self.get_unwrapped_linker(), 100)
+        with self.assertRaises(trackpy.SubnetOversizeException):
+            Nside = Nside_oversize
+            ll = get_linked_lengths((mkframe(0, Nside),
+                                     mkframe(25, Nside),
+                                     mkframe(75, Nside)),
+                                    self.get_unwrapped_linker(), 100)
 
 class VelocityPredictTests(LinkWithPrediction):
     def test_simple_predict(self):
@@ -152,7 +151,7 @@ class VelocityPredictTests(LinkWithPrediction):
 
     def test_predict_diagnostics(self):
         if getattr(self, 'coords_via_images', False):
-            raise SkipTest
+            raise unittest.SkipTest
         """Minimally test predictor instrumentation."""
         pred = self.instrumented_predict_class()
         Nside = Nside_oversize
@@ -402,7 +401,5 @@ class FLChannelPredictYTests(FindLinkPredictTest, ChannelPredictYTests):
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
-
+    import unittest
+    unittest.main()
