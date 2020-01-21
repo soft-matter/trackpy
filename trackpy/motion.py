@@ -28,9 +28,9 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     -------
     DataFrame([<x>, <y>, <x^2>, <y^2>, msd], index=t)
 
-    If detail is True, the DataFrame also contains a column N,
-    the estimated number of statistically independent measurements
-    that comprise the result at each lagtime.
+        If detail is True, the DataFrame also contains a column N,
+        the estimated number of statistically independent measurements
+        that comprise the result at each lagtime.
 
     Notes
     -----
@@ -38,7 +38,8 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
 
     See also
     --------
-    imsd() and emsd()
+    imsd
+    emsd
     """
     if traj['frame'].max() - traj['frame'].min() + 1 == len(traj):
         # no gaps: use fourier-transform algorithm

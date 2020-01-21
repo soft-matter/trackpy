@@ -337,8 +337,8 @@ def instrumented(limit=None):
 
     limit : maximum number of recent frames to retain. If None, keep all.
 
-    Example
-    -------
+    Examples
+    --------
 
     >>> pred = instrumented()(ChannelPredict)(50, flow_axis='y')
     >>> pred.link_df_iter(...)
