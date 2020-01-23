@@ -1,4 +1,13 @@
 
+v0.4.3 (in development)
+-----------------------
+
+Enhancements
+~~~~~~~~~~~~
+
+- compute_drift() now accepts list-like pos_columns (e.g. tuples). (:issue:`579`)
+
+
 v0.4.2
 ------
 
