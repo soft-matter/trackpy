@@ -307,13 +307,6 @@ def adaptive_link_wrap(source_set, dest_set, search_range, subnet_linker,
     return sn_spl, sn_dpl
 
 
-def _sort_key_spl_dpl(x):
-    if x[0] is not None:
-        return list(x[0].pos)
-    else:
-        return list(x[1].pos)
-
-
 class Linker(object):
     """Linker class that sequentially links ndarrays of coordinates together.
 
@@ -536,7 +529,7 @@ class Linker(object):
 
     def apply_links(self, spl, dpl):
         new_mem_set = set()
-        for sp, dp in sorted(zip(spl, dpl), key=_sort_key_spl_dpl):
+        for sp, dp in zip(spl, dpl):
             # Do linking
             if sp is not None and dp is not None:
                 sp.track.add_point(dp)
