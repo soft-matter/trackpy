@@ -218,8 +218,8 @@ class CommonTrackingTests(StrictTestCase):
         assert_traj_equal(actual, expected)
 
     def test_real_data_that_causes_duplicate_bug(self):
-        filename = 'reproduce_duplicate_track_assignment.df'
-        f = pd.read_pickle(os.path.join(path, filename))
+        filename = 'reproduce_duplicate_track_assignment.npy'
+        f = pd.DataFrame(np.load(os.path.join(path, filename)))
         # Not all parameters reproduce it, but these do
         f = self.link(f, 8, memory=2)
         verify_integrity(f)

@@ -34,8 +34,8 @@ class TestPlots(StrictTestCase):
     def setUp(self):
         # older matplotlib may raise an invalid error
         np.seterr(invalid='ignore')
-        self.sparse = pd.read_pickle(os.path.join(path, 'data',
-                                           'sparse_trajectories.df'))
+        self.sparse = pd.DataFrame(np.load(
+            os.path.join(path, 'data', 'sparse_trajectories.npy')))
 
     def test_labeling_sparse_trajectories(self):
         suppress_plotting()

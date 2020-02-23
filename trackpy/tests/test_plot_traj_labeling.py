@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import os
 
+import numpy as np
 import pandas as pd
 
 from trackpy import ptraj
@@ -14,8 +15,8 @@ path, _ = os.path.split(os.path.abspath(__file__))
 
 class TestLabeling(StrictTestCase):
     def setUp(self):
-        self.sparse = pd.read_pickle(os.path.join(path, 'data',
-                                           'sparse_trajectories.df'))
+        self.sparse = pd.DataFrame(np.load(
+            os.path.join(path, 'data', 'sparse_trajectories.npy')))
 
     def test_labeling_sparse_trajectories(self):
         suppress_plotting()
