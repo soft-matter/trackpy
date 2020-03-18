@@ -16,7 +16,7 @@ from ..feature import locate
 
 
 def locate_brightfield_ring(raw_image, diameter, separation=None,
-                            previous_coords=None, **kwargs):
+                            previous_coords=None, pool=None, **kwargs):
     """Locate particles imaged in brightfield mode of some approximate size in
     an image.
 
@@ -40,6 +40,9 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
     previous_coords : DataFrame([x, y, r])
         Optional previous particle positions from the preceding frame to use as
         starting point for the refinement instead of the intensity peaks.
+    pool : multiprocessing.Pool (optional)
+        If passed, use a pool for the refinement step (separate process for
+        each particle).
     kwargs:
         Passed to the refine function.
 
@@ -116,32 +119,19 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
         warnings.warn("No particles found in the image before refinement.")
         return coords_df
 
-    refined = {}
-    for i, coords in coords_df.iterrows():
-        positions = coords[pos_columns]
-        result = refine_brightfield_ring(image, radius, positions,
-                                         pos_columns=pos_columns, **kwargs)
-        if result is None:
-            if has_user_input:
-                warnings.warn(("Lost particle {:d} (x={:.0f}, y={:.0f})" +
-                               " after refinement.").format(i, coords['x'],
-                                                            coords['y']))
-            continue
+    if not pool:
+        refined = map(_get_refined_coords, [(coords, pos_columns, image, radius, kwargs, has_user_input) for _, coords in coords_df.iterrows()])
+    else:
+        refined = pool.map(_get_refined_coords, [(coords, pos_columns, image, radius, kwargs, has_user_input) for _, coords in coords_df.iterrows()])
 
-        # Make a copy of old coords and overwrite with result
-        # In this way any extra columns from previous_coords are preserved
-        new_coords = coords.copy()
-        for column in result.index.tolist():
-            # make a new column if necessary, otherwise overwrite
-            new_coords[column] = result.get(column)
-        refined[i] = new_coords
+    refined = [ref for ref in refined if ref is not None]
 
     columns = np.unique(np.concatenate((pos_columns, ['r'], coords_df.columns)))
     if len(refined) == 0:
         warnings.warn("No particles found in the image after refinement.")
         return DataFrame(columns=columns)
 
-    refined = DataFrame.from_dict(refined, orient='index', columns=columns)
+    refined = DataFrame.from_dict(refined, orient='columns')
     refined.reset_index(drop=True, inplace=True)
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates.
@@ -156,4 +146,25 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
         refined['frame'] = int(raw_image.frame_no)
 
     return refined
+
+def _get_refined_coords(args):
+    coords, pos_columns, image, radius, kwargs, has_user_input = args
+    positions = coords[pos_columns]
+    result = refine_brightfield_ring(image, radius, positions,
+                                     pos_columns=pos_columns, **kwargs)
+    if result is None:
+        if has_user_input:
+            warnings.warn(("Lost particle {:d} (x={:.0f}, y={:.0f})" +
+                           " after refinement.").format(i, coords['x'],
+                                                        coords['y']))
+        return None
+
+    # Make a copy of old coords and overwrite with result
+    # In this way any extra columns from previous_coords are preserved
+    new_coords = coords.copy()
+    for column in result.index.tolist():
+        # make a new column if necessary, otherwise overwrite
+        new_coords[column] = result.get(column)
+
+    return new_coords
 
