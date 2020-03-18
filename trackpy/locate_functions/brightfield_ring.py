@@ -10,13 +10,13 @@ from pandas import (DataFrame, concat)
 
 from ..find import (grey_dilation, where_close)
 from ..refine import (refine_brightfield_ring,)
-from ..utils import (validate_tuple, default_pos_columns)
+from ..utils import (validate_tuple, default_pos_columns, _get_pool)
 from ..preprocessing import convert_to_int
 from ..feature import locate
 
 
 def locate_brightfield_ring(raw_image, diameter, separation=None,
-                            previous_coords=None, pool=None, **kwargs):
+                            previous_coords=None, processes='auto', **kwargs):
     """Locate particles imaged in brightfield mode of some approximate size in
     an image.
 
@@ -40,9 +40,9 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
     previous_coords : DataFrame([x, y, r])
         Optional previous particle positions from the preceding frame to use as
         starting point for the refinement instead of the intensity peaks.
-    pool : multiprocessing.Pool (optional)
-        If passed, use a pool for the refinement step (separate process for
-        each particle).
+    processes : integer or "auto"
+        The number of processes to use in parallel. If <= 1, multiprocessing is
+        disabled. If "auto", the number returned by `os.cpu_count()`` is used.
     kwargs:
         Passed to the refine function.
 
@@ -119,12 +119,19 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
         warnings.warn("No particles found in the image before refinement.")
         return coords_df
 
-    if not pool:
-        refined = map(_get_refined_coords, [(coords, pos_columns, image, radius, kwargs, has_user_input) for _, coords in coords_df.iterrows()])
-    else:
-        refined = pool.map(_get_refined_coords, [(coords, pos_columns, image, radius, kwargs, has_user_input) for _, coords in coords_df.iterrows()])
+    pool, map_func = _get_pool(processes)
+    refined = []
 
-    refined = [ref for ref in refined if ref is not None]
+    try:
+        for result in map_func(_get_refined_coords, [(coords, pos_columns, image, radius, kwargs, has_user_input) for _, coords in coords_df.iterrows()]):
+            if result is None:
+                continue
+            refined.append(result)
+    finally:
+        if pool:
+            # Ensure correct termination of Pool
+            pool.terminate()
+
 
     columns = np.unique(np.concatenate((pos_columns, ['r'], coords_df.columns)))
     if len(refined) == 0:
