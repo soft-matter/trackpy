@@ -162,7 +162,7 @@ def _get_refined_coords(args):
     if result is None:
         if has_user_input:
             warnings.warn(("Lost particle {:d} (x={:.0f}, y={:.0f})" +
-                           " after refinement.").format(i, coords['x'],
+                           " after refinement.").format(int(coords['particle']), coords['x'],
                                                         coords['y']))
         return None
 
