@@ -162,10 +162,10 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
     if np.issubdtype(arr.dtype, np.unsignedinteger):
         arr = arr.astype(np.int)
 
-    values = np.nanmin(arr, axis=1)
+    values = np.nanpercentile(arr, 5, axis=1)
     rdev = []
     for row, min_val in zip(arr, values):
-        argmin = np.where(row == min_val)[0]
+        argmin = np.where(row < min_val)[0]
         if len(argmin) == 0:
             rdev.append(np.nan)
         else:
