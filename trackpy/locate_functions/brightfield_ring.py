@@ -132,7 +132,6 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
             # Ensure correct termination of Pool
             pool.terminate()
 
-
     columns = np.unique(np.concatenate((pos_columns, ['r'], coords_df.columns)))
     if len(refined) == 0:
         warnings.warn("No particles found in the image after refinement.")
