@@ -95,6 +95,13 @@ class TestLocateBrightfieldRing(StrictTestCase):
                                             self.radius, noise_level=0)
         assert_allclose(actual, expected, atol=self.pixel_tolerance)
 
+    def test_multiple_simple_sparse_no_multiprocessing(self):
+        actual, expected = artificial_image(self.image_size,
+                                            self.n_feat_sparse,
+                                            self.radius, noise_level=0,
+                                            processes=0)
+        assert_allclose(actual, expected, atol=self.pixel_tolerance)
+
     def test_multiple_simple_sparse_dip(self):
         actual, expected = artificial_image(self.image_size,
                                             self.n_feat_sparse,
