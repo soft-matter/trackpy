@@ -67,7 +67,7 @@ def refine_brightfield_ring(image, radius, coords_df, pos_columns=None,
     return coords_df
 
 def _refine_brightfield_ring(image, radius, coords_df, min_points_frac=0.35,
-                             max_ev=10, rad_range=None, **kwargs):
+                             max_ev=10, rad_range=None, max_r_dev=0.5, **kwargs):
     """Find the center of mass of a brightfield feature starting from an
     estimate.
 
@@ -91,6 +91,10 @@ def _refine_brightfield_ring(image, radius, coords_df, min_points_frac=0.35,
         the maximum number of refinement steps
     rad_range : tuple(float, float)
         The search range
+    max_r_dev : float
+        The maximum relative difference in the true and tracked radius.
+        The condition abs(Rtrue - Rtracked) / Rtrue < max_r_dev should hold,
+        otherwise the refinement is retried.
 
     Returns
     -------
@@ -137,7 +141,7 @@ def _refine_brightfield_ring(image, radius, coords_df, min_points_frac=0.35,
         return _retry(image, radius, coords_df, min_points_frac, max_ev,
                       rad_range, **kwargs)
 
-    if np.abs(radius-r)/radius > 0.5:
+    if np.abs(radius-r)/radius > max_r_dev:
         return _retry(image, radius, coords_df, min_points_frac, max_ev,
                       rad_range, **kwargs)
 
@@ -162,10 +166,10 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
     if np.issubdtype(arr.dtype, np.unsignedinteger):
         arr = arr.astype(np.int)
 
-    values = np.nanmin(arr, axis=1)
+    values = np.nanpercentile(arr, 5, axis=1)
     rdev = []
     for row, min_val in zip(arr, values):
-        argmin = np.where(row == min_val)[0]
+        argmin = np.where(row < min_val)[0]
         if len(argmin) == 0:
             rdev.append(np.nan)
         else:

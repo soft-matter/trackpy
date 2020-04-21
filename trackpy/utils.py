@@ -9,6 +9,7 @@ import warnings
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
+from multiprocessing.pool import Pool
 
 import pandas as pd
 import numpy as np
@@ -456,3 +457,38 @@ def safe_exp(arr):
         mask = arr > EXPONENT_EPS_FLOAT64
     result[mask] = np.exp(arr[mask])
     return result
+
+def _get_pool(processes):
+    """Returns the appropriate pool and map functions if multiprocessing needs
+    to be used, otherwise None, map.
+
+    Parameters
+    ----------
+    processes : integer or "auto"
+        The number of processes to use in parallel. If <= 1, multiprocessing is
+        disabled. If "auto", the number returned by `os.cpu_count()`` is used.
+
+    Returns
+    -------
+    pool, map_func
+
+    See Also
+    --------
+    batch
+    """
+    # Handle & validate argument `processes`
+    if processes == "auto":
+        processes = None  # Is replaced with `os.cpu_count` in Pool
+    elif not isinstance(processes, six.integer_types):
+        raise TypeError("`processes` must either be an integer or 'auto', "
+                        "was type {}".format(type(processes)))
+
+    if processes is None or processes > 1:
+        # Use multiprocessing
+        pool = Pool(processes=processes)
+        map_func = pool.imap
+    else:
+        pool = None
+        map_func = map
+
+    return pool, map_func

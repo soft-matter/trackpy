@@ -6,6 +6,9 @@ Enhancements
 ~~~~~~~~~~~~
 
 - compute_drift() now accepts list-like pos_columns (e.g. tuples). (:issue:`579`)
+- refine_brightfield_ring() now uses the 5th percentile for edge detection
+  instead of the minimum, resulting in a more robust tracking for low contrast
+  images. (PR #602)
 
 
 v0.4.2

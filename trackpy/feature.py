@@ -4,7 +4,6 @@ import six
 import warnings
 import logging
 from functools import partial
-from multiprocessing.pool import Pool
 
 import numpy as np
 import pandas as pd
@@ -13,7 +12,7 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import (record_meta, validate_tuple, is_isotropic,
                     default_pos_columns, default_size_columns,
-                    pandas_concat)
+                    pandas_concat, _get_pool)
 from .find import grey_dilation, where_close
 from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
@@ -550,20 +549,7 @@ def batch(frames, diameter, output=None, meta=None, processes=1,
     # Prepare wrapped function for mapping to `frames`
     curried_locate = partial(locate, **kwargs)
 
-    # Handle & validate argument `processes`
-    if processes == "auto":
-        processes = None  # Is replaced with `os.cpu_count` in Pool
-    elif not isinstance(processes, six.integer_types):
-        raise TypeError("`processes` must either be an integer or 'auto', "
-                        "was type {}".format(type(processes)))
-
-    if processes is None or processes > 1:
-        # Use multiprocessing
-        pool = Pool(processes=processes)
-        map_func = pool.imap
-    else:
-        pool = None
-        map_func = map
+    pool, map_func = _get_pool(processes)
 
     if after_locate is None:
         def after_locate(frame_no, features):
