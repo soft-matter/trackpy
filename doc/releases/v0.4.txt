@@ -2,10 +2,12 @@
 v0.4.3 (in development)
 -----------------------
 
-This is a minor release that focuses on enhancements. Most notably, parallel
+This is a major release focused on enhancements. Most notably, parallel
 processing is now turned on by default for "trackpy.batch" and
 "trackpy.locate_brightfield_ring", resulting in a large performance increase
-for many users.
+for many users. Another minor speedup changes the way in which particle numbers
+are generated, which may cause issues with reproducibility in some existing
+workflows (see "API Changes" below).
 
 
 Enhancements
@@ -27,6 +29,14 @@ API Changes
 - "trackpy.batch" now defaults to parallel execution with all available CPUs
   ("processes='auto'"). For most users this should be in a noticeable speedup.
   Revert to the previous behavior with "processes=1". (:issue:`605`)
+
+- During linking, particles are not sorted before assigning new
+  trajectories. This greatly speeds up linking under certain conditions.
+  The actual coordinates and linked trajectories are not affected by this
+  change, but the unique number assigned to a trajectory (the "particle"
+  column) may change from run to run. The most reproducible way to identify a
+  specific particle is still the particle's coordinates at an instant in time.
+  (:issue:`597`, :issue:`601`)
 
 
 v0.4.2
