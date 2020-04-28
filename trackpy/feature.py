@@ -12,7 +12,7 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import (record_meta, validate_tuple, is_isotropic,
                     default_pos_columns, default_size_columns,
-                    pandas_concat, _get_pool)
+                    pandas_concat, get_pool)
 from .find import grey_dilation, where_close
 from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
@@ -549,7 +549,7 @@ def batch(frames, diameter, output=None, meta=None, processes=1,
     # Prepare wrapped function for mapping to `frames`
     curried_locate = partial(locate, **kwargs)
 
-    pool, map_func = _get_pool(processes)
+    pool, map_func = get_pool(processes)
 
     if after_locate is None:
         def after_locate(frame_no, features):

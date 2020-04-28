@@ -458,7 +458,7 @@ def safe_exp(arr):
     result[mask] = np.exp(arr[mask])
     return result
 
-def _get_pool(processes):
+def get_pool(processes):
     """Returns the appropriate pool and map functions if multiprocessing needs
     to be used, otherwise None, map.
 
