@@ -561,10 +561,14 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
             image = frames[i]
             if hasattr(image, 'frame_no') and image.frame_no is not None:
                 frame_no = image.frame_no
-                # If this works, locate created a 'frame' column.
+                # Even if this worked, if locate() was running in parallel,
+                # it may not have had access to the "frame_no" attribute.
+                # Therefore we'll add the frame number to the DataFrame if
+                # needed, below.
             else:
                 frame_no = i
-                features['frame'] = i  # just counting iterations
+            if 'frame' not in features.columns:
+                features['frame'] = frame_no  # just counting iterations
             features = after_locate(frame_no, features)
 
             logger.info("Frame %d: %d features", frame_no, len(features))
