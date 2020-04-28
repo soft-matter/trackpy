@@ -462,7 +462,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     return refined_coords
 
 
-def batch(frames, diameter, output=None, meta=None, processes=1,
+def batch(frames, diameter, output=None, meta=None, processes='auto',
           after_locate=None, **kwargs):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
