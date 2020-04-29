@@ -36,6 +36,8 @@ API Changes
   change, but the unique number assigned to a trajectory (the "particle"
   column) may change from run to run. The most reproducible way to identify a
   specific particle is still the particle's coordinates at an instant in time.
+  To revert to the previous behavior, set the "PYTHONHASHSEED" environment
+  variable before starting Python.
   (:issue:`597`, :issue:`601`)
 
 
