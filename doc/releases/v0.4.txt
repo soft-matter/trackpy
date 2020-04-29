@@ -27,7 +27,7 @@ API Changes
 ~~~~~~~~~~~
 
 - "trackpy.batch" now defaults to parallel execution with all available CPUs
-  ("processes='auto'"). For most users this should be in a noticeable speedup.
+  ("processes='auto'"). For most users this should be a noticeable speedup.
   Revert to the previous behavior with "processes=1". (:issue:`605`)
 
 - During linking, particles are not sorted before assigning new
