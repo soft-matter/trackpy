@@ -33,10 +33,10 @@ API Changes
 - During linking, particles are not sorted before assigning new
   trajectories. This greatly speeds up linking under certain conditions.
   The actual coordinates and linked trajectories are not affected by this
-  change, but the unique number assigned to a trajectory (the "particle"
-  column) may change from run to run. The most reproducible way to identify a
+  change, but the unique number assigned to a trajectory (in the "particle"
+  column) may vary from run to run. The most reproducible way to identify a
   specific particle is still the particle's coordinates at an instant in time.
-  To revert to the previous behavior, set the "PYTHONHASHSEED" environment
+  To make the numbering stable again, set the "PYTHONHASHSEED" environment
   variable before starting Python.
   (:issue:`597`, :issue:`601`)
 
