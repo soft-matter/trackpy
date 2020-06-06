@@ -12,7 +12,7 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
                             scalefactor_to_gamut)
 from .utils import (record_meta, validate_tuple, is_isotropic,
                     default_pos_columns, default_size_columns,
-                    pandas_concat, _get_pool)
+                    pandas_concat, get_pool)
 from .find import grey_dilation, where_close
 from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
@@ -462,7 +462,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     return refined_coords
 
 
-def batch(frames, diameter, output=None, meta=None, processes=1,
+def batch(frames, diameter, output=None, meta=None, processes='auto',
           after_locate=None, **kwargs):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
@@ -549,7 +549,7 @@ def batch(frames, diameter, output=None, meta=None, processes=1,
     # Prepare wrapped function for mapping to `frames`
     curried_locate = partial(locate, **kwargs)
 
-    pool, map_func = _get_pool(processes)
+    pool, map_func = get_pool(processes)
 
     if after_locate is None:
         def after_locate(frame_no, features):
@@ -561,10 +561,14 @@ def batch(frames, diameter, output=None, meta=None, processes=1,
             image = frames[i]
             if hasattr(image, 'frame_no') and image.frame_no is not None:
                 frame_no = image.frame_no
-                # If this works, locate created a 'frame' column.
+                # Even if this worked, if locate() was running in parallel,
+                # it may not have had access to the "frame_no" attribute.
+                # Therefore we'll add the frame number to the DataFrame if
+                # needed, below.
             else:
                 frame_no = i
-                features['frame'] = i  # just counting iterations
+            if 'frame' not in features.columns:
+                features['frame'] = frame_no  # just counting iterations
             features = after_locate(frame_no, features)
 
             logger.info("Frame %d: %d features", frame_no, len(features))

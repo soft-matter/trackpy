@@ -46,13 +46,15 @@ def _skip_if_no_pytables():
 
 
 class FeatureSavingTester(object):
-    def prepare(self):
+    def prepare(self, batch_params=None):
         directory = os.path.join(path, 'video', 'image_sequence')
         v = TrackpyImageSequence(os.path.join(directory, '*.png'))
         self.v = [tp.invert_image(v[i]) for i in range(2)]
         # mass depends on pixel dtype, which differs per reader
         minmass = self.v[0].max() * 2
         self.PARAMS = {'diameter': 11, 'minmass': minmass}
+        if batch_params is not None:
+            self.PARAMS.update(batch_params)
         self.expected = tp.batch(self.v, engine='python', meta=False,
                                  **self.PARAMS)
 
@@ -146,6 +148,18 @@ class TestPandasHDFStoreBig(FeatureSavingTester, StrictTestCase):
 
             s.close()
             os.remove(STORE_NAME)
+
+
+class TestSingleThreaded(FeatureSavingTester, StrictTestCase):
+    def setUp(self):
+        _skip_if_no_pytables()
+
+        # Check that the argument is getting passed to utils.get_pool()
+        with self.assertRaises(TypeError):
+            self.prepare(batch_params={'processes': 'junk'})
+
+        self.prepare(batch_params={'processes': 1})
+        self.storage_class = tp.PandasHDFStoreBig
 
 
 class TestPandasHDFStoreBigCompressed(FeatureSavingTester, StrictTestCase):

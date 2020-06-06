@@ -10,7 +10,7 @@ from pandas import (DataFrame, concat)
 
 from ..find import (grey_dilation, where_close)
 from ..refine import (refine_brightfield_ring,)
-from ..utils import (validate_tuple, default_pos_columns, _get_pool)
+from ..utils import (validate_tuple, default_pos_columns, get_pool)
 from ..preprocessing import convert_to_int
 from ..feature import locate
 
@@ -119,7 +119,7 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
         warnings.warn("No particles found in the image before refinement.")
         return coords_df
 
-    pool, map_func = _get_pool(processes)
+    pool, map_func = get_pool(processes)
     refined = []
 
     try:
