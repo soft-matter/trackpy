@@ -205,6 +205,25 @@ class TestSpecial(StrictTestCase):
         theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
         self.steppers.groupby('particle').apply(theta_entropy)
 
+    def test_relate_frames(self):
+        # Check completeness of output
+        pos_columns = ['x', 'y']
+        f1, f2 = 2, 6
+        df = tp.motion.relate_frames(self.steppers, f1, f2, pos_columns=pos_columns)
+        for c in pos_columns:
+            assert c in df
+            assert c + '_b' in df
+            assert 'd' + c in df
+        assert 'dr' in df
+        assert 'direction' in df
+
+    def test_direction_corr(self):
+        # just a smoke test
+        f1, f2 = 2, 6
+        df = tp.motion.direction_corr(self.steppers, f1, f2)
+        # Only 2 particles, so only 1 correlation
+        assert len(df) == 1
+
 
 if __name__ == '__main__':
     import unittest
