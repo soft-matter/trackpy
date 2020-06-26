@@ -487,7 +487,7 @@ def direction_corr(t, frame1, frame2):
 
     Returns
     -------
-    DataFrame, indexed by particle, including dx, dy, and direction
+    DataFrame for all particle pairs, including dx, dy, and direction
     """
     j = relate_frames(t, frame1, frame2)
     cosine = np.cos(np.subtract.outer(j.direction.values, j.direction.values))
