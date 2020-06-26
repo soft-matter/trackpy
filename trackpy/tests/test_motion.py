@@ -189,6 +189,13 @@ class TestMSD(StrictTestCase):
         actual.index = expected.index
         assert_series_equal(np.round(actual), expected)
 
+    def test_direction_corr(self):
+        # just a smoke test
+        f1, f2 = 2, 6
+        df = tp.motion.direction_corr(self.many_walks, f1, f2)
+        P = len(self.many_walks.particle.unique())
+        assert len(df) == (P * (P - 1)) / 2
+
 
 class TestSpecial(StrictTestCase):
     def setUp(self):
@@ -216,13 +223,6 @@ class TestSpecial(StrictTestCase):
             assert 'd' + c in df
         assert 'dr' in df
         assert 'direction' in df
-
-    def test_direction_corr(self):
-        # just a smoke test
-        f1, f2 = 2, 6
-        df = tp.motion.direction_corr(self.steppers, f1, f2)
-        # Only 2 particles, so only 1 correlation
-        assert len(df) == 1
 
 
 if __name__ == '__main__':
