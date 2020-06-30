@@ -39,7 +39,7 @@ before_install:
   - export PATH=/home/travis/mc/bin:$PATH
 
 script:
-  - python -munittest
+  - python -munittest discover
   - |
     if [ $BUILD_DOCS == true ]; then
       conda config --append channels conda-forge
