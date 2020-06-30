@@ -1,7 +1,6 @@
 language: python
-sudo: false
 
-matrix:
+jobs:
   include:
     # "Legacy" environments: oldest supported versions, without and with numba
     - python: "2.7"
