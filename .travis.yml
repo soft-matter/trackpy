@@ -18,7 +18,7 @@ matrix:
     # Environments with most recent versions, on python 2.7 and python 3.6
     - python: "2.7"
       env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn" BUILD_DOCS=false
-    - python: "3.6"
+    - python: "3.7"
       env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn"  BUILD_DOCS=false
 
 
