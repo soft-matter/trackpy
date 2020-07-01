@@ -18,7 +18,7 @@ jobs:
     - python: "2.7"
       env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn" BUILD_DOCS=false
     - python: "3.7"
-      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn"  BUILD_DOCS=false
+      env: DEPS="numpy scipy!=1.5.0 matplotlib pillow pandas scikit-image pytables numba scikit-learn pyyaml pytables"  BUILD_DOCS=false
 
 
 install:

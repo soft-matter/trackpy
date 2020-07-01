@@ -8,7 +8,7 @@ environment:
 
     - PYTHON: "C:\\Miniconda37-x64"
       PYTHON_VERSION: "3.7"
-      DEPS: "numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn"
+      DEPS: "numpy scipy!=1.5.0 matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn"
 
 init:
   - "ECHO %PYTHON% %PYTHON_VERSION%"
