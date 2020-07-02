@@ -8,6 +8,8 @@ for many users. Another minor speedup changes the way in which particle numbers
 are generated, which may cause issues with reproducibility in some existing
 workflows (see "API Changes" below).
 
+Note that Python 2 reached end-of-life in 2020, and it is no longer officially
+supported by trackpy.
 
 Enhancements
 ~~~~~~~~~~~~
