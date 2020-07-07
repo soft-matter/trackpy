@@ -1,25 +1,19 @@
 language: python
-sudo: false
 
-matrix:
+jobs:
   include:
-    # "Legacy" environments: oldest supported versions, without and with numba
-    - python: "2.7"
-      env: DEPS="numpy=1.9 scipy=0.14.0 matplotlib=1.4 pillow=2.1 pandas=0.15 scikit-image=0.10 pytables scikit-learn=0.15 pyyaml libgfortran=1" BUILD_DOCS=false
-    - python: "2.7"
-      env: DEPS="numpy=1.9 scipy=0.14.0 matplotlib=1.4 pillow=2.1 pandas=0.15 scikit-image=0.10 numba=0.14 pytables scikit-learn=0.15 pyyaml libgfortran=1" BUILD_DOCS=false
+    # "Legacy" environments: oldest supported versions, without and with optional dependencies
+    - python: "3.5"
+      env: DEPS="numpy=1.13.1 scipy=0.19.1 matplotlib=2.0.2 pandas=0.20.3 pyyaml" BUILD_DOCS=true
+    - python: "3.5"
+      env: DEPS="numpy=1.13.1 scipy=0.19.1 matplotlib=2.0.2 pillow=4.2.1 pandas=0.20.3 scikit-image=0.13.0 pytables scikit-learn=0.19.0 pyyaml" BUILD_DOCS=true
     # "Typical" environments: versions 2-3 years old
-    # Python 2, circa 2016
-    - python: "2.7"
-      env: DEPS="numpy=1.10 scipy=0.17 matplotlib=1.5 pillow=3.1 pandas=0.18.1 scikit-image=0.12 pytables numba=0.23.1 scikit-learn=0.17.1 pyyaml" BUILD_DOCS=false
     # Python 3, circa September 2017 (Anaconda 5.0.0)
     - python: "3.5"
       env: DEPS="numpy=1.13.1 scipy=0.19.1 matplotlib=2.0.2 pillow=4.2.1 pandas=0.20.3 scikit-image=0.13.0 pytables numba=0.35.0 scikit-learn=0.19.0 pyyaml" BUILD_DOCS=true
-    # Environments with most recent versions, on python 2.7 and python 3.6
-    - python: "2.7"
-      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn" BUILD_DOCS=false
-    - python: "3.6"
-      env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pyyaml pytables numba scikit-learn"  BUILD_DOCS=false
+    # Environments with most recent versions
+    - python: "3.7"
+      env: DEPS="numpy scipy!=1.5.0 matplotlib pillow pandas scikit-image pytables numba scikit-learn pyyaml pytables"  BUILD_DOCS=false
 
 
 install:
@@ -40,7 +34,7 @@ before_install:
   - export PATH=/home/travis/mc/bin:$PATH
 
 script:
-  - python -munittest
+  - python -munittest discover
   - |
     if [ $BUILD_DOCS == true ]; then
       conda config --append channels conda-forge

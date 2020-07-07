@@ -90,7 +90,7 @@ environment with the name softmatter as follows:
 
 .. code-block:: bash
 
-    conda create --name softmatter python=3.6 trackpy nb_conda
+    conda create --name softmatter python=3.7 trackpy nb_conda
 
 The `nb_conda` is optional, but we added it to ensure that Jupyter sees this
 environment as well. You can switch to the environment from within Jupyter in
@@ -111,10 +111,7 @@ More Information for Experienced Python Users
 Archlinux
 """""""""
 
-Package for python 2 and python 3 are available for Archlinux on AUR:
-
-* `Python 2 <https://aur.archlinux.org/packages/python2-trackpy/>`__
-* `Python 3 <https://aur.archlinux.org/packages/python-trackpy/>`__
+Package is available for Archlinux on AUR: `Python 3 <https://aur.archlinux.org/packages/python-trackpy/>`__
 
 pip
 """
@@ -124,13 +121,13 @@ but pip is also supported.
 
 Essential Dependencies:
 
-* Python 2.7, 3.3, or newer
+* Python 3.5 or newer. (trackpy on Python 2.7 is no longer officially supported, though it is still likely to run.)
 * `setuptools <http://pythonhosted.org/setuptools/>`__
-* `six <http://pythonhosted.org/six/>`__ >=1.8
-* `numpy <http://www.scipy.org/>`__ >=1.7
-* `scipy <http://www.scipy.org/>`__ >=0.12
+* `six <http://pythonhosted.org/six/>`__
+* `numpy <http://www.scipy.org/>`__
+* `scipy <http://www.scipy.org/>`__
 * `matplotlib <http://matplotlib.org/>`__
-* `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__ >=0.13
+* `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__
 * `pyyaml <http://pyyaml.org/>`__
 
 You will also want to install the `pims <http://soft-matter.github.io/pims/>`_
@@ -192,8 +189,7 @@ These are strongly recommended to make using trackpy more convenient and faster:
       This is included with Anaconda.
 * `numba <http://numba.pydata.org/>`__ for accelerated feature-finding and linking. 
       This is included with Anaconda and Canopy. Installing it any other way is
-      difficult; we recommend sticking with one of these. We support numba versions
-      >=0.13.4 (though 0.13.3 appears to work).
+      difficult; we recommend sticking with one of these.
 * `Pillow <https://pillow.readthedocs.org/>`__ or `PIL <http://www.pythonware.com/products/pil/>`__ for some display routines.
       This is included with Anaconda.
 
