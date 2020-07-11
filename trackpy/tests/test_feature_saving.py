@@ -1,4 +1,3 @@
-import six
 import functools
 import os
 import unittest
@@ -20,14 +19,6 @@ import warnings
 warnings.filterwarnings("ignore", message="get_store is deprecated")
 
 path, _ = os.path.split(os.path.abspath(__file__))
-
-
-# This is six stuff here because pandas.HDFStore is fussy about the string type of one of
-# its option args. There seems to be no good reason for that at all.
-if six.PY2:
-    zlib = bytes('zlib')
-else:
-    zlib = 'zlib'
 
 
 def _random_hash():
@@ -163,7 +154,7 @@ class TestPandasHDFStoreBigCompressed(FeatureSavingTester, StrictTestCase):
         _skip_if_no_pytables()
         self.prepare()
         self.storage_class = functools.partial(
-            tp.PandasHDFStoreBig, complevel=4, complib=zlib,
+            tp.PandasHDFStoreBig, complevel=4, complib='zlib',
             fletcher32=True)
 
 
@@ -181,7 +172,7 @@ class TestPandasHDFStoreSingleNodeCompressed(FeatureSavingTester,
         self.prepare()
         self.storage_class = functools.partial(
             tp.PandasHDFStoreSingleNode,
-            complevel=4, complib=zlib, fletcher32=True)
+            complevel=4, complib='zlib', fletcher32=True)
 
 
 if __name__ == '__main__':

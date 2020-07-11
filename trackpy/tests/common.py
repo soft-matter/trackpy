@@ -1,4 +1,4 @@
-import six, os, glob
+import os, glob
 import unittest
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal, assert_array_equal

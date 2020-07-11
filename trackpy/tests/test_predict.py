@@ -1,4 +1,3 @@
-import six
 import functools
 
 import unittest

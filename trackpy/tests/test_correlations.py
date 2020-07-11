@@ -1,5 +1,3 @@
-import six
-
 import numpy as np
 from numpy.testing import assert_allclose
 from pandas import DataFrame

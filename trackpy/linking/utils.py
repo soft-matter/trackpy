@@ -1,4 +1,3 @@
-import six
 import itertools
 
 import numpy as np

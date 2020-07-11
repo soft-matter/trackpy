@@ -4,7 +4,6 @@ These are low-level functions that rigorously resolve cases when features
 can be linked in more than one way.
 """
 
-import six
 from collections import deque
 
 import numpy as np

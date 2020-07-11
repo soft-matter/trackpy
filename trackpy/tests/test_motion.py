@@ -1,5 +1,3 @@
-import six
-
 import numpy as np
 from pandas import DataFrame, Series
 from pandas.util.testing import (assert_series_equal, assert_frame_equal,

@@ -1,4 +1,3 @@
-import six
 import os
 
 import numpy as np

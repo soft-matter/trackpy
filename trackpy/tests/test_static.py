@@ -1,5 +1,3 @@
-import six
-
 from trackpy.static import *
 import pandas as pd
 import numpy as np

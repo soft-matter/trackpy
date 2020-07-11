@@ -123,7 +123,6 @@ Essential Dependencies:
 
 * Python 3.5 or newer. (trackpy on Python 2.7 is no longer officially supported, though it is still likely to run.)
 * `setuptools <http://pythonhosted.org/setuptools/>`__
-* `six <http://pythonhosted.org/six/>`__
 * `numpy <http://www.scipy.org/>`__
 * `scipy <http://www.scipy.org/>`__
 * `matplotlib <http://matplotlib.org/>`__

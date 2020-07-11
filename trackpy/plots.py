@@ -1,5 +1,4 @@
 """These functions generate handy plots."""
-import six
 from itertools import tee
 from functools import wraps
 import warnings

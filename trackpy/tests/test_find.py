@@ -1,4 +1,3 @@
-import six
 import numpy as np
 
 import trackpy as tp

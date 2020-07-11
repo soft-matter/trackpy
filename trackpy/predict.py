@@ -2,8 +2,6 @@
 # keimnathan@gmail.com
 
 """Tools to improve tracking performance by guessing where a particle will appear next."""
-import six
-
 from warnings import warn
 from collections import deque
 import functools

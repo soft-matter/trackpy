@@ -1,4 +1,3 @@
-import six
 import logging
 from warnings import warn
 import itertools

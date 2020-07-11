@@ -1,8 +1,6 @@
 """Simple functions that eliminate spurrious trajectories
 by wrapping pandas group-by and filter capabilities."""
 
-import six
-
 __all__ = ['filter_stubs', 'filter_clusters', 'filter']
 
 

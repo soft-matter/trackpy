@@ -1,4 +1,3 @@
-import six
 import warnings
 import logging
 from functools import partial

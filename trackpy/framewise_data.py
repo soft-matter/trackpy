@@ -1,4 +1,3 @@
-import six
 import logging
 import os
 from abc import ABCMeta, abstractmethod, abstractproperty

@@ -1,4 +1,3 @@
-import six
 import logging
 
 import numpy as np

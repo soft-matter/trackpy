@@ -1,4 +1,3 @@
-import six
 import warnings
 
 from .find import percentile_threshold, grey_dilation

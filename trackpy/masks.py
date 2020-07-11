@@ -1,4 +1,3 @@
-import six
 import numpy as np
 from .utils import memo, validate_tuple
 

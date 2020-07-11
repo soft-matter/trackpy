@@ -1,5 +1,3 @@
-import six
-
 import numpy as np
 import pandas as pd
 from ..try_numba import try_numba_jit

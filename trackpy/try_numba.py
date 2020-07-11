@@ -1,4 +1,3 @@
-import six
 import sys
 
 # re-import some builtins for legacy numba versions if future is installed

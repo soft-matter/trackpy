@@ -1,4 +1,3 @@
-import six
 from .utils import cKDTree, guess_pos_columns
 import numpy as np
 from pandas import DataFrame

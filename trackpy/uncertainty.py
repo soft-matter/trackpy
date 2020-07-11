@@ -1,4 +1,3 @@
-import six
 import numpy as np
 from scipy.ndimage import morphology
 from pandas import DataFrame
