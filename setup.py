@@ -5,7 +5,7 @@ from setuptools import setup
 
 try:
     descr = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
-except IOError:
+except OSError:
     descr = ''
 
 try:

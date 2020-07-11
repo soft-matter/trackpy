@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
 import warnings
 import logging
@@ -142,8 +140,8 @@ def minmass_v04_change(raw_image, old_minmass, diameter, preprocess=True,
     else:
         new_smoothing_size = validate_tuple(new_smoothing_size, ndim)
 
-    radius = tuple((int(d / 2) for d in diameter))
-    old_bp_size = tuple((s * 2 + 1 for s in old_smoothing_size))
+    radius = tuple(int(d / 2) for d in diameter)
+    old_bp_size = tuple(s * 2 + 1 for s in old_smoothing_size)
 
     n_px_refine = N_binary_mask(radius, ndim)
     n_px_old_bp = N_binary_mask(old_bp_size, ndim)
@@ -353,8 +351,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim
-        warnings.warn("I am interpreting the image as {0}-dimensional. "
-                      "If it is actually a {1}-dimensional color image, "
+        warnings.warn("I am interpreting the image as {}-dimensional. "
+                      "If it is actually a {}-dimensional color image, "
                       "convert it to grayscale first.".format(dim, dim-1))
 
     if threshold is None:
@@ -539,7 +537,7 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
             source=source,
             **kwargs
         )
-        if isinstance(meta, six.string_types):
+        if isinstance(meta, str):
             with open(meta, 'w') as file_obj:
                 record_meta(meta_info, file_obj)
         else:

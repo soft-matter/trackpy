@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
 import functools
 import os
@@ -27,11 +25,9 @@ path, _ = os.path.split(os.path.abspath(__file__))
 # This is six stuff here because pandas.HDFStore is fussy about the string type of one of
 # its option args. There seems to be no good reason for that at all.
 if six.PY2:
-    zlib = six.binary_type('zlib')
-elif six.PY3:
-    zlib = 'zlib'
+    zlib = bytes('zlib')
 else:
-    raise("six is confused")
+    zlib = 'zlib'
 
 
 def _random_hash():
@@ -45,7 +41,7 @@ def _skip_if_no_pytables():
         raise unittest.SkipTest('pytables not installed. Skipping.')
 
 
-class FeatureSavingTester(object):
+class FeatureSavingTester:
     def prepare(self, batch_params=None):
         directory = os.path.join(path, 'video', 'image_sequence')
         v = TrackpyImageSequence(os.path.join(directory, '*.png'))
@@ -59,12 +55,12 @@ class FeatureSavingTester(object):
                                  **self.PARAMS)
 
     def test_storage(self):
-        STORE_NAME = 'temp_for_testing_{0}.h5'.format(_random_hash())
+        STORE_NAME = 'temp_for_testing_{}.h5'.format(_random_hash())
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
         try:
             s = self.storage_class(STORE_NAME)
-        except IOError:
+        except OSError:
             unittest.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
             tp.batch(self.v, output=s, engine='python', meta=False,
@@ -104,12 +100,12 @@ class TestPandasHDFStoreBig(FeatureSavingTester, StrictTestCase):
 
     def test_cache(self):
         """Store some frames, make a cache, then store some more frames."""
-        STORE_NAME = 'temp_for_testing_{0}.h5'.format(_random_hash())
+        STORE_NAME = 'temp_for_testing_{}.h5'.format(_random_hash())
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
         try:
             s = self.storage_class(STORE_NAME)
-        except IOError:
+        except OSError:
             unittest.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
             framedata = self.expected[self.expected.frame == 0]

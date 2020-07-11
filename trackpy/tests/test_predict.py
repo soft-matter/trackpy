@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
 import functools
 
@@ -33,7 +31,7 @@ def get_linked_lengths(frames, linker, *args, **kw):
 
 Nside_oversize = int(np.sqrt(100)) # Make subnet linker fail
 
-class LinkWithPrediction(object):
+class LinkWithPrediction:
     def get_linker_iter(self, pred):
         """Return the function that will perform linking with predictor 'pred'.
         This lets us test multiple linking implementations.
@@ -260,7 +258,7 @@ class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
 # Define a mixin that converts a normal prediction test class into one
 # that uses find_link.
 
-class LegacyLinkPredictTest(object):
+class LegacyLinkPredictTest:
     def get_linker_iter(self, pred):
         return functools.partial(pred.wrap, trackpy.linking.legacy.link_df_iter)
 
@@ -291,9 +289,9 @@ class NewChannelPredictYTests(LegacyLinkPredictTest, ChannelPredictYTests):
     pass
 
 
-class FindLinkPredictTest(object):
+class FindLinkPredictTest:
     def setUp(self):
-        super(FindLinkPredictTest, self).setUp()
+        super().setUp()
         self.linker_opts = dict(separation=10, diameter=15)
         # Disable certain tests that are redundant here
         # and would require more code to support.

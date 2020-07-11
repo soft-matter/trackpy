@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from unittest import SkipTest
 
 import numpy as np
@@ -32,7 +29,7 @@ SIZE_3D = 4.
 SIZE_2D_ANISOTROPIC = (5., 3.)
 SIZE_3D_ANISOTROPIC = (3., 5., 5.)
 
-class RefineTsts(object):
+class RefineTsts:
     skip = False
     dtype = np.uint8
     signal = SIGNAL
@@ -60,7 +57,7 @@ class RefineTsts(object):
 
     @classmethod
     def setUpClass(cls):
-        super(RefineTsts, cls).setUpClass()
+        super().setUpClass()
         cls.size = validate_tuple(cls.size, cls.ndim)
         if not hasattr(cls, 'diameter'):
             cls.diameter = tuple([int(s * 4) for s in cls.size])
@@ -312,8 +309,8 @@ class RefineTsts(object):
                 result['perp_err_mean'] = (result['y1_err_mean'] - result['y0_err_mean']) / 2
                 result['parr_err_accuracy'] = (result['x1_err_accuracy'] - result['x0_err_accuracy']) / 2
                 result['perp_err_accuracy'] = (result['y1_err_accuracy'] - result['y0_err_accuracy']) / 2
-                result['parr_err_precision'] = np.sqrt((result['x0_err_precision']**2 + result['x0_err_precision']**2))
-                result['perp_err_precision'] = np.sqrt((result['y0_err_precision']**2 + result['y0_err_precision']**2))
+                result['parr_err_precision'] = np.sqrt(result['x0_err_precision']**2 + result['x0_err_precision']**2)
+                result['perp_err_precision'] = np.sqrt(result['y0_err_precision']**2 + result['y0_err_precision']**2)
         # rms relative signal deviation
         result['signal'] = np.mean((1 - actual_signal / expected_signal)**2)**0.5
         # rms relative size deviation

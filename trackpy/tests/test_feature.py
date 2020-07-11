@@ -1,7 +1,4 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
-from six.moves import range
 import os
 import unittest
 import warnings
@@ -109,7 +106,7 @@ class OldMinmass(StrictTestCase):
         assert len(f) == self.N
 
 
-class CommonFeatureIdentificationTests(object):
+class CommonFeatureIdentificationTests:
     def check_skip(self):
         pass
 

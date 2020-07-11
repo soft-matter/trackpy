@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
 import os
 from copy import copy
@@ -695,7 +693,7 @@ class TestDropLink(CommonTrackingTests):
         without_subnet = self.link(f, 1.5)
         assert_traj_equal(without_subnet, f_expected_without_subnet)
         with_subnet = self.link(f, 5)
-        assert set(with_subnet.particle) == set((0, 1, 2))
+        assert set(with_subnet.particle) == {0, 1, 2}
 
 
 class TestNumbaLink(SubnetNeededTests):

@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
 import numpy as np
 import pandas as pd
@@ -275,7 +273,7 @@ def draw_cluster(image, position, size, cluster_size, hard_radius=1., angle=0,
         draw_feature(image, pos, size, **kwargs)
     return coord
 
-class SimulatedImage(object):
+class SimulatedImage:
     """ This class makes it easy to generate artificial pictures.
 
     Parameters

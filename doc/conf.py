@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # trackpy documentation build configuration file, created by
 # sphinx-quickstart on Mon Sep 17 09:43:12 2012.
@@ -65,8 +64,8 @@ master_doc = 'index'
 from datetime import date
 
 # General information about the project.
-project = u'trackpy'
-copyright = u'2010-{}, Trackpy Contributors'.format(date.today().year)
+project = 'trackpy'
+copyright = '2010-{}, Trackpy Contributors'.format(date.today().year)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -217,8 +216,8 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'trackpy.tex', u'trackpy Documentation',
-   u'Trackpy Contributors', 'manual'),
+  ('index', 'trackpy.tex', 'trackpy Documentation',
+   'Trackpy Contributors', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -247,8 +246,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'trackpy', u'trackpy Documentation',
-     [u'Trackpy Contributors'], 1)
+    ('index', 'trackpy', 'trackpy Documentation',
+     ['Trackpy Contributors'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -261,8 +260,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'trackpy', u'trackpy Documentation',
-   u'Trackpy Contributors', 'trackpy', 'One line description of project.',
+  ('index', 'trackpy', 'trackpy Documentation',
+   'Trackpy Contributors', 'trackpy', 'One line description of project.',
    'Miscellaneous'),
 ]
 
@@ -288,10 +287,10 @@ intersphinx_mapping = {'python': ('http://docs.python.org/2.7', None),
 # -- Options for Epub output ----------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u'trackpy'
-epub_author = u'Trackpy Contributors'
-epub_publisher = u'Trackpy Contributors'
-epub_copyright = u'2010-2014 Trackpy Contributors'
+epub_title = 'trackpy'
+epub_author = 'Trackpy Contributors'
+epub_publisher = 'Trackpy Contributors'
+epub_copyright = '2010-2014 Trackpy Contributors'
 
 # The basename for the epub file. It defaults to the project name.
 #epub_basename = u'trackpy'

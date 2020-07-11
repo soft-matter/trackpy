@@ -20,17 +20,17 @@ tp.locate(dummy_noise_image, 9, engine='numba')
 #b(u"timeit tp.locate(real_image, 9, engine='python', preprocess=False)")
 
 print '10x: Locate using Python Engine with Default Settings (Accurate)'
-b(u"timeit tp.locate(big_image, 9, engine='python', preprocess=False)")
+b("timeit tp.locate(big_image, 9, engine='python', preprocess=False)")
 
 print '10x: Locate using Python Engine with Fast Settings (Sloppy)'
-b(u"timeit tp.locate(big_image, 9, engine='python', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+b("timeit tp.locate(big_image, 9, engine='python', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
 
 print '1x: Locate using Numba Engine with Default Settings (Accurate)'
-b(u"timeit tp.locate(real_image, 9, engine='numba', preprocess=False)")
+b("timeit tp.locate(real_image, 9, engine='numba', preprocess=False)")
 
 print '10x: Locate using Numba Engine with Default Settings (Accurate)'
-b(u"timeit tp.locate(big_image, 9, engine='numba', preprocess=False)")
+b("timeit tp.locate(big_image, 9, engine='numba', preprocess=False)")
 
 print '10x: Locate using Numba Engine with Fast Settings (Sloppy)'
-b(u"timeit tp.locate(big_image, 9, engine='numba', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+b("timeit tp.locate(big_image, 9, engine='numba', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
 

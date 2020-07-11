@@ -1,5 +1,3 @@
-from __future__ import division
-
 import unittest
 
 from numpy.testing.utils import assert_allclose

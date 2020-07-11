@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import os
 import logging
 
@@ -62,12 +60,12 @@ def artificial_cluster(shape, count, radius, noise_level, dip=False,
 
 def generate_random_circle(r, x, y, num_samples=500, noise=0):
     np.random.seed(1)
-    theta = np.random.rand((num_samples)) * (2 * np.pi)
+    theta = np.random.rand(num_samples) * (2 * np.pi)
 
     if noise > 0:
         mini = r-noise
         maxi = r+noise
-        r_rand = np.random.rand((num_samples)) * (maxi-mini) + mini
+        r_rand = np.random.rand(num_samples) * (maxi-mini) + mini
     else:
         r_rand = r
 

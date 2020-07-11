@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
 import logging
 import functools
@@ -91,7 +89,7 @@ def fit_powerlaw(data, plot=True, **kwargs):
     return values
 
 
-class memo(object):
+class memo:
     """Decorator. Caches a function's return value each time it is called.
     If called later with the same arguments, the cached value is returned
     (not reevaluated).
@@ -410,7 +408,7 @@ def is_isotropic(value):
         return True
 
 
-class ReaderCached(object):
+class ReaderCached:
     """ Simple wrapper that provides cacheing of image readers """
     def __init__(self, reader):
         self.reader = reader
@@ -479,7 +477,7 @@ def get_pool(processes):
     # Handle & validate argument `processes`
     if processes == "auto":
         processes = None  # Is replaced with `os.cpu_count` in Pool
-    elif not isinstance(processes, six.integer_types):
+    elif not isinstance(processes, int):
         raise TypeError("`processes` must either be an integer or 'auto', "
                         "was type {}".format(type(processes)))
 

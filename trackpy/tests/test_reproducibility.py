@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import six
 import os
 import numpy as np
@@ -71,7 +69,7 @@ def compare_pos_df(actual, expected, pos_atol=0.001, lost_atol=1):
 class TestReproducibility(StrictTestCase):
     @classmethod
     def setUpClass(cls):
-        super(TestReproducibility, cls).setUpClass()
+        super().setUpClass()
         npz = np.load(reproduce_fn)
         cls.expected_find_raw = npz['arr_0']
         cls.expected_find_bp = npz['arr_1']
