@@ -35,6 +35,14 @@ setup_parameters = dict(
     install_requires = ['numpy>=1.9', 'scipy>=0.14',
                         'pandas>=0.15', 'pyyaml', 'matplotlib'],
     python_requires=">=3.5",
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3 :: Only",
+    ],
     packages = ['trackpy', 'trackpy.refine', 'trackpy.linking', 'trackpy.locate_functions'],
     long_description = descr,
 )
