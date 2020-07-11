@@ -1,4 +1,5 @@
 """These functions generate handy plots."""
+from collections.abc import Iterable
 from itertools import tee
 from functools import wraps
 import warnings
@@ -6,10 +7,6 @@ import logging
 
 import numpy as np
 
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
 try:
     from pims import plot_to_frame, plots_to_frame, normalize
 except ImportError:

@@ -3,6 +3,7 @@ import functools
 import re
 import sys
 import warnings
+from collections.abc import Hashable
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
@@ -15,12 +16,6 @@ from scipy import stats
 import yaml
 
 import trackpy
-
-try:
-    from collections.abc import Hashable
-except ImportError:
-    # Necessary for Python 2.7 but depecated since 3.3
-    from collections import Hashable
 
 # Set is_pandas_since_016 for use elsewhere.
 # Pandas >= 0.16.0 lets us check if a DataFrame is a view.

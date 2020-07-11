@@ -25,11 +25,7 @@ class RegisteredFunction:
 
     def __init__(self, func, fallback=None, jit_kwargs=None):
         self.func = func
-        # This covers a Python 2/3 change not covered by six
-        try:
-            self.func_name = func.__name__
-        except AttributeError:
-            self.func_name = func.func_name
+        self.func_name = func.__name__
         self.module_name = func.__module__
         self.jit_kwargs = jit_kwargs
         if fallback is not None:
