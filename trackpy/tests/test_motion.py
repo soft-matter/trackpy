@@ -189,6 +189,13 @@ class TestMSD(StrictTestCase):
         actual.index = expected.index
         assert_series_equal(np.round(actual), expected)
 
+    def test_direction_corr(self):
+        # just a smoke test
+        f1, f2 = 2, 6
+        df = tp.motion.direction_corr(self.many_walks, f1, f2)
+        P = len(self.many_walks.particle.unique())
+        assert len(df) == (P * (P - 1)) / 2
+
 
 class TestSpecial(StrictTestCase):
     def setUp(self):
@@ -204,6 +211,18 @@ class TestSpecial(StrictTestCase):
         # just a smoke test
         theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
         self.steppers.groupby('particle').apply(theta_entropy)
+
+    def test_relate_frames(self):
+        # Check completeness of output
+        pos_columns = ['x', 'y']
+        f1, f2 = 2, 6
+        df = tp.motion.relate_frames(self.steppers, f1, f2, pos_columns=pos_columns)
+        for c in pos_columns:
+            assert c in df
+            assert c + '_b' in df
+            assert 'd' + c in df
+        assert 'dr' in df
+        assert 'direction' in df
 
 
 if __name__ == '__main__':
