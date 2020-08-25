@@ -305,161 +305,403 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     .. [1] Crocker, J.C., Grier, D.G. http://dx.doi.org/10.1006/jcis.1996.0217
 
     """
-    if invert:
-        warnings.warn("The invert argument will be deprecated. Use a PIMS "
-                      "pipeline for this.", PendingDeprecationWarning)
-    if filter_before is not None:
-        raise ValueError("The filter_before argument is no longer supported as "
-                         "it does not improve performance. Features are "
-                         "filtered after refine.") # see GH issue #141
-    if filter_after is not None:
-        warnings.warn("The filter_after argument has been deprecated: it is "
-                      "always on, unless minmass = None and maxsize = None.",
-                      DeprecationWarning)
+    parameters = locals()
+    locator = ParticlesLocator(**parameters)
+    return locator.locate()
 
-    # Validate parameters and set defaults.
-    raw_image = np.squeeze(raw_image)
-    shape = raw_image.shape
-    ndim = len(shape)
 
-    diameter = validate_tuple(diameter, ndim)
-    diameter = tuple([int(x) for x in diameter])
-    if not np.all([x & 1 for x in diameter]):
-        raise ValueError("Feature diameter must be an odd integer. Round up.")
-    radius = tuple([x//2 for x in diameter])
+class ParticlesLocator:
+    """Class enabling location of the particles.
 
-    isotropic = np.all(radius[1:] == radius[:-1])
-    if (not isotropic) and (maxsize is not None):
-        raise ValueError("Filtering by size is not available for anisotropic "
-                         "features.")
+    See Also
+    --------
+    :py:func:`trackpy.feature.locate`
 
-    is_float_image = not np.issubdtype(raw_image.dtype, np.integer)
+    """
 
-    if separation is None:
-        separation = tuple([x + 1 for x in diameter])
-    else:
-        separation = validate_tuple(separation, ndim)
+    def __init__(
+        self,
+        raw_image,
+        diameter,
+        minmass=None,
+        maxsize=None,
+        separation=None,
+        noise_size=1,
+        smoothing_size=None,
+        threshold=None,
+        invert=False,
+        percentile=64,
+        topn=None,
+        preprocess=True,
+        max_iterations=10,
+        filter_before=None,
+        filter_after=None,
+        characterize=True,
+        engine='auto',
+    ):
+        self.raw_image = raw_image
+        self.diameter = diameter
+        self.minmass = minmass
+        self.maxsize = maxsize
+        self.separation = separation
+        self.noise_size = noise_size
+        self.smoothing_size = smoothing_size
+        self.threshold = threshold
+        self.invert = invert
+        self.percentile = percentile
+        self.topn = topn
+        self.preprocess = preprocess
+        self.max_iterations = max_iterations
+        self.filter_before = filter_before
+        self.filter_after = filter_after
+        self.characterize = characterize
+        self.engine = engine
+        self._image = self._convert_image_from_raw()
 
-    if smoothing_size is None:
-        smoothing_size = diameter
-    else:
-        smoothing_size = validate_tuple(smoothing_size, ndim)
+    def locate(self):
+        """Locate particles."""
+        coords = self._find_coords()
 
-    noise_size = validate_tuple(noise_size, ndim)
+        funcs = [
+            self._refine_coords,
+            self._flat_peaks,
+            self._account_for_scaling,
+            self._filter_on_mass_and_size,
+            self._select_topn_coords,
+            self._account_for_noise,
+            self._add_frame_number_if_possible,
+        ]
 
-    if minmass is None:
-        minmass = 0
+        for f in funcs:
+            coords = f(coords)
+            if coords.empty:
+                msg = (
+                    "No maxima survived mass- and size-based filtering. "
+                    "Be advised that the mass computation was changed from "
+                    "version 0.2.4 to 0.3.0 and from 0.3.3 to 0.4.0. "
+                    "See the documentation and the convenience functions "
+                    "'minmass_v03_change' and 'minmass_v04_change'."
+                )
+                warnings.warn(msg)
+                break
+        return coords
 
-    # Check whether the image looks suspiciously like a color image.
-    if 3 in shape or 4 in shape:
-        dim = raw_image.ndim
-        warnings.warn("I am interpreting the image as {0}-dimensional. "
-                      "If it is actually a {1}-dimensional color image, "
-                      "convert it to grayscale first.".format(dim, dim-1))
+    @property
+    def raw_image(self):
+        """Raw image array."""
+        return self._raw_image
 
-    if threshold is None:
-        if is_float_image:
-            threshold = 1/255.
+    @raw_image.setter
+    def raw_image(self, raw_image):
+        self._raw_image = raw_image
+        image = np.squeeze(raw_image)
+        self._is_float_image = not np.issubdtype(image.dtype, np.integer)
+        self._shape = image.shape
+        # self._ndim = len(self._shape)
+        self._ndim = image.ndim
+
+        if self._is_color_image(image):
+            msg = (
+                "I am interpreting the image as {0}-dimensional. "
+                "If it is actually a {1}-dimensional color image, "
+                "convert it to grayscale first."
+                .format(self._ndim, self._ndim-1)
+            )
+            warnings.warn(msg)
+
+    @staticmethod
+    def _is_color_image(image):
+        """Check if image is probably a color image."""
+        shape = image.shape
+        return 3 in shape or 4 in shape
+
+    def _convert_image_from_raw(self):
+        image = np.squeeze(self.raw_image)
+
+        if self.invert:
+            image = invert_image(self.raw_image)
+
+        # Determine `image`: the image to find the local maxima on.
+        if self.preprocess:
+            image = bandpass(
+                image, self.noise_size, self.smoothing_size, self.threshold,
+            )
+
+        # Function convert_to_int should be refactored,
+        # so that it only converts to int.
+        # Scale factor computation should be carried out in a separate func.
+        self._scale_factor, image = convert_to_int(image, self._dtype)
+        return image
+
+    @property
+    def image(self):
+        """Processed image from raw image."""
+        return self._image
+
+    @property
+    def minmass(self):
+        return self._minmass
+
+    @minmass.setter
+    def minmass(self, value):
+        self._minmass = value or 0
+
+    @property
+    def maxsize(self):
+        return self._maxsize
+
+    @maxsize.setter
+    def maxsize(self, value):
+        self._maxsize = value
+
+    @property
+    def diameter(self):
+        return self._diameter
+
+    @diameter.setter
+    def diameter(self, diameter):
+        diameter = validate_tuple(diameter, self._ndim)
+        diameter = tuple([int(x) for x in diameter])
+        if not np.all([x & 1 for x in diameter]):
+            msg = "Feature diameter must be an odd integer. Round up."
+            raise ValueError(msg)
+        self._diameter = diameter
+        self._radius = tuple([x//2 for x in diameter])
+
+    @property
+    def radius(self):
+        return self._radius
+
+    @property
+    def invert(self):
+        return self._invert
+
+    @invert.setter
+    def invert(self, value):
+        if value:
+            msg = (
+                "The invert argument will be deprecated. "
+                "Use a PIMS pipeline for this."
+            )
+            warnings.warn(msg, PendingDeprecationWarning)
+        self._invert = value
+
+    @property
+    def separation(self):
+        return self._separation
+
+    @separation.setter
+    def separation(self, value):
+        if value is None:
+            self._separation = tuple([x + 1 for x in self.diameter])
         else:
-            threshold = 1
+            self._separation = validate_tuple(value, self._ndim)
 
-    # Invert the image if necessary
-    if invert:
-        raw_image = invert_image(raw_image)
+    @property
+    def smoothing_size(self):
+        return self._smoothing_size
 
-    # Determine `image`: the image to find the local maxima on.
-    if preprocess:
-        image = bandpass(raw_image, noise_size, smoothing_size, threshold)
-    else:
-        image = raw_image
+    @smoothing_size.setter
+    def smoothing_size(self, value):
+        if value is None:
+            self._smoothing_size = self.diameter
+        else:
+            self._smoothing_size = validate_tuple(value, self._ndim)
 
-    # For optimal performance, performance, coerce the image dtype to integer.
-    if is_float_image:  # For float images, assume bitdepth of 8.
-        dtype = np.uint8
-    else:   # For integer images, take original dtype
-        dtype = raw_image.dtype
-    # Normalize_to_int does nothing if image is already of integer type.
-    scale_factor, image = convert_to_int(image, dtype)
+    @property
+    def noise_size(self):
+        return self._noise_size
 
-    pos_columns = default_pos_columns(image.ndim)
+    @noise_size.setter
+    def noise_size(self, noise_size):
+        self._noise_size = validate_tuple(noise_size, self._ndim)
 
-    # Find local maxima.
-    # Define zone of exclusion at edges of image, avoiding
-    #   - Features with incomplete image data ("radius")
-    #   - Extended particles that cannot be explored during subpixel
-    #       refinement ("separation")
-    #   - Invalid output of the bandpass step ("smoothing_size")
-    margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
-                    zip(radius, separation, smoothing_size)])
-    # Find features with minimum separation distance of `separation`. This
-    # excludes detection of small features close to large, bright features
-    # using the `maxsize` argument.
-    coords = grey_dilation(image, separation, percentile, margin, precise=False)
+    @property
+    def threshold(self):
+        return self._threshold
 
-    # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine_com(raw_image, image, radius, coords,
-                                max_iterations=max_iterations,
-                                engine=engine, characterize=characterize)
-    if len(refined_coords) == 0:
+    @threshold.setter
+    def threshold(self, threshold):
+        self._threshold = threshold
+        if threshold is None:
+            if self._is_float_image:
+                self._threshold = 1/255.
+            else:
+                self._threshold = 1
+
+    @property
+    def filter_before(self):
+        return self._filter_before
+
+    @filter_before.setter
+    def filter_before(self, value):
+        if value is not None:
+            msg = (
+                "The filter_before argument is no longer supported as "
+                "it does not improve performance. "
+                "Features are filtered after refine."
+            )
+            raise ValueError(msg)  # see GH issue #141
+        self._filter_before = value
+
+    @property
+    def filter_after(self):
+        return self._filter_after
+
+    @filter_after.setter
+    def filter_after(self, value):
+        if value is not None:
+            msg = (
+                "The filter_after argument has been deprecated: "
+                "it is always on, "
+                "unless minmass = None and maxsize = None."
+            )
+            warnings.warn(msg, DeprecationWarning)
+        self._filter_after = value
+
+    @property
+    def _dtype(self):
+        # For optimal performance, performance,
+        # coerce the image dtype to integer.
+        if self._is_float_image:  # For float images, assume bitdepth of 8.
+            return np.uint8
+        else:   # For integer images, take original dtype
+            return self.raw_image.dtype
+
+    def _find_margin(self):
+        """Find local maxima.
+
+        Define zone of exclusion at edges of image, avoiding
+        - Features with incomplete image data ("radius")
+        - Extended particles that cannot be explored during subpixel
+        refinement ("separation")
+        - Invalid output of the bandpass step ("smoothing_size")
+        """
+        return tuple([
+            max(rad, sep // 2 - 1, sm // 2)
+            for (rad, sep, sm)
+            in zip(self.radius, self.separation, self.smoothing_size)
+        ])
+
+    def _find_coords(self):
+        """Find features with minimum separation distance of `separation`.
+
+        This excludes detection of small features close to large,
+        bright features using the `maxsize` argument.
+        """
+        return grey_dilation(
+            self.image,
+            self.separation,
+            percentile=self.percentile,
+            margin=self._find_margin(),
+            precise=False,
+        )
+
+    def _refine_coords(self, coords):
+        """Refine their locations and characterize mass, size, etc."""
+        return refine_com(
+            self.raw_image,
+            self.image,
+            self.radius,
+            coords,
+            max_iterations=self.max_iterations,
+            engine=self.engine,
+            characterize=self.characterize,
+        )
+
+    @property
+    def _pos_columns(self):
+        """Position column names."""
+        return default_pos_columns(self._ndim)
+
+    def _flat_peaks(self, refined_coords):
+        """Flat peaks return multiple nearby maxima. Eliminate duplicates."""
+        if np.all(np.greater(self.separation, 0)):
+            to_drop = where_close(
+                refined_coords[self._pos_columns],
+                self.separation,
+                refined_coords['mass'],
+            )
+            refined_coords.drop(to_drop, axis=0, inplace=True)
+            refined_coords.reset_index(drop=True, inplace=True)
         return refined_coords
 
-    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    if np.all(np.greater(separation, 0)):
-        to_drop = where_close(refined_coords[pos_columns], separation,
-                              refined_coords['mass'])
-        refined_coords.drop(to_drop, axis=0, inplace=True)
-        refined_coords.reset_index(drop=True, inplace=True)
+    def _account_for_scaling(self, refined_coords):
+        """Correct mass and signal values due to the rescaling.
 
-    # mass and signal values has to be corrected due to the rescaling
-    # raw_mass was obtained from raw image; size and ecc are scale-independent
-    refined_coords['mass'] /= scale_factor
-    if 'signal' in refined_coords:
-        refined_coords['signal'] /= scale_factor
-
-    # Filter on mass and size, if set.
-    condition = refined_coords['mass'] > minmass
-    if maxsize is not None:
-        condition &= refined_coords['size'] < maxsize
-    if not condition.all():  # apply the filter
-        # making a copy to avoid SettingWithCopyWarning
-        refined_coords = refined_coords.loc[condition].copy()
-
-    if len(refined_coords) == 0:
-        warnings.warn("No maxima survived mass- and size-based filtering. "
-                      "Be advised that the mass computation was changed from "
-                      "version 0.2.4 to 0.3.0 and from 0.3.3 to 0.4.0. "
-                      "See the documentation and the convenience functions "
-                      "'minmass_v03_change' and 'minmass_v04_change'.")
+        raw_mass was obtained from raw image;
+        size and ecc are scale-independent
+        """
+        refined_coords['mass'] /= self._scale_factor
+        if 'signal' in refined_coords:
+            refined_coords['signal'] /= self._scale_factor
         return refined_coords
 
-    if topn is not None and len(refined_coords) > topn:
-        # go through numpy for easy pandas backwards compatibility
-        mass = refined_coords['mass'].values
-        if topn == 1:
-            # special case for high performance and correct shape
-            refined_coords = refined_coords.iloc[[np.argmax(mass)]]
-        else:
-            refined_coords = refined_coords.iloc[np.argsort(mass)[-topn:]]
+    def _filter_on_mass_and_size(self, coords):
+        """Filter coords on mass and size, if set."""
+        condition = coords['mass'] > self.minmass
+        if self.maxsize is not None:
+            condition &= coords['size'] < self.maxsize
+        if not condition.all():  # apply the filter
+            # making a copy to avoid SettingWithCopyWarning
+            coords = coords.loc[condition].copy()
+        return coords
 
-    # Estimate the uncertainty in position using signal (measured in refine)
-    # and noise (measured here below).
-    if characterize:
-        black_level, noise = measure_noise(image, raw_image, radius)
-        Npx = N_binary_mask(radius, ndim)
-        mass = refined_coords['raw_mass'].values - Npx * black_level
-        ep = _static_error(mass, noise, radius, noise_size)
+    def _select_topn_coords(self, coords):
+        """Select top N coords."""
+        if self.topn is not None and len(coords) > self.topn:
+            # go through numpy for easy pandas backwards compatibility
+            mass = coords['mass'].values
+            if self.topn == 1:
+                # special case for high performance and correct shape
+                return coords.iloc[[np.argmax(mass)]]
+            else:
+                return coords.iloc[np.argsort(mass)[-self.topn:]]
+        return coords
 
-        if ep.ndim == 1:
-            refined_coords['ep'] = ep
-        else:
-            ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
-            refined_coords = pandas_concat([refined_coords, ep], axis=1)
+    def _account_for_noise(self, coords):
+        """Account to uncertainty in position.
 
-    # If this is a pims Frame object, it has a frame number.
-    # Tag it on; this is helpful for parallelization.
-    if hasattr(raw_image, 'frame_no') and raw_image.frame_no is not None:
-        refined_coords['frame'] = int(raw_image.frame_no)
-    return refined_coords
+        Estimate the uncertainty in position using signal (measured in refine)
+        and noise (measured here below).
+        """
+        if self.characterize:
+            black_level, noise = measure_noise(
+                image_bp=self.image,
+                image_raw=self.raw_image,
+                radius=self.radius,
+            )
+
+            Npx = N_binary_mask(self.radius, self._ndim)
+
+            ep = _static_error(
+                mass=coords['raw_mass'].values - Npx * black_level,
+                noise=noise,
+                radius=self.radius,
+                noise_size=self.noise_size,
+            )
+
+            if ep.ndim == 1:
+                coords['ep'] = ep
+            else:
+                columns = [
+                    '_'.join(['ep', cc])
+                    for cc in self._pos_columns
+                ]
+                ep = pd.DataFrame(ep, columns=columns)
+                coords = pandas_concat([coords, ep], axis=1)
+        return coords
+
+    def _add_frame_number_if_possible(self, coords):
+        # If this is a pims Frame object, it has a frame number.
+        # Tag it on; this is helpful for parallelization.
+        is_pims_frame = (
+            hasattr(self.raw_image, 'frame_no')
+            and self.raw_image.frame_no is not None
+        )
+        if is_pims_frame:
+            coords['frame'] = int(self.raw_image.frame_no)
+        return coords
 
 
 def batch(frames, diameter, output=None, meta=None, processes='auto',
