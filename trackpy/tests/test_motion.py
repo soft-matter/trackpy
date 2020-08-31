@@ -5,16 +5,10 @@ import six
 import numpy as np
 from pandas import DataFrame, Series
 
-try:
-    from pandas.testing import (
-        assert_series_equal,
-        assert_frame_equal,
-    )
-except ImportError:
-    from pandas.utils.testing import (
-        assert_series_equal,
-        assert_frame_equal,
-    )
+from pandas.testing import (
+    assert_series_equal,
+    assert_frame_equal,
+)
 
 from numpy.testing import assert_almost_equal
 

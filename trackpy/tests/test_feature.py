@@ -13,7 +13,7 @@ from numpy.testing import assert_allclose, assert_array_less
 try:
     from pandas._testing import assert_produces_warning
 except ImportError:
-    from pandas.utils.testing import assert_produces_warning
+    from pandas.util.testing import assert_produces_warning
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
