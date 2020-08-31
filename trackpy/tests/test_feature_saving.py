@@ -9,7 +9,11 @@ import warnings
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 import pandas
-from pandas.testing import (assert_series_equal, assert_frame_equal)
+
+try:
+    from pandas.testing import (assert_series_equal, assert_frame_equal)
+except ImportError:
+    from pandas.utils.testing import (assert_series_equal, assert_frame_equal)
 
 import trackpy as tp
 from trackpy.tests.common import StrictTestCase

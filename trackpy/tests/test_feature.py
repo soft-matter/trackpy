@@ -9,7 +9,11 @@ import warnings
 import numpy as np
 from pandas import DataFrame
 from numpy.testing import assert_allclose, assert_array_less
-from pandas.testing import assert_produces_warning
+
+try:
+    from pandas._testing import assert_produces_warning
+except ImportError:
+    from pandas.utils.testing import assert_produces_warning
 
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
