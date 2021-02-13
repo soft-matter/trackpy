@@ -45,7 +45,7 @@ jobs:
         run: |
           pip install --disable-pip-version-check --upgrade pip
           pip install --upgrade wheel
-          pip install pytest ${{ matrix.deps }};
+          pip install --no-build-isolation pytest ${{ matrix.deps }};
           pip list
 
       - name: Run tests
