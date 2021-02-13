@@ -16,14 +16,14 @@ print 'Compiling Numba...'
 tp.locate(dummy_noise_image, 9, engine='numba')
 
 print 'Locate using Python Engine with Default Settings (Accurate)'
-b(u"timeit tp.locate(real_image, 9, engine='python', preprocess=False)")
+b("timeit tp.locate(real_image, 9, engine='python', preprocess=False)")
 
 print 'Locate using Python Engine with Fast Settings (Sloppy)'
-b(u"timeit tp.locate(real_image, 9, engine='python', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+b("timeit tp.locate(real_image, 9, engine='python', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
 
 print 'Locate using Numba Engine with Default Settings (Accurate)'
-b(u"timeit tp.locate(real_image, 9, engine='numba', preprocess=False)")
+b("timeit tp.locate(real_image, 9, engine='numba', preprocess=False)")
 
 print 'Locate using Numba Engine with Fast Settings (Sloppy)'
-b(u"timeit tp.locate(real_image, 9, engine='numba', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+b("timeit tp.locate(real_image, 9, engine='numba', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
 

@@ -1,7 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
-
 from trackpy.static import *
 import pandas as pd
 import numpy as np

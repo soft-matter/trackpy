@@ -2,11 +2,6 @@
 # keimnathan@gmail.com
 
 """Tools to improve tracking performance by guessing where a particle will appear next."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
-from six.moves import zip
-
 from warnings import warn
 from collections import deque
 import functools
@@ -38,7 +33,7 @@ def null_predict(t1, particle):
     return (particle.pos)
 
 
-class NullPredict(object):
+class NullPredict:
     """Predict that particles will not move.
 
     (Equivalent to standard behavior of linker.)
@@ -159,7 +154,7 @@ class NearestVelocityPredict(_RecentVelocityPredict):
 
     def __init__(self, initial_guess_positions=None,
                  initial_guess_vels=None, span=1):
-        super(NearestVelocityPredict, self).__init__(span=span)
+        super().__init__(span=span)
         if initial_guess_positions is not None:
             self.use_initial_guess = True
             self.interpolator = NearestNDInterpolator(
@@ -208,7 +203,7 @@ class DriftPredict(_RecentVelocityPredict):
         Compute velocity field from the most recent span+1 frames.
     """
     def __init__(self, initial_guess=None, span=1):
-        super(DriftPredict, self).__init__(span=span)
+        super().__init__(span=span)
         self.initial_guess = initial_guess
 
     def observe(self, frame):
@@ -256,7 +251,7 @@ class ChannelPredict(_RecentVelocityPredict):
     """
     def __init__(self, bin_size, flow_axis='x', minsamples=20,
                  initial_profile_guess=None, span=1):
-        super(ChannelPredict, self).__init__(span=span)
+        super().__init__(span=span)
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
@@ -347,13 +342,13 @@ def instrumented(limit=None):
     def instrumentor(cls):
         class InstrumentedPredictor(cls):
             def __init__(self, *args, **kw):
-                super(InstrumentedPredictor, self).__init__(*args, **kw)
+                super().__init__(*args, **kw)
                 self.diag_observations = deque([], maxlen=limit)
                 self.diag_predictions = deque([], maxlen=limit)
 
             def observe(self, frame):
                 self.diag_observations.append(frame)
-                return super(InstrumentedPredictor, self).observe(frame)
+                return super().observe(frame)
 
             def predict(self, t1, particles):
                 poslist, tlist, tracklist = zip(*[
@@ -362,7 +357,7 @@ def instrumented(limit=None):
                 pdf[self.t_column] = tlist
                 pdf['particle'] = np.array(tracklist, dtype=int)
 
-                prediction = super(InstrumentedPredictor, self).predict(t1, particles)
+                prediction = super().predict(t1, particles)
                 pred_df = pd.DataFrame(prediction, columns=self.pos_columns)
                 dd = {'t1': t1,
                       'particledf': pdf.join(pred_df, rsuffix='_pred'),

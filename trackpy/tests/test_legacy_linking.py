@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
 import os
 from copy import deepcopy
 import unittest
@@ -69,7 +66,7 @@ def contracting_grid():
     return allpts
 
 
-class CommonTrackingTests(object):
+class CommonTrackingTests:
     do_diagnostics = False  # Don't ask for diagnostic info from linker
 
     def test_one_trivial_stepper(self):
@@ -662,11 +659,11 @@ class DiagnosticsTests(CommonTrackingTests):
 
     def link_df(self, *args, **kwargs):
         return self._strip_diag(
-            super(DiagnosticsTests, self).link_df(*args, **kwargs))
+            super().link_df(*args, **kwargs))
 
     def link_df_iter(self, *args, **kwargs):
         df = self._strip_diag(
-            super(DiagnosticsTests, self).link_df_iter(*args, **kwargs))
+            super().link_df_iter(*args, **kwargs))
         # pandas_concat() can mess with the column order if not all columns
         # are present in all DataFrames. So we enforce it here.
         return df.reindex(columns=['frame', 'x', 'y', 'particle'])
@@ -718,7 +715,7 @@ class TestKDTreeWithDropLink(CommonTrackingTests, StrictTestCase):
         without_subnet = self.link_df(f, 1.5, retain_index=True)
         assert_traj_equal(without_subnet, f_expected_without_subnet)
         with_subnet = self.link_df(f, 5, retain_index=True)
-        assert set(with_subnet.particle) == set((0, 1, 2))
+        assert set(with_subnet.particle) == {0, 1, 2}
 
 
 class TestBTreeWithRecursiveLink(SubnetNeededTests, StrictTestCase):

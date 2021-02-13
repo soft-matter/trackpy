@@ -1,8 +1,5 @@
 """These functions generate handy plots."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
-from six.moves import zip
+from collections.abc import Iterable
 from itertools import tee
 from functools import wraps
 import warnings
@@ -10,10 +7,6 @@ import logging
 
 import numpy as np
 
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
 try:
     from pims import plot_to_frame, plots_to_frame, normalize
 except ImportError:
@@ -479,13 +472,13 @@ def annotate(centroids, image, circle_size=None, color=None,
 
     if color is None:
         color = ['r']
-    if isinstance(color, six.string_types):
+    if isinstance(color, str):
         color = [color]
     if not isinstance(split_thresh, Iterable):
         split_thresh = [split_thresh]
 
     # The parameter image can be an image object or a filename.
-    if isinstance(image, six.string_types):
+    if isinstance(image, str):
         image = plt.imread(image)
     if invert:
         ax.imshow(1-image, **_imshow_style)

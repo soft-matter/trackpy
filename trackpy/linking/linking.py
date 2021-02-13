@@ -1,7 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
-from six.moves import range, zip
 import warnings
 import logging
 import itertools, functools
@@ -102,7 +98,7 @@ def link_iter(coords_iter, search_range, **kwargs):
 
     for t, coords in coords_iter:
         linker.next_level(coords, t)
-        logger.info("Frame {0}: {1} trajectories present.".format(t, len(linker.particle_ids)))
+        logger.info("Frame {}: {} trajectories present.".format(t, len(linker.particle_ids)))
         yield t, linker.particle_ids
 
 
@@ -307,7 +303,7 @@ def adaptive_link_wrap(source_set, dest_set, search_range, subnet_linker,
     return sn_spl, sn_dpl
 
 
-class Linker(object):
+class Linker:
     """Linker class that sequentially links ndarrays of coordinates together.
 
     The class can be used via the `init_level` and `next_level` methods.

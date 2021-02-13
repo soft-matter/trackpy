@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 What
@@ -49,7 +48,7 @@ BASE_COL="base[ms]"
 class RevParseAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         import subprocess
-        cmd = 'git rev-parse {0}'.format(values)
+        cmd = 'git rev-parse {}'.format(values)
         rev_parse = subprocess.check_output(cmd, shell=True)
         setattr(namespace, self.dest, rev_parse.strip())
 
@@ -192,8 +191,8 @@ def profile_comparative(benchmarks):
          repo.timestamps, repo.authors) = _parse_commit_log(None,REPO_PATH,
                                                                 args.base_commit)
 
-        prprint('Target [%s] : %s\n' % (h_head, repo.messages.get(h_head, "")))
-        prprint('Baseline [%s] : %s\n' % (h_baseline,
+        prprint('Target [{}] : {}\n'.format(h_head, repo.messages.get(h_head, "")))
+        prprint('Baseline [{}] : {}\n'.format(h_baseline,
                 repo.messages.get(h_baseline, "")))
 
         prprint("Removing any previous measurements for the commits.")
@@ -275,7 +274,7 @@ def profile_head_single(benchmark):
                         err = str(e)
                 except:
                     pass
-                print("%s died with:\n%s\nSkipping...\n" % (benchmark.name, err))
+                print("{} died with:\n{}\nSkipping...\n".format(benchmark.name, err))
 
             results.append(d.get('timing',np.nan))
             gc.enable()
@@ -346,9 +345,9 @@ def print_report(df,h_head=None,h_msg="",h_baseline=None,b_msg=""):
     s += "Seed used: %d\n\n" % args.seed
 
     if  h_head:
-        s += 'Target [%s] : %s\n' % (h_head, h_msg)
+        s += 'Target [{}] : {}\n'.format(h_head, h_msg)
     if  h_baseline:
-        s += 'Base   [%s] : %s\n\n' % (
+        s += 'Base   [{}] : {}\n\n'.format(
             h_baseline, b_msg)
 
     stats_footer = "\n"
@@ -464,7 +463,7 @@ def _parse_commit_log(this,repo_path,base_commit=None):
     from pandas import Series
     from dateutil import parser as dparser
 
-    git_cmd = 'git --git-dir=%s/.git --work-tree=%s ' % (repo_path, repo_path)
+    git_cmd = 'git --git-dir={}/.git --work-tree={} '.format(repo_path, repo_path)
     githist = git_cmd + ('log --graph --pretty=format:'+
                          '\"::%h::%cd::%s::%an\"'+
                          ('%s..' % base_commit)+

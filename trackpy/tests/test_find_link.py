@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
 import itertools
 import unittest
 
@@ -18,7 +15,7 @@ from trackpy.tests.test_linking import SubnetNeededTests, _skip_if_no_sklearn
 
 class FindLinkTests(SubnetNeededTests):
     def setUp(self):
-        super(FindLinkTests, self).setUp()
+        super().setUp()
         self.linker_opts['separation'] = 10
         self.linker_opts['diameter'] = 15
         self.linker_opts['preprocess'] = False
@@ -71,7 +68,7 @@ class FindLinkTests(SubnetNeededTests):
 class FindLinkTestsBTree(FindLinkTests):
     def setUp(self):
         _skip_if_no_sklearn()
-        super(FindLinkTestsBTree, self).setUp()
+        super().setUp()
         self.linker_opts['neighbor_strategy'] = 'BTree'
 
 
@@ -82,7 +79,7 @@ class FindLinkOneFailedFindTests(FindLinkTests):
     features in frame 3 are dropped, but that can be changed per-test via the
     dictionary ``FAIL_FRAME``."""
     def setUp(self):
-        super(FindLinkOneFailedFindTests, self).setUp()
+        super().setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
                           test_nearby_continuous_random_walks=10,
                           test_start_at_frame_other_than_zero=4,
@@ -111,7 +108,7 @@ class FindLinkManyFailedFindTests(FindLinkTests):
     new tracks are not recovered in the second pass by the FindLinker. Skip
     them by assigning ``None`` to them in ``FAIL_FRAME``."""
     def setUp(self):
-        super(FindLinkManyFailedFindTests, self).setUp()
+        super().setUp()
         FAIL_FRAME = dict(test_isolated_continuous_random_walks=5,
                           test_nearby_continuous_random_walks=10,
                           test_start_at_frame_other_than_zero=4,

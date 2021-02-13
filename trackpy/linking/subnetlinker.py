@@ -4,10 +4,6 @@ These are low-level functions that rigorously resolve cases when features
 can be linked in more than one way.
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
-from six.moves import range, zip
 from collections import deque
 
 import numpy as np
@@ -22,7 +18,7 @@ def recursive_linker_obj(s_sn, dest_size, search_range, max_size=30, diag=False)
     return [list(particles) for particles in zip(*snl.best_pairs)]
 
 
-class SubnetLinker(object):
+class SubnetLinker:
     """A helper class for implementing the Crocker-Grier tracking
     algorithm.  This class handles the recursion code for the sub-net linking"""
     def __init__(self, s_sn, dest_size, search_range, max_size=30):

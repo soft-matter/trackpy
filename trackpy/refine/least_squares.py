@@ -1,6 +1,3 @@
-from __future__ import division, print_function, absolute_import
-
-import six
 import logging
 import warnings
 import numpy as np
@@ -168,7 +165,7 @@ def vect_to_params(vect, params, modes, groups=None):
     return result
 
 
-class FitFunctions(object):
+class FitFunctions:
     """Helper class maintaining fit functions and bounds.
 
     See also
@@ -741,8 +738,8 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
         logging = False
 
     if ndim != len(pos_columns):
-        raise ValueError('The image dimensionality ({0}) does not match the '
-                         'number of dimensions in the feature DataFrame ({1})'
+        raise ValueError('The image dimensionality ({}) does not match the '
+                         'number of dimensions in the feature DataFrame ({})'
                          ''.format(ndim, str(pos_columns)))
     if t_column not in f:
         raise ValueError('The expected column for frame indices ("{0}") is not '
@@ -861,9 +858,9 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
 
             # check the final difference between fit and image
             if rms_dev > max_rms_dev:
-                raise RefineException('The rms deviation of the fit ({0:.4f} is'
+                raise RefineException('The rms deviation of the fit ({:.4f} is'
                                       'more than the maximum value of '
-                                      '{1:.4f}.'.format(rms_dev, max_rms_dev))
+                                      '{:.4f}.'.format(rms_dev, max_rms_dev))
 
             # estimate the errors using the Hessian matrix
             # see Bevington PR, Robinson DK (2003) Data reduction and error

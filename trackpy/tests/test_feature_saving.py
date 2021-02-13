@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
 import functools
 import os
 import unittest
@@ -28,16 +25,6 @@ warnings.filterwarnings("ignore", message="get_store is deprecated")
 path, _ = os.path.split(os.path.abspath(__file__))
 
 
-# This is six stuff here because pandas.HDFStore is fussy about the string type of one of
-# its option args. There seems to be no good reason for that at all.
-if six.PY2:
-    zlib = six.binary_type('zlib')
-elif six.PY3:
-    zlib = 'zlib'
-else:
-    raise("six is confused")
-
-
 def _random_hash():
     return ''.join(map(str, np.random.randint(0, 10, 10)))
 
@@ -49,7 +36,7 @@ def _skip_if_no_pytables():
         raise unittest.SkipTest('pytables not installed. Skipping.')
 
 
-class FeatureSavingTester(object):
+class FeatureSavingTester:
     def prepare(self, batch_params=None):
         directory = os.path.join(path, 'video', 'image_sequence')
         v = TrackpyImageSequence(os.path.join(directory, '*.png'))
@@ -63,12 +50,12 @@ class FeatureSavingTester(object):
                                  **self.PARAMS)
 
     def test_storage(self):
-        STORE_NAME = 'temp_for_testing_{0}.h5'.format(_random_hash())
+        STORE_NAME = 'temp_for_testing_{}.h5'.format(_random_hash())
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
         try:
             s = self.storage_class(STORE_NAME)
-        except IOError:
+        except OSError:
             unittest.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
             tp.batch(self.v, output=s, engine='python', meta=False,
@@ -108,12 +95,12 @@ class TestPandasHDFStoreBig(FeatureSavingTester, StrictTestCase):
 
     def test_cache(self):
         """Store some frames, make a cache, then store some more frames."""
-        STORE_NAME = 'temp_for_testing_{0}.h5'.format(_random_hash())
+        STORE_NAME = 'temp_for_testing_{}.h5'.format(_random_hash())
         if os.path.isfile(STORE_NAME):
             os.remove(STORE_NAME)
         try:
             s = self.storage_class(STORE_NAME)
-        except IOError:
+        except OSError:
             unittest.SkipTest('Cannot make an HDF5 file. Skipping')
         else:
             framedata = self.expected[self.expected.frame == 0]
@@ -171,7 +158,7 @@ class TestPandasHDFStoreBigCompressed(FeatureSavingTester, StrictTestCase):
         _skip_if_no_pytables()
         self.prepare()
         self.storage_class = functools.partial(
-            tp.PandasHDFStoreBig, complevel=4, complib=zlib,
+            tp.PandasHDFStoreBig, complevel=4, complib='zlib',
             fletcher32=True)
 
 
@@ -189,7 +176,7 @@ class TestPandasHDFStoreSingleNodeCompressed(FeatureSavingTester,
         self.prepare()
         self.storage_class = functools.partial(
             tp.PandasHDFStoreSingleNode,
-            complevel=4, complib=zlib, fletcher32=True)
+            complevel=4, complib='zlib', fletcher32=True)
 
 
 if __name__ == '__main__':

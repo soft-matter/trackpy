@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
 import itertools
 
 import numpy as np
@@ -92,7 +89,7 @@ def verify_integrity(df):
                                   "label in Frames {}.".format(where_not_equal))
 
 
-class Point(object):
+class Point:
     '''
     Base class for point (features) used in tracking.  This class
     contains all of the general stuff for interacting with
@@ -171,7 +168,7 @@ class Point(object):
         return self._track
 
 
-class TrackUnstored(object):
+class TrackUnstored:
     """
     Base class for objects to represent linked tracks.
 

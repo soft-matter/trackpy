@@ -2,7 +2,6 @@
 Detect particles in brightfield mode by tracking a ring of dark pixels around a
 bright interior part. Based on https://github.com/caspervdw/circletracking
 """
-from __future__ import division, print_function, absolute_import
 
 import warnings
 import numpy as np
@@ -89,8 +88,8 @@ def locate_brightfield_ring(raw_image, diameter, separation=None,
     # Check whether the image looks suspiciously like a color image.
     if 3 in shape or 4 in shape:
         dim = raw_image.ndim
-        warnings.warn("I am interpreting the image as {0}-dimensional. "
-                      "If it is actually a {1}-dimensional color image, "
+        warnings.warn("I am interpreting the image as {}-dimensional. "
+                      "If it is actually a {}-dimensional color image, "
                       "convert it to grayscale first.".format(dim, dim-1))
 
     image = raw_image
