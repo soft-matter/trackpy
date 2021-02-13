@@ -39,7 +39,8 @@ def make_axes(func):
         import matplotlib.pyplot as plt
         if kwargs.get('ax') is None:
             kwargs['ax'] = plt.gca()
-            show_plot = True
+            # show plot unless the matplotlib backend is headless
+            show_plot = (plt.get_backend() != "agg")
         else:
             show_plot = False
 
