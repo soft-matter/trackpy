@@ -34,4 +34,4 @@ jobs:
         shell: bash
         run: |
           source activate test
-          pytest
+          pytest trackpy
