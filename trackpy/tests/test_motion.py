@@ -4,12 +4,18 @@ import six
 
 import numpy as np
 from pandas import DataFrame, Series
-from pandas.util.testing import (assert_series_equal, assert_frame_equal,
-                                 assert_almost_equal)
+
+from pandas.testing import (
+    assert_series_equal,
+    assert_frame_equal,
+)
+
+from numpy.testing import assert_almost_equal
 
 import trackpy as tp
 from trackpy.utils import pandas_sort, pandas_concat
 from trackpy.tests.common import StrictTestCase
+
 
 def random_walk(N):
     return np.cumsum(np.random.randn(N))

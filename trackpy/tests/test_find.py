@@ -7,7 +7,11 @@ import trackpy as tp
 from trackpy.artificial import draw_feature
 from trackpy.tests.common import assert_coordinates_close, StrictTestCase
 from trackpy.find import grey_dilation, grey_dilation_legacy
-from pandas.util.testing import assert_produces_warning
+
+try:
+    from pandas._testing import assert_produces_warning
+except ImportError:
+    from pandas.util.testing import assert_produces_warning
 
 
 class TestFindGreyDilation(StrictTestCase):
