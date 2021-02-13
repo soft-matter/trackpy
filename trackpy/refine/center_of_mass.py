@@ -122,7 +122,7 @@ def refine_com_arr(raw_image, image, radius, coords, max_iterations=10,
             engine = 'python'
 
     # In here, coord is an integer. Make a copy, will not modify inplace.
-    coords = np.round(coords).astype(np.int)
+    coords = np.round(coords).astype(int)
 
     if engine == 'python':
         results = _refine(raw_image, image, radius, coords, max_iterations,

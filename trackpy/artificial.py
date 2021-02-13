@@ -103,7 +103,7 @@ def draw_feature(image, position, size, max_value=None, feat_func='gauss',
         upper_bound = min(int(np.ceil(c + m / 2 + 1)), lim)
         rect.append(slice(lower_bound, upper_bound))
         vectors.append(np.arange(lower_bound - c, upper_bound - c) / s)
-    coords = np.meshgrid(*vectors, indexing='ij', sparse=True)
+    coords = np.meshgrid(*vectors, indexing='ij')
     r = np.sqrt(np.sum(np.array(coords)**2, axis=0))
     spot = max_value * feat_func(r, ndim=image.ndim, **kwargs)
     image[tuple(rect)] += spot.astype(image.dtype)
