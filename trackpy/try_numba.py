@@ -1,4 +1,5 @@
 import sys
+import warnings
 
 # re-import some builtins for legacy numba versions if future is installed
 try:
@@ -13,7 +14,10 @@ NUMBA_AVAILABLE = True
 message = ''
 
 try:
-    import numba
+    # numba deprecationwarnings from numpy 1.20
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", module="numpy")
+        import numba
 except ImportError:
     NUMBA_AVAILABLE = False
     message = ("To use numba-accelerated variants of core "
