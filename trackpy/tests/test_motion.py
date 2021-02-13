@@ -20,7 +20,7 @@ def random_walk(N):
 def conformity(df):
     """ Organize toy data to look like real data. Be strict about dtypes:
     particle is a float and frame is an integer."""
-    df['frame'] = df['frame'].astype(np.int)
+    df['frame'] = df['frame'].astype(int)
     df['particle'] = df['particle'].astype(np.float)
     df['x'] = df['x'].astype(np.float)
     df['y'] = df['y'].astype(np.float)
@@ -95,7 +95,7 @@ class TestDrift(StrictTestCase):
     def test_subtract_zero_drift(self):
         N = 10
         drift = DataFrame(np.zeros((N - 1, 2)),
-                          np.arange(1, N, dtype=np.int)).astype('float64')
+                          np.arange(1, N, dtype=int)).astype('float64')
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
         actual = tp.subtract_drift(self.dead_still, drift)
@@ -110,7 +110,7 @@ class TestDrift(StrictTestCase):
         # Add a constant drift here, and then use subtract_drift to
         # subtract it.
         drift = DataFrame(np.outer(np.arange(N - 1), [1, 1]),
-                          index=np.arange(1, N, dtype=np.int)).astype('float64')
+                          index=np.arange(1, N, dtype=int)).astype('float64')
         drift.columns = ['x', 'y']
         drift.index.name = 'frame'
         actual = tp.subtract_drift(add_drift(self.dead_still, drift), drift)

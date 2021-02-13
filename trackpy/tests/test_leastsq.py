@@ -97,7 +97,7 @@ class RefineTsts:
                           indexing='ij')
         pos = np.array([p.ravel() for p in pos], dtype=np.float).T[:N] + margin
         pos += (np.random.random(pos.shape) - 0.5)  #randomize subpixel location
-        shape = tuple(np.max(pos, axis=0).astype(np.int) + margin)
+        shape = tuple(np.max(pos, axis=0).astype(int) + margin)
         if signal_dev > 0:
             signal = self.signal * np.random.uniform(1-signal_dev, 1+signal_dev,
                                                      N)
@@ -144,7 +144,7 @@ class RefineTsts:
         elif self.ndim == 3 and angle is not None:
             angles = np.repeat([angle], N, axis=0)
 
-        shape = tuple(np.max(pos, axis=0).astype(np.int) + margin)
+        shape = tuple(np.max(pos, axis=0).astype(int) + margin)
         if signal_dev > 0:
             signal = self.signal * np.random.uniform(1-signal_dev, 1+signal_dev,
                                                      N)

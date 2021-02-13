@@ -306,10 +306,10 @@ class FindLinkPredictTest:
             indices = [_f['frame'].iloc[0] for _f in f]
             f = pandas.concat([_f for _f in f])
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
-                np.int)
+                int)
             f[['y', 'x']] -= topleft
             shape = (f[['y', 'x']].max().values + 4 * separation).astype(
-                np.int)
+                int)
             reader = CoordinateReader(f, shape, size, t=indices)
 
             pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
@@ -331,10 +331,10 @@ class FindLinkPredictTest:
             separation = kw['separation']
             f = f.copy()
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
-                np.int)
+                int)
             f[['y', 'x']] -= topleft
             shape = (f[['y', 'x']].max().values + 4 * separation).astype(
-                np.int)
+                int)
             reader = CoordinateReader(f, shape, size,
                                       t=f['frame'].unique())
 
@@ -363,10 +363,10 @@ class FindLinkPredictTest:
             indices = [_f['frame'].iloc[0] for _f in f]
             f = pandas.concat([_f for _f in f])
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
-                np.int)
+                int)
             f[['y', 'x']] -= topleft
             shape = (f[['y', 'x']].max().values + 4 * separation).astype(
-                np.int)
+                int)
             reader = CoordinateReader(f, shape, size, t=indices)
 
             for i, frame in trackpy.find_link_iter(reader,

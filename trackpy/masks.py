@@ -98,7 +98,7 @@ def get_slice(coords, shape, radius):
     # interpret parameters
     ndim = len(shape)
     radius = validate_tuple(radius, ndim)
-    coords = np.atleast_2d(np.round(coords).astype(np.int))
+    coords = np.atleast_2d(np.round(coords).astype(int))
     # drop features that have no pixels inside the image
     in_bounds = np.array([(coords[:, i] >= -r) & (coords[:, i] < sh + r)
                          for i, sh, r in zip(range(ndim), shape, radius)])

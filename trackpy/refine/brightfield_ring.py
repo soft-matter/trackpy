@@ -164,7 +164,7 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
     if axis == 0:
         arr = arr.T
     if np.issubdtype(arr.dtype, np.unsignedinteger):
-        arr = arr.astype(np.int)
+        arr = arr.astype(int)
 
     values = np.nanpercentile(arr, 5, axis=1)
     rdev = []

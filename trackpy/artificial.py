@@ -216,7 +216,7 @@ def draw_array(N, size, separation=None, ndim=2, **kwargs):
                       indexing='ij')
     pos = np.array([p.ravel() for p in pos], dtype=np.float).T[:N] + margin
     pos += (np.random.random(pos.shape) - 0.5)  #randomize subpixel location
-    shape = tuple(np.max(pos, axis=0).astype(np.int) + margin)
+    shape = tuple(np.max(pos, axis=0).astype(int) + margin)
     return pos, draw_spots(shape, pos, size, **kwargs)
 
 

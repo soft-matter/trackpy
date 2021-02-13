@@ -124,7 +124,7 @@ class TestReproducibility(StrictTestCase):
     def test_link_nomemory(self):
         expected = pd.DataFrame(self.coords_link,
                                 columns=self.pos_columns + ['frame'])
-        expected['frame'] = expected['frame'].astype(np.int)
+        expected['frame'] = expected['frame'].astype(int)
         actual = tp.link(expected, **self.link_params)
         expected['particle'] = self.expected_link
 
@@ -133,7 +133,7 @@ class TestReproducibility(StrictTestCase):
     def test_link_memory(self):
         expected = pd.DataFrame(self.coords_link,
                                 columns=self.pos_columns + ['frame'])
-        expected['frame'] = expected['frame'].astype(np.int)
+        expected['frame'] = expected['frame'].astype(int)
         actual = tp.link(expected, memory=self.memory, **self.link_params)
         expected['particle'] = self.expected_link_memory
 

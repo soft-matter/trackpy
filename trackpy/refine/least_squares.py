@@ -1246,7 +1246,7 @@ def _wrap_constraints(constraints, params_const, modes, groups=None):
         return []
 
     if groups is not None:
-        cl_sizes = np.array([len(g) for g in groups[0]], dtype=np.int)
+        cl_sizes = np.array([len(g) for g in groups[0]], dtype=int)
 
     result = []
     for cons in constraints:

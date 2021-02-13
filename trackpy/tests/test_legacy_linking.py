@@ -530,14 +530,14 @@ class SubnetNeededTests(CommonTrackingTests):
         actual = self.link_df(f, 13)
         pandas_sort(case1, ['x'], inplace=True)
         pandas_sort(actual, ['x'], inplace=True)
-        assert_array_equal(actual['particle'].values.astype(np.int),
-                           case1['particle'].values.astype(np.int))
+        assert_array_equal(actual['particle'].values.astype(int),
+                           case1['particle'].values.astype(int))
 
         actual = self.link_df(f, 12)
         pandas_sort(case2, ['x'], inplace=True)
         pandas_sort(actual, ['x'], inplace=True)
-        assert_array_equal(actual['particle'].values.astype(np.int),
-                           case2['particle'].values.astype(np.int))
+        assert_array_equal(actual['particle'].values.astype(int),
+                           case2['particle'].values.astype(int))
 
     def test_memory(self):
         """A unit-stepping trajectory and a random walk are observed
