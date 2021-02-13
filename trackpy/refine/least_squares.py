@@ -424,7 +424,7 @@ def prepare_subimage(coords, image, radius):
     # to mask the image
     mask_total = np.any(dist, axis=0).T
     # to mask the masked image
-    masks_singles = np.empty((len(coords), mask_total.sum()), dtype=np.bool)
+    masks_singles = np.empty((len(coords), mask_total.sum()), dtype=bool)
     for i, _dist in enumerate(dist):
         masks_singles[i] = _dist.T[mask_total]
 

@@ -95,7 +95,7 @@ class RefineTsts:
         Nsqrt = int(N**(1/self.ndim) + 0.9999)
         pos = np.meshgrid(*[np.arange(0, s * Nsqrt, s) for s in separation],
                           indexing='ij')
-        pos = np.array([p.ravel() for p in pos], dtype=np.float).T[:N] + margin
+        pos = np.array([p.ravel() for p in pos], dtype=float).T[:N] + margin
         pos += (np.random.random(pos.shape) - 0.5)  #randomize subpixel location
         shape = tuple(np.max(pos, axis=0).astype(int) + margin)
         if signal_dev > 0:
@@ -133,7 +133,7 @@ class RefineTsts:
         Nsqrt = int(N**(1/self.ndim) + 0.9999)
         pos = np.meshgrid(*[np.arange(0, s * Nsqrt, s) for s in separation],
                           indexing='ij')
-        pos = np.array([p.ravel() for p in pos], dtype=np.float).T[:N] + margin
+        pos = np.array([p.ravel() for p in pos], dtype=float).T[:N] + margin
         pos += (np.random.random(pos.shape) - 0.5)  #randomize subpixel location
         if self.ndim == 2 and angle is None:
             angles = np.random.uniform(0, 2*np.pi, N)
@@ -180,14 +180,14 @@ class RefineTsts:
     def to_dataframe(self, coords, signal, size, cluster_size=1):
         f0 = pd.DataFrame(coords, columns=self.pos_columns)
         f0['signal'] = signal
-        f0['signal'] = f0['signal'].astype(np.float)
+        f0['signal'] = f0['signal'].astype(float)
         if self.isotropic:
             f0[self.size_columns[0]] = size[0]
-            f0[self.size_columns[0]] = f0[self.size_columns[0]].astype(np.float)
+            f0[self.size_columns[0]] = f0[self.size_columns[0]].astype(float)
         else:
             for col, s in zip(self.size_columns, size):
                 f0[col] = s
-                f0[col] = f0[col].astype(np.float)
+                f0[col] = f0[col].astype(float)
         f0['cluster'] = np.repeat(np.arange(len(coords) // cluster_size),
                                   cluster_size)
         f0['cluster_size'] = cluster_size
@@ -958,11 +958,11 @@ class TestFitFunctions(StrictTestCase):
             background, signal, yc, xc, size = p
             return background + signal*np.exp(-((y - yc)**2/size**2 + (x - xc)**2/size**2))
         ff = FitFunctions('gauss', ndim=2, isotropic=True)
-        params = np.array([[5, 200, 4, 5, 6]], dtype=np.float)
+        params = np.array([[5, 200, 4, 5, 6]], dtype=float)
 
         image = np.random.random(self.repeats) * 200
         mesh = np.random.random((ff.ndim, self.repeats)) * 10
-        masks = np.full((1, self.repeats), True, dtype=np.bool)
+        masks = np.full((1, self.repeats), True, dtype=bool)
 
         residual, jacobian = ff.get_residual([image], [mesh], [masks], params)
 

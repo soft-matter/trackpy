@@ -98,7 +98,7 @@ class CommonTrackingTests(StrictTestCase):
         assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input
-        f['frame'] = f['frame'].astype(np.float)
+        f['frame'] = f['frame'].astype(float)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
@@ -634,7 +634,7 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
         assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input: frame column type is propagated in link_iter
-        f['frame'] = f['frame'].astype(np.float)
+        f['frame'] = f['frame'].astype(float)
         actual = self.link(f, 5)
         assert np.issubdtype(actual['particle'], np.integer)
         assert np.issubdtype(actual['frame'], np.floating)
@@ -666,7 +666,7 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
         assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input: frame column type is propagated in link_df_iter
-        f['frame'] = f['frame'].astype(np.float)
+        f['frame'] = f['frame'].astype(float)
         actual = self.link(f, 5)
         assert np.issubdtype(actual['particle'], np.integer)
         assert np.issubdtype(actual['frame'], np.floating)

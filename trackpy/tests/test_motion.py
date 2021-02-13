@@ -21,9 +21,9 @@ def conformity(df):
     """ Organize toy data to look like real data. Be strict about dtypes:
     particle is a float and frame is an integer."""
     df['frame'] = df['frame'].astype(int)
-    df['particle'] = df['particle'].astype(np.float)
-    df['x'] = df['x'].astype(np.float)
-    df['y'] = df['y'].astype(np.float)
+    df['particle'] = df['particle'].astype(float)
+    df['x'] = df['x'].astype(float)
+    df['y'] = df['y'].astype(float)
     df.set_index('frame', drop=False, inplace=True)
     return pandas_sort(df, by=['frame', 'particle'])
 
@@ -148,8 +148,8 @@ class TestMSD(StrictTestCase):
     def test_zero_emsd(self):
         N = 10
         actual = tp.emsd(self.dead_still, 1, 1)
-        expected = Series(np.zeros(N, dtype=np.float),
-                          index=np.arange(N, dtype=np.float)).iloc[1:]
+        expected = Series(np.zeros(N, dtype=float),
+                          index=np.arange(N, dtype=float)).iloc[1:]
         expected.index.name = 'lagt'
         expected.name = 'msd'
         # HACK: Float64Index imprecision ruins index equality.

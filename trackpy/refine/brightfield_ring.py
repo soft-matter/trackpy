@@ -312,7 +312,7 @@ def _unwrap_ellipse(image, params, rad_range, num_points=None, spline_order=4,
              pos[:, :, np.newaxis]
     # interpolate the image on computed coordinates
     intensity = map_coordinates(image, coords, order=spline_order,
-                                output=np.float, mode='constant',
+                                output=float, mode='constant',
                                 cval=fill_value)
     return intensity, pos, normal
 

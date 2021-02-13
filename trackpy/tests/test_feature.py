@@ -91,7 +91,7 @@ class OldMinmass(StrictTestCase):
         old_minmass = 5500
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=8,
                         noise_level=50)
-        im = (im / im.max()).astype(np.float)
+        im = (im / im.max()).astype(float)
 
         new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
