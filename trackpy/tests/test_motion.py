@@ -78,10 +78,6 @@ class TestDrift(StrictTestCase):
         actual_rolling = tp.compute_drift(self.dead_still, smoothing=2)
         assert_frame_equal(actual_rolling, expected[['y', 'x']])
 
-        # Small random drift
-        actual = tp.compute_drift(self.many_walks)
-        assert_frame_equal(actual, expected[['y', 'x']])
-
     def test_constant_drift(self):
         N = 10
         expected = DataFrame({'x': np.arange(N), 'y': np.zeros(N)}).iloc[1:]
