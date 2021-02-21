@@ -91,7 +91,7 @@ class OldMinmass(StrictTestCase):
         old_minmass = 5500
         im = draw_spots(self.shape, self.pos, self.size, bitdepth=8,
                         noise_level=50)
-        im = (im / im.max()).astype(np.float)
+        im = (im / im.max()).astype(float)
 
         new_minmass = self.minmass_v02_to_v04(im, old_minmass)
         f = tp.locate(im, self.tp_diameter, minmass=new_minmass)
@@ -674,7 +674,7 @@ class CommonFeatureIdentificationTests:
         draw_size = 4.5
         locate_diameter = 21
         N = 200
-        noise_levels = (np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]) * (2**12 - 1)).astype(np.int)
+        noise_levels = (np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]) * (2**12 - 1)).astype(int)
         real_rms_dev = []
         eps = []
         actual_black_level = []

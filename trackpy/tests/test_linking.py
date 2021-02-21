@@ -90,7 +90,7 @@ class CommonTrackingTests(StrictTestCase):
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                        'frame': np.arange(N)})
         # Integer-typed input
-        f['frame'] = f['frame'].astype(np.int)
+        f['frame'] = f['frame'].astype(int)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
@@ -98,7 +98,7 @@ class CommonTrackingTests(StrictTestCase):
         assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input
-        f['frame'] = f['frame'].astype(np.float)
+        f['frame'] = f['frame'].astype(float)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
@@ -491,14 +491,14 @@ class SubnetNeededTests(CommonTrackingTests):
         actual = self.link(f, 13)
         pandas_sort(case1, ['x'], inplace=True)
         pandas_sort(actual, ['x'], inplace=True)
-        assert_equal(actual['particle'].values.astype(np.int),
-                     case1['particle'].values.astype(np.int))
+        assert_equal(actual['particle'].values.astype(int),
+                     case1['particle'].values.astype(int))
 
         actual = self.link(f, 12)
         pandas_sort(case2, ['x'], inplace=True)
         pandas_sort(actual, ['x'], inplace=True)
-        assert_equal(actual['particle'].values.astype(np.int),
-                     case2['particle'].values.astype(np.int))
+        assert_equal(actual['particle'].values.astype(int),
+                     case2['particle'].values.astype(int))
 
     def test_memory(self):
         """A unit-stepping trajectory and a random walk are observed
@@ -626,7 +626,7 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                        'frame': np.arange(N)})
         # Integer-typed input
-        f['frame'] = f['frame'].astype(np.int)
+        f['frame'] = f['frame'].astype(int)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
@@ -634,7 +634,7 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
         assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input: frame column type is propagated in link_iter
-        f['frame'] = f['frame'].astype(np.float)
+        f['frame'] = f['frame'].astype(float)
         actual = self.link(f, 5)
         assert np.issubdtype(actual['particle'], np.integer)
         assert np.issubdtype(actual['frame'], np.floating)
@@ -658,7 +658,7 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                        'frame': np.arange(N)})
         # Integer-typed input
-        f['frame'] = f['frame'].astype(np.int)
+        f['frame'] = f['frame'].astype(int)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed
@@ -666,7 +666,7 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
         assert np.issubdtype(actual['frame'], np.integer)
 
         # Float-typed input: frame column type is propagated in link_df_iter
-        f['frame'] = f['frame'].astype(np.float)
+        f['frame'] = f['frame'].astype(float)
         actual = self.link(f, 5)
         assert np.issubdtype(actual['particle'], np.integer)
         assert np.issubdtype(actual['frame'], np.floating)

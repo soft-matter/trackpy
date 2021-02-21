@@ -64,7 +64,7 @@ def _msd_N(N, t):
     tracking. Analysis of diffusion and flow in two-dimensional systems."
     Biophysical journal 60.4 (1991): 910.
     """
-    t = np.array(t, dtype=np.float)
+    t = np.array(t, dtype=float)
     return np.where(t > N/2,
                     1/(1+((N-t)**3+5*t-4*(N-t)**2*t-N)/(6*(N-t)*t**2)),
                     6*(N-t)**2*t/(2*N-t+4*N*t**2-5*t**3))

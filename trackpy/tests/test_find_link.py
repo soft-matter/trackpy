@@ -37,9 +37,9 @@ class FindLinkTests(SubnetNeededTests):
         separation = kwargs['separation']
         f = f.copy()
         f[['y', 'x']] *= separation
-        topleft = (f[['y', 'x']].min().values - 4 * separation).astype(np.int)
+        topleft = (f[['y', 'x']].min().values - 4 * separation).astype(int)
         f[['y', 'x']] -= topleft
-        shape = (f[['y', 'x']].max().values + 4 * separation).astype(np.int)
+        shape = (f[['y', 'x']].max().values + 4 * separation).astype(int)
         reader = CoordinateReader(f, shape, size)
         if kwargs.get('adaptive_stop', None) is not None:
             kwargs['adaptive_stop'] *= separation
@@ -152,7 +152,7 @@ class FindLinkSpecialCases(StrictTestCase):
         _kwargs.update(kwargs)
         if remove is not None:
             callback_coords = f.loc[f['frame'] == 1, ['y', 'x']].values
-            remove = np.array(remove, dtype=np.int)
+            remove = np.array(remove, dtype=int)
             if np.any(remove < 0) or np.any(remove > len(callback_coords)):
                 raise RuntimeError('Invalid test: `remove` is out of bounds.')
             callback_coords = np.delete(callback_coords, remove, axis=0)

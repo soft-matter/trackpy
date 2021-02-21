@@ -601,7 +601,7 @@ def characterize(coords, image, radius, scale_factor=1.):
     isotropic = is_isotropic(radius)
 
     # largely based on trackpy.refine.center_of_mass._refine
-    coords_i = np.round(coords).astype(np.int)
+    coords_i = np.round(coords).astype(int)
     mass = np.full(N, np.nan)
     signal = np.full(N, np.nan)
     ecc = np.full(N, np.nan)

@@ -98,7 +98,7 @@ def get_slice(coords, shape, radius):
     # interpret parameters
     ndim = len(shape)
     radius = validate_tuple(radius, ndim)
-    coords = np.atleast_2d(np.round(coords).astype(np.int))
+    coords = np.atleast_2d(np.round(coords).astype(int))
     # drop features that have no pixels inside the image
     in_bounds = np.array([(coords[:, i] >= -r) & (coords[:, i] < sh + r)
                          for i, sh, r in zip(range(ndim), shape, radius)])
@@ -186,7 +186,7 @@ def get_mask(pos, shape, radius, include_edge=True, return_masks=False):
                    for p in pos]
     mask_total = np.any(in_mask, axis=0).T
     if return_masks:
-        masks_single = np.empty((len(pos), mask_total.sum()), dtype=np.bool)
+        masks_single = np.empty((len(pos), mask_total.sum()), dtype=bool)
         for i, _in_mask in enumerate(in_mask):
             masks_single[i] = _in_mask.T[mask_total]
         return mask_total, masks_single

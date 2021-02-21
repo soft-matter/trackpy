@@ -179,7 +179,7 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
     f = f.copy()
     # coerce t_column to integer type
     if not np.issubdtype(f[t_column].dtype, np.integer):
-        f[t_column] = f[t_column].astype(np.integer)
+        f[t_column] = f[t_column].astype(int)
     # sort on the t_column
     pandas_sort(f, t_column, inplace=True)
 

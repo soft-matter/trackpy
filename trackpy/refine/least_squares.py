@@ -424,7 +424,7 @@ def prepare_subimage(coords, image, radius):
     # to mask the image
     mask_total = np.any(dist, axis=0).T
     # to mask the masked image
-    masks_singles = np.empty((len(coords), mask_total.sum()), dtype=np.bool)
+    masks_singles = np.empty((len(coords), mask_total.sum()), dtype=bool)
     for i, _dist in enumerate(dist):
         masks_singles[i] = _dist.T[mask_total]
 
@@ -839,9 +839,16 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
                 residual, jacobian = ff.get_residual(sub_images, meshes, masks,
                                                      params, groups, norm)
 
-                result = minimize(residual, vect, bounds=f_bounds,
-                                  constraints=f_constraints, jac=jacobian,
-                                  **_kwargs)
+                with warnings.catch_warnings():
+                    # see https://github.com/scipy/scipy/pull/13009 (issue in scipy 1.5)
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="Values in x were outside bounds during a minimize step, clipping to bounds",
+                        category=RuntimeWarning,
+                    )
+                    result = minimize(residual, vect, bounds=f_bounds,
+                                    constraints=f_constraints, jac=jacobian,
+                                    **_kwargs)
                 if not result['success']:
                     raise RefineException(result['message'])
 
@@ -1246,7 +1253,7 @@ def _wrap_constraints(constraints, params_const, modes, groups=None):
         return []
 
     if groups is not None:
-        cl_sizes = np.array([len(g) for g in groups[0]], dtype=np.int)
+        cl_sizes = np.array([len(g) for g in groups[0]], dtype=int)
 
     result = []
     for cons in constraints:
