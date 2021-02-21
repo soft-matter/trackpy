@@ -233,7 +233,7 @@ class TestLocateBrightfieldRing(StrictTestCase):
             assert not equal_shape
 
     def test_min_edge(self):
-        image = np.zeros(self.image_size, dtype=np.float)
+        image = np.zeros(self.image_size, dtype=float)
 
         ix = int(np.round(float(self.image_size[1])/2.0))
         image[:, :ix] += 230.0
@@ -244,7 +244,7 @@ class TestLocateBrightfieldRing(StrictTestCase):
         assert_allclose(result, float(ix)+0.5, atol=0.1)
 
     def test_min_edge_noisy(self):
-        image = np.zeros(self.image_size, dtype=np.float)
+        image = np.zeros(self.image_size, dtype=float)
         image += np.random.randint(1, 255, image.shape).astype(float)
 
         ix = int(np.round(float(self.image_size[1])/2.0))
