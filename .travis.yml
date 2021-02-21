@@ -2,19 +2,9 @@ language: python
 
 jobs:
   include:
-    # "Legacy" environments: oldest supported versions, without and with optional dependencies
-    - python: "3.5"
-      env: DEPS="numpy=1.13.1 scipy=0.19.1 matplotlib=2.0.2 pandas=0.20.3 pyyaml" BUILD_DOCS=true
-    - python: "3.5"
-      env: DEPS="numpy=1.13.1 scipy=0.19.1 matplotlib=2.0.2 pillow=4.2.1 pandas=0.20.3 scikit-image=0.13.0 pytables scikit-learn=0.19.0 pyyaml" BUILD_DOCS=true
-    # "Typical" environments: versions 2-3 years old
-    # Python 3, circa September 2017 (Anaconda 5.0.0)
+    # Python 3, circa September 2017 (Anaconda 5.0.0), used for building docs
     - python: "3.5"
       env: DEPS="numpy=1.13.1 scipy=0.19.1 matplotlib=2.0.2 pillow=4.2.1 pandas=0.20.3 scikit-image=0.13.0 pytables numba=0.35.0 scikit-learn=0.19.0 pyyaml" BUILD_DOCS=true
-    # Environments with most recent versions
-    - python: "3.7"
-      env: DEPS="numpy scipy!=1.5.0 matplotlib pillow pandas scikit-image pytables numba scikit-learn pyyaml pytables"  BUILD_DOCS=false
-
 
 install:
   - conda update --yes conda

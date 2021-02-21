@@ -45,3 +45,6 @@ doc/tutorial/*_files
 .idea
 doc/examples/index.rst
 soft-matter-docs-deploy
+
+# VS Code
+.vscode
