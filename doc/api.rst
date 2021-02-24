@@ -48,6 +48,7 @@ Linking
     link_iter
     link_df_iter
     link_partial
+    reconnect_traj_patch
 
 
 :func:`~trackpy.linking.link` and :func:`~trackpy.linking.link_df_iter` run
