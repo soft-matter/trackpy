@@ -6,7 +6,8 @@ from scipy.optimize import minimize
 from ..static import cluster
 from ..masks import slice_image
 from ..utils import (guess_pos_columns, validate_tuple, is_isotropic, safe_exp,
-                     ReaderCached, default_pos_columns, default_size_columns)
+                     ReaderCached, default_pos_columns, default_size_columns,
+                     is_scipy_15)
 from .center_of_mass import refine_com
 
 try:
@@ -694,6 +695,13 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
     with sub-pixel accuracy and precision. J. Phys. Condens. Mat. 29:44001 (2017)
     DOI: http://dx.doi.org/10.1088/1361-648X/29/4/044001
     """
+    if is_scipy_15:
+        # see https://github.com/scipy/scipy/pull/13009
+        warnings.warn(
+            "refine_leastsq does not work well with scipy 1.5.*. "
+            "We recommend upgrading or downgrading the scipy version."
+        )
+
     _kwargs = dict(method='SLSQP', tol=1E-6,
                    options=dict(maxiter=100, disp=False))
     _kwargs.update(kwargs)
@@ -838,17 +846,9 @@ def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
                                                               radius)
                 residual, jacobian = ff.get_residual(sub_images, meshes, masks,
                                                      params, groups, norm)
-
-                with warnings.catch_warnings():
-                    # see https://github.com/scipy/scipy/pull/13009 (issue in scipy 1.5)
-                    warnings.filterwarnings(
-                        "ignore",
-                        message="Values in x were outside bounds during a minimize step, clipping to bounds",
-                        category=RuntimeWarning,
-                    )
-                    result = minimize(residual, vect, bounds=f_bounds,
-                                    constraints=f_constraints, jac=jacobian,
-                                    **_kwargs)
+                result = minimize(residual, vect, bounds=f_bounds,
+                                constraints=f_constraints, jac=jacobian,
+                                **_kwargs)
                 if not result['success']:
                     raise RefineException(result['message'])
 

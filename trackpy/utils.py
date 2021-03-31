@@ -24,6 +24,12 @@ try:
 except ValueError:  # Probably a development version
     is_pandas_since_023 = True
 
+# Emit warnings in refine.least_squares for scipy 1.5
+try:
+    is_scipy_15 = LooseVersion("1.5.0") <= LooseVersion(scipy.__version__) < LooseVersion('1.6.0')
+except ValueError:  # Probably a development version
+    is_scipy_15 = False
+
 
 def fit_powerlaw(data, plot=True, **kwargs):
     """Fit a powerlaw by doing a linear regression in log space."""
