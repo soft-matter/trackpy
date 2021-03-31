@@ -1,4 +1,5 @@
-from .utils import cKDTree, guess_pos_columns
+from scipy.spatial import cKDTree
+from .utils import guess_pos_columns
 import numpy as np
 from pandas import DataFrame
 

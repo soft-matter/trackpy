@@ -12,8 +12,7 @@ from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.linking.legacy import (link, link_df, link_df_iter,
                                     PointND, Hash_table, strip_diagnostics,
                                     SubnetOversizeException)
-from trackpy.utils import (is_pandas_since_016,
-                           pandas_sort, pandas_concat, validate_tuple)
+from trackpy.utils import pandas_sort, pandas_concat, validate_tuple
 from trackpy.tests.common import StrictTestCase, assert_traj_equal
 
 

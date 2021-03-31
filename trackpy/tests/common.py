@@ -3,7 +3,8 @@ import unittest
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal, assert_array_equal
 import trackpy as tp
-from trackpy.utils import cKDTree, pandas_sort, make_pandas_strict
+from scipy.spatial import cKDTree
+from trackpy.utils import pandas_sort, make_pandas_strict
 from trackpy.artificial import SimulatedImage
 from matplotlib.pyplot import imread
 

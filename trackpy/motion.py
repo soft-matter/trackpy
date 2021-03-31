@@ -4,8 +4,7 @@ from pandas import DataFrame, Series
 
 import warnings
 from warnings import warn
-from .utils import (pandas_sort, pandas_concat, pandas_rolling,
-                    guess_pos_columns)
+from .utils import pandas_sort, pandas_concat, guess_pos_columns
 
 
 def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
@@ -287,7 +286,7 @@ def compute_drift(traj, smoothing=0, pos_columns=None):
     mask = (f_diff['particle'] == 0) & (f_diff['frame_diff'] == 1)
     dx = f_diff.loc[mask, list(pos_columns) + ['frame']].groupby('frame').mean()
     if smoothing > 0:
-        dx = pandas_rolling(dx, smoothing, min_periods=0)
+        dx = dx.rolling(smoothing, min_periods=0).mean()
     return dx.cumsum()
 
 
