@@ -15,6 +15,9 @@ from trackpy.refine.brightfield_ring import (_min_edge, _fit_circle)
 
 path, _ = os.path.split(os.path.abspath(__file__))
 
+# we need to use a low value for min_percentile because the artificial
+# edge is very sharp
+MIN_PERC = 0.5
 
 def draw_artificial_image(shape, pos, radius, noise_level, dip=False,
                           traditional=False, **kwargs):
@@ -29,6 +32,7 @@ def draw_artificial_image(shape, pos, radius, noise_level, dip=False,
     image = draw_features_brightfield(shape, pos, size, noise_level, dip=dip)
 
     if not traditional:
+        kwargs.update({'min_percentile': MIN_PERC})
         result = locate_brightfield_ring(image, diameter, **kwargs)
     else:
         result = locate(image, diameter, **kwargs)
@@ -240,19 +244,18 @@ class TestLocateBrightfieldRing(StrictTestCase):
         image[:, [ix, ix+1]] = 0.0
         image[:, ix+2:] += 100.0
 
-        result = _min_edge(image, 0.45, 2)
+        result = _min_edge(image, 0.45, 2, min_percentile=MIN_PERC)
         assert_allclose(result, float(ix)+0.5, atol=0.1)
 
     def test_min_edge_noisy(self):
         image = np.zeros(self.image_size, dtype=float)
-        image += np.random.randint(1, 255, image.shape).astype(float)
 
         ix = int(np.round(float(self.image_size[1])/2.0))
-        image[:, :ix] += np.mean(image)
-        image[:, [ix, ix+1]] = 0.0
-        image[image > 255] = 255.0
+        image[:, :ix] += np.random.uniform(150.0, 255.0, image[:, :ix].shape)
+        image[:, [ix, ix+1]] += np.random.uniform(0.0, 50.0, image[:, [ix, ix+1]].shape)
+        image[:, (ix+2):] += np.random.uniform(80.0, 110.0, image[:, (ix+2):].shape)
 
-        result = _min_edge(image, 0.45, 2)
+        result = _min_edge(image, 0.45, 2, min_percentile=MIN_PERC)
         assert_allclose(result, float(ix)+0.5, atol=0.1)
 
     def test_fit_circle(self):

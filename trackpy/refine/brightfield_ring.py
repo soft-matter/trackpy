@@ -4,6 +4,7 @@ bright interior part. Based on https://github.com/caspervdw/circletracking
 """
 import numpy as np
 import pandas as pd
+import warnings
 
 from scipy.ndimage import map_coordinates
 from scipy import stats
@@ -95,6 +96,10 @@ def _refine_brightfield_ring(image, radius, coords_df, min_points_frac=0.35,
         The maximum relative difference in the true and tracked radius.
         The condition abs(Rtrue - Rtracked) / Rtrue < max_r_dev should hold,
         otherwise the refinement is retried.
+    min_percentile : float
+        The percentile (0.0-100.0) below which pixels are considered as part of
+        the dark ring around the feature. Use lower values for features that
+        have sharper, more defined edges.
 
     Returns
     -------
@@ -159,23 +164,30 @@ def _retry(image, radius, coords_df, min_points_frac, max_ev, rad_range,
     return None, None, None
 
 def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
-              bright_left_factor=1.2):
+              bright_left_factor=1.2, min_percentile=5.0):
     """ Find min value of each row """
     if axis == 0:
         arr = arr.T
     if np.issubdtype(arr.dtype, np.unsignedinteger):
         arr = arr.astype(int)
 
-    values = np.nanpercentile(arr, 5, axis=1)
-    rdev = []
-    for row, min_val in zip(arr, values):
-        argmin = np.where(row < min_val)[0]
-        if len(argmin) == 0:
-            rdev.append(np.nan)
-        else:
-            rdev.append(np.mean(argmin))
+    # column numbers
+    indices = np.indices(arr.shape)[1]
 
-    r_dev = np.array(rdev)
+    # values below min_percentile% for each row
+    values = np.nanpercentile(arr, min_percentile, axis=1)
+    bc_values = np.repeat(values[:, np.newaxis], indices.shape[1], axis=1)
+
+    # allow np.nan's in comparison, these are filtered later
+    with np.errstate(invalid='ignore'):
+        # get column numbers of lowest edge values < min_percentile%
+        r_dev = np.where((arr < bc_values) & ~np.isnan(arr) & ~np.isnan(bc_values), indices, np.nan)
+
+    # allow all np.nan slices, these are filtered later
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+        # then take the median of the column indices, ignoring nan's
+        r_dev = np.nanmedian(r_dev, axis=1)
 
     # threshold on edge
     abs_thr = threshold * np.nanmax(arr)
