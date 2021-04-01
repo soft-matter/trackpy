@@ -303,6 +303,14 @@ def adaptive_link_wrap(source_set, dest_set, search_range, subnet_linker,
     return sn_spl, sn_dpl
 
 
+def _sort_key_spl_dpl(x):
+    # Remove this once Linker.SORT_TRAJECTORIES option is gone.
+    if x[0] is not None:
+        return list(x[0].pos)
+    else:
+        return list(x[1].pos)
+
+
 class Linker:
     """Linker class that sequentially links ndarrays of coordinates together.
 
@@ -354,6 +362,9 @@ class Linker:
     MAX_SUB_NET_SIZE_ADAPTIVE = 15
     # Maximum number of candidates per particle
     MAX_NEIGHBORS = 10
+    # Whether to sort trajectories before assigning particle IDs,
+    # to make IDs reproducible at cost of performance (deprecated)
+    SORT_TRAJECTORIES = False
 
     def __init__(self, search_range, memory=0, predictor=None,
                  adaptive_stop=None, adaptive_step=0.95,
@@ -525,7 +536,17 @@ class Linker:
 
     def apply_links(self, spl, dpl):
         new_mem_set = set()
-        for sp, dp in zip(spl, dpl):
+        if self.SORT_TRAJECTORIES:
+            warnings.warn(DeprecationWarning(
+                          'Support for reproducible particle IDs '
+                          '(via Linker.SORT_TRAJECTORIES = True) is deprecated '
+                          'and will likely be removed in a future release. '
+                          'Consider referring to specific particles by coordinates instead.'))
+            pairs = sorted(zip(spl, dpl), key=_sort_key_spl_dpl)
+        else:
+            pairs = zip(spl, dpl)
+
+        for sp, dp in pairs:
             # Do linking
             if sp is not None and dp is not None:
                 sp.track.add_point(dp)

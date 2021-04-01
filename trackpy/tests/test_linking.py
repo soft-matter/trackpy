@@ -712,6 +712,39 @@ class TestNonrecursiveLink(SubnetNeededTests):
         self.linker_opts = dict(link_strategy='nonrecursive')
 
 
+class TestSortTrajectories(SubnetNeededTests):
+    # Remove once trajectory sorting is disabled.
+    def link(self, f, search_range, *args, **kwargs):
+        kwargs = dict(self.linker_opts, **kwargs)
+        assert not Linker.SORT_TRAJECTORIES
+        try:
+            Linker.SORT_TRAJECTORIES = True
+            with self.assertWarns(DeprecationWarning):
+                result = link(f, search_range, *args, **kwargs)
+        finally:
+            Linker.SORT_TRAJECTORIES = False
+        return result
+
+    def test_sort_trajectories(self):
+        N = 5
+        # Particles maintain their relative positions, so their identities should
+        # be unambiguous if sorting by pos.
+        a = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
+        b = DataFrame({'x': np.arange(1, N), 'y': 2*np.ones(N-1), 'frame': np.arange(1, N)})
+        c = DataFrame({'x': np.arange(2, N+1), 'y': 3*np.ones(N-1), 'frame': np.arange(1, N)})
+        f = pandas_concat([a, b, c])
+
+        actual = self.link(pandas_sort(f, 'frame'), 5)
+
+        # Change which particle is added first in the second frame
+        f1 = pandas_concat([a, c, b])
+        actual_swapped = self.link(pandas_sort(f1, 'frame'), 5)
+        assert_traj_equal(actual, actual_swapped)
+        # Assigned particle IDs should be identical.
+        assert_equal(pandas_sort(actual, 'particle').values,
+                     pandas_sort(actual_swapped, 'particle').values)
+
+
 class TestBTreeLink(SubnetNeededTests):
     def setUp(self):
         _skip_if_no_sklearn()
