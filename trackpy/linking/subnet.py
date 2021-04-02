@@ -3,9 +3,10 @@ import functools
 
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 from .utils import points_to_arr
-from ..utils import default_pos_columns, cKDTree
+from ..utils import default_pos_columns
 
 try:
     from sklearn.neighbors import BallTree

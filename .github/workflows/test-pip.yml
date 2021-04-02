@@ -10,15 +10,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # "Legacy" environments: oldest supported versions, without and with optional dependencies
-          - python: 3.5
-            display_name: "no optional deps"
-            numpy: "numpy==1.13.*"
-            deps: "scipy==0.19.* matplotlib==2.0.* pandas==0.20.* pyyaml"
-          - python: 3.5
-            display_name: "no numba"
-            numpy: "numpy==1.13.*"
-            deps: "scipy==0.19.* matplotlib==2.0.* pillow==4.2.* pandas==0.20.* scikit-image==0.13.* tables==3.3.* scikit-learn==0.19.* pyyaml==3.12"
           # 2017
           - python: 3.6
             numpy: "numpy==1.14.*"
@@ -26,7 +17,7 @@ jobs:
           # 2018
           - python: 3.7
             numpy: "numpy==1.16.*"
-            deps: "scipy==1.3.* matplotlib==2.2.* pillow==5.3.* pandas==0.23.* scikit-image==0.14.* tables==3.5.* scikit-learn==0.20.* pyyaml==3.13 numba==0.39.* llvmlite==0.24."
+            deps: "scipy==1.3.* matplotlib==2.2.* pillow==5.3.* pandas==0.23.* scikit-image==0.14.* tables==3.5.* scikit-learn==0.20.* pyyaml==3.13 numba==0.45.* llvmlite==0.29.*"
           # 2019
           - python: 3.8
             numpy: "numpy==1.18.*"
