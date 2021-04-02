@@ -2,6 +2,7 @@ language: python
 
 jobs:
   include:
+    # Note: Apr 2, 2021. This is only used for building the docs now, testing happens in Github actions.
     - python: "3.8"
       env: DEPS="numpy scipy matplotlib pillow pandas scikit-image pytables numba scikit-learn pyyaml" BUILD_DOCS=true
 
