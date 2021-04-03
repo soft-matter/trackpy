@@ -9,7 +9,8 @@ are generated, which may cause issues with reproducibility in some existing
 workflows (see "API Changes" below).
 
 Note that Python 2 reached end-of-life in 2020, and it is no longer officially
-supported by trackpy.
+supported by trackpy. Also, trackpy dropped support for older NumPy, Scipy and Pandas.
+The current minimum requirements are: ``python>=3.6 numpy>=1.14 scipy>=1.1 pandas>=0.22``.
 
 Enhancements
 ~~~~~~~~~~~~
