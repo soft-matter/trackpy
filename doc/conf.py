@@ -352,3 +352,7 @@ epub_copyright = '2010-2014 Trackpy Contributors'
 
 # If false, no index is generated.
 #epub_use_index = True
+
+autosummary_mock_imports = [
+  'trackpy.tests',
+]

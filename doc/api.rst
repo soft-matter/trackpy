@@ -277,3 +277,5 @@ A full overview of all modules and functions can be found below:
 
     trackpy
 
+..
+  Note: we excluded trackpy.tests in conf.py (autosummary_mock_imports)
