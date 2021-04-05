@@ -8,13 +8,6 @@ try:
 except OSError:
     descr = ''
 
-try:
-    from pypandoc import convert
-    descr = convert(descr, 'rst', format='md')
-except ImportError:
-    pass
-
-
 # In some cases, the numpy include path is not present by default.
 # Let's try to obtain it.
 try:
@@ -43,6 +36,7 @@ setup_parameters = dict(
     ],
     packages = ['trackpy', 'trackpy.refine', 'trackpy.linking', 'trackpy.locate_functions'],
     long_description = descr,
+    long_description_content_type='text/markdown'
 )
 
 setup(**setup_parameters)
