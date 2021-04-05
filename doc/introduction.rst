@@ -107,7 +107,7 @@ Author(s)                    Project URL                                        
 Crocker and Grier            http://physics.nyu.edu/grierlab/software.html       IDL
 Crocker and Weeks            http://www.physics.emory.edu/~weeks/idl/            IDL
 Blair and Dufresne           http://physics.georgetown.edu/matlab/               MATLAB
-Maria Kilfoil                https://github.com/rmcgorty/ParticleTracking-Python MATLAB and Python
+Maria Kilfoil et al.         https://github.com/rmcgorty/ParticleTracking-Python Python
 Graham Milne                 http://zone.ni.com/devzone/cda/epd/p/id/948         LabVIEW
 Ryan Smith and Gabe Spalding http://titan.iwu.edu/~gspaldin/rytrack.html         stand alone/IDL GUI
 Peter J Lu                   https://github.com/peterlu/PLuTARC_centerfind2D     C++ (identification only)
