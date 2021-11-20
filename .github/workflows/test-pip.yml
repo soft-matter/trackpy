@@ -52,10 +52,8 @@ jobs:
       - name: Install python dependencies
         shell: bash
         run: |
-          pip install --disable-pip-version-check --upgrade pip
-          pip install --upgrade wheel
-          pip install --no-build-isolation ${{ matrix.numpy }};
-          pip install --no-build-isolation pytest ${{ matrix.deps }};
+          pip install --disable-pip-version-check --upgrade pip wheel
+          pip install --no-build-isolation pytest ${{ matrix.numpy }} ${{ matrix.deps }};
           pip list
 
       - name: Run tests
