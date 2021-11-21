@@ -28,7 +28,7 @@ def dependencies():
         optional dependency is not installed, None
     """
     packages = ['numpy', 'scipy', 'matplotlib', 'pandas',
-                'skimage', 'sklearn', 'pyyaml', 'tables', 'numba', 'pims']
+                'sklearn', 'pyyaml', 'tables', 'numba', 'pims']
     result = OrderedDict()
 
     # trackpy itself comes first

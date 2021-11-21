@@ -12,30 +12,28 @@ jobs:
         include:
           # 2017
           - python: 3.6
-            numpy: "numpy==1.14.*"
-            deps: "scipy==1.1.* matplotlib==2.1.* pillow==4.3.* pandas==0.22.* scikit-image==0.13.* tables==3.4.* scikit-learn==0.19.* pyyaml==3.12 numba==0.32.* llvmlite==0.17.*"
+            numpy: "numpy==1.14.*"  # pre-install numpy due to issue in numba 0.32 wheel building
+            deps: "pytest scipy==1.1.* matplotlib==2.1.* pillow==4.3.* pandas==0.22.* tables==3.4.* scikit-learn==0.19.* pyyaml numba==0.32.* llvmlite==0.17.*"
           # 2018
           - python: 3.7
-            numpy: "numpy==1.16.*"
-            deps: "scipy==1.3.* matplotlib==2.2.* pillow==5.3.* pandas==0.23.* scikit-image==0.14.* tables==3.5.* scikit-learn==0.20.* pyyaml==3.13 numba==0.45.* llvmlite==0.29.*"
+            deps: "pytest numpy==1.16.* scipy==1.3.* matplotlib==2.2.* pillow==5.3.* pandas==0.23.* tables==3.5.* scikit-learn==0.20.* pyyaml numba==0.45.* llvmlite==0.29.*"
           # 2019
           - python: 3.8
-            numpy: "numpy==1.18.*"
-            deps: "scipy==1.4.* matplotlib==3.1.* pillow==6.2.* pandas==0.25.* scikit-image==0.16.* tables==3.6.* scikit-learn==0.22.* pyyaml==5.3.* numba==0.47.* llvmlite==0.31.*"
+            deps: "pytest numpy==1.18.* scipy==1.4.* matplotlib==3.1.* pillow==6.2.* pandas==0.25.* tables==3.6.* scikit-learn==0.22.* pyyaml numba==0.47.* llvmlite==0.31.*"
           # 2020
           - python: 3.9
-            numpy: "numpy==1.19.*"
-            deps: "scipy==1.5.* matplotlib==3.3.* pillow==8.0.* pandas==1.1.* scikit-image==0.18.* tables==3.6.* scikit-learn==0.24.* pyyaml==5.4.* numba==0.53rc1.post1 llvmlite==0.36rc1"
+            deps: "pytest numpy==1.19.* scipy==1.5.* matplotlib==3.3.* pillow==8.0.* pandas==1.1.* tables==3.6.* scikit-learn==0.24.* pyyaml numba==0.53.* llvmlite==0.36.*"
+          # 2021 (use Py3.9; no numba yet for Py3.10)
+          - python: 3.9
+            deps: "pytest numpy==1.21.* scipy==1.7.* matplotlib==3.5.* pillow==8.4.* pandas==1.3.* tables==3.6.* scikit-learn==1.0.* pyyaml numba==0.54.* llvmlite==0.37.*"
           # most recent
           - python: '3.x'
-            display_name: "latest, no numba"
-            numpy: "numpy"
-            deps: "scipy matplotlib pillow pandas scikit-image tables scikit-learn pyyaml" 
+            display_name: "latest, no optional deps"
+            deps: "pytest numpy scipy matplotlib pillow pandas pyyaml" 
           # most recent
           - python: '3.x'
             display_name: "pre-releases"
-            numpy: "--pre numpy"
-            deps: "--pre scipy matplotlib pillow pandas scikit-image tables scikit-learn pyyaml numba llvmlite" 
+            deps: "--pre pytest numpy scipy matplotlib pillow pandas pyyaml" 
 
 
     steps:
@@ -53,7 +51,10 @@ jobs:
         shell: bash
         run: |
           pip install --disable-pip-version-check --upgrade pip wheel
-          pip install --no-build-isolation pytest ${{ matrix.numpy }} ${{ matrix.deps }};
+          if [-z "${{ matrix.numpy }}" ]; then
+            pip install --no-build-isolation ${{ matrix.numpy }};
+          fi
+          pip install --no-build-isolation ${{ matrix.deps }};
           pip list
 
       - name: Run tests
