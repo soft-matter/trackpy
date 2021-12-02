@@ -4,13 +4,13 @@ on: [push, pull_request]
 
 jobs:
   TestConda:
-    name: ${{ matrix.os }} - ${{ matrix.channel || 'defaults' }} - Python ${{ matrix.python }} (GEOS ${{ matrix.geos || 'latest' }}, numpy ${{ matrix.numpy || 'latest' }})
+    name: ${{ matrix.os }} - Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: [3.8]
+        python: [3.8, 3.9]
 
     steps:
       - uses: actions/checkout@v2
@@ -24,7 +24,7 @@ jobs:
       - name: Setup Environment
         shell: bash
         run: |
-          conda create --name test python=${{ matrix.python }} pytest numpy scipy matplotlib pillow pandas scikit-image pytables numba scikit-learn pyyaml
+          conda create --name test python=${{ matrix.python }} pytest numpy scipy matplotlib pandas pytables numba scikit-learn pyyaml
           source activate test
           python -V
           conda info
