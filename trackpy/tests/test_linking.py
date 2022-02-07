@@ -717,7 +717,7 @@ class TestBTreeLink(SubnetNeededTests):
         _skip_if_no_sklearn()
         self.linker_opts = dict(neighbor_strategy='BTree')
 
-    def test_custom_dist_func(self):
+    def test_custom_dist_pyfunc(self):
         # Several 2D random walkers
         N = 5
         length = 5
@@ -749,6 +749,32 @@ class TestBTreeLink(SubnetNeededTests):
         # link using a custom distance function
         actual = self.link(f_radial, search_range, pos_columns=['r', 'angle'],
                            dist_func=dist_func)
+        assert_traj_equal(actual, expected)
+
+
+    def test_custom_dist_metric(self):
+        import sklearn.neighbors
+
+        # Several 2D random walkers
+        N = 5
+        length = 5
+        step_size = 2
+        search_range = 3
+
+        steps = (np.random.random((2, length, N)) - 0.5) * step_size
+        x, y = np.cumsum(steps, axis=2)
+        f = DataFrame(dict(x=x.ravel(), y=y.ravel(),
+                           frame=np.repeat(np.arange(length), N)))
+
+        # link in normal (2D Euclidean) coordinates
+        expected = self.link(f, search_range)
+
+        # leave x, y for the comparison at the end
+
+        dist_func = sklearn.neighbors.DistanceMetric.get_metric("euclidean")
+        
+        # link using a custom distance function
+        actual = self.link(f, search_range, dist_func=dist_func)
         assert_traj_equal(actual, expected)
 
 
