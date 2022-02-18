@@ -10,7 +10,10 @@ from ..utils import default_pos_columns
 
 try:
     from sklearn.neighbors import BallTree
-    from sklearn.metrics import DistanceMetric
+    try:
+        from sklearn.metrics import DistanceMetric
+    except ImportError:
+        from sklearn.neighbors import DistanceMetric
 except ImportError:
     BallTree = None
 
