@@ -10,6 +10,10 @@ from ..utils import default_pos_columns
 
 try:
     from sklearn.neighbors import BallTree
+    try:
+        from sklearn.metrics import DistanceMetric
+    except ImportError:
+        from sklearn.neighbors import DistanceMetric
 except ImportError:
     BallTree = None
 
@@ -195,8 +199,12 @@ class HashBTree(HashBase):
             if self.dist_func is None:
                 self._btree = BallTree(coords_mapped)
             else:
-                self._btree = BallTree(coords_mapped,
-                                       metric='pyfunc', func=self.dist_func)
+                if isinstance(self.dist_func, DistanceMetric):
+                    self._btree = BallTree(coords_mapped,
+                                           metric=self.dist_func)
+                else:
+                    self._btree = BallTree(coords_mapped,
+                                           metric='pyfunc', func=self.dist_func)
         # This could be tuned
         self._clean = True
 
