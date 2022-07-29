@@ -24,7 +24,7 @@ jobs:
       - name: Setup Environment
         shell: bash
         run: |
-          conda create --name test python=${{ matrix.python }} pytest numpy scipy matplotlib pandas pytables numba scikit-learn pyyaml
+          conda create --name test python=${{ matrix.python }} pytest numpy scipy matplotlib pandas pytables numba scikit-learn pyyaml looseversion
           source activate test
           python -V
           conda info
