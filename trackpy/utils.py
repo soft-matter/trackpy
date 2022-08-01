@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Hashable
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from distutils.version import LooseVersion
+from looseversion import LooseVersion
 from multiprocessing.pool import Pool
 
 import pandas as pd

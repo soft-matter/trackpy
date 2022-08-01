@@ -25,7 +25,7 @@ setup_parameters = dict(
     author = "Trackpy Contributors",
     author_email = "daniel.b.allan@gmail.com",
     url = "https://github.com/soft-matter/trackpy",
-    install_requires = ['numpy>=1.14', 'scipy>=1.1', 'pandas>=0.22', 'pyyaml', 'matplotlib'],
+    install_requires = ['numpy>=1.14', 'scipy>=1.1', 'pandas>=0.22', 'pyyaml', 'matplotlib', "looseversion>=1.0.1"],
     python_requires=">=3.6",
     classifiers=[
         "Programming Language :: Python :: 3",
