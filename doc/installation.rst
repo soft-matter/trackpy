@@ -128,6 +128,7 @@ Essential Dependencies:
 * `matplotlib <http://matplotlib.org/>`__
 * `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__
 * `pyyaml <http://pyyaml.org/>`__
+* `looseversion <https://pypi.org/project/looseversion/>`__
 
 You will also want to install the `pims <http://soft-matter.github.io/pims/>`_
 package that simplifies image-reading, and that is used in the trackpy tutorials.
