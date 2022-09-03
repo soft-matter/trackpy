@@ -190,13 +190,46 @@ class NearestVelocityPredictTests(VelocityPredictTests):
     def test_initial_guess(self):
         """When an accurate initial velocity is given, velocities
         in the first pair of frames may be large."""
+
+        # Initializing a guess without specifying pos_columns should
+        # raise a warning.
+        with self.assertWarns(Warning):
+            pred = self.predict_class(
+                initial_guess_positions=[(0., 0.)],
+                initial_guess_vels=[(1, -1)])
+
         pred = self.predict_class(
             initial_guess_positions=[(0., 0.)],
-            initial_guess_vels=[(1, -1)])
+            initial_guess_vels=[(-1, 1)],
+            pos_columns=['y', 'x'])
         ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
                                  self.mkframe(200)),
                                 pred, 45)
         assert all(ll.values == 3)
+
+        # Since we can't specify nonstandard pos_columns for find_link,
+        # skip the remaining checks if we're testing find_link
+        if getattr(self, 'coords_via_images', False):
+            return
+
+        # Giving a pos_columns to the linker that conflicts with the one
+        # used to initialize the predictor raises an error.
+        pred = self.predict_class(
+            initial_guess_positions=[(0., 0.)],
+            initial_guess_vels=[(1, -1)],
+            pos_columns=['x', 'y'])
+        with self.assertRaises(ValueError):
+            ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                          self.mkframe(200)),
+                                         pred, 45, pos_columns=['y', 'x'])
+        # Giving the same pos_columns is OK.
+        pred = self.predict_class(
+            initial_guess_positions=[(0., 0.)],
+            initial_guess_vels=[(1, -1)],
+            pos_columns=['x', 'y'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                      self.mkframe(200)),
+                                     pred, 45, pos_columns=['x', 'y'])
 
     def test_pos_columns(self):
         """Test that pos_columns can be specified in any order, or not at all.
@@ -252,10 +285,35 @@ class DriftPredictTests(VelocityPredictTests):
     def test_initial_guess(self):
         """When an accurate initial velocity is given, velocities
         in the first pair of frames may be large."""
-        pred = self.predict_class(initial_guess=(1, -1))
+
+        # Initializing a guess without specifying pos_columns should
+        # raise a warning.
+        with self.assertWarns(Warning):
+            pred = self.predict_class(initial_guess=(1, -1))
+
+        # A bad initial guess will fail.
+        pred = self.predict_class(initial_guess=(1, -1), pos_columns=['y', 'x'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                      self.mkframe(200)),
+                                     pred, 45)
+        assert not all(ll.values == 3)
+
+        pred = self.predict_class(initial_guess=(-1, 1), pos_columns=['y', 'x'])
         ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
                                  self.mkframe(200)),
                                  pred, 45)
+        assert all(ll.values == 3)
+
+        # Since we can't specify nonstandard pos_columns for find_link,
+        # skip the remaining check if we're testing find_link
+        if getattr(self, 'coords_via_images', False):
+            return
+
+        # The guess is interpreted according to pos_columns
+        pred = self.predict_class(initial_guess=(1, -1), pos_columns=['x', 'y'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                      self.mkframe(200)),
+                                     pred, 45)
         assert all(ll.values == 3)
 
 
@@ -480,7 +538,7 @@ class FindLinkIterWithPrediction(FindLinkWithPrediction):
             # predictor, or it would be automatically set by pred.link_df etc.
             # We must specify it before the predictor is given any
             # particle position data.
-            if pred.pos_columns is None:
+            if getattr(pred, 'pos_columns', None) is None:
                 pred.pos_columns = guess_pos_columns(f)
             pred.t_column = kw.get('t_column', 'frame')
 

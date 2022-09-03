@@ -58,11 +58,27 @@ class NullPredict:
         f0 = next(frames)
         args[0] = itertools.chain([f0], frames)
 
-        self.pos_columns = kw.get('pos_columns', guess_pos_columns(f0))
-        # Ensure that the linker uses the same pos_columns.
+        # Sort out pos_columns, which must match what the linker is using.
+        # The user may have already specified it, especially if they are giving
+        # an initial guess to a velocity predictor. If so, make sure that the
+        # value given to the linker matches.
+        if getattr(self, 'pos_columns', None) is not None:
+            pos_columns = self.pos_columns
+            if 'pos_columns' in kw and kw['pos_columns'] is not None and any(
+                    [spc != ppc for (spc, ppc) in
+                     zip(pos_columns, kw['pos_columns'])]):
+                    raise ValueError('The optional pos_columns given to the linker '
+                                     'conflicts with the pos_columns used to initialize '
+                                     'this predictor.')
+        else:
+            # If no explicit pos_columns has been given anywhere, now is the time
+            # to guess.
+            pos_columns = kw.get('pos_columns', guess_pos_columns(f0))
+            self.pos_columns = pos_columns
+        # No matter what, ensure that the linker uses the same pos_columns.
         # (This maintains compatibility with the legacy linkers)
-        if 'pos_columns' not in kw:
-            kw['pos_columns'] = self.pos_columns
+        kw['pos_columns'] = self.pos_columns
+
         self.t_column = kw.get('t_column', 'frame')
         for frame in linking_fcn(*args, **kw):
             self.observe(frame)
@@ -121,15 +137,28 @@ class NullPredict:
 
 
 class _RecentVelocityPredict(NullPredict):
-    def __init__(self, span=1):
-        """Use the 'span'+1 most recent frames to make a velocity field."""
+    def __init__(self, span=1, pos_columns=None):
+        """Use the 'span'+1 most recent frames to make a velocity field.
+
+        pos_columns should be specified if you will not be using the
+        link_df() or link_df_iter() method for linking with prediction.
+        """
         self.recent_frames = deque([], span + 1)
+        self.pos_columns = pos_columns
 
     def state(self):
         return list(self.recent_frames)
 
+    def _check_pos_columns(self):
+        """Depending on how the predictor is used, it's possible for pos_columns to be missing.
+        This raises a helpful error message in that case."""
+        if self.pos_columns is None:
+            raise AttributeError('If you are not using the link_df() or link_df_iter() methods of the predictor, '
+                                 'you must specify pos_columns when you initialize the predictor object.')
+
     def _compute_velocities(self, frame):
         """Compute velocity field based on a newly-tracked frame."""
+        self._check_pos_columns()
         pframe = frame.set_index('particle')
         self.recent_frames.append(pframe)
         if len(self.recent_frames) == 1:
@@ -167,8 +196,11 @@ class NearestVelocityPredict(_RecentVelocityPredict):
     """
 
     def __init__(self, initial_guess_positions=None,
-                 initial_guess_vels=None, span=1):
-        super().__init__(span=span)
+                 initial_guess_vels=None, pos_columns=None, span=1):
+        if initial_guess_positions is not None and pos_columns is None:
+            warn('The order of the position columns in your initial guess is ambiguous. '
+                 'Consider specifying pos_columns here to avoid confusion.')
+        super().__init__(span=span, pos_columns=pos_columns)
         if initial_guess_positions is not None:
             self.use_initial_guess = True
             self.interpolator = NearestNDInterpolator(
@@ -218,8 +250,11 @@ class DriftPredict(_RecentVelocityPredict):
     span : integer, default 1
         Compute velocity field from the most recent span+1 frames.
     """
-    def __init__(self, initial_guess=None, span=1):
-        super().__init__(span=span)
+    def __init__(self, initial_guess=None, pos_columns=None, span=1):
+        if initial_guess is not None and pos_columns is None:
+            warn('The order of the position columns in your initial guess is ambiguous. '
+                 'Consider specifying pos_columns here to avoid confusion.')
+        super().__init__(pos_columns=pos_columns, span=span)
         self.initial_guess = initial_guess
 
     def observe(self, frame):
@@ -266,15 +301,16 @@ class ChannelPredict(_RecentVelocityPredict):
         we borrow from the nearest valid bin.
     """
     def __init__(self, bin_size, flow_axis='x', minsamples=20,
-                 initial_profile_guess=None, span=1):
-        super().__init__(span=span)
+                 initial_profile_guess=None, pos_columns=None, span=1):
+        super().__init__(pos_columns=pos_columns, span=span)
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
         self.initial_profile_guess = initial_profile_guess
 
     def observe(self, frame):
-        # Sort out dimesions and axes
+        # Sort out dimensions and axes
+        self._check_pos_columns()
         if len(self.pos_columns) != 2:
             raise ValueError('Implemented for 2 dimensions only')
         if self.flow_axis not in self.pos_columns:
