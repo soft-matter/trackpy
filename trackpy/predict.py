@@ -187,10 +187,13 @@ class NearestVelocityPredict(_RecentVelocityPredict):
     ----------
     initial_guess_positions : Nxd array, optional
         Columns should be in the same order used by the linking function.
-        (The linker's default is pos_columns=['y', 'x'] or ['z', 'y', 'x'])
     initial_guess_vels : Nxd array, optional
         If specified, these initialize the velocity field with velocity
         samples at the given points.
+    pos_columns : list of d strings, optional
+        Names of coordinate columns corresponding to the columns of
+        the initial_guess arrays, e.g. ['y', 'x']. Required if a guess
+        is specified.
     span : integer, default 1
         Compute velocity field from the most recent span+1 frames.
     """
@@ -247,7 +250,12 @@ class DriftPredict(_RecentVelocityPredict):
 
     Parameters
     ----------
-    initial_guess : Array of length d. Otherwise assumed to be zero velocity.
+    initial_guess : Array of length d, optional
+        Velocity vector initially used for prediction.
+        Default is to assume zero velocity.
+    pos_columns : list of d strings, optional
+        Names of coordinate columns corresponding to the elements of
+        initial_guess, e.g. ['y', 'x']. Required if a guess is specified.
     span : integer, default 1
         Compute velocity field from the most recent span+1 frames.
     """
