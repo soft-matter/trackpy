@@ -192,8 +192,8 @@ class NearestVelocityPredictTests(VelocityPredictTests):
         in the first pair of frames may be large."""
 
         # Initializing a guess without specifying pos_columns should
-        # raise a warning.
-        with self.assertWarns(Warning):
+        # raise an error
+        with self.assertRaises(ValueError):
             pred = self.predict_class(
                 initial_guess_positions=[(0., 0.)],
                 initial_guess_vels=[(1, -1)])
@@ -287,8 +287,8 @@ class DriftPredictTests(VelocityPredictTests):
         in the first pair of frames may be large."""
 
         # Initializing a guess without specifying pos_columns should
-        # raise a warning.
-        with self.assertWarns(Warning):
+        # raise an error
+        with self.assertRaises(ValueError):
             pred = self.predict_class(initial_guess=(1, -1))
 
         # A bad initial guess will fail.

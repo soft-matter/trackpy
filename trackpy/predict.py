@@ -198,8 +198,9 @@ class NearestVelocityPredict(_RecentVelocityPredict):
     def __init__(self, initial_guess_positions=None,
                  initial_guess_vels=None, pos_columns=None, span=1):
         if initial_guess_positions is not None and pos_columns is None:
-            warn('The order of the position columns in your initial guess is ambiguous. '
-                 'Consider specifying pos_columns here to avoid confusion.')
+            raise ValueError('The order of the position columns in your initial '
+                             "guess is ambiguous. Specify the coordinate names "
+                             "with your guess, using e.g. pos_columns=['y', 'x']")
         super().__init__(span=span, pos_columns=pos_columns)
         if initial_guess_positions is not None:
             self.use_initial_guess = True
@@ -252,8 +253,9 @@ class DriftPredict(_RecentVelocityPredict):
     """
     def __init__(self, initial_guess=None, pos_columns=None, span=1):
         if initial_guess is not None and pos_columns is None:
-            warn('The order of the position columns in your initial guess is ambiguous. '
-                 'Consider specifying pos_columns here to avoid confusion.')
+            raise ValueError('The order of the position columns in your initial '
+                             "guess is ambiguous. Specify the coordinate names "
+                             "with your guess, using e.g. pos_columns=['y', 'x']")
         super().__init__(pos_columns=pos_columns, span=span)
         self.initial_guess = initial_guess
 
