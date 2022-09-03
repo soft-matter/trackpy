@@ -9,6 +9,7 @@ import trackpy
 from trackpy import predict
 from trackpy.tests.common import StrictTestCase
 from trackpy.tests.test_find_link import CoordinateReader
+from trackpy.utils import guess_pos_columns
 
 
 def mkframe(n=1, Nside=3):
@@ -206,17 +207,17 @@ class NearestVelocityPredictTests(VelocityPredictTests):
         # Two particles with increasing x, with opposite velocities in y.
         # They cross between frames 2 and 3.
         d = {'frame': [1, 2, 3, 4, 1, 2, 3, 4],
-             'x': [0, 1, 2, 3, 1, 1.5, 2, 2.5],
-             'y': [0, 1, 2, 3, 3, 2, 1, 0]}
+             'x': [0, 10, 20, 30, 10, 15, 20, 25],
+             'y': [0, 10, 20, 30, 30, 20, 10, 0]}
         df = pandas.DataFrame(data=d)
         df_list = [frame for i, frame in df.groupby('frame')]
 
         def assert_correct(df):
-            # The particle that starts at (0, 0) should finish at (3, 3)
+            # The particle that starts at (0, 0) should finish at (30, 30)
             pid = df[(df.x == 0) & (df.y == 0)].particle.iloc[0]
             traj = df[df.particle == pid].set_index('frame')
-            assert_equal(traj.x[4], 3)
-            assert_equal(traj.y[4], 3)
+            assert_equal(traj.x[4], 30)
+            assert_equal(traj.y[4], 30)
 
 
         pred = self.predict_class()
@@ -475,10 +476,18 @@ class FindLinkIterWithPrediction(FindLinkWithPrediction):
                 int)
             reader = CoordinateReader(f, shape, size, t=indices)
 
-            # FIXME: pos_columns is not supported by find_link_iter---
-            # so why are we setting it for the predictor?
-            pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
+            # Ordinarily, pos_columns would be set when initializing the
+            # predictor, or it would be automatically set by pred.link_df etc.
+            # We must specify it before the predictor is given any
+            # particle position data.
+            if pred.pos_columns is None:
+                pred.pos_columns = guess_pos_columns(f)
             pred.t_column = kw.get('t_column', 'frame')
+
+            # FindLinker uses image coordinates only, and therefore has no use
+            # for pos_columns.
+            if 'pos_columns' in kw:
+                del kw['pos_columns']
 
             for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
                                                    search_range=search_range,
