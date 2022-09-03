@@ -304,34 +304,79 @@ class ChannelPredictYDFTests(LinkDFWithPrediction, ChannelPredictYTests, StrictT
 # Define a mixin that converts a normal prediction test class into one
 # that uses find_link.
 
-class LegacyLinkPredictTest:
-    def get_linker_iter(self, pred):
-        return functools.partial(pred.wrap, trackpy.linking.legacy.link_df_iter)
+class LegacyLinkWithPrediction:
+    def get_linked_lengths(self, frames, pred, *args, **kw):
+        """Track particles and return the length of each trajectory."""
+        linked = self.link(frames, pred, *args, **kw)
+        return linked.groupby('particle').x.count()
 
-    def get_linker(self, pred):
-        return functools.partial(pred.wrap_single, trackpy.linking.legacy.link_df_iter)
+    def get_linked_lengths_from_iterfunc(self, frames, func, *args, **kw):
+        """Track particles and return the length of each trajectory."""
+        linked = pandas.concat(func(frames, *args, **kw), ignore_index=True)
+        return linked.groupby('particle').x.count()
 
     def get_unwrapped_linker(self):
         return trackpy.linking.legacy.link_df_iter
 
 
-class NewBaselinePredictTests(LegacyLinkPredictTest, BaselinePredictTests):
+class LegacyLinkIterWithPrediction(LegacyLinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        wrapped_linker_iter = functools.partial(pred.wrap,
+                                                trackpy.linking.legacy.link_df_iter)
+        return pandas.concat(pred.link_df_iter(frames, *args, **defaults),
+                             ignore_index=True)
+
+
+class LegacyLinkDFWithPrediction(LegacyLinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        wrapped_linker_df = functools.partial(pred.wrap_single,
+                                              trackpy.linking.legacy.link_df_iter)
+        return wrapped_linker_df(pandas.concat(frames, ignore_index=True), *args, **defaults)
+
+
+class NewBaselinePredictIterTests(LegacyLinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class NewNearestVelocityPredictTests(LegacyLinkPredictTest, NearestVelocityPredictTests):
+class NewBaselinePredictDFTests(LegacyLinkDFWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class NewDriftPredictTests(LegacyLinkPredictTest, DriftPredictTests):
+class NewNearestVelocityPredictIterTests(LegacyLinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictXTests(LegacyLinkPredictTest, ChannelPredictXTests):
+class NewNearestVelocityPredictDFTests(LegacyLinkDFWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictYTests(LegacyLinkPredictTest, ChannelPredictYTests):
+class NewDriftPredictIterTests(LegacyLinkIterWithPrediction, DriftPredictTests, StrictTestCase):
+    pass
+
+
+class NewDriftPredictDFTests(LegacyLinkDFWithPrediction, DriftPredictTests, StrictTestCase):
+    pass
+
+
+class NewChannelPredictXIterTests(LegacyLinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
+    pass
+
+
+class NewChannelPredictXDFTests(LegacyLinkDFWithPrediction, ChannelPredictXTests, StrictTestCase):
+    pass
+
+
+class NewChannelPredictYIterTests(LegacyLinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
+    pass
+
+
+class NewChannelPredictYDFTests(LegacyLinkDFWithPrediction, ChannelPredictYTests, StrictTestCase):
     pass
 
 
