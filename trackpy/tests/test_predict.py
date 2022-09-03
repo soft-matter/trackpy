@@ -2,6 +2,7 @@ import functools
 
 import unittest
 import numpy as np
+from numpy.testing import assert_equal
 import pandas
 
 import trackpy
@@ -195,6 +196,41 @@ class NearestVelocityPredictTests(VelocityPredictTests):
                                  self.mkframe(200)),
                                 pred, 45)
         assert all(ll.values == 3)
+
+    def test_pos_columns(self):
+        """Test that pos_columns can be specified in any order, or not at all.
+
+        Example by @freemansw1 and @snilsn, bug report by @wyu54.
+        See https://github.com/soft-matter/trackpy/issues/699
+        """
+        # Two particles with increasing x, with opposite velocities in y.
+        # They cross between frames 2 and 3.
+        d = {'frame': [1, 2, 3, 4, 1, 2, 3, 4],
+             'x': [0, 1, 2, 3, 1, 1.5, 2, 2.5],
+             'y': [0, 1, 2, 3, 3, 2, 1, 0]}
+        df = pandas.DataFrame(data=d)
+        df_list = [frame for i, frame in df.groupby('frame')]
+
+        def assert_correct(df):
+            # The particle that starts at (0, 0) should finish at (3, 3)
+            pid = df[(df.x == 0) & (df.y == 0)].particle.iloc[0]
+            traj = df[df.particle == pid].set_index('frame')
+            assert_equal(traj.x[4], 3)
+            assert_equal(traj.y[4], 3)
+
+
+        pred = self.predict_class()
+        traj_1 = self.link(df_list, pred, 100)
+        assert_correct(traj_1)
+
+        pred = self.predict_class()
+        traj_2 = self.link(df_list, pred, 100, pos_columns=['x', 'y'])
+        assert_correct(traj_2)
+
+        pred = self.predict_class()
+        traj_3 = self.link(df_list, pred, 100, pos_columns=['y', 'x'])
+        assert_correct(traj_3)
+
 
 
 class NearestVelocityPredictIterTests(LinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
@@ -419,6 +455,8 @@ class FindLinkIterWithPrediction(FindLinkWithPrediction):
         # Takes an iterable of frames, and outputs a single linked DataFrame.
         defaults = {}
         defaults.update(kw)
+        if 'pos_columns' in defaults:
+            del defaults['pos_columns']
         link_df_iter = self.get_linker_iter(pred)
         return pandas.concat(link_df_iter(frames, *args, **defaults),
                              ignore_index=True)
