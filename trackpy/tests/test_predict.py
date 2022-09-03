@@ -34,7 +34,7 @@ class LinkWithPrediction:
         return trackpy.link_df_iter
 
 
-class LinkIterableWithPrediction(LinkWithPrediction):
+class LinkIterWithPrediction(LinkWithPrediction):
     def link(self, frames, pred, *args, **kw):
         # Takes an iterable of frames, and outputs a single linked DataFrame.
         defaults = {}
@@ -106,7 +106,7 @@ class BaselinePredictTests:
                                     self.get_unwrapped_linker(), 100)
 
 
-class BaselinePredictIterTests(LinkIterableWithPrediction, BaselinePredictTests, StrictTestCase):
+class BaselinePredictIterTests(LinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
@@ -197,7 +197,7 @@ class NearestVelocityPredictTests(VelocityPredictTests):
         assert all(ll.values == 3)
 
 
-class NearestVelocityPredictIterTests(LinkIterableWithPrediction, NearestVelocityPredictTests, StrictTestCase):
+class NearestVelocityPredictIterTests(LinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
@@ -222,7 +222,7 @@ class DriftPredictTests(VelocityPredictTests):
         assert all(ll.values == 3)
 
 
-class DriftPredictIterTests(LinkIterableWithPrediction, DriftPredictTests, StrictTestCase):
+class DriftPredictIterTests(LinkIterWithPrediction, DriftPredictTests, StrictTestCase):
     pass
 
 
@@ -267,7 +267,7 @@ class ChannelPredictXTests(VelocityPredictTests):
         assert all(ll.values == 4)
 
 
-class ChannelPredictXIterTests(LinkIterableWithPrediction, ChannelPredictXTests, StrictTestCase):
+class ChannelPredictXIterTests(LinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
     pass
 
 
@@ -292,7 +292,7 @@ class ChannelPredictYTests(VelocityPredictTests):
             dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
 
 
-class ChannelPredictYIterTests(LinkIterableWithPrediction, ChannelPredictYTests, StrictTestCase):
+class ChannelPredictYIterTests(LinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
     pass
 
 
@@ -300,10 +300,7 @@ class ChannelPredictYDFTests(LinkDFWithPrediction, ChannelPredictYTests, StrictT
     pass
 
 
-## find_link prediction tests
-# Define a mixin that converts a normal prediction test class into one
-# that uses find_link.
-
+# Test legacy linking functions, wrapped by a predictor method
 class LegacyLinkWithPrediction:
     def get_linked_lengths(self, frames, pred, *args, **kw):
         """Track particles and return the length of each trajectory."""
@@ -340,53 +337,91 @@ class LegacyLinkDFWithPrediction(LegacyLinkWithPrediction):
         return wrapped_linker_df(pandas.concat(frames, ignore_index=True), *args, **defaults)
 
 
-class NewBaselinePredictIterTests(LegacyLinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
+class LLBaselinePredictIterTests(LegacyLinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class NewBaselinePredictDFTests(LegacyLinkDFWithPrediction, BaselinePredictTests, StrictTestCase):
+class LLBaselinePredictDFTests(LegacyLinkDFWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class NewNearestVelocityPredictIterTests(LegacyLinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
+class LLNearestVelocityPredictIterTests(LegacyLinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class NewNearestVelocityPredictDFTests(LegacyLinkDFWithPrediction, NearestVelocityPredictTests, StrictTestCase):
+class LLNearestVelocityPredictDFTests(LegacyLinkDFWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class NewDriftPredictIterTests(LegacyLinkIterWithPrediction, DriftPredictTests, StrictTestCase):
+class LLDriftPredictIterTests(LegacyLinkIterWithPrediction, DriftPredictTests, StrictTestCase):
     pass
 
 
-class NewDriftPredictDFTests(LegacyLinkDFWithPrediction, DriftPredictTests, StrictTestCase):
+class LLDriftPredictDFTests(LegacyLinkDFWithPrediction, DriftPredictTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictXIterTests(LegacyLinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
+class LLChannelPredictXIterTests(LegacyLinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictXDFTests(LegacyLinkDFWithPrediction, ChannelPredictXTests, StrictTestCase):
+class LLChannelPredictXDFTests(LegacyLinkDFWithPrediction, ChannelPredictXTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictYIterTests(LegacyLinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
+class LLChannelPredictYIterTests(LegacyLinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictYDFTests(LegacyLinkDFWithPrediction, ChannelPredictYTests, StrictTestCase):
+class LLChannelPredictYDFTests(LegacyLinkDFWithPrediction, ChannelPredictYTests, StrictTestCase):
     pass
 
 
-class FindLinkPredictTest:
+## find_link prediction tests
+# Define a mixins that convert a normal prediction test class into one
+# that uses find_link.
+class FindLinkWithPrediction(LinkWithPrediction):
     def setUp(self):
         super().setUp()
         self.linker_opts = dict(separation=10, diameter=15)
         # Disable certain tests that are redundant here
         # and would require more code to support.
         self.coords_via_images = True
+
+    def get_unwrapped_linker(self):
+        def link_iter(f, search_range, *args, **kw):
+            kw = dict(self.linker_opts, **kw)
+            size = 3
+            separation = kw['separation']
+            # convert the iterable to a single DataFrame (OK for tests)
+            f = [_f for _f in f]
+            indices = [_f['frame'].iloc[0] for _f in f]
+            f = pandas.concat([_f for _f in f], ignore_index=True)
+            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
+                int)
+            f[['y', 'x']] -= topleft
+            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
+                int)
+            reader = CoordinateReader(f, shape, size, t=indices)
+
+            for i, frame in trackpy.find_link_iter(reader,
+                                                   search_range=search_range,
+                                                   *args, **kw):
+                frame[['y', 'x']] += topleft
+                yield frame
+        return link_iter
+
+
+# Just run one set of prediction tests, because there is no equivalent
+# of pred.link_df in the API for find_link.
+class FindLinkIterWithPrediction(FindLinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        link_df_iter = self.get_linker_iter(pred)
+        return pandas.concat(link_df_iter(frames, *args, **defaults),
+                             ignore_index=True)
 
     def get_linker_iter(self, pred):
         def link_iter(f, search_range, *args, **kw):
@@ -396,7 +431,7 @@ class FindLinkPredictTest:
             # convert the iterable to a single DataFrame (OK for tests)
             f = [_f for _f in f]
             indices = [_f['frame'].iloc[0] for _f in f]
-            f = pandas.concat([_f for _f in f])
+            f = pandas.concat([_f for _f in f], ignore_index=True)
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 int)
             f[['y', 'x']] -= topleft
@@ -416,76 +451,24 @@ class FindLinkPredictTest:
                 yield frame
         return link_iter
 
-    def get_linker(self, pred):
-        def link(f, search_range, *args, **kw):
-            kw = dict(self.linker_opts, **kw)
-            size = 3
-            separation = kw['separation']
-            f = f.copy()
-            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
-                int)
-            f[['y', 'x']] -= topleft
-            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
-                int)
-            reader = CoordinateReader(f, shape, size,
-                                      t=f['frame'].unique())
 
-            pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
-            pred.t_column = kw.get('t_column', 'frame')
-
-            f = []
-            for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
-                                                   search_range=search_range,
-                                                   *args, **kw):
-                f.append(frame)
-
-            f = pandas.concat(f)
-            f[['y', 'x']] += topleft
-
-            return f
-        return link
-
-    def get_unwrapped_linker(self):
-        def link_iter(f, search_range, *args, **kw):
-            kw = dict(self.linker_opts, **kw)
-            size = 3
-            separation = kw['separation']
-            # convert the iterable to a single DataFrame (OK for tests)
-            f = [_f for _f in f]
-            indices = [_f['frame'].iloc[0] for _f in f]
-            f = pandas.concat([_f for _f in f])
-            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
-                int)
-            f[['y', 'x']] -= topleft
-            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
-                int)
-            reader = CoordinateReader(f, shape, size, t=indices)
-
-            for i, frame in trackpy.find_link_iter(reader,
-                                                   search_range=search_range,
-                                                   *args, **kw):
-                frame[['y', 'x']] += topleft
-                yield frame
-        return link_iter
-
-
-class FLBaselinePredictTests(FindLinkPredictTest, BaselinePredictTests):
+class FLBaselinePredictTests(FindLinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class FLNearestVelocityPredictTests(FindLinkPredictTest, NearestVelocityPredictTests):
+class FLNearestVelocityPredictTests(FindLinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class FLDriftPredictTests(FindLinkPredictTest, DriftPredictTests):
+class FLDriftPredictTests(FindLinkIterWithPrediction, DriftPredictTests, StrictTestCase):
     pass
 
 
-class FLChannelPredictXTests(FindLinkPredictTest, ChannelPredictXTests):
+class FLChannelPredictXTests(FindLinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
     pass
 
 
-class FLChannelPredictYTests(FindLinkPredictTest, ChannelPredictYTests):
+class FLChannelPredictYTests(FindLinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
     pass
 
 
