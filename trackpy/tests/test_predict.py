@@ -455,8 +455,6 @@ class FindLinkIterWithPrediction(FindLinkWithPrediction):
         # Takes an iterable of frames, and outputs a single linked DataFrame.
         defaults = {}
         defaults.update(kw)
-        if 'pos_columns' in defaults:
-            del defaults['pos_columns']
         link_df_iter = self.get_linker_iter(pred)
         return pandas.concat(link_df_iter(frames, *args, **defaults),
                              ignore_index=True)
@@ -477,6 +475,8 @@ class FindLinkIterWithPrediction(FindLinkWithPrediction):
                 int)
             reader = CoordinateReader(f, shape, size, t=indices)
 
+            # FIXME: pos_columns is not supported by find_link_iter---
+            # so why are we setting it for the predictor?
             pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
             pred.t_column = kw.get('t_column', 'frame')
 
