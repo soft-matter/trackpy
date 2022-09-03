@@ -4,7 +4,7 @@
 """Tools to improve tracking performance by guessing where a particle will appear next."""
 from warnings import warn
 from collections import deque
-import functools
+import functools, itertools
 
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator, interp1d
@@ -12,7 +12,7 @@ import pandas as pd
 
 from . import linking
 
-from .utils import pandas_concat
+from .utils import pandas_concat, guess_pos_columns
 
 
 def predictor(predict_func):
@@ -51,7 +51,18 @@ class NullPredict:
             warn('Perform tracking with a fresh predictor instance to avoid surprises.')
         self._already_linked = True
         kw['predictor'] = self.predict
-        self.pos_columns = kw.get('pos_columns', ['x', 'y'])
+
+        # Sample the first frame of data to get position columns, if needed
+        args = list(args)
+        frames = iter(args[0])
+        f0 = next(frames)
+        args[0] = itertools.chain([f0], frames)
+
+        self.pos_columns = kw.get('pos_columns', guess_pos_columns(f0))
+        # Ensure that the linker uses the same pos_columns.
+        # (This maintains compatibility with the legacy linkers)
+        if 'pos_columns' not in kw:
+            kw['pos_columns'] = self.pos_columns
         self.t_column = kw.get('t_column', 'frame')
         for frame in linking_fcn(*args, **kw):
             self.observe(frame)
@@ -146,6 +157,8 @@ class NearestVelocityPredict(_RecentVelocityPredict):
     Parameters
     ----------
     initial_guess_positions : Nxd array, optional
+        Columns should be in the same order used by the linking function.
+        (The linker's default is pos_columns=['y', 'x'] or ['z', 'y', 'x'])
     initial_guess_vels : Nxd array, optional
         If specified, these initialize the velocity field with velocity
         samples at the given points.
@@ -170,7 +183,9 @@ class NearestVelocityPredict(_RecentVelocityPredict):
             self.use_initial_guess = False
         else:
             if positions.values.shape[0] > 0:
-                self.interpolator = NearestNDInterpolator(positions.values, vels.values)
+                self.interpolator = NearestNDInterpolator(
+                    positions[self.pos_columns].values,
+                    vels[self.pos_columns].values)
             else:
                 # Sadly, the 2 most recent frames had no points in common.
                 warn('Could not generate velocity field for prediction: no tracks')
