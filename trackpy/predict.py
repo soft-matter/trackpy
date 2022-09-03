@@ -75,8 +75,9 @@ class NullPredict:
         features = args.pop(0)
         if kw.get('t_column') is None:
             kw['t_column'] = 'frame'
+        kw['predictor'] = self.predict
         features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
-        return pandas_concat(linking_fcn(*([features_iter, ] + args), **kw))
+        return pandas_concat(self.wrap(linking_fcn, features_iter, *args, **kw))
 
     def link_df_iter(self, *args, **kw):
         """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
