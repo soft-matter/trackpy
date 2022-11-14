@@ -52,14 +52,7 @@ class HashBase:
         """Predict and convert points to an array."""
         if self.predictor is None:
             return points_to_arr(points)
-        try:
-            for p in points:
-                p.pos = p.pos[::-1]
-            result = np.array(list(self.predictor(self.t, points)))
-        finally:
-            for p in points:  # swap axes order back
-                p.pos = p.pos[::-1]
-        return result[:, ::-1]
+        return np.array(list(self.predictor(self.t, points)))
 
     @property
     def coords(self):

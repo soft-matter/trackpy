@@ -4,7 +4,7 @@
 """Tools to improve tracking performance by guessing where a particle will appear next."""
 from warnings import warn
 from collections import deque
-import functools
+import functools, itertools
 
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator, interp1d
@@ -12,7 +12,7 @@ import pandas as pd
 
 from . import linking
 
-from .utils import pandas_concat
+from .utils import pandas_concat, guess_pos_columns
 
 
 def predictor(predict_func):
@@ -51,7 +51,34 @@ class NullPredict:
             warn('Perform tracking with a fresh predictor instance to avoid surprises.')
         self._already_linked = True
         kw['predictor'] = self.predict
-        self.pos_columns = kw.get('pos_columns', ['x', 'y'])
+
+        # Sample the first frame of data to get position columns, if needed
+        args = list(args)
+        frames = iter(args[0])
+        f0 = next(frames)
+        args[0] = itertools.chain([f0], frames)
+
+        # Sort out pos_columns, which must match what the linker is using.
+        # The user may have already specified it, especially if they are giving
+        # an initial guess to a velocity predictor. If so, make sure that the
+        # value given to the linker matches.
+        if getattr(self, 'pos_columns', None) is not None:
+            pos_columns = self.pos_columns
+            if 'pos_columns' in kw and kw['pos_columns'] is not None and any(
+                    [spc != ppc for (spc, ppc) in
+                     zip(pos_columns, kw['pos_columns'])]):
+                    raise ValueError('The optional pos_columns given to the linker '
+                                     'conflicts with the pos_columns used to initialize '
+                                     'this predictor.')
+        else:
+            # If no explicit pos_columns has been given anywhere, now is the time
+            # to guess.
+            pos_columns = kw.get('pos_columns', guess_pos_columns(f0))
+            self.pos_columns = pos_columns
+        # No matter what, ensure that the linker uses the same pos_columns.
+        # (This maintains compatibility with the legacy linkers)
+        kw['pos_columns'] = self.pos_columns
+
         self.t_column = kw.get('t_column', 'frame')
         for frame in linking_fcn(*args, **kw):
             self.observe(frame)
@@ -75,8 +102,9 @@ class NullPredict:
         features = args.pop(0)
         if kw.get('t_column') is None:
             kw['t_column'] = 'frame'
+        kw['predictor'] = self.predict
         features_iter = (frame for fnum, frame in features.groupby(kw['t_column']))
-        return pandas_concat(linking_fcn(*([features_iter, ] + args), **kw))
+        return pandas_concat(self.wrap(linking_fcn, features_iter, *args, **kw))
 
     def link_df_iter(self, *args, **kw):
         """Wrapper for linking.link_df_iter() that causes it to use this predictor."""
@@ -109,15 +137,28 @@ class NullPredict:
 
 
 class _RecentVelocityPredict(NullPredict):
-    def __init__(self, span=1):
-        """Use the 'span'+1 most recent frames to make a velocity field."""
+    def __init__(self, span=1, pos_columns=None):
+        """Use the 'span'+1 most recent frames to make a velocity field.
+
+        pos_columns should be specified if you will not be using the
+        link_df() or link_df_iter() method for linking with prediction.
+        """
         self.recent_frames = deque([], span + 1)
+        self.pos_columns = pos_columns
 
     def state(self):
         return list(self.recent_frames)
 
+    def _check_pos_columns(self):
+        """Depending on how the predictor is used, it's possible for pos_columns to be missing.
+        This raises a helpful error message in that case."""
+        if self.pos_columns is None:
+            raise AttributeError('If you are not using the link_df() or link_df_iter() methods of the predictor, '
+                                 'you must specify pos_columns when you initialize the predictor object.')
+
     def _compute_velocities(self, frame):
         """Compute velocity field based on a newly-tracked frame."""
+        self._check_pos_columns()
         pframe = frame.set_index('particle')
         self.recent_frames.append(pframe)
         if len(self.recent_frames) == 1:
@@ -145,16 +186,25 @@ class NearestVelocityPredict(_RecentVelocityPredict):
     Parameters
     ----------
     initial_guess_positions : Nxd array, optional
+        Columns should be in the same order used by the linking function.
     initial_guess_vels : Nxd array, optional
         If specified, these initialize the velocity field with velocity
         samples at the given points.
+    pos_columns : list of d strings, optional
+        Names of coordinate columns corresponding to the columns of
+        the initial_guess arrays, e.g. ['y', 'x']. Required if a guess
+        is specified.
     span : integer, default 1
         Compute velocity field from the most recent span+1 frames.
     """
 
     def __init__(self, initial_guess_positions=None,
-                 initial_guess_vels=None, span=1):
-        super().__init__(span=span)
+                 initial_guess_vels=None, pos_columns=None, span=1):
+        if initial_guess_positions is not None and pos_columns is None:
+            raise ValueError('The order of the position columns in your initial '
+                             "guess is ambiguous. Specify the coordinate names "
+                             "with your guess, using e.g. pos_columns=['y', 'x']")
+        super().__init__(span=span, pos_columns=pos_columns)
         if initial_guess_positions is not None:
             self.use_initial_guess = True
             self.interpolator = NearestNDInterpolator(
@@ -169,7 +219,9 @@ class NearestVelocityPredict(_RecentVelocityPredict):
             self.use_initial_guess = False
         else:
             if positions.values.shape[0] > 0:
-                self.interpolator = NearestNDInterpolator(positions.values, vels.values)
+                self.interpolator = NearestNDInterpolator(
+                    positions[self.pos_columns].values,
+                    vels[self.pos_columns].values)
             else:
                 # Sadly, the 2 most recent frames had no points in common.
                 warn('Could not generate velocity field for prediction: no tracks')
@@ -198,12 +250,21 @@ class DriftPredict(_RecentVelocityPredict):
 
     Parameters
     ----------
-    initial_guess : Array of length d. Otherwise assumed to be zero velocity.
+    initial_guess : Array of length d, optional
+        Velocity vector initially used for prediction.
+        Default is to assume zero velocity.
+    pos_columns : list of d strings, optional
+        Names of coordinate columns corresponding to the elements of
+        initial_guess, e.g. ['y', 'x']. Required if a guess is specified.
     span : integer, default 1
         Compute velocity field from the most recent span+1 frames.
     """
-    def __init__(self, initial_guess=None, span=1):
-        super().__init__(span=span)
+    def __init__(self, initial_guess=None, pos_columns=None, span=1):
+        if initial_guess is not None and pos_columns is None:
+            raise ValueError('The order of the position columns in your initial '
+                             "guess is ambiguous. Specify the coordinate names "
+                             "with your guess, using e.g. pos_columns=['y', 'x']")
+        super().__init__(pos_columns=pos_columns, span=span)
         self.initial_guess = initial_guess
 
     def observe(self, frame):
@@ -250,15 +311,16 @@ class ChannelPredict(_RecentVelocityPredict):
         we borrow from the nearest valid bin.
     """
     def __init__(self, bin_size, flow_axis='x', minsamples=20,
-                 initial_profile_guess=None, span=1):
-        super().__init__(span=span)
+                 initial_profile_guess=None, pos_columns=None, span=1):
+        super().__init__(pos_columns=pos_columns, span=span)
         self.bin_size = bin_size
         self.flow_axis = flow_axis
         self.minsamples = minsamples
         self.initial_profile_guess = initial_profile_guess
 
     def observe(self, frame):
-        # Sort out dimesions and axes
+        # Sort out dimensions and axes
+        self._check_pos_columns()
         if len(self.pos_columns) != 2:
             raise ValueError('Implemented for 2 dimensions only')
         if self.flow_axis not in self.pos_columns:
