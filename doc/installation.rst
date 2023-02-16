@@ -121,7 +121,7 @@ but pip is also supported.
 
 Essential Dependencies:
 
-* Python 3.5 or newer. (trackpy on Python 2.7 is no longer officially supported, though it is still likely to run.)
+* Python 3.7 or newer. (trackpy on Python 2.7 and older Python 3.x is no longer officially supported, though it is still likely to run.)
 * `setuptools <http://pythonhosted.org/setuptools/>`__
 * `numpy <http://www.scipy.org/>`__
 * `scipy <http://www.scipy.org/>`__

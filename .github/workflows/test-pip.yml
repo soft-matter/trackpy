@@ -1,6 +1,6 @@
 name: Pip
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   TestLinux:
@@ -10,11 +10,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # 2017
-          - python: 3.6
-            display_name: "2017"
-            numpy: "numpy==1.14.*"  # pre-install numpy due to issue in numba 0.32 wheel building
-            deps: "scipy==1.1.* matplotlib==2.1.* pillow==4.3.* pandas==0.22.* tables==3.4.* scikit-learn==0.19.* pyyaml numba==0.32.* llvmlite==0.17.* looseversion>=1.0.1"
           # 2018
           - python: 3.7
             display_name: "2018"
