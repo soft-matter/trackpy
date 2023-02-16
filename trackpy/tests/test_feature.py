@@ -6,11 +6,6 @@ import numpy as np
 from pandas import DataFrame
 from numpy.testing import assert_allclose, assert_array_less
 
-try:
-    from pandas._testing import assert_produces_warning
-except ImportError:
-    from pandas.util.testing import assert_produces_warning
-
 import trackpy as tp
 from trackpy.try_numba import NUMBA_AVAILABLE
 from trackpy.artificial import (draw_feature, draw_spots, draw_point, draw_array,
@@ -133,28 +128,28 @@ class CommonFeatureIdentificationTests:
         self.check_skip()
         black_image = np.zeros((21, 23)).astype(np.uint8)
         warnings.simplefilter('always')
-        with assert_produces_warning(UserWarning):
+        with self.assertWarns(UserWarning):
             f = tp.locate(black_image, 5, engine=self.engine, preprocess=False)
 
     def test_maxima_in_margin(self):
         self.check_skip()
         black_image = np.ones((21, 23)).astype(np.uint8)
         draw_point(black_image, [1, 1], 100)
-        with assert_produces_warning(UserWarning):
+        with self.assertWarns(UserWarning):
             f = tp.locate(black_image, 5, engine=self.engine)
 
     def test_maxima_in_margin_3D(self):
         self.check_skip()
         black_image = np.ones((21, 23, 25)).astype(np.uint8)
         draw_point(black_image, [1, 1, 1], 100)
-        with assert_produces_warning(UserWarning):
+        with self.assertWarns(UserWarning):
             f = tp.locate(black_image, 5, engine=self.engine)
 
     def test_all_maxima_filtered(self):
         self.check_skip()
         black_image = np.ones((21, 23)).astype(np.uint8)
         draw_point(black_image, [11, 13], 10)
-        with assert_produces_warning(UserWarning):
+        with self.assertWarns(UserWarning):
             f = tp.locate(black_image, 5, minmass=200,
                           engine=self.engine, preprocess=False)
 
@@ -163,12 +158,12 @@ class CommonFeatureIdentificationTests:
 
         # RGB-like
         image = np.random.randint(0, 100, (21, 23, 3)).astype(np.uint8)
-        with assert_produces_warning(UserWarning):
+        with self.assertWarns(UserWarning):
             tp.locate(image, 5)
 
         # RGBA-like
         image = np.random.randint(0, 100, (21, 23, 4)).astype(np.uint8)
-        with assert_produces_warning(UserWarning):
+        with self.assertWarns(UserWarning):
             tp.locate(image, 5)
 
     def test_flat_peak(self):
