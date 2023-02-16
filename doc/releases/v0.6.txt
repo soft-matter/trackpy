@@ -27,3 +27,8 @@ Bug Fixes
   position columns as the linker, and correctly handles the pos_columns
   argument if specified.
 - The link_df() method of predictor objects now works correctly.
+
+Dependencies
+~~~~~~~~~~~~
+
+- trackpy is no longer tested with Python 3.6.
