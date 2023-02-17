@@ -29,3 +29,4 @@ Dependencies
 
 - trackpy is now being tested in conda environments with Python 3.10.
 - trackpy is no longer tested with Python 3.6.
+- trackpy now requires the ``looseversion`` package
