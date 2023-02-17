@@ -5,10 +5,6 @@ This release focuses on fixing bugs and some inconsistencies in the prediction
 capabilities. Some existing code that used prediction may now fail to run until
 a (minor) update is made.
 
-Enhancements
-~~~~~~~~~~~~
-
-
 API Changes
 ~~~~~~~~~~~
 
@@ -31,4 +27,5 @@ Bug Fixes
 Dependencies
 ~~~~~~~~~~~~
 
+- trackpy is now being tested in conda environments with Python 3.10.
 - trackpy is no longer tested with Python 3.6.
