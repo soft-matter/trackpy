@@ -1,9 +1,20 @@
 v0.6
 ----
 
-This release focuses on fixing bugs and some inconsistencies in the prediction
+This release adds an efficient way to use custom distance metrics during
+linking, and fixes bugs and some inconsistencies in the prediction
 capabilities. Some existing code that used prediction may now fail to run until
 a (minor) update is made.
+
+This release includes contributions by @magnunor, @freemansw1, @crisp-snakey,
+@rbnvrw, @caspervdw, @tacaswell, and @nkeim.
+
+Enhancements
+~~~~~~~~~~~~
+
+- Linking can now use any ``DistanceMetric`` class from sklearn to compute
+  distances (#692 by @freemansw1)
+- Several documentation fixes by @magnunor and @nkeim
 
 API Changes
 ~~~~~~~~~~~
@@ -15,18 +26,24 @@ API Changes
   raise an exception that explains this change. If you provide pos_columns
   when creating the predictor, you do not have to supply it when subsequently
   using the link_df() or link_df_iter() methods to link your features.
+  (@nkeim, #710)
+- ``reconnect_traj_patch()`` is now available as ``trackpy.reconnect_traj_patch``
+  and is described in the API documentation. (@nkeim, #648)
 
 Bug Fixes
 ~~~~~~~~~
 
 - When linking with prediction, the predictor now correctly uses the same
   position columns as the linker, and correctly handles the pos_columns
-  argument if specified.
-- The link_df() method of predictor objects now works correctly.
+  argument if specified. (@nkeim, #710)
+- The link_df() method of predictor objects now works correctly. This is
+  reflected in the updated prediction tutorial. (@nkeim, #710)
 
 Dependencies
 ~~~~~~~~~~~~
 
 - trackpy is now being tested in conda environments with Python 3.10.
 - trackpy is no longer tested with Python 3.6.
-- trackpy now requires the ``looseversion`` package
+- trackpy now requires the ``looseversion`` package to work with newer scipy
+  (@crisp-snakey, #706)
+- Much work on testing and packaging infrastructure by @tacaswell and @caspervdw
