@@ -5,9 +5,10 @@ import functools
 
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 from ..try_numba import NUMBA_AVAILABLE
-from ..utils import pandas_sort, cKDTree, validate_tuple, is_isotropic
+from ..utils import pandas_sort, validate_tuple, is_isotropic
 from .utils import (TrackUnstored, points_to_arr, UnknownLinkingError,
                     SubnetOversizeException)
 from .subnetlinker import (recursive_linker_obj, nonrecursive_link, drop_link,

@@ -121,13 +121,14 @@ but pip is also supported.
 
 Essential Dependencies:
 
-* Python 3.5 or newer. (trackpy on Python 2.7 is no longer officially supported, though it is still likely to run.)
+* Python 3.7 or newer. (trackpy on Python 2.7 and older Python 3.x is no longer officially supported, though it is still likely to run.)
 * `setuptools <http://pythonhosted.org/setuptools/>`__
 * `numpy <http://www.scipy.org/>`__
 * `scipy <http://www.scipy.org/>`__
 * `matplotlib <http://matplotlib.org/>`__
 * `pandas <http://pandas.pydata.org/pandas-docs/stable/overview.html>`__
 * `pyyaml <http://pyyaml.org/>`__
+* `looseversion <https://pypi.org/project/looseversion/>`__
 
 You will also want to install the `pims <http://soft-matter.github.io/pims/>`_
 package that simplifies image-reading, and that is used in the trackpy tutorials.

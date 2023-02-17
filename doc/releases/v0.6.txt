@@ -1,0 +1,34 @@
+v0.6
+----
+
+This release focuses on fixing bugs and some inconsistencies in the prediction
+capabilities. Some existing code that used prediction may now fail to run until
+a (minor) update is made.
+
+Enhancements
+~~~~~~~~~~~~
+
+
+API Changes
+~~~~~~~~~~~
+
+- When supplying an initial velocity guess to NearestVelocityPredict or
+  DriftPredict, you must also supply the pos_columns argument to identify
+  the names of the columns in your array. (For example,
+  "pos_columns = ['y', 'x']".) Otherwise, creating the predictor will
+  raise an exception that explains this change. If you provide pos_columns
+  when creating the predictor, you do not have to supply it when subsequently
+  using the link_df() or link_df_iter() methods to link your features.
+
+Bug Fixes
+~~~~~~~~~
+
+- When linking with prediction, the predictor now correctly uses the same
+  position columns as the linker, and correctly handles the pos_columns
+  argument if specified.
+- The link_df() method of predictor objects now works correctly.
+
+Dependencies
+~~~~~~~~~~~~
+
+- trackpy is no longer tested with Python 3.6.

@@ -1,8 +1,7 @@
 import logging
 
 import numpy as np
-from scipy.ndimage.filters import uniform_filter1d, correlate1d
-from scipy.ndimage.fourier import fourier_gaussian
+from scipy.ndimage import uniform_filter1d, correlate1d, fourier_gaussian
 
 from .utils import validate_tuple
 from .masks import gaussian_kernel

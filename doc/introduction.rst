@@ -101,18 +101,18 @@ J. Colloid Interf. Sci., 179(1), 298–310. http://doi.org/10.1006/jcis.1996.021
 Related Projects
 ^^^^^^^^^^^^^^^^
 
-============================ =============================================== =========================
-Author(s)                    Project URL                                     Language
-============================ =============================================== =========================
-Crocker and Grier            http://physics.nyu.edu/grierlab/software.html   IDL
-Crocker and Weeks            http://www.physics.emory.edu/~weeks/idl/        IDL
-Blair and Dufresne           http://physics.georgetown.edu/matlab/           MATLAB
-Maria Kilfoil                http://people.umass.edu/kilfoil/downloads.html  MATLAB and Python
-Graham Milne                 http://zone.ni.com/devzone/cda/epd/p/id/948     LabVIEW
-Ryan Smith and Gabe Spalding http://titan.iwu.edu/~gspaldin/rytrack.html     stand alone/IDL GUI
-Peter J Lu                   https://github.com/peterlu/PLuTARC_centerfind2D C++ (identification only)
-Thomas A Caswell             https://github.com/tacaswell/tracking           C++
-============================ =============================================== =========================
+============================ =================================================== =========================
+Author(s)                    Project URL                                         Language
+============================ =================================================== =========================
+Crocker and Grier            http://physics.nyu.edu/grierlab/software.html       IDL
+Crocker and Weeks            http://www.physics.emory.edu/~weeks/idl/            IDL
+Blair and Dufresne           http://physics.georgetown.edu/matlab/               MATLAB
+Maria Kilfoil et al.         https://github.com/rmcgorty/ParticleTracking-Python Python
+Graham Milne                 http://zone.ni.com/devzone/cda/epd/p/id/948         LabVIEW
+Ryan Smith and Gabe Spalding http://titan.iwu.edu/~gspaldin/rytrack.html         stand alone/IDL GUI
+Peter J Lu                   https://github.com/peterlu/PLuTARC_centerfind2D     C++ (identification only)
+Thomas A Caswell             https://github.com/tacaswell/tracking               C++
+============================ =================================================== =========================
 
 Core Contributors
 ^^^^^^^^^^^^^^^^^

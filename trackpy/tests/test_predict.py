@@ -2,12 +2,14 @@ import functools
 
 import unittest
 import numpy as np
+from numpy.testing import assert_equal
 import pandas
 
 import trackpy
 from trackpy import predict
 from trackpy.tests.common import StrictTestCase
 from trackpy.tests.test_find_link import CoordinateReader
+from trackpy.utils import guess_pos_columns
 
 
 def mkframe(n=1, Nside=3):
@@ -17,51 +19,54 @@ def mkframe(n=1, Nside=3):
     return pandas.DataFrame(
             dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
 
-def link(frames, linker, *args, **kw):
-    defaults = {}
-    defaults.update(kw)
-    return pandas.concat(linker(frames,  *args, **defaults),
-                       ignore_index=True)
-
-def get_linked_lengths(frames, linker, *args, **kw):
-    """Track particles and return the length of each trajectory."""
-    linked = link(frames, linker, *args, **kw)
-    return linked.groupby('particle').x.count()
-
 Nside_oversize = int(np.sqrt(100)) # Make subnet linker fail
 
 class LinkWithPrediction:
-    def get_linker_iter(self, pred):
-        """Return the function that will perform linking with predictor 'pred'.
-        This lets us test multiple linking implementations.
-        """
-        return pred.link_df_iter
+    def get_linked_lengths(self, frames, pred, *args, **kw):
+        """Track particles and return the length of each trajectory."""
+        linked = self.link(frames, pred, *args, **kw)
+        return linked.groupby('particle').x.count()
 
-    def get_linker(self, pred):
-        """Return the function that will perform linking with predictor 'pred'.
-        This lets us test multiple linking implementations.
-        """
-        return pred.link_df
+    def get_linked_lengths_from_iterfunc(self, frames, func, *args, **kw):
+        """Track particles and return the length of each trajectory."""
+        linked = pandas.concat(func(frames, *args, **kw), ignore_index=True)
+        return linked.groupby('particle').x.count()
 
     def get_unwrapped_linker(self):
         return trackpy.link_df_iter
 
 
-class BaselinePredictTests(LinkWithPrediction, StrictTestCase):
+class LinkIterWithPrediction(LinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        return pandas.concat(pred.link_df_iter(frames, *args, **defaults),
+                             ignore_index=True)
+
+
+class LinkDFWithPrediction(LinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        return pred.link_df(pandas.concat(frames, ignore_index=True), *args, **defaults)
+
+
+class BaselinePredictTests:
     def test_null_predict(self):
         """Make sure that a prediction of no motion does not interfere
         with normal tracking.
         """
         # link_df_iter
         pred = predict.NullPredict()
-        ll = get_linked_lengths((mkframe(0), mkframe(25)),
-                                self.get_linker_iter(pred), 45)
+        ll = self.get_linked_lengths((mkframe(0), mkframe(25)),
+                                pred, 45)
         assert all(ll.values == 2)
 
         # link_df
         pred = predict.NullPredict()
-        ll_df = self.get_linker(pred)(pandas.concat((mkframe(0),
-                                                     mkframe(25))), 45)
+        ll_df = pred.link_df(pandas.concat((mkframe(0), mkframe(25))), 45)
         # print(ll_df)
         assert all(ll_df.groupby('particle').x.count().values == 2)
 
@@ -71,10 +76,11 @@ class BaselinePredictTests(LinkWithPrediction, StrictTestCase):
         # due to the way column names are baked into the
         # artificial image code.
         if not getattr(self, 'coords_via_images', False):
-            features = pandas.concat((mkframe(0), mkframe(25)))
-            features.rename(columns=lambda n: n + '_', inplace=True)
+            features = [mkframe(0), mkframe(25)]
+            for f in features:
+                f.rename(columns=lambda n: n + '_', inplace=True)
             pred = predict.NullPredict()
-            ll_df = self.get_linker(pred)(features, 45, t_column='frame_',
+            ll_df = self.link(features, pred, 45, t_column='frame_',
                                           pos_columns=['x_', 'y_'])
             assert all(ll_df.groupby('particle').x_.count().values == 2)
 
@@ -84,64 +90,74 @@ class BaselinePredictTests(LinkWithPrediction, StrictTestCase):
         """
         pred = predict.null_predict
         pred_link = functools.partial(self.get_unwrapped_linker(), predictor=pred)
-        ll = get_linked_lengths((mkframe(0), mkframe(25)),
+        ll = self.get_linked_lengths_from_iterfunc((mkframe(0), mkframe(25)),
                                 pred_link, 45)
         assert all(ll.values == 2)
 
     def test_fail_predict(self):
-        ll = get_linked_lengths((mkframe(0), mkframe(25), mkframe(65)),
+        ll = self.get_linked_lengths_from_iterfunc((mkframe(0), mkframe(25), mkframe(65)),
                                 self.get_unwrapped_linker(), 45)
         assert not all(ll.values == 2)
 
     def test_subnet_fail(self):
         with self.assertRaises(trackpy.SubnetOversizeException):
             Nside = Nside_oversize
-            ll = get_linked_lengths((mkframe(0, Nside),
+            ll = self.get_linked_lengths_from_iterfunc((mkframe(0, Nside),
                                      mkframe(25, Nside),
                                      mkframe(75, Nside)),
                                     self.get_unwrapped_linker(), 100)
 
-class VelocityPredictTests(LinkWithPrediction):
+
+class BaselinePredictIterTests(LinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
+    pass
+
+
+class BaselinePredictDFTests(LinkDFWithPrediction, BaselinePredictTests, StrictTestCase):
+    pass
+
+
+
+class VelocityPredictTests:
     def test_simple_predict(self):
         pred = self.predict_class()
-        ll = get_linked_lengths((self.mkframe(0), self.mkframe(25), self.mkframe(65)),
-                                self.get_linker_iter(pred), 45)
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(25), self.mkframe(65)),
+                                pred, 45)
         assert all(ll.values == 3)
 
     def test_big_predict(self):
         Nside = Nside_oversize
         pred = self.predict_class()
-        ll = get_linked_lengths((self.mkframe(0, Nside), self.mkframe(25, Nside),
+        ll = self.get_linked_lengths((self.mkframe(0, Nside), self.mkframe(25, Nside),
                                  self.mkframe(75, Nside)),
-                                self.get_linker_iter(pred), 45)
+                                pred, 45)
         assert all(ll.values == 3)
 
     def test_predict_newparticles(self):
         """New particles should get the velocities of nearby ones."""
         pred = self.predict_class()
-        ll = get_linked_lengths((self.mkframe(0), self.mkframe(25), self.mkframe(65, 4),
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(25), self.mkframe(65, 4),
                                 self.mkframe(105, 4)),
-                                self.get_linker_iter(pred), 45)
+                                pred, 45)
         assert not any(ll.values == 1)
 
     def test_predict_memory(self):
         pred = self.predict_class()
         frames = [self.mkframe(0), self.mkframe(25), self.mkframe(65),
                   self.mkframe(105), self.mkframe(145)]
-        ll = get_linked_lengths(frames, self.get_linker_iter(pred), 45)
+        ll = self.get_linked_lengths(frames, pred, 45)
         assert all(ll.values == len(frames))
 
         # Knock out a particle. Make sure tracking fails.
         frames[3].loc[5, 'x'] = np.nan
         frames[3] = frames[3].dropna()
         pred = self.predict_class()
-        tr = link(frames, self.get_linker_iter(pred), 45)
+        tr = self.link(frames, pred, 45)
         starts = tr.groupby('particle').frame.min()
         ends = tr.groupby('particle').frame.max()
         assert not all(ends - starts == 145)
 
         pred = self.predict_class()
-        tr = link(frames, self.get_linker_iter(pred), 45, memory=1)
+        tr = self.link(frames, pred, 45, memory=1)
         starts = tr.groupby('particle').frame.min()
         ends = tr.groupby('particle').frame.max()
         assert all(ends - starts == 145), 'Prediction with memory fails.'
@@ -154,7 +170,7 @@ class VelocityPredictTests(LinkWithPrediction):
         Nside = Nside_oversize
         frames = (self.mkframe(0, Nside), self.mkframe(25, Nside),
                   self.mkframe(75, Nside))
-        ll = get_linked_lengths(frames, self.get_linker_iter(pred), 45)
+        ll = self.get_linked_lengths(frames, pred, 45)
         assert all(ll.values == 3)
         diags = pred.dump()
         assert len(diags) == 2
@@ -164,7 +180,7 @@ class VelocityPredictTests(LinkWithPrediction):
             assert np.all(d['particledf']['x_act'] == frames[i+1].x)
 
 
-class NearestVelocityPredictTests(VelocityPredictTests, StrictTestCase):
+class NearestVelocityPredictTests(VelocityPredictTests):
     def setUp(self):
         self.predict_class = predict.NearestVelocityPredict
         self.instrumented_predict_class = \
@@ -174,15 +190,92 @@ class NearestVelocityPredictTests(VelocityPredictTests, StrictTestCase):
     def test_initial_guess(self):
         """When an accurate initial velocity is given, velocities
         in the first pair of frames may be large."""
+
+        # Initializing a guess without specifying pos_columns should
+        # raise an error
+        with self.assertRaises(ValueError):
+            pred = self.predict_class(
+                initial_guess_positions=[(0., 0.)],
+                initial_guess_vels=[(1, -1)])
+
         pred = self.predict_class(
             initial_guess_positions=[(0., 0.)],
-            initial_guess_vels=[(1, -1)])
-        ll = get_linked_lengths((self.mkframe(0), self.mkframe(100),
+            initial_guess_vels=[(-1, 1)],
+            pos_columns=['y', 'x'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
                                  self.mkframe(200)),
-                                self.get_linker_iter(pred), 45)
+                                pred, 45)
         assert all(ll.values == 3)
 
-class DriftPredictTests(VelocityPredictTests, StrictTestCase):
+        # Since we can't specify nonstandard pos_columns for find_link,
+        # skip the remaining checks if we're testing find_link
+        if getattr(self, 'coords_via_images', False):
+            return
+
+        # Giving a pos_columns to the linker that conflicts with the one
+        # used to initialize the predictor raises an error.
+        pred = self.predict_class(
+            initial_guess_positions=[(0., 0.)],
+            initial_guess_vels=[(1, -1)],
+            pos_columns=['x', 'y'])
+        with self.assertRaises(ValueError):
+            ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                          self.mkframe(200)),
+                                         pred, 45, pos_columns=['y', 'x'])
+        # Giving the same pos_columns is OK.
+        pred = self.predict_class(
+            initial_guess_positions=[(0., 0.)],
+            initial_guess_vels=[(1, -1)],
+            pos_columns=['x', 'y'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                      self.mkframe(200)),
+                                     pred, 45, pos_columns=['x', 'y'])
+
+    def test_pos_columns(self):
+        """Test that pos_columns can be specified in any order, or not at all.
+
+        Example by @freemansw1 and @snilsn, bug report by @wyu54.
+        See https://github.com/soft-matter/trackpy/issues/699
+        """
+        # Two particles with increasing x, with opposite velocities in y.
+        # They cross between frames 2 and 3.
+        d = {'frame': [1, 2, 3, 4, 1, 2, 3, 4],
+             'x': [0, 10, 20, 30, 10, 15, 20, 25],
+             'y': [0, 10, 20, 30, 30, 20, 10, 0]}
+        df = pandas.DataFrame(data=d)
+        df_list = [frame for i, frame in df.groupby('frame')]
+
+        def assert_correct(df):
+            # The particle that starts at (0, 0) should finish at (30, 30)
+            pid = df[(df.x == 0) & (df.y == 0)].particle.iloc[0]
+            traj = df[df.particle == pid].set_index('frame')
+            assert_equal(traj.x[4], 30)
+            assert_equal(traj.y[4], 30)
+
+
+        pred = self.predict_class()
+        traj_1 = self.link(df_list, pred, 100)
+        assert_correct(traj_1)
+
+        pred = self.predict_class()
+        traj_2 = self.link(df_list, pred, 100, pos_columns=['x', 'y'])
+        assert_correct(traj_2)
+
+        pred = self.predict_class()
+        traj_3 = self.link(df_list, pred, 100, pos_columns=['y', 'x'])
+        assert_correct(traj_3)
+
+
+
+class NearestVelocityPredictIterTests(LinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
+    pass
+
+
+class NearestVelocityPredictDFTests(LinkDFWithPrediction, NearestVelocityPredictTests, StrictTestCase):
+    pass
+
+
+class DriftPredictTests(VelocityPredictTests):
     def setUp(self):
         self.predict_class = predict.DriftPredict
         self.instrumented_predict_class = \
@@ -192,14 +285,47 @@ class DriftPredictTests(VelocityPredictTests, StrictTestCase):
     def test_initial_guess(self):
         """When an accurate initial velocity is given, velocities
         in the first pair of frames may be large."""
-        pred = self.predict_class(initial_guess=(1, -1))
-        ll = get_linked_lengths((self.mkframe(0), self.mkframe(100),
+
+        # Initializing a guess without specifying pos_columns should
+        # raise an error
+        with self.assertRaises(ValueError):
+            pred = self.predict_class(initial_guess=(1, -1))
+
+        # A bad initial guess will fail.
+        pred = self.predict_class(initial_guess=(1, -1), pos_columns=['y', 'x'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                      self.mkframe(200)),
+                                     pred, 45)
+        assert not all(ll.values == 3)
+
+        pred = self.predict_class(initial_guess=(-1, 1), pos_columns=['y', 'x'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
                                  self.mkframe(200)),
-                                self.get_linker_iter(pred), 45)
+                                 pred, 45)
+        assert all(ll.values == 3)
+
+        # Since we can't specify nonstandard pos_columns for find_link,
+        # skip the remaining check if we're testing find_link
+        if getattr(self, 'coords_via_images', False):
+            return
+
+        # The guess is interpreted according to pos_columns
+        pred = self.predict_class(initial_guess=(1, -1), pos_columns=['x', 'y'])
+        ll = self.get_linked_lengths((self.mkframe(0), self.mkframe(100),
+                                      self.mkframe(200)),
+                                     pred, 45)
         assert all(ll.values == 3)
 
 
-class ChannelPredictXTests(VelocityPredictTests, StrictTestCase):
+class DriftPredictIterTests(LinkIterWithPrediction, DriftPredictTests, StrictTestCase):
+    pass
+
+
+class DriftPredictDFTests(LinkDFWithPrediction, DriftPredictTests, StrictTestCase):
+    pass
+
+
+class ChannelPredictXTests(VelocityPredictTests):
     def setUp(self):
         self.predict_class = functools.partial(
             predict.ChannelPredict, 3, minsamples=3)
@@ -230,13 +356,21 @@ class ChannelPredictXTests(VelocityPredictTests, StrictTestCase):
         pred = predict.ChannelPredict(110, minsamples=3,
                                       initial_profile_guess=initprof)
         # print(_shear_frame(1.))
-        ll = get_linked_lengths((_shear_frame(0), _shear_frame(100),
+        ll = self.get_linked_lengths((_shear_frame(0), _shear_frame(100),
                                  _shear_frame(200), _shear_frame(300)),
-                        self.get_linker_iter(pred), 45)
+                        pred, 45)
         assert all(ll.values == 4)
 
 
-class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
+class ChannelPredictXIterTests(LinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
+    pass
+
+
+class ChannelPredictXDFTests(LinkDFWithPrediction, ChannelPredictXTests, StrictTestCase):
+    pass
+
+
+class ChannelPredictYTests(VelocityPredictTests):
     def setUp(self):
         self.predict_class = functools.partial(
             predict.ChannelPredict, 3, 'y', minsamples=3)
@@ -253,42 +387,95 @@ class ChannelPredictYTests(VelocityPredictTests, StrictTestCase):
             dict(x=xg.flatten() + dx, y=yg.flatten() + dy, frame=n))
 
 
-## find_link prediction tests
-# Define a mixin that converts a normal prediction test class into one
-# that uses find_link.
+class ChannelPredictYIterTests(LinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
+    pass
 
-class LegacyLinkPredictTest:
-    def get_linker_iter(self, pred):
-        return functools.partial(pred.wrap, trackpy.linking.legacy.link_df_iter)
 
-    def get_linker(self, pred):
-        return functools.partial(pred.wrap_single, trackpy.linking.legacy.link_df_iter)
+class ChannelPredictYDFTests(LinkDFWithPrediction, ChannelPredictYTests, StrictTestCase):
+    pass
+
+
+# Test legacy linking functions, wrapped by a predictor method
+class LegacyLinkWithPrediction:
+    def get_linked_lengths(self, frames, pred, *args, **kw):
+        """Track particles and return the length of each trajectory."""
+        linked = self.link(frames, pred, *args, **kw)
+        return linked.groupby('particle').x.count()
+
+    def get_linked_lengths_from_iterfunc(self, frames, func, *args, **kw):
+        """Track particles and return the length of each trajectory."""
+        linked = pandas.concat(func(frames, *args, **kw), ignore_index=True)
+        return linked.groupby('particle').x.count()
 
     def get_unwrapped_linker(self):
         return trackpy.linking.legacy.link_df_iter
 
 
-class NewBaselinePredictTests(LegacyLinkPredictTest, BaselinePredictTests):
+class LegacyLinkIterWithPrediction(LegacyLinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        wrapped_linker_iter = functools.partial(pred.wrap,
+                                                trackpy.linking.legacy.link_df_iter)
+        return pandas.concat(pred.link_df_iter(frames, *args, **defaults),
+                             ignore_index=True)
+
+
+class LegacyLinkDFWithPrediction(LegacyLinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        wrapped_linker_df = functools.partial(pred.wrap_single,
+                                              trackpy.linking.legacy.link_df_iter)
+        return wrapped_linker_df(pandas.concat(frames, ignore_index=True), *args, **defaults)
+
+
+class LLBaselinePredictIterTests(LegacyLinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class NewNearestVelocityPredictTests(LegacyLinkPredictTest, NearestVelocityPredictTests):
+class LLBaselinePredictDFTests(LegacyLinkDFWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class NewDriftPredictTests(LegacyLinkPredictTest, DriftPredictTests):
+class LLNearestVelocityPredictIterTests(LegacyLinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictXTests(LegacyLinkPredictTest, ChannelPredictXTests):
+class LLNearestVelocityPredictDFTests(LegacyLinkDFWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class NewChannelPredictYTests(LegacyLinkPredictTest, ChannelPredictYTests):
+class LLDriftPredictIterTests(LegacyLinkIterWithPrediction, DriftPredictTests, StrictTestCase):
     pass
 
 
-class FindLinkPredictTest:
+class LLDriftPredictDFTests(LegacyLinkDFWithPrediction, DriftPredictTests, StrictTestCase):
+    pass
+
+
+class LLChannelPredictXIterTests(LegacyLinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
+    pass
+
+
+class LLChannelPredictXDFTests(LegacyLinkDFWithPrediction, ChannelPredictXTests, StrictTestCase):
+    pass
+
+
+class LLChannelPredictYIterTests(LegacyLinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
+    pass
+
+
+class LLChannelPredictYDFTests(LegacyLinkDFWithPrediction, ChannelPredictYTests, StrictTestCase):
+    pass
+
+
+## find_link prediction tests
+# Define a mixins that convert a normal prediction test class into one
+# that uses find_link.
+class FindLinkWithPrediction(LinkWithPrediction):
     def setUp(self):
         super().setUp()
         self.linker_opts = dict(separation=10, diameter=15)
@@ -296,63 +483,6 @@ class FindLinkPredictTest:
         # and would require more code to support.
         self.coords_via_images = True
 
-    def get_linker_iter(self, pred):
-        def link_iter(f, search_range, *args, **kw):
-            kw = dict(self.linker_opts, **kw)
-            size = 3
-            separation = kw['separation']
-            # convert the iterable to a single DataFrame (OK for tests)
-            f = [_f for _f in f]
-            indices = [_f['frame'].iloc[0] for _f in f]
-            f = pandas.concat([_f for _f in f])
-            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
-                int)
-            f[['y', 'x']] -= topleft
-            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
-                int)
-            reader = CoordinateReader(f, shape, size, t=indices)
-
-            pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
-            pred.t_column = kw.get('t_column', 'frame')
-
-            for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
-                                                   search_range=search_range,
-                                                   *args, **kw):
-                pred.observe(frame)
-                frame[['y', 'x']] += topleft
-
-                yield frame
-        return link_iter
-
-    def get_linker(self, pred):
-        def link(f, search_range, *args, **kw):
-            kw = dict(self.linker_opts, **kw)
-            size = 3
-            separation = kw['separation']
-            f = f.copy()
-            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
-                int)
-            f[['y', 'x']] -= topleft
-            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
-                int)
-            reader = CoordinateReader(f, shape, size,
-                                      t=f['frame'].unique())
-
-            pred.pos_columns = kw.get('pos_columns', ['x', 'y'])
-            pred.t_column = kw.get('t_column', 'frame')
-
-            f = []
-            for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
-                                                   search_range=search_range,
-                                                   *args, **kw):
-                f.append(frame)
-
-            f = pandas.concat(f)
-            f[['y', 'x']] += topleft
-
-            return f
-        return link
-
     def get_unwrapped_linker(self):
         def link_iter(f, search_range, *args, **kw):
             kw = dict(self.linker_opts, **kw)
@@ -361,7 +491,7 @@ class FindLinkPredictTest:
             # convert the iterable to a single DataFrame (OK for tests)
             f = [_f for _f in f]
             indices = [_f['frame'].iloc[0] for _f in f]
-            f = pandas.concat([_f for _f in f])
+            f = pandas.concat([_f for _f in f], ignore_index=True)
             topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
                 int)
             f[['y', 'x']] -= topleft
@@ -377,23 +507,73 @@ class FindLinkPredictTest:
         return link_iter
 
 
-class FLBaselinePredictTests(FindLinkPredictTest, BaselinePredictTests):
+# Just run one set of prediction tests, because there is no equivalent
+# of pred.link_df in the API for find_link.
+class FindLinkIterWithPrediction(FindLinkWithPrediction):
+    def link(self, frames, pred, *args, **kw):
+        # Takes an iterable of frames, and outputs a single linked DataFrame.
+        defaults = {}
+        defaults.update(kw)
+        link_df_iter = self.get_linker_iter(pred)
+        return pandas.concat(link_df_iter(frames, *args, **defaults),
+                             ignore_index=True)
+
+    def get_linker_iter(self, pred):
+        def link_iter(f, search_range, *args, **kw):
+            kw = dict(self.linker_opts, **kw)
+            size = 3
+            separation = kw['separation']
+            # convert the iterable to a single DataFrame (OK for tests)
+            f = [_f for _f in f]
+            indices = [_f['frame'].iloc[0] for _f in f]
+            f = pandas.concat([_f for _f in f], ignore_index=True)
+            topleft = (f[['y', 'x']].min().values - 4 * separation).astype(
+                int)
+            f[['y', 'x']] -= topleft
+            shape = (f[['y', 'x']].max().values + 4 * separation).astype(
+                int)
+            reader = CoordinateReader(f, shape, size, t=indices)
+
+            # Ordinarily, pos_columns would be set when initializing the
+            # predictor, or it would be automatically set by pred.link_df etc.
+            # We must specify it before the predictor is given any
+            # particle position data.
+            if getattr(pred, 'pos_columns', None) is None:
+                pred.pos_columns = guess_pos_columns(f)
+            pred.t_column = kw.get('t_column', 'frame')
+
+            # FindLinker uses image coordinates only, and therefore has no use
+            # for pos_columns.
+            if 'pos_columns' in kw:
+                del kw['pos_columns']
+
+            for i, frame in trackpy.find_link_iter(reader, predictor=pred.predict,
+                                                   search_range=search_range,
+                                                   *args, **kw):
+                pred.observe(frame)
+                frame[['y', 'x']] += topleft
+
+                yield frame
+        return link_iter
+
+
+class FLBaselinePredictTests(FindLinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
     pass
 
 
-class FLNearestVelocityPredictTests(FindLinkPredictTest, NearestVelocityPredictTests):
+class FLNearestVelocityPredictTests(FindLinkIterWithPrediction, NearestVelocityPredictTests, StrictTestCase):
     pass
 
 
-class FLDriftPredictTests(FindLinkPredictTest, DriftPredictTests):
+class FLDriftPredictTests(FindLinkIterWithPrediction, DriftPredictTests, StrictTestCase):
     pass
 
 
-class FLChannelPredictXTests(FindLinkPredictTest, ChannelPredictXTests):
+class FLChannelPredictXTests(FindLinkIterWithPrediction, ChannelPredictXTests, StrictTestCase):
     pass
 
 
-class FLChannelPredictYTests(FindLinkPredictTest, ChannelPredictYTests):
+class FLChannelPredictYTests(FindLinkIterWithPrediction, ChannelPredictYTests, StrictTestCase):
     pass
 
 

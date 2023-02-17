@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from numpy.testing import assert_allclose
 
-from trackpy.utils import validate_tuple
+from trackpy.utils import validate_tuple, is_scipy_15
 from trackpy.refine import refine_com, refine_leastsq
 from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
                                 draw_cluster, SimulatedImage)
@@ -84,6 +84,8 @@ class RefineTsts:
     def setUp(self):
         if self.skip:
             raise SkipTest()
+        if is_scipy_15:
+            raise SkipTest("Skipping refine_leastsq tests on Scipy 1.5")
 
     def get_image(self, noise=0, signal_dev=0., size_dev=0., separation=None,
                   N=None):
@@ -800,6 +802,8 @@ class TestMultiple(StrictTestCase):
     diameter = 21
     separation = 24
     def setUp(self):
+        if is_scipy_15:
+            raise SkipTest("Skipping refine_leastsq tests on Scipy 1.5")
         self.signal = 200
         if not hasattr(self, 'size'):
             if hasattr(self.diameter, '__iter__'):
