@@ -42,7 +42,7 @@ def find_link(reader, search_range, separation, diameter=None, memory=0,
     minmass : number, optional
         minimum integrated intensity (in masked image). Default 0.
     noise_size : number or tuple, optional
-        Size of Gaussian kernel with whith the image is convoluted for noise
+        Size of Gaussian kernel with which the image is convoluted for noise
         reduction. Default 1.
     smoothing_size : number or tuple, optional
         Size of rolling average box for background subtraction.
