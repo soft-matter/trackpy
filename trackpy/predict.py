@@ -301,6 +301,9 @@ class ChannelPredict(_RecentVelocityPredict):
         initial velocity profile. Samples must be sufficiently dense to account
         for variation in the velocity profile. If omitted, initial velocities are
         assumed to be zero.
+    pos_columns : list of d strings, optional
+        Names of coordinate columns corresponding to the elements of
+        initial_profile_guess, e.g. ['y', 'x']. Required if a guess is specified.
     span : integer, default 1
         Compute velocity field from the most recent span+1 frames.
 
