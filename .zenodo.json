@@ -4,27 +4,22 @@
     "creators": [
         {
             "orcid": "0000-0002-5947-6017", 
-            "affiliation": "Brookhaven National Lab", 
             "name": "Allan, Daniel B."
         }, 
         {
             "orcid": "0000-0003-4692-608X", 
-            "affiliation": "Brookhaven National Lab", 
             "name": "Caswell, Thomas"
         }, 
         {
             "orcid": "0000-0003-0746-0547", 
-            "affiliation": "Pennsylvania State University", 
             "name": "Keim, Nathan C."
         }, 
         {
             "orcid": "0000-0002-0488-2237", 
-            "affiliation": "Leiden University", 
             "name": "van der Wel, Casper M."
         },
         {
             "orcid": "0000-0003-3925-5732",
-            "affliation": "Leiden University",
             "name": "Verweij, Ruben W."
         }
     ], 
