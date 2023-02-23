@@ -1,5 +1,11 @@
-v0.6
-----
+v0.6.1
+------
+
+trackpy v0.6.1 is functionally equivalent to v0.6.0. It is being released
+to fix an issue with Zenodo, so that this trackpy release has a citable DOI.
+
+v0.6.0
+------
 
 This release adds an efficient way to use custom distance metrics during
 linking, and fixes bugs and some inconsistencies in the prediction
