@@ -308,7 +308,7 @@ def subtract_drift(traj, drift=None, inplace=False):
         drift = compute_drift(traj)
     if not inplace:
         traj = traj.copy()
-    traj.set_index('frame', inplace=True, drop=False)
+    traj.set_index(['frame', 'particle'], inplace=True, drop=False)
     traj.sort_index(inplace=True)
     for col in drift.columns:
         traj[col] = traj[col].sub(drift[col], fill_value=0, level='frame')
