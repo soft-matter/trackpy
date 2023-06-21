@@ -315,7 +315,7 @@ def default_pos_columns(ndim):
     if ndim < 4:
         return ['z', 'y', 'x'][-ndim:]
     else:
-        return map(lambda i: 'x' + str(i), range(ndim))
+        return list(map(lambda i: 'x' + str(i), range(ndim)))
 
 
 def default_size_columns(ndim, isotropic):
