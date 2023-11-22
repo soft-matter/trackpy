@@ -753,7 +753,10 @@ class TestBTreeLink(SubnetNeededTests):
 
 
     def test_custom_dist_metric(self):
-        import sklearn.neighbors
+        try:
+            from sklearn.metrics import DistanceMetric
+        except ImportError:
+            from sklearn.neighbors import DistanceMetric
 
         # Several 2D random walkers
         N = 5
@@ -771,7 +774,7 @@ class TestBTreeLink(SubnetNeededTests):
 
         # leave x, y for the comparison at the end
 
-        dist_func = sklearn.neighbors.DistanceMetric.get_metric("euclidean")
+        dist_func = DistanceMetric.get_metric("euclidean")
         
         # link using a custom distance function
         actual = self.link(f, search_range, dist_func=dist_func)
