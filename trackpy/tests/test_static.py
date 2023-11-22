@@ -1,3 +1,5 @@
+import pandas
+
 from trackpy.static import *
 import pandas as pd
 import numpy as np
@@ -175,7 +177,7 @@ class TestPairCorrelation(StrictTestCase):
                                'z': np.concatenate(refz)})
         
         # The last index is the center particle, which is used to calculate g_r 
-        df = df.append(pd.DataFrame({'x': [0.], 'y': [0.], 'z':[0.]}))
+        df = pandas.concat([df, pd.DataFrame({'x': [0.], 'y': [0.], 'z':[0.]})])
         return df
 
 

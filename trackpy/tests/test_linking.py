@@ -681,9 +681,9 @@ class TestDropLink(CommonTrackingTests):
         # The resulting subnet causes the trajectory to be broken
         # when link_strategy is 'drop' and search_range is large enough.
         N = 2
-        f_1particle = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        f = f_1particle.append(DataFrame(
-            {'x': [3], 'y': [1], 'frame': [1]}), ignore_index=True)
+        f = DataFrame({'x': list(np.arange(N)) + [3],
+                       'y': np.ones(N+1),
+                       'frame': list(np.arange(N)) + [1]})
         f_expected_without_subnet = f.copy()
         f_expected_without_subnet['particle'] = [0, 0, 1]
         # The linker assigns new particle IDs in arbitrary order. So
