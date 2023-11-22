@@ -416,3 +416,18 @@ def get_pool(processes):
         map_func = map
 
     return pool, map_func
+
+
+def stats_mode_scalar(*args, **kwargs):
+    """Returns a scalar from scipy.stats.mode().
+
+    Works around new default in scipy 1.11 to eliminate extra axes
+    that were previously removed by trackpy.
+
+    See https://docs.scipy.org/doc/scipy-1.9.3/reference/generated/scipy.stats.mode.html
+    """
+    result = stats.mode(*args, **kwargs)[0]
+    try:
+        return result[0]  # Old behavior
+    except IndexError:
+        return result  # scipy >= 1.11
