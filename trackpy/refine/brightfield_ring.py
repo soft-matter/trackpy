@@ -9,7 +9,8 @@ import warnings
 from scipy.ndimage import map_coordinates
 from scipy import stats
 
-from ..utils import (validate_tuple, guess_pos_columns, default_pos_columns)
+from ..utils import (validate_tuple, guess_pos_columns, default_pos_columns,
+                     stats_mode_scalar)
 
 
 def refine_brightfield_ring(image, radius, coords_df, pos_columns=None,
@@ -197,9 +198,9 @@ def _min_edge(arr, threshold=0.45, max_dev=1, axis=1, bright_left=True,
     if np.sum(mask) == 0:
         return r_dev
 
-    # filter by deviations from most occuring value
+    # filter by deviations from most occurring value
     max_dev = np.round(max_dev)
-    most_likely = stats.mode(r_dev[mask])[0][0]
+    most_likely = stats_mode_scalar(r_dev[mask])
     mask[mask] &= np.abs(r_dev[mask]-most_likely) > max_dev
     r_dev[mask] = np.nan
 

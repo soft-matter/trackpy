@@ -681,9 +681,9 @@ class TestDropLink(CommonTrackingTests):
         # The resulting subnet causes the trajectory to be broken
         # when link_strategy is 'drop' and search_range is large enough.
         N = 2
-        f_1particle = DataFrame({'x': np.arange(N), 'y': np.ones(N), 'frame': np.arange(N)})
-        f = f_1particle.append(DataFrame(
-            {'x': [3], 'y': [1], 'frame': [1]}), ignore_index=True)
+        f = DataFrame({'x': list(np.arange(N)) + [3],
+                       'y': np.ones(N+1),
+                       'frame': list(np.arange(N)) + [1]})
         f_expected_without_subnet = f.copy()
         f_expected_without_subnet['particle'] = [0, 0, 1]
         # The linker assigns new particle IDs in arbitrary order. So
@@ -753,7 +753,10 @@ class TestBTreeLink(SubnetNeededTests):
 
 
     def test_custom_dist_metric(self):
-        import sklearn.neighbors
+        try:
+            from sklearn.metrics import DistanceMetric
+        except ImportError:
+            from sklearn.neighbors import DistanceMetric
 
         # Several 2D random walkers
         N = 5
@@ -771,7 +774,7 @@ class TestBTreeLink(SubnetNeededTests):
 
         # leave x, y for the comparison at the end
 
-        dist_func = sklearn.neighbors.DistanceMetric.get_metric("euclidean")
+        dist_func = DistanceMetric.get_metric("euclidean")
         
         # link using a custom distance function
         actual = self.link(f, search_range, dist_func=dist_func)
