@@ -198,7 +198,7 @@ def validate_tuple(value, ndim):
 
 
 try:
-    from IPython.core.display import clear_output
+    from IPython.display import clear_output
 except ImportError:
     pass
 
