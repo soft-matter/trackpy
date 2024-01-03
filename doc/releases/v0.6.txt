@@ -1,3 +1,11 @@
+v0.6.2
+------
+
+trackpy v0.6.2 includes version compatability fixes with newer library versions.
+Also it drops support for Python 3.7 and earlier, NumPy 1.17 and earlier, Pandas 0.x,
+and SciPy 1.2 and earlier.
+
+
 v0.6.1
 ------
 

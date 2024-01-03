@@ -4,7 +4,6 @@ import re
 import sys
 import warnings
 from collections.abc import Hashable
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 from looseversion import LooseVersion
 from multiprocessing.pool import Pool
@@ -198,7 +197,7 @@ def validate_tuple(value, ndim):
 
 
 try:
-    from IPython.core.display import clear_output
+    from IPython.display import clear_output
 except ImportError:
     pass
 
@@ -418,16 +417,14 @@ def get_pool(processes):
     return pool, map_func
 
 
-def stats_mode_scalar(*args, **kwargs):
+def stats_mode_scalar(a):
     """Returns a scalar from scipy.stats.mode().
-
-    Works around new default in scipy 1.11 to eliminate extra axes
-    that were previously removed by trackpy.
 
     See https://docs.scipy.org/doc/scipy-1.9.3/reference/generated/scipy.stats.mode.html
     """
-    result = stats.mode(*args, **kwargs)[0]
     try:
-        return result[0]  # Old behavior
-    except IndexError:
-        return result  # scipy >= 1.11
+        # scipy >= 1.11
+        return stats.mode(a, keepdims=False).mode
+    except TypeError:
+        # Old behavior (keepdims is not accepted)
+        return stats.mode(a).mode[0]

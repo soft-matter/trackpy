@@ -618,7 +618,8 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
         res['particle'] = -1
         for t, ids in link_iter(f_iter(f, 0, int(f['frame'].max())),
                                 search_range, *args, **kwargs):
-            res.loc[res['frame'] == t, 'particle'] = ids
+            if ids:
+                res.loc[res['frame'] == t, 'particle'] = ids
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
     def test_output_dtypes(self):
@@ -626,7 +627,7 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                        'frame': np.arange(N)})
         # Integer-typed input
-        f['frame'] = f['frame'].astype(int)
+        f['frame'] = f['frame'].astype(np.int64)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed

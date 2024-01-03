@@ -36,7 +36,7 @@ def _skip_if_no_pytables():
         raise unittest.SkipTest('pytables not installed. Skipping.')
 
     # https://github.com/soft-matter/trackpy/issues/643
-    if tables.get_hdf5_version() == "1.8.5-patch1":
+    if tables.hdf5_version == "1.8.5-patch1":
         raise unittest.SkipTest('this pytables version has an incompatible HDF5 version. Skipping.')
 
 class FeatureSavingTester:
