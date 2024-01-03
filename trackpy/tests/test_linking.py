@@ -627,7 +627,7 @@ class SimpleLinkingTestsIter(CommonTrackingTests):
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
                        'frame': np.arange(N)})
         # Integer-typed input
-        f['frame'] = f['frame'].astype(int)
+        f['frame'] = f['frame'].astype(np.int64)
         actual = self.link(f, 5)
 
         # Particle and frame columns should be integer typed

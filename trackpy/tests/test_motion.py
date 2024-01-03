@@ -20,7 +20,7 @@ def random_walk(N):
 def conformity(df):
     """ Organize toy data to look like real data. Be strict about dtypes:
     particle is a float and frame is an integer."""
-    df['frame'] = df['frame'].astype(int)
+    df['frame'] = df['frame'].astype(np.int64)  # pandas maps to int32 on windows!
     df['particle'] = df['particle'].astype(float)
     df['x'] = df['x'].astype(float)
     df['y'] = df['y'].astype(float)
