@@ -1,3 +1,4 @@
+import functools
 import logging
 import warnings
 import numpy as np
@@ -457,6 +458,16 @@ def prepare_subimages(coords, groups, frame_nos, reader, radius):
     return images, meshes, masks
 
 
+def ignore_clip_warnings(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", ".*outside bounds during a minimize step.*", RuntimeWarning, "scipy.optimize.*")
+            return func(*args, **kwargs)
+    return wrapper
+
+
+@ignore_clip_warnings
 def refine_leastsq(f, reader, diameter, separation=None, fit_function='gauss',
                    param_mode=None, param_val=None, constraints=None,
                    bounds=None, compute_error=False, pos_columns=None,
