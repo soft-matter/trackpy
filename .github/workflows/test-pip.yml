@@ -18,7 +18,7 @@ jobs:
             deps: "numpy==1.19.* scipy==1.5.* matplotlib==3.3.* pandas==1.1.* tables==3.6.* scikit-learn==0.24.* numba==0.53.* llvmlite==0.36.*"
           - python: "3.10"
             display_name: "2021"
-            deps: "numpy==1.22.* scipy==1.7.* matplotlib==3.5.* pandas==1.3.* tables==3.6.* scikit-learn==1.0.* numba==0.55.* llvmlite==0.38.*"
+            deps: "numpy==1.22.* scipy==1.7.* matplotlib==3.5.* pandas==1.3.* tables==3.7.* scikit-learn==1.0.* numba==0.55.* llvmlite==0.38.*"
           - python: "3.11"
             display_name: "2022"
             deps: "numpy==1.24.* scipy==1.9.* matplotlib==3.6.* pandas==2.0.* tables==3.8.* scikit-learn==1.1.* numba==0.57.* llvmlite==0.40.*"
