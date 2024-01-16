@@ -11,7 +11,14 @@ from trackpy.artificial import (feat_gauss, rot_2d, rot_3d, draw_feature,
 from trackpy.refine.least_squares import (dimer, trimer, tetramer, dimer_global,
                                           FitFunctions, vect_from_params)
 from trackpy.tests.common import assert_coordinates_close, StrictTestCase
-from scipy.optimize.slsqp import approx_jacobian
+import warnings
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    try:
+        from scipy.optimize.slsqp import approx_jacobian
+    except ImportError:
+        approx_jacobian = None
 
 
 EPSILON = 1E-7
@@ -923,6 +930,8 @@ class TestFitFunctions(StrictTestCase):
 
     def compare_jacobian(self, fit_function, ndim, isotropic, n, groups=None,
                          custom_param_mode=None):
+        if approx_jacobian is None:
+            raise SkipTest("This test requires a function that is deprecated in Scipy 2.0")
         ff = FitFunctions(fit_function, ndim, isotropic)
         param_mode = {param: 'var' for param in ff.params}
         param_mode['background'] = 'cluster'

@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.ndimage import morphology
+from scipy.ndimage import binary_dilation
 from pandas import DataFrame
 
 from .masks import binary_mask, x_squared_masks
@@ -26,7 +26,7 @@ def measure_noise(image_bp, image_raw, radius):
     background mean, background standard deviation
     """
     structure = binary_mask(radius, image_bp.ndim)
-    background = ~morphology.binary_dilation(image_bp, structure=structure)
+    background = ~binary_dilation(image_bp, structure=structure)
     n_background = background.sum()
     if n_background == 0:  # edge case of no background identified
         return np.nan, np.nan

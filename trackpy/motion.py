@@ -232,8 +232,8 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, True, pos_columns))
         ids.append(pid)
     msds = pandas_concat(msds, keys=ids, names=['particle', 'frame'])
-    results = msds.mul(msds['N'], axis=0).mean(level=1)  # weighted average
-    results = results.div(msds['N'].mean(level=1), axis=0)  # weights normalized
+    results = msds.mul(msds['N'], axis=0).groupby(level=1).mean()  # weighted average
+    results = results.div(msds['N'].groupby(level=1).mean(), axis=0)  # weights normalized
     # Above, lagt is lumped in with the rest for simplicity and speed.
     # Here, rebuild it from the frame index.
     if not detail:

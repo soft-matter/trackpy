@@ -4,7 +4,6 @@ import re
 import sys
 import warnings
 from collections.abc import Hashable
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 from looseversion import LooseVersion
 from multiprocessing.pool import Pool
@@ -198,7 +197,7 @@ def validate_tuple(value, ndim):
 
 
 try:
-    from IPython.core.display import clear_output
+    from IPython.display import clear_output
 except ImportError:
     pass
 
@@ -315,7 +314,7 @@ def default_pos_columns(ndim):
     if ndim < 4:
         return ['z', 'y', 'x'][-ndim:]
     else:
-        return map(lambda i: 'x' + str(i), range(ndim))
+        return list(map(lambda i: 'x' + str(i), range(ndim)))
 
 
 def default_size_columns(ndim, isotropic):
@@ -416,3 +415,16 @@ def get_pool(processes):
         map_func = map
 
     return pool, map_func
+
+
+def stats_mode_scalar(a):
+    """Returns a scalar from scipy.stats.mode().
+
+    See https://docs.scipy.org/doc/scipy-1.9.3/reference/generated/scipy.stats.mode.html
+    """
+    try:
+        # scipy >= 1.11
+        return stats.mode(a, keepdims=False).mode
+    except TypeError:
+        # Old behavior (keepdims is not accepted)
+        return stats.mode(a).mode[0]
