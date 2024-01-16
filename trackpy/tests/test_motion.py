@@ -21,11 +21,14 @@ def conformity(df):
     """ Organize toy data to look like real data. Be strict about dtypes:
     particle is a float and frame is an integer."""
     df['frame'] = df['frame'].astype(int)
-    df['particle'] = df['particle'].astype(float)
     df['x'] = df['x'].astype(float)
     df['y'] = df['y'].astype(float)
     df.set_index('frame', drop=False, inplace=True)
-    return pandas_sort(df, by=['frame', 'particle'])
+    if 'particle' in df.columns:
+        df['particle'] = df['particle'].astype(float)
+        return pandas_sort(df, by=['frame', 'particle'])
+    else:
+        return pandas_sort(df, by=['frame'])
 
 
 def assert_traj_equal(t1, t2):
@@ -63,6 +66,8 @@ class TestDrift(StrictTestCase):
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pandas_concat([a, b]))
+        self.unlabeled_steppers = self.steppers.copy()
+        del self.unlabeled_steppers['particle']
 
     def test_no_drift(self):
         N = 10
@@ -115,6 +120,11 @@ class TestDrift(StrictTestCase):
         assert_traj_equal(actual, self.many_walks)
         actual = tp.subtract_drift(add_drift(self.steppers, drift), drift)
         assert_traj_equal(actual, self.steppers)
+
+        # Test that subtract_drift is OK without particle labels.
+        actual = tp.subtract_drift(add_drift(self.unlabeled_steppers, drift),
+                                   drift)
+        assert_traj_equal(actual, self.unlabeled_steppers)
 
 
 class TestMSD(StrictTestCase):
