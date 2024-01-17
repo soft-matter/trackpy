@@ -20,7 +20,7 @@ def random_walk(N):
 def conformity(df):
     """ Organize toy data to look like real data. Be strict about dtypes:
     particle is a float and frame is an integer."""
-    df['frame'] = df['frame'].astype(int)
+    df['frame'] = df['frame'].astype(np.int64)
     df['x'] = df['x'].astype(float)
     df['y'] = df['y'].astype(float)
     df.set_index('frame', drop=False, inplace=True)
@@ -71,7 +71,7 @@ class TestDrift(StrictTestCase):
         self.steppers = conformity(pandas_concat([a, b]))
 
         # Single-particle trajectory with no particle label
-        self.single_stepper = conformity(a)
+        self.single_stepper = conformity(a.copy())
         del self.single_stepper['particle']
 
     def test_no_drift(self):
