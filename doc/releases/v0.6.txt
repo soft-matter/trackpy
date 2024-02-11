@@ -14,7 +14,7 @@ Bug fixes
 
 Dependencies
 ~~~~~~~~~~~~
-- Adds official support for Python 3.10. (@caspervdw, #747)
+- Adds official support for Python 3.12. (@caspervdw, #747)
 - Adds support for latest Pandas, NumPy, and SciPy (@marcocaggioni, #740;
   @nkeim, #743, @vivarose and @rodrigo-j-goncalves, #742; @caspervdw, #747)
 - Drops official support for Python 3.7 and earlier, NumPy 1.17 and earlier,
