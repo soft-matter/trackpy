@@ -296,7 +296,8 @@ def subtract_drift(traj, drift=None, inplace=False):
 
     Parameters
     ----------
-    traj : DataFrame of trajectories, including columns x, y, and frame
+    traj : DataFrame of trajectories, including columns x, y, frame,
+           and particle (if there is more than one particle).
     drift : optional DataFrame([x, y], index=frame) like output of
          compute_drift(). If no drift is passed, drift is computed from traj.
 
@@ -308,8 +309,12 @@ def subtract_drift(traj, drift=None, inplace=False):
         drift = compute_drift(traj)
     if not inplace:
         traj = traj.copy()
-    traj.set_index('frame', inplace=True, drop=False)
-    traj.sort_index(inplace=True)
+    if 'particle' in traj.columns:
+        traj.set_index(['frame', 'particle'], inplace=True, drop=False)
+    else:
+        traj.set_index(['frame'], inplace=True, drop=False)
+    # Order of particles is irrelevant for performance
+    traj.sort_index(level='frame', inplace=True)
     for col in drift.columns:
         traj[col] = traj[col].sub(drift[col], fill_value=0, level='frame')
     return traj

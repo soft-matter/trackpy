@@ -20,12 +20,15 @@ def random_walk(N):
 def conformity(df):
     """ Organize toy data to look like real data. Be strict about dtypes:
     particle is a float and frame is an integer."""
-    df['frame'] = df['frame'].astype(np.int64)  # pandas maps to int32 on windows!
-    df['particle'] = df['particle'].astype(float)
+    df['frame'] = df['frame'].astype(np.int64)
     df['x'] = df['x'].astype(float)
     df['y'] = df['y'].astype(float)
     df.set_index('frame', drop=False, inplace=True)
-    return pandas_sort(df, by=['frame', 'particle'])
+    if 'particle' in df.columns:
+        df['particle'] = df['particle'].astype(float)
+        return pandas_sort(df, by=['frame', 'particle'])
+    else:
+        return pandas_sort(df, by=['frame'])
 
 
 def assert_traj_equal(t1, t2):
@@ -58,11 +61,18 @@ class TestDrift(StrictTestCase):
                      for i in range(P)]
         self.many_walks = conformity(pandas_concat(particles))
 
+        self.unlabeled_walks = self.many_walks.copy()
+        del self.unlabeled_walks['particle']
+
         a = DataFrame({'x': np.arange(N), 'y': np.zeros(N),
                        'frame': np.arange(N), 'particle': np.zeros(N)})
         b = DataFrame({'x': np.arange(1, N), 'y': Y + np.zeros(N - 1),
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pandas_concat([a, b]))
+
+        # Single-particle trajectory with no particle label
+        self.single_stepper = conformity(a.copy())
+        del self.single_stepper['particle']
 
     def test_no_drift(self):
         N = 10
@@ -115,6 +125,16 @@ class TestDrift(StrictTestCase):
         assert_traj_equal(actual, self.many_walks)
         actual = tp.subtract_drift(add_drift(self.steppers, drift), drift)
         assert_traj_equal(actual, self.steppers)
+
+        actual = tp.subtract_drift(add_drift(self.single_stepper, drift), drift)
+        assert_traj_equal(actual, self.single_stepper)
+
+        # Test that subtract_drift is OK without particle labels.
+        # In principle, Series.sub() may raise an error because
+        # the 'frame' index is duplicated.
+        # Don't check the result since we can't compare unlabeled trajectories!
+        actual = tp.subtract_drift(add_drift(self.unlabeled_walks, drift),
+                                   drift)
 
 
 class TestMSD(StrictTestCase):
