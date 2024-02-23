@@ -66,13 +66,14 @@ run this in the command prompt:
 Latest Version Under Development
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `master` branch on github contains the latest tested development code.
-Changes are thoroughly tested before being merged. If you want to use the
-latest features it should be safe to rely on the master branch.
-(The primary contributors do.)
+The ``master`` branch on GitHub contains the latest tested development code.
+Sometimes this branch will be compatible with the very latest versions of 
+other packages (especially pandas or scipy) weeks or months before a new 
+stable version is released. Code in this branch has already been thoroughly 
+tested. 
 
 You can easily install a recent build by downloading the source from
-`Github <https://github.com/soft-matter/trackpy>`_:
+`GitHub <https://github.com/soft-matter/trackpy>`_:
 
 .. code-block:: bash
 
@@ -90,7 +91,7 @@ environment with the name softmatter as follows:
 
 .. code-block:: bash
 
-    conda create --name softmatter python=3.7 trackpy nb_conda
+    conda create --name softmatter trackpy nb_conda
 
 The `nb_conda` is optional, but we added it to ensure that Jupyter sees this
 environment as well. You can switch to the environment from within Jupyter in
@@ -117,11 +118,13 @@ pip
 """
 
 We strongly recommend using conda to install trackpy, as described above,
-but pip is also supported.
+but pip is also supported. In general, you can use the latest version of each dependency.
+If you wish to override trackpy's minimum version requirements, you may find that 
+trackpy still runs your analysis code with older versions of dependencies.
 
 Essential Dependencies:
 
-* Python 3.7 or newer. (trackpy on Python 2.7 and older Python 3.x is no longer officially supported, though it is still likely to run.)
+* Python 3
 * `setuptools <http://pythonhosted.org/setuptools/>`__
 * `numpy <http://www.scipy.org/>`__
 * `scipy <http://www.scipy.org/>`__
