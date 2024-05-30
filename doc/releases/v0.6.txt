@@ -1,3 +1,13 @@
+v0.6.3
+------
+
+trackpy v0.6.3 is a minor compatibility update for newer Pandas verisons.
+
+Dependencies
+~~~~~~~~~~~~
+- Improves support for latest Pandas in emsd function (@hz-xiaxz, #758)
+
+
 v0.6.2
 ------
 
