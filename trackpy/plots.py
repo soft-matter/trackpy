@@ -80,7 +80,7 @@ def make_axes3d(func):
         if kwargs.get('ax') is None:
             if not hasattr(plt.gca(), 'zaxis'):
                 plt.figure()  # initialize new Fig when current axis is not 3d
-            kwargs['ax'] = plt.gca(projection='3d')
+            kwargs['ax'] = plt.subplot(projection='3d')
             show_plot = True
         else:
             if not hasattr(plt.gca(), 'zaxis'):
