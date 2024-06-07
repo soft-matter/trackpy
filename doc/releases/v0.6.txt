@@ -6,6 +6,7 @@ trackpy v0.6.3 is a minor compatibility update for newer Pandas verisons.
 Dependencies
 ~~~~~~~~~~~~
 - Improves support for latest Pandas in emsd function (@hz-xiaxz, #758)
+- Fix deprecated matplotlib usage in 3D plotting (@jacopoabramo, #767)
 
 
 v0.6.2

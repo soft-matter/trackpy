@@ -57,6 +57,12 @@ class TestPlots(StrictTestCase):
         df.columns = cols
         plots.plot_traj(df, t_column='arbitrary name')
 
+    def test_ptraj3d(self):
+        sparse3d = self.sparse.copy()
+        sparse3d['z'] = 0
+        # smoke test
+        plots.plot_traj3d(sparse3d)
+
     def test_annotate(self):
         suppress_plotting()
         f = DataFrame({'x': [0, 1], 'y': [0, 1], 'frame': [0, 0],
