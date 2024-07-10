@@ -1,3 +1,16 @@
+v0.6.4
+------
+
+trackpy v0.6.4 is a minor compatibility update for numpy v2.0
+
+Dependencies
+~~~~~~~~~~~~
+- Adds support for numpy 2.0 (@nkeim, #770). Note that as of this writing,
+  pytables (an optional dependency for trackpy) does not yet support
+  numpy 2.0 (see https://github.com/PyTables/PyTables/issues/1172 and 
+  #768).
+
+
 v0.6.3
 ------
 
