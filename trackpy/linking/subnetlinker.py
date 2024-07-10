@@ -33,7 +33,7 @@ class SubnetLinker:
         self.max_links = min(self.MAX, dest_size)
         self.best_pairs = None
         self.cur_pairs = deque([])
-        self.best_sum = np.Inf
+        self.best_sum = np.inf
         self.d_taken = set()
         self.cur_sum = 0
 
