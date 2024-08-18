@@ -108,11 +108,15 @@ def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
 
     result = pd.DataFrame(_msd_iter(pos.values, lagtimes),
                           columns=result_columns, index=lagtimes)
-    result['msd'] = result[result_columns[-len(pos_columns):]].sum(1)
+    result['msd'] = result[result_columns[-len(pos_columns):]].sum(1, skipna=False)
     if detail:
         # effective number of measurements
         # approximately corrected with number of gaps
         result['N'] = _msd_N(len(pos), lagtimes) * len(traj) / len(pos)
+        # If MSD is nan that's because there were zero datapoints. Reset N to 0.
+        result['N'] = np.where(result['msd'].isna(), 0, result['N'])
+        # An alternative option at this point would be to scale up N for the rest of the column
+        
     result['lagt'] = result.index.values/float(fps)
     result.index.name = 'lagt'
     return result
@@ -232,6 +236,10 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, True, pos_columns))
         ids.append(pid)
     msds = pandas_concat(msds, keys=ids, names=['particle', 'frame'])
+    
+    # remove np.nan because it would make the rest of the calculation break
+    msds['msd'] = np.where(msds['msd'].isna(), 0, msds['msd'])
+
     results = msds.mul(msds['N'], axis=0).groupby(level=1).mean()  # weighted average
     results = results.div(msds['N'].groupby(level=1).mean(), axis=0)  # weights normalized
     # Above, lagt is lumped in with the rest for simplicity and speed.
