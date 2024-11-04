@@ -335,18 +335,23 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
         for i, trajectory in unstacked.iterrows():
             _plot(ax, mpp*trajectory, pos_columns, **_plot_style)
     if colorby == 'frame':
-        # Read http://www.scipy.org/Cookbook/Matplotlib/MulticoloredLine
+        # Read https://scipy-cookbook.readthedocs.io/items/Matplotlib_MulticoloredLine.html
         x = traj.set_index([t_column, 'particle'])['x'].unstack()
         y = traj.set_index([t_column, 'particle'])['y'].unstack()
         color_numbers = traj[t_column].values/float(traj[t_column].max())
-        logger.info("Drawing multicolor lines takes awhile. "
+        norm = plt.Normalize(color_numbers.min(), color_numbers.max())
+        color_max = float(traj[t_column].max())
+        logger.info("Drawing multicolor lines takes a while. "
                     "Come back in a minute.")
         for particle in x:
-            points = np.array(
-                [x[particle].values, y[particle].values]).T.reshape(-1, 1, 2)
+            x_series = x[particle].dropna()
+            y_series = y[particle].dropna()
+            frames = np.array(x_series.index)
+            frames_map = frames/color_max
+            points = np.array([x_series.values, y_series.values]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
-            lc = LineCollection(segments, cmap=cmap)
-            lc.set_array(color_numbers)
+            lc = LineCollection(segments, cmap=cmap, norm=norm)
+            lc.set_array(frames_map)
             ax.add_collection(lc)
             ax.set_xlim(x.apply(np.min).min(), x.apply(np.max).max())
             ax.set_ylim(y.apply(np.min).min(), y.apply(np.max).max())
