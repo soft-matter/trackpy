@@ -549,7 +549,7 @@ def link_df(features, search_range, memory=0,
                 raise UnknownLinkingError("There are more labels than "
                                           "particles to be labeled in Frame "
                                           "{}.".format(frame_no))
-        features['particle'].update(labels)
+        features.loc[labels.index, 'particle'] = labels
         if diagnostics:
             _add_diagnostic_columns(features, level)
 
@@ -689,7 +689,7 @@ def link_df_iter(features, search_range, memory=0,
                 raise UnknownLinkingError("There are more labels than "
                                           "particles to be labeled in Frame "
                                            "{}.".format(frame_no))
-        features['particle'].update(labels)
+        features.loc[labels.index, 'particle'] = labels
         if diagnostics:
             _add_diagnostic_columns(features, labeled_level)
 
