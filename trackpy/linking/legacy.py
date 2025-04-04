@@ -764,7 +764,7 @@ def _gen_levels_df(df, pos_columns, t_column, diagnostics=False):
 def _add_diagnostic_columns(features, level):
     """Copy the diagnostic information stored in each particle to the
     corresponding columns in 'features'. Create columns as needed."""
-    diag = pd.DataFrame({x.id: x.diag for x in level}, dtype=object).T
+    diag = pd.DataFrame({x.id: x.diag for x in level}, dtype=float).T
     diag.columns = ['diag_' + cn for cn in diag.columns]
     for cn in diag.columns:
         if cn not in features.columns:
