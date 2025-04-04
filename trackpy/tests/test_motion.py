@@ -228,7 +228,7 @@ class TestSpecial(StrictTestCase):
     def test_theta_entropy(self):
         # just a smoke test
         theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
-        self.steppers.groupby('particle').apply(theta_entropy)
+        self.steppers.groupby('particle').apply(theta_entropy, include_groups=False)
 
     def test_relate_frames(self):
         # Check completeness of output
