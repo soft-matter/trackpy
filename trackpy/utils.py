@@ -23,6 +23,14 @@ try:
 except ValueError:  # Probably a development version
     is_pandas_since_023 = True
 
+
+try:
+    is_pandas_since_220 = (LooseVersion(pd.__version__) >=
+                           LooseVersion('2.2.0'))
+except ValueError:  # Probably a development version
+    is_pandas_since_220 = True
+
+
 # Emit warnings in refine.least_squares for scipy 1.5
 try:
     is_scipy_15 = LooseVersion("1.5.0") <= LooseVersion(scipy.__version__) < LooseVersion('1.6.0')

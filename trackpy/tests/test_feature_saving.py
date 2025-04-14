@@ -45,7 +45,7 @@ class FeatureSavingTester:
         v = TrackpyImageSequence(os.path.join(directory, '*.png'))
         self.v = [tp.invert_image(v[i]) for i in range(2)]
         # mass depends on pixel dtype, which differs per reader
-        minmass = self.v[0].max() * 2
+        minmass = self.v[0].max().item() * 2
         self.PARAMS = {'diameter': 11, 'minmass': minmass}
         if batch_params is not None:
             self.PARAMS.update(batch_params)
