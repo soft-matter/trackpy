@@ -75,13 +75,13 @@ class TrackpyFrame(np.ndarray):
             return
         self.frame_no = getattr(obj, 'frame_no', None)
 
-    def __array_wrap__(self, out_arr, context=None):
+    def __array_wrap__(self, out_arr, context=None, return_scalar=False):
         # Handle scalars so as not to break ndimage.
         # See http://stackoverflow.com/a/794812/1221924
         if out_arr.ndim == 0:
             return out_arr[()]
 
-        return np.ndarray.__array_wrap__(self, out_arr, context)
+        return np.ndarray.__array_wrap__(self, out_arr, context, return_scalar)
 
 
 class TrackpyImageSequence:

@@ -9,7 +9,7 @@ from pandas.testing import (
 from numpy.testing import assert_almost_equal
 
 import trackpy as tp
-from trackpy.utils import pandas_sort, pandas_concat
+from trackpy.utils import pandas_sort, pandas_concat, is_pandas_since_220
 from trackpy.tests.common import StrictTestCase
 
 
@@ -228,7 +228,10 @@ class TestSpecial(StrictTestCase):
     def test_theta_entropy(self):
         # just a smoke test
         theta_entropy = lambda x: tp.motion.theta_entropy(x, plot=False)
-        self.steppers.groupby('particle').apply(theta_entropy)
+        self.steppers.groupby('particle').apply(
+            theta_entropy,
+            **({"include_groups": False} if is_pandas_since_220 else {}),
+        )
 
     def test_relate_frames(self):
         # Check completeness of output
