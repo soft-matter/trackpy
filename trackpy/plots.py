@@ -353,7 +353,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
     if label:
         unstacked = traj.set_index([t_column, 'particle'])[pos_columns].unstack()
         first_frame = int(traj[t_column].min())
-        coords = unstacked.fillna(method='backfill').stack().loc[first_frame]
+        coords = unstacked.bfill().stack().loc[first_frame]
         for particle_id, coord in coords.iterrows():
             ax.text(*coord.tolist(), s="%d" % particle_id,
                     horizontalalignment='center',
