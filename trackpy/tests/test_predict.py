@@ -124,6 +124,14 @@ class VelocityPredictTests:
                                 pred, 45)
         assert all(ll.values == 3)
 
+    def test_empty_predict(self):
+        """Check what happens if there is an empty frame"""
+        pred = self.predict_class()
+        empty = pandas.DataFrame({'x': [], 'y': [], 'frame': []})
+        ll = get_linked_lengths((self.mkframe(0), self.mkframe(0.25), empty, self.mkframe(0.65)),
+                                pred.link_df_iter, 0.45)
+        assert all(ll.values == 3)
+
     def test_big_predict(self):
         Nside = Nside_oversize
         pred = self.predict_class()
