@@ -246,6 +246,24 @@ class TestSpecial(StrictTestCase):
         assert 'direction' in df
 
 
+class TestVanHove(StrictTestCase):
+    def setUp(self):
+        N = 10
+        P = 50 # particles
+        A = 1 # step amplitude
+        np.random.seed(0)
+        particles = [DataFrame({'x': A*random_walk(N), 'y': A*random_walk(N),
+                                'frame': np.arange(N), 'particle': i})
+                     for i in range(P)]
+        self.many_walks = conformity(pandas_concat(particles))
+
+    def test_vanhove(self):
+        # a simple "smoke test" to ensure no exceptions are raised
+        traj = self.many_walks
+        pos = traj.set_index(['frame', 'particle'])['x'].unstack() # particles as columns
+        vh = tp.vanhove(pos, lagtime=2)
+
+
 if __name__ == '__main__':
     import unittest
     unittest.main()
