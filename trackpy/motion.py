@@ -113,9 +113,15 @@ def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
         # effective number of measurements
         # approximately corrected with number of gaps
         result['N'] = _msd_N(len(pos), lagtimes) * len(traj) / len(pos)
+        desired_total_N = result['N'].sum()
+        
         # If MSD is nan that's because there were zero datapoints. Reset N to 0.
         result['N'] = np.where(result['msd'].isna(), 0, result['N'])
-        # An alternative option at this point would be to scale up N for the rest of the column
+        current_total_N = result['N'].sum()
+        
+        if current_total_N != desired_total_N:
+            # scale up N for the rest of the column
+            result['N'] = result['N'] * desired_total_N / current_total_N
         
     result['lagt'] = result.index.values/float(fps)
     result.index.name = 'lagt'
