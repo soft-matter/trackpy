@@ -161,6 +161,13 @@ class TestMSD(StrictTestCase):
                        'frame': np.arange(1, N), 'particle': np.ones(N - 1)})
         self.steppers = conformity(pandas_concat([a, b]))
 
+        self.badly_gapped_walks = conformity(DataFrame({
+            'frame': [1, 2, 3, 4, 5, 6, 1, 2, 6], # create an example trajectory where particle 2 disappears for a few frames and returns.
+            'x': [4, 5, 4, 5, 3, 2, -3, -1, -2],
+            'y': [6, 7, 8, 6, 7, 6, 10, 11, 10],
+            'particle': [1, 1, 1, 1, 1, 1, 2, 2, 2]
+        }))
+
     def test_zero_emsd(self):
         N = 10
         actual = tp.emsd(self.dead_still, 1, 1)
@@ -206,6 +213,33 @@ class TestMSD(StrictTestCase):
         assert_almost_equal(actual.index.values, expected.index.values)
         actual.index = expected.index
         assert_series_equal(np.round(actual), expected)
+
+    def test_major_gap_imsd(self):
+        """Large gap that should strongly affect emsd.
+        
+        Test data and fix (PR #773) by @vivarose
+        """
+        imsd = tp.imsd(self.badly_gapped_walks, mpp=1, fps=1)
+        nans = imsd.isna()
+
+        assert nans[2][2.0]
+        assert nans[2][3.0]
+        assert sum(nans.values.flatten()) == 2
+
+    def test_major_gap_emsd(self):
+        """Large gap that should strongly affect emsd.
+        
+        Test data and fix (PR #773) by @vivarose
+        """
+        actual = tp.emsd(self.badly_gapped_walks, mpp=1, fps=1)
+        expected = Series({
+            1.0: 4.012847555129437,
+            2.0: 4.000000000000007,
+            3.0: 4.333333333333333,
+            4.0: 4.193672099712366,
+            5.0: 2.645254074784259
+            })
+        assert_almost_equal(expected.values, actual.values)
 
     def test_direction_corr(self):
         # just a smoke test
