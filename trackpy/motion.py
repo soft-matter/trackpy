@@ -383,7 +383,7 @@ def vanhove(pos, lagtime, mpp=1, ensemble=False, bins=24):
     Examples
     --------
     >>> pos = traj.set_index(['frame', 'particle'])['x'].unstack() # particles as columns
-    >>> vh = vanhove(pos)
+    >>> vh = vanhove(pos, lagtime=2)
     """
     # Reindex with consecutive frames, placing NaNs in the gaps.
     pos = pos.reindex(np.arange(pos.index[0], 1 + pos.index[-1]))
