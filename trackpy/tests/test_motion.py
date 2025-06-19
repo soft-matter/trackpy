@@ -188,6 +188,18 @@ class TestMSD(StrictTestCase):
         actual.index = expected.index
         assert_series_equal(np.round(actual), expected)
 
+    def test_linear_msd_drift(self):
+        '''Smoke test that imsd() and emsd() can use output of subtract_drift()'''
+        N = 10
+        EARLY = 7
+        drift = DataFrame(np.zeros((N - 1, 2)),
+                          np.arange(1, N, dtype=int)).astype('float64')
+        drift.columns = ['x', 'y']
+        drift.index.name = 'frame'
+        subtracted = tp.subtract_drift(self.many_walks, drift)
+        actual_imsd = tp.imsd(subtracted, 1, 1, max_lagtime=EARLY)
+        actual_emsd = tp.emsd(subtracted, 1, 1, max_lagtime=EARLY)
+
     def test_linear_emsd_gaps(self):
         A = 1
         EARLY = 4  # only early lag times have good stats

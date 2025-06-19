@@ -191,7 +191,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=None):
     msds = []
     # Note: Index is set by msd, so we don't need to worry
     # about conformity here.
-    for pid, ptraj in traj.groupby('particle'):
+    for pid, ptraj in traj.reset_index(drop=True).groupby('particle'):
         msds.append(msd(ptraj, mpp, fps, max_lagtime, False, pos_columns))
         ids.append(pid)
     results = pandas_concat(msds, keys=ids)
