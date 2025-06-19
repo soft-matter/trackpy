@@ -640,7 +640,7 @@ def subpx_bias(f, pos_columns=None):
             pos_columns = ['x', 'y', 'z']
         else:
             pos_columns = ['x', 'y']
-    axlist = f[pos_columns].applymap(lambda x: x % 1).hist()
+    axlist = f[pos_columns].map(lambda x: x % 1).hist()
     return axlist
 
 @make_axes
