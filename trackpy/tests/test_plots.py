@@ -128,6 +128,11 @@ class TestPlots(StrictTestCase):
         fit_powerlaw(em)
         fit_powerlaw(em, plot=False)
 
+    def test_subpx_bias(self):
+        # smoke_test
+        suppress_plotting()
+        plots.subpx_bias(self.sparse)
+
 
 if __name__ == '__main__':
     import unittest
