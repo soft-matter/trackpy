@@ -26,11 +26,15 @@ def msd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
 
         If detail is True, the DataFrame also contains a column N,
         the estimated number of statistically independent measurements
-        that comprise the result at each lagtime.
+        that comprise the result at each lagtime. Where gaps make the
+        MSD undefined, N is set to 0. All N values are then rescaled to 
+        make the total unchanged, so that the particle will be weighted
+        correctly in an ensemble calculation.
 
     Notes
     -----
     Input units are pixels and frames. Output units are microns and seconds.
+    Outputs NaN for lag times that could not be measured, due to gaps.
 
     See also
     --------
@@ -81,7 +85,13 @@ def _msd_iter(pos, lagtimes):
 
 def _msd_gaps(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
     """Compute the mean displacement and mean squared displacement of one
-    trajectory over a range of time intervals."""
+    trajectory over a range of time intervals.
+       
+    If 'detail' is True, N is set to 0 wherever gaps make the MSD undefined. All
+    N values are then rescaled to make the total unchanged, so that the particle
+    will be weighted correctly in an ensemble calculation. For details, see
+    the discussion in PR #773: https://github.com/soft-matter/trackpy/pull/773
+    """
     if pos_columns is None:
         pos_columns = ['x', 'y']
     result_columns = ['<{}>'.format(p) for p in pos_columns] + \
@@ -196,6 +206,7 @@ def imsd(traj, mpp, fps, max_lagtime=100, statistic='msd', pos_columns=None):
     Notes
     -----
     Input units are pixels and frames. Output units are microns and seconds.
+    Outputs NaN for lag times that could not be measured, due to gaps.
     """
     ids = []
     msds = []
