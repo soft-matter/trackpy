@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 def link_iter(coords_iter, search_range, **kwargs):
     """
-    link_iter(coords_iter, search_range, memory=0, predictor=None,
-        adaptive_stop=None, adaptive_step=0.95, neighbor_strategy=None,
-        link_strategy=None, dist_func=None, to_eucl=None)
+    link_iter(coords_iter, search_range, *,
+        memory=0, predictor=None, adaptive_stop=None, adaptive_step=0.95,
+        neighbor_strategy=None, link_strategy=None, dist_func=None,
+        to_eucl=None)
 
     Link an iterable of per-frame coordinates into trajectories.
 
@@ -106,8 +107,8 @@ def link_iter(coords_iter, search_range, **kwargs):
 
 def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
     """
-    link(f, search_range, pos_columns=None, t_column='frame', memory=0,
-        predictor=None, adaptive_stop=None, adaptive_step=0.95,
+    link(f, search_range, pos_columns=None, t_column='frame', *,
+        memory=0, predictor=None, adaptive_stop=None, adaptive_step=0.95,
         neighbor_strategy=None, link_strategy=None, dist_func=None,
         to_eucl=None)
 
@@ -201,7 +202,7 @@ link_df = link
 def link_df_iter(f_iter, search_range, pos_columns=None,
                  t_column='frame', **kwargs):
     """
-    link_df_iter(f_iter, search_range, pos_columns=None, t_column='frame',
+    link_df_iter(f_iter, search_range, pos_columns=None, t_column='frame', *,
         memory=0, predictor=None, adaptive_stop=None, adaptive_step=0.95,
         neighbor_strategy=None, link_strategy=None, dist_func=None,
         to_eucl=None)
