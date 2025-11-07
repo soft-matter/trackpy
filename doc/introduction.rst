@@ -114,18 +114,6 @@ Peter J Lu                   https://github.com/peterlu/PLuTARC_centerfind2D    
 Thomas A Caswell             https://github.com/tacaswell/tracking               C++
 ============================ =================================================== =========================
 
-Core Contributors
-^^^^^^^^^^^^^^^^^
-
-  * **Casper van der Wel** anisotropic 3D feature-finding, plotting and analyses, framework
-    for least-squares refinement, combined linking and feature finding
-  * **Daniel Allan** feature-finding, uncertainty estimation,
-    motion characterization and discrimination, plotting tools, tests
-  * **Nathan Keim** alternative trajectory-linking implementations, major
-    speed-ups, prediction, adaptive search
-  * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
-
-
 Support
 ^^^^^^^
 
@@ -146,6 +134,6 @@ Portions were also developed at the University of Pennsylvania,
 Philadelphia, USA, supported by NSF-MRSEC DMR-1120901.
 
 This package was developed in part by Casper van der Wel, as part of his
-PhD thesis work in Daniela Kraft’s group at the Huygens-Kamerlingh-Onnes laboratory,
+PhD thesis work in Daniela Kraft's group at the Huygens-Kamerlingh-Onnes laboratory,
 Institute of Physics, Leiden University, The Netherlands. This work was
 supported by the Netherlands Organisation for Scientific Research (NWO/OCW). 
