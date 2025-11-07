@@ -265,7 +265,7 @@ def emsd(traj, mpp, fps, max_lagtime=100, detail=False, pos_columns=None):
         return results.set_index('lagt')['msd']
     # correctly compute the effective number of independent measurements
     results['N'] = msds['N'].groupby(level=1).sum()
-    return results
+    return results.set_index('lagt')
 
 
 def compute_drift(traj, smoothing=0, pos_columns=None):
