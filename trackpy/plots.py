@@ -317,10 +317,7 @@ def plot_traj(traj, colorby='particle', mpp=None, label=False,
         _set_labels(ax, '{} [px]', pos_columns)
         mpp = 1.  # for computations of image extent below
     else:
-        if mpl.rcParams['text.usetex']:
-            _set_labels(ax, r'{} [\textmu m]', pos_columns)
-        else:
-            _set_labels(ax, r'{} [\xb5m]', pos_columns)
+        _set_labels(ax, r'{} [$\mu$m]', pos_columns)
     # Background image
     if superimpose is not None:
         ax.imshow(superimpose, cmap=plt.cm.gray,
