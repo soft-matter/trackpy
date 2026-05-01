@@ -166,6 +166,10 @@ class Point:
     def track(self):
         """Returns the track that this :class:`Point` is in.  May be `None` """
         return self._track
+    
+    def __hash__(self):
+        """Returns a deterministic value so that set() order is more stable."""
+        return self.uuid
 
 
 class TrackUnstored:
