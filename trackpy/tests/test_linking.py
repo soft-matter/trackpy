@@ -501,11 +501,7 @@ class SubnetNeededTests(CommonTrackingTests):
                      case2['particle'].values.astype(int))
         
     def test_degeneracy_forward(self):
-        """Check that a trivial degenerate subnet is resolved stably.
-
-        Also checks that the result matches a known value. This is likely
-        but NOT guaranteed. It may be wise to remove this check in the future.
-        """
+        """Check that a trivial degenerate subnet is resolved stably."""
         if not getattr(self, 'coordinates_exact', True): 
             return  # Test will not be meaningful
         result_counts = {0: 0, 1: 0}
@@ -524,14 +520,9 @@ class SubnetNeededTests(CommonTrackingTests):
             result_counts[out.particle.iloc[-1]] += 1
         # There are two degenerate forward candidates for the last frame.
         assert any((c == 100 for c in result_counts.values()))  # Stable
-        assert result_counts[1] == 100  # Deterministic
 
     def test_degeneracy_source(self):
-        """Check that a trivial degenerate subnet is resolved stably.
-
-        Also checks that the result matches a known value. This is likely
-        but NOT guaranteed. It may be wise to remove this check in the future.
-        """
+        """Check that a trivial degenerate subnet is resolved stably."""
         if not getattr(self, 'coordinates_exact', True):  
             return  # Test will not be meaningful
         result_counts = {0: 0, 1: 0}
@@ -545,7 +536,6 @@ class SubnetNeededTests(CommonTrackingTests):
             result_counts[out.particle.iloc[-1]] += 1
         # There are two degenerate source candidates for the last frame.
         assert any((c == 100 for c in result_counts.values()))  # Stable
-        assert result_counts[0] == 100  # Deterministic
 
     def test_memory(self):
         """A unit-stepping trajectory and a random walk are observed
@@ -613,11 +603,7 @@ class SubnetNeededTests(CommonTrackingTests):
         assert_traj_equal(actual, expected)
 
     def test_memory_degeneracy(self):
-        """Check that with memory, degeneracies are resolved stably.
-
-        Also checks that the result matches a known value. This is likely
-        but NOT guaranteed. It may be wise to remove this check in the future.
-        """
+        """Check that with memory, degeneracies are resolved stably."""
         if not getattr(self, 'coordinates_exact', True): 
             return  # Test will not be meaningful
         result_counts = {0: 0, 1: 0}
@@ -631,7 +617,6 @@ class SubnetNeededTests(CommonTrackingTests):
             result_counts[out.particle.iloc[-1]] += 1
         # With memory > 0, there are two degenerate candidates for the last frame.
         assert any((c == 100 for c in result_counts.values()))  # Stable
-        assert result_counts[0] == 100  # Deterministic
 
     def test_pathological_tracking(self):
         level_count = 5
