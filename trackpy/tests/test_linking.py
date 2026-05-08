@@ -499,6 +499,43 @@ class SubnetNeededTests(CommonTrackingTests):
         pandas_sort(actual, ['x'], inplace=True)
         assert_equal(actual['particle'].values.astype(int),
                      case2['particle'].values.astype(int))
+        
+    def test_degeneracy_forward(self):
+        """Check that a trivial degenerate subnet is resolved stably."""
+        if not getattr(self, 'coordinates_exact', True): 
+            return  # Test will not be meaningful
+        result_counts = {0: 0, 1: 0}
+        for i in range(100):
+            # degen_df = pd.DataFrame({
+            #     'y':     [-1, 1, 0],
+            #     'x':     [-1, 1, 0],
+            #     'frame': [ 0, 0, 1]
+            # })
+            degen_df = pd.DataFrame({
+                'y':     [0, -1, 1],
+                'x':     [0, -1, 1],
+                'frame': [0,  1, 1]
+            })
+            out = self.link(degen_df, search_range=1.8, t_column="frame")
+            result_counts[out.particle.iloc[-1]] += 1
+        # There are two degenerate forward candidates for the last frame.
+        assert any((c == 100 for c in result_counts.values()))  # Stable
+
+    def test_degeneracy_source(self):
+        """Check that a trivial degenerate subnet is resolved stably."""
+        if not getattr(self, 'coordinates_exact', True):  
+            return  # Test will not be meaningful
+        result_counts = {0: 0, 1: 0}
+        for i in range(100):
+            degen_df = pd.DataFrame({
+                'y':     [-1, 1, 0],
+                'x':     [-1, 1, 0],
+                'frame': [ 0, 0, 1]
+            })
+            out = self.link(degen_df, search_range=1.8, t_column="frame")
+            result_counts[out.particle.iloc[-1]] += 1
+        # There are two degenerate source candidates for the last frame.
+        assert any((c == 100 for c in result_counts.values()))  # Stable
 
     def test_memory(self):
         """A unit-stepping trajectory and a random walk are observed
@@ -564,6 +601,22 @@ class SubnetNeededTests(CommonTrackingTests):
         f1.reindex(np.random.permutation(f1.index))
         actual = self.link(f1, 5, memory=1)
         assert_traj_equal(actual, expected)
+
+    def test_memory_degeneracy(self):
+        """Check that with memory, degeneracies are resolved stably."""
+        if not getattr(self, 'coordinates_exact', True): 
+            return  # Test will not be meaningful
+        result_counts = {0: 0, 1: 0}
+        for i in range(100):
+            mem_df = pd.DataFrame({
+                'y':     [-1, 1, 100, 0],
+                'x':     [-1, 1, 100, 0],
+                'frame': [ 0, 0,   1, 2]
+            })
+            out = self.link(mem_df, search_range=1.8, memory=1, t_column="frame")
+            result_counts[out.particle.iloc[-1]] += 1
+        # With memory > 0, there are two degenerate candidates for the last frame.
+        assert any((c == 100 for c in result_counts.values()))  # Stable
 
     def test_pathological_tracking(self):
         level_count = 5
