@@ -27,7 +27,7 @@ class SubnetLinker:
         self.search_range = search_range
         self.max_size = max_size
         self.s_lst = [s for s in s_sn]
-        self.s_lst.sort(key=lambda x: len(x.forward_cands))
+        self.s_lst.sort(key=lambda p: (len(p.forward_cands), p.uuid))
         self.MAX = len(self.s_lst)
 
         self.max_links = min(self.MAX, dest_size)
@@ -85,7 +85,7 @@ class SubnetLinker:
 
 def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=False):
     source_list = list(source_list)
-    source_list.sort(key=lambda x: len(x.forward_cands))
+    source_list.sort(key=lambda p: (len(p.forward_cands), p.uuid))
     MAX = len(source_list)
 
     if MAX > max_size:
@@ -183,7 +183,7 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     # Then the hard part runs quickly because it is just operating on arrays.
     # We can compile it with numba for outstanding performance.
     max_candidates = 9  # Max forward candidates we expect for any particle
-    src_net = list(s_sn)
+    src_net = sorted(s_sn, key=lambda p: p.uuid)
     nj = len(src_net) # j will index the source particles
     if nj > max_size:
         raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance '
