@@ -1,0 +1,7 @@
+include MANIFEST.in
+include setup.py
+include versioneer.py
+include trackpy/_version.py
+include README.md
+include LICENSE
+include doi.png

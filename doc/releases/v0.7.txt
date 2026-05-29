@@ -1,0 +1,19 @@
+v0.7
+----
+
+trackpy v0.7 includes an enhancement/bug fix to how MSD calculations handle gaps
+in trajectories. The msd() and imsd() functions now output NaN values (instead
+of zeros) for portions of their output that could not be measured. The emsd()
+function now properly de-weights missing data, and so its output may be
+significantly different (and more accurate) when gaps are numerous and large.
+
+Bug fixes
+~~~~~~~~~
+- MSD properly handles gaps in trajectories (@vivarose, #773)
+- Fix plot_traj(colorby='frame') for intermittent particles. (@T0T0R, #777)
+- Let imsd() use output of subtract_drift() (@nkeim, #785)
+
+Enhancements
+~~~~~~~~~~~~
+- Clarify what parameters are keyword-only in documentation of link functions 
+  (@anntzer, #789)

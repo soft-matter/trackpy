@@ -1,0 +1,56 @@
+language: python
+
+install:
+  - conda update --yes conda
+  - conda config --append channels conda-forge
+  - conda create -n testenv --yes python=3.8 numpy=1.19.2 scipy=1.6.2 matplotlib=3.3.4 pillow=8.2.0 pandas=1.2.3 scikit-image=0.17.2 pytables=3.6.1 numba=0.53.1 scikit-learn=0.24.1 pyyaml=5.4.1 ipython=7.22 sphinx=3.5.3 numpydoc=1.1.0 nbconvert=6.0.7 sphinx_bootstrap_theme=0.8.0
+  - source activate testenv
+
+  # for debugging...
+  - echo $PATH
+  - which python
+  - conda info
+  - conda list
+
+before_install:
+  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b -p /home/travis/mc
+  - export PATH=/home/travis/mc/bin:$PATH
+
+script:
+  - |
+    cd $TRAVIS_BUILD_DIR/..
+    git clone https://github.com/soft-matter/trackpy-examples.git
+    cd trackpy/doc
+    # this expects the notebooks to be in ../../../trackpy-examples/notebooks/
+    make notebooks
+    make html
+
+after_success:
+    - |
+      if [[ $TRAVIS_PULL_REQUEST == false && $TRAVIS_REPO_SLUG == 'soft-matter/trackpy' && $TRAVIS_BRANCH == 'master' ]]; then
+        echo "Uploading documentation"
+        cd $TRAVIS_BUILD_DIR
+        openssl aes-256-cbc -K $encrypted_23ba5de49536_key -iv $encrypted_23ba5de49536_iv -in soft-matter-docs-deploy.enc -out soft-matter-docs-deploy -d
+        eval `ssh-agent -s`
+        chmod 600 soft-matter-docs-deploy
+        ssh-add soft-matter-docs-deploy
+        git config --global user.email "Travis@nomail"
+        git config --global user.name "Travis"
+        git config --global push.default simple
+        cd ..
+        git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
+        cd doc-repo/trackpy
+        git checkout --orphan temp_branch
+        git rm -rf ./dev
+        mv $TRAVIS_BUILD_DIR/doc/_build/html ./dev
+        if [ -n "$TRAVIS_TAG" ]; then
+          cp -R dev $TRAVIS_TAG;
+        fi
+        git add -A
+        git commit -m "Docs build of trackpy commit $TRAVIS_COMMIT"
+        git branch -D master
+        git branch -m master
+        git push --set-upstream origin master --force
+      fi

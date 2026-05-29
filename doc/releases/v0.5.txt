@@ -1,0 +1,43 @@
+v0.5
+----
+
+This is a major release focused on enhancements. Most notably, parallel
+processing is now turned on by default for "trackpy.batch" and
+"trackpy.locate_brightfield_ring", resulting in a large performance increase
+for many users. Another minor speedup changes the way in which particle numbers
+are generated, which may cause issues with reproducibility in some existing
+workflows (see "API Changes" below).
+
+Note that Python 2 reached end-of-life in 2020, and it is no longer officially
+supported by trackpy. Also, trackpy dropped support for older NumPy, Scipy and Pandas.
+The current minimum requirements are: ``python>=3.6 numpy>=1.14 scipy>=1.1 pandas>=0.22``.
+
+Enhancements
+~~~~~~~~~~~~
+
+- "compute_drift()" now accepts list-like "pos_columns" (e.g. tuples). (:issue:`579`)
+
+- "trackpy.locate_brightfield_ring" now defaults to parallel execution with all
+  available CPUs, as controlled by the optional "processes" argument (:issue:`602`)
+
+- "refine_brightfield_ring()" now uses the 5th percentile for edge detection
+  instead of the minimum, resulting in a more robust tracking for low contrast
+  images. (:issue:`602`)
+
+
+API Changes
+~~~~~~~~~~~
+
+- "trackpy.batch" now defaults to parallel execution with all available CPUs
+  ("processes='auto'"). For most users this should be a noticeable speedup.
+  Revert to the previous behavior with "processes=1". (:issue:`605`)
+
+- During linking, particles are not sorted before assigning new
+  trajectories. This greatly speeds up linking under certain conditions.
+  The actual coordinates and linked trajectories are not affected by this
+  change, but the unique number assigned to a trajectory (in the "particle"
+  column) may vary from run to run. The most reproducible way to identify a
+  specific particle is still the particle's coordinates at an instant in time.
+  To make the numbering stable again, set the "PYTHONHASHSEED" environment
+  variable before starting Python.
+  (:issue:`597`, :issue:`601`)

@@ -1,0 +1,135 @@
+v0.4.2
+------
+
+This is a minor release with two major new features: parallel processing to
+speed up feature-finding, and a new method for locating features in
+bright-field microscopy. There is also an overhaul of the walkthrough and other
+tutorials, and compatibility with the latest version of Pandas (0.25.1).
+
+
+API Changes
+~~~~~~~~~~~
+
+- "trackpy.locate" and associated functions now report "ep" to be NaN when
+  there is only one usable background pixel to sample. (:issue:`519`)
+
+- "trackpy.legacy.linking.link_df" does not copy a DataFrame automatically
+  anymore if the provided DataFrame is a view. (:issue:`503`)
+
+- The "locate" options in "trackpy.batch" are now collected in "**kwargs"
+  (except for "diameter") and passed to the wrapped "trackpy.locate" function.
+  This means when using the "meta" option of "trackpy.batch" only explicitly
+  given options for the wrapped "trackpy.locate" are saved to the file;
+  unspecified options using default values from "locate" aren't saved.
+  (:issue:`499`)
+
+
+Enhancements
+~~~~~~~~~~~~
+
+- Added support for multiprocessing to "trackpy.batch". (:issue:`499`)
+
+- "trackpy.locate_brightfield_ring" enables precise tracking of large
+  particles in bright-field microscopy. There is a new tutorial to demonstrate
+  it. (:issue:`527`)
+
+- Added "trackpy.linking.link_partial" to allow linking a movie in separate 
+  pieces. (:issue:`445`)
+
+- Many updates and improvements to the tutorials. Most notably, the walkthrough
+  is revised and updated for the latest versions of trackpy and pims, and code
+  from all tutorials should now run in recent Python environments.
+  (:issue:`567`, :issue:`524`, :issue:`539`, :issue:`543`, :issue:`541`,
+  :issue:`532`, :issue:`157`, :issue:`558`, :issue:`505`, :issue:`525`). Most of
+  these changes were made in the trackpy-examples repository on GitHub.
+
+- Smaller improvements to other documentation for the linking and
+  feature-finding APIs. (:issue:`545`, :issue:`551`, :issue:`550`, 
+  :issue:`522`, :issue:`540`, :issue:`542`)
+
+Bug fixes
+~~~~~~~~~
+
+- Fixed incompatibility with recent Pandas (:issue:`529`, :issue:`538`)
+- Removed warnings in case Pandas 0.23 is used (:issue:`503`)
+- Removed warnings in case Pandas 0.25 is used (:issue:`545`)
+
+- "trackpy.diag.dependencies" now gives information about a more complete set
+  of packages.
+
+v0.4.1
+------
+
+This is a minor release with some important fixes. Additionally, PIMS is no
+longer a required dependency, which makes installation easier.
+
+
+API Changes
+~~~~~~~~~~~
+
+- PIMS (Python IMage Sequence) is no longer a required dependency (:issue:`492`)
+
+
+Enhancements
+~~~~~~~~~~~~
+
+- Improved performance of adaptive search (:issue:`489`)
+- Reduced memory usage during linking (:issue:`489`)
+
+
+Bug fixes
+~~~~~~~~~
+
+- Fix enable_numba on Py3.6 and MS Windows systems (:issue:`486`)
+
+
+v0.4.0
+------
+
+This is a major release that includes new choices for linking and feature-finding algorithms, as well as many
+performance increases and clean-ups. It is recommended for all trackpy users, but may require
+minor changes to existing code, as detailed below.
+
+API Changes
+~~~~~~~~~~~
+
+- locate has a more modular structure that makes it easier to customize feature-finding (:issue:`400`, :issue:`406`)
+
+- The default value of smoothing_size is smaller, and more consistent with
+  other implementations of this algorithm. In general, particle
+  mass values will be different. The new minmass_v04_change function helps
+  update minmass values in existing code (:issue:`401`, :issue:`465`)
+
+- The "minmass" parameter now has a default value of 0 (:issue:`400`)
+
+- The "filter_before" option is no longer supported (:issue:`400`)
+
+- Major refactor of the linking code giving linking a better API (:issue:`416`, :issue:`414`)
+
+- Linking diagnostics are no longer supported (:issue:`414`)
+
+- link_df always creates a copy of the data; it can no longer work in-place (:issue:`414`)
+
+
+Enhancements
+~~~~~~~~~~~~
+
+- Improved performance of feature finding (:issue:`361`)
+
+- Improved performance of linking (:issue:`400`, :issue:`406`)
+
+- New refinement method using least squares optimization (:issue:`407`)
+
+- New linker that combines feature-finding with linking (FindLinker) (:issue:`407`, :issue:`410`, :issue:`411`, :issue:`416`, :issue:`428`)
+
+- Linking in non-Euclidean coordinate systems and curved metrics (:issue:`448`)
+
+
+Bug fixes
+~~~~~~~~~
+
+- Fix compute_drift if dataframes are not sorted (:issue:`409`)
+
+- Fix double counting of non-linking penalty in non-numba linkers (:issue:`430`)
+
+- Fix the N column for emsd (:issue:`434`)

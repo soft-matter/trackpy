@@ -1,0 +1,102 @@
+v0.6.4
+------
+
+trackpy v0.6.4 is a minor compatibility update for numpy v2.0
+
+Dependencies
+~~~~~~~~~~~~
+- Adds support for numpy 2.0 (@nkeim, #770). Note that as of this writing,
+  pytables (an optional dependency for trackpy) does not yet support
+  numpy 2.0 (see https://github.com/PyTables/PyTables/issues/1172 and 
+  #768).
+
+
+v0.6.3
+------
+
+trackpy v0.6.3 is a minor compatibility update for newer Pandas verisons.
+
+Dependencies
+~~~~~~~~~~~~
+- Improves support for latest Pandas in emsd function (@hz-xiaxz, #758)
+- Fix deprecated matplotlib usage in 3D plotting (@jacopoabramo, #767)
+
+
+v0.6.2
+------
+
+trackpy v0.6.2 includes bug fixes, and compatibility fixes with newer
+dependency versions.
+
+A special thanks to everyone who reported the issues fixed in this release!
+
+Bug fixes
+~~~~~~~~~
+- Fixed an issue with feature-finding in 4D image sequences (@VeraMTitze, #739)
+- Fixed a rare issue in which subtract_drift() with multiple particles
+  resulted in a Pandas indexing error. (@kevin-duclos, #735)
+
+Dependencies
+~~~~~~~~~~~~
+- Adds official support for Python 3.12. (@caspervdw, #747)
+- Adds support for latest Pandas, NumPy, and SciPy (@marcocaggioni, #740;
+  @nkeim, #743, @vivarose and @rodrigo-j-goncalves, #742; @caspervdw, #747)
+- Drops official support for Python 3.7 and earlier, NumPy 1.17 and earlier,
+  Pandas 0.x, and SciPy 1.3 and earlier.
+
+
+v0.6.1
+------
+
+trackpy v0.6.1 is functionally equivalent to v0.6.0. It is being released
+to fix an issue with Zenodo, so that this trackpy release has a citable DOI.
+
+v0.6.0
+------
+
+This release adds an efficient way to use custom distance metrics during
+linking, and fixes bugs and some inconsistencies in the prediction
+capabilities. Some existing code that used prediction may now fail to run until
+a (minor) update is made.
+
+This release includes contributions by @magnunor, @freemansw1, @crisp-snakey,
+@rbnvrw, @caspervdw, @tacaswell, and @nkeim.
+
+Enhancements
+~~~~~~~~~~~~
+
+- Linking can now use any ``DistanceMetric`` class from sklearn to compute
+  distances (#692 by @freemansw1)
+- Several documentation fixes by @magnunor and @nkeim
+
+API Changes
+~~~~~~~~~~~
+
+- When supplying an initial velocity guess to NearestVelocityPredict or
+  DriftPredict, you must also supply the pos_columns argument to identify
+  the names of the columns in your array. (For example,
+  "pos_columns = ['y', 'x']".) Otherwise, creating the predictor will
+  raise an exception that explains this change. If you provide pos_columns
+  when creating the predictor, you do not have to supply it when subsequently
+  using the link_df() or link_df_iter() methods to link your features.
+  (@nkeim, #710)
+- ``reconnect_traj_patch()`` is now available as ``trackpy.reconnect_traj_patch``
+  and is described in the API documentation. (@nkeim, #648)
+
+Bug Fixes
+~~~~~~~~~
+
+- When linking with prediction, the predictor now correctly uses the same
+  position columns as the linker, and correctly handles the pos_columns
+  argument if specified. (@nkeim, #710)
+- The link_df() method of predictor objects now works correctly. This is
+  reflected in the updated prediction tutorial. (@nkeim, #710)
+
+Dependencies
+~~~~~~~~~~~~
+
+- trackpy is now being tested in conda environments with Python 3.10.
+- trackpy is no longer tested with Python 3.6.
+- trackpy now requires the ``looseversion`` package to work with newer scipy
+  (@crisp-snakey, #706)
+- Much work on testing and packaging infrastructure by @tacaswell and @caspervdw

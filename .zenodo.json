@@ -1,0 +1,27 @@
+{
+    "license": "BSD-3-Clause", 
+    "upload_type": "software", 
+    "creators": [
+        {
+            "orcid": "0000-0002-5947-6017", 
+            "name": "Allan, Daniel B."
+        }, 
+        {
+            "orcid": "0000-0003-4692-608X", 
+            "name": "Caswell, Thomas"
+        }, 
+        {
+            "orcid": "0000-0003-0746-0547", 
+            "name": "Keim, Nathan C."
+        }, 
+        {
+            "orcid": "0000-0002-0488-2237", 
+            "name": "van der Wel, Casper M."
+        },
+        {
+            "orcid": "0000-0003-3925-5732",
+            "name": "Verweij, Ruben W."
+        }
+    ], 
+    "access_right": "open"
+}

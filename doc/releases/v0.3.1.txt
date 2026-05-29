@@ -1,0 +1,45 @@
+
+v0.3.1
+------
+
+Enhancements
+~~~~~~~~~~~~
+
+- Added pair correlation functions in 2D and 3D (:issue:`336`)
+
+- Mean squared displacement calculations are up to 40 times faster due to a new FFT-based algorithm (:issue:`337`)
+
+- Number of measurements in MSD calculations is more accurate (:issue:`337`)
+
+- Increased performance of `compute_drift` (:issue:`345`)
+
+Bug Fixes
+~~~~~~~~~
+
+- Bug in the python refinement code was solved: feature finding with `engine='python'` is now more accurate.  (:issue:`377`)
+
+- Error in `subtract_drift` is solved (:issue:`351`)
+
+- Legends are disabled by default in plotting (:issue:`357`)
+
+- Plots in (y, x) now always have their y axis inverted (:issue:`357`)
+
+- Empty frames are not ignored anymore in `link_df` (:issue:`293`)
+
+- ``characterize`` was not passed to ``refine`` in ``locate`` (:issue:`310`)
+
+- ``annotate3d`` now works with the notebook backend (:issue:`308`)
+
+- Trackpy is now fully compatible with pandas 0.17 and 0.18.1
+
+- Trackpy is compatible with Pillow >0.3.0 (through PIMS v0.3.3)
+
+- The ``pos_columns`` default argument is not mutable anymore in ``msd``, ``imsd``, ``emsd``, and ``compute_drift``. (:issue:`337`)
+
+
+API changes
+~~~~~~~~~~~
+
+- ``max_lagtime`` in ``msd``, ``imsd``, and ``emsd`` is now included in the returned lagtimes (:issue:`337`)
+
+- `subtract_drift` does not act inplace by default (:issue:`351`)

@@ -1,0 +1,29 @@
+# must be run in ipython
+
+import numpy as np
+import trackpy as tp
+
+
+def b(command):
+    get_ipython().magic(command)
+
+
+dummy_noise_image = np.random.randint(0, 100, (100, 100))
+real_image_raw = tp.ImageSequence('../trackpy/tests/video/image_sequence')[0]
+real_image = tp.bandpass(real_image_raw, 1, 10, threshold=1)
+
+print('Compiling Numba...')
+tp.locate(dummy_noise_image, 9, engine='numba')
+
+print('Locate using Python Engine with Default Settings (Accurate)')
+b("timeit tp.locate(real_image, 9, engine='python', preprocess=False)")
+
+print('Locate using Python Engine with Fast Settings (Sloppy)')
+b("timeit tp.locate(real_image, 9, engine='python', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+
+print('Locate using Numba Engine with Default Settings (Accurate)')
+b("timeit tp.locate(real_image, 9, engine='numba', preprocess=False)")
+
+print('Locate using Numba Engine with Fast Settings (Sloppy)')
+b("timeit tp.locate(real_image, 9, engine='numba', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+

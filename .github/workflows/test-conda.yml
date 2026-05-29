@@ -1,0 +1,47 @@
+name: Conda
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  TestConda:
+    name: ${{ matrix.os }} - Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.11", "3.13"]
+        # Exclude macOS with Python 3.9 due to compatibility issues with conda
+        exclude:
+          - os: macos-latest
+            python: "3.9"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python }}
+          channels: conda-forge
+
+      - name: Initialize conda
+        shell: bash -el {0}
+        run: |
+          conda init
+
+      - name: Install packages
+        shell: bash -el {0}  # Reads .profile so conda will work
+        run: |
+          conda create --name test python=${{ matrix.python }} pytest numpy scipy matplotlib pandas pytables numba scikit-learn pyyaml looseversion pip
+          conda activate test
+          pip install -v --no-deps -e .
+          python -V
+          conda info
+          conda list
+
+      - name: Run tests
+        shell: bash -el {0}  # Reads .profile so conda will work
+        run: |
+          conda activate test
+          pytest trackpy

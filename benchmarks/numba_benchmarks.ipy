@@ -1,0 +1,36 @@
+# must be run in ipython
+
+import numpy as np
+import trackpy as tp
+
+
+def b(command):
+    get_ipython().magic(command)
+
+
+dummy_noise_image = np.random.randint(0, 100, (100, 100))
+real_image_raw = tp.ImageSequence('../trackpy/tests/video/image_sequence')[0]
+real_image = tp.bandpass(real_image_raw, 1, 10, threshold=1)
+big_image = tp.bandpass(np.tile(real_image_raw, (2, 5)), 1, 10, threshold=1)
+
+print('Compiling Numba...')
+tp.locate(dummy_noise_image, 9, engine='numba')
+
+#print('Locate using Python Engine with Default Settings (Accurate)')
+#b(u"timeit tp.locate(real_image, 9, engine='python', preprocess=False)")
+
+print('10x: Locate using Python Engine with Default Settings (Accurate)')
+b("timeit tp.locate(big_image, 9, engine='python', preprocess=False)")
+
+print('10x: Locate using Python Engine with Fast Settings (Sloppy)')
+b("timeit tp.locate(big_image, 9, engine='python', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+
+print('1x: Locate using Numba Engine with Default Settings (Accurate)')
+b("timeit tp.locate(real_image, 9, engine='numba', preprocess=False)")
+
+print('10x: Locate using Numba Engine with Default Settings (Accurate)')
+b("timeit tp.locate(big_image, 9, engine='numba', preprocess=False)")
+
+print('10x: Locate using Numba Engine with Fast Settings (Sloppy)')
+b("timeit tp.locate(big_image, 9, engine='numba', preprocess=False, filter_before=False, filter_after=False, max_iterations=0, characterize=False)")
+
