@@ -521,14 +521,8 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
         ``'auto'``, the correction is applied silently when there are
         enough features, and skipped otherwise.
 
-        When ``output`` is None, the correction is applied to the
-        combined set of features after all frames have been processed.
-        Pooling features across many frames is the recommended way to
-        use SPIFF. When ``output`` is specified, features cannot be
-        pooled because they are streamed to ``output`` one frame at a
-        time; in that case the correction is applied on a frame-by-frame
-        basis instead, which is less reliable but still better than no
-        correction.
+        When ``output`` is None, the correction is computed once for all features in all frames (recommended).
+        When ``output`` is specified, the correction is computed for each frame, which may be less accurate.
     **kwargs :
         Keyword arguments that are passed to the wrapped `trackpy.locate`.
         Refer to its docstring for further details.
