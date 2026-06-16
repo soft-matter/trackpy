@@ -7,7 +7,7 @@ import pandas as pd
 import trackpy as tp
 from trackpy.utils import default_pos_columns
 from trackpy.artificial import draw_array
-from trackpy.spiff import apply_spiff_correction, MIN_FEATURES
+from trackpy.spiff import apply_spiff, MIN_FEATURES
 from trackpy.tests.common import StrictTestCase, sort_positions
 
 
@@ -31,7 +31,7 @@ class TestSpiff(StrictTestCase):
         deviation = np.sqrt(np.mean(np.sum((actual - expected) ** 2, 1)))
 
         # Apply SPIFF correction and calculate the deviation
-        corrected_features = apply_spiff_correction(features)
+        corrected_features = apply_spiff(features)
         _, corrected = sort_positions(corrected_features[columns].values, expected)
         deviation_corrected = np.sqrt(np.mean(np.sum((corrected - expected) ** 2, 1)))
 

@@ -24,6 +24,6 @@ from .refine import refine_com, refine_leastsq
 from . import predict
 from . import utils
 from . import artificial
-from .spiff import apply_spiff_correction
+from .spiff import apply_spiff
 from .utils import handle_logging, ignore_logging, quiet
 from .try_numba import try_numba_jit, enable_numba, disable_numba

@@ -2,15 +2,14 @@ import numpy as np
 from pandas import DataFrame
 import warnings
 
-
 # The minimum number of features required to apply SPIFF correction.
 # This is a conservative requirement (likely higher than it needs to be) and is
 # subject to further optimization.
 MIN_FEATURES = 50
 
 
-def apply_spiff_correction(f: DataFrame, pos_columns=None,
-                           warn_if_insufficient=True) -> DataFrame:
+def apply_spiff(f: DataFrame, pos_columns=None,
+                warn_if_insufficient=True) -> DataFrame:
     """
     Removes pixel bias in a given list of features (using a single-pixel interior filling function),
     thereby improving sub-pixel accuracy.

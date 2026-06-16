@@ -36,7 +36,7 @@ Coordinate refinement
 
     trackpy.refine_com
     trackpy.refine_leastsq
-    trackpy.spiff.apply_spiff_correction
+    trackpy.spiff.apply_spiff
 
 Linking
 -------
