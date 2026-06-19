@@ -521,8 +521,10 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
         ``'auto'``, the correction is applied silently when there are
         enough features, and skipped otherwise.
 
-        When ``output`` is None, the correction is computed once for all features in all frames (recommended).
-        When ``output`` is specified, the correction is computed for each frame, which may be less accurate.
+        When ``output`` is None, the correction is computed once for all
+        features in all frames (recommended).
+        When ``output`` is specified, the correction is computed for each
+        frame, which may be less accurate.
     **kwargs :
         Keyword arguments that are passed to the wrapped `trackpy.locate`.
         Refer to its docstring for further details.
