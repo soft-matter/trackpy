@@ -714,6 +714,11 @@ class TestNonrecursiveLink(SubnetNeededTests):
         self.linker_opts = dict(link_strategy='nonrecursive')
 
 
+class TestLSALink(SubnetNeededTests):
+    def setUp(self):
+        self.linker_opts = dict(link_strategy='lsa')
+
+
 class TestBTreeLink(SubnetNeededTests):
     def setUp(self):
         _skip_if_no_sklearn()
