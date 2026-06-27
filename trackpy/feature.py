@@ -15,6 +15,7 @@ from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
+from .spiff import apply_spiff
 import trackpy  # to get trackpy.__version__
 
 logger = logging.getLogger(__name__)
@@ -175,14 +176,14 @@ def local_maxima(image, radius, percentile=64, margin=None):
 def estimate_mass(image, radius, coord):
     "Compute the total brightness in the neighborhood of a local maximum."
     square = [slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
-    neighborhood = binary_mask(radius, image.ndim)*image[square]
+    neighborhood = binary_mask(radius, image.ndim) * image[square]
     return np.sum(neighborhood)
 
 
 def estimate_size(image, radius, coord, estimated_mass):
     "Compute the total brightness in the neighborhood of a local maximum."
     square = [slice(c - rad, c + rad + 1) for c, rad in zip(coord, radius)]
-    neighborhood = binary_mask(radius, image.ndim)*image[square]
+    neighborhood = binary_mask(radius, image.ndim) * image[square]
     Rg = np.sqrt(np.sum(r_squared_mask(radius, image.ndim) * neighborhood) /
                  estimated_mass)
     return Rg
@@ -205,7 +206,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
            filter_before=None, filter_after=None,
-           characterize=True, engine='auto'):
+           characterize=True, engine='auto', spiff=False):
     """Locate Gaussian-like blobs of some approximate size in an image.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -272,6 +273,15 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     characterize : boolean
         Compute "extras": eccentricity, signal, ep. True by default.
     engine : {'auto', 'python', 'numba'}
+    spiff : boolean or 'auto'
+        Apply the SPIFF sub-pixel bias correction
+        (``trackpy.spiff.apply_spiff``) to the located features
+        before returning. False by default. If True, the correction is
+        applied and a warning is emitted if there are too few features for
+        a reliable correction. If ``'auto'``, the correction is applied
+        silently when there are enough features, and skipped otherwise.
+        Note that SPIFF generally works best when applied to features
+        pooled from many frames at once; see ``batch``.
 
     Returns
     -------
@@ -308,7 +318,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     if filter_before is not None:
         raise ValueError("The filter_before argument is no longer supported as "
                          "it does not improve performance. Features are "
-                         "filtered after refine.") # see GH issue #141
+                         "filtered after refine.")  # see GH issue #141
     if filter_after is not None:
         warnings.warn("The filter_after argument has been deprecated: it is "
                       "always on, unless minmass = None and maxsize = None.",
@@ -323,7 +333,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     diameter = tuple([int(x) for x in diameter])
     if not np.all([x & 1 for x in diameter]):
         raise ValueError("Feature diameter must be an odd integer. Round up.")
-    radius = tuple([x//2 for x in diameter])
+    radius = tuple([x // 2 for x in diameter])
 
     isotropic = np.all(radius[1:] == radius[:-1])
     if (not isotropic) and (maxsize is not None):
@@ -352,11 +362,11 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         dim = raw_image.ndim
         warnings.warn("I am interpreting the image as {}-dimensional. "
                       "If it is actually a {}-dimensional color image, "
-                      "convert it to grayscale first.".format(dim, dim-1))
+                      "convert it to grayscale first.".format(dim, dim - 1))
 
     if threshold is None:
         if is_float_image:
-            threshold = 1/255.
+            threshold = 1 / 255.
         else:
             threshold = 1
 
@@ -373,7 +383,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # For optimal performance, performance, coerce the image dtype to integer.
     if is_float_image:  # For float images, assume bitdepth of 8.
         dtype = np.uint8
-    else:   # For integer images, take original dtype
+    else:  # For integer images, take original dtype
         dtype = raw_image.dtype
     # Normalize_to_int does nothing if image is already of integer type.
     scale_factor, image = convert_to_int(image, dtype)
@@ -452,6 +462,12 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
             ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
             refined_coords = pandas_concat([refined_coords, ep], axis=1)
 
+    # Optionally apply the SPIFF sub-pixel bias correction.
+    if spiff:
+        refined_coords = apply_spiff(
+            refined_coords, pos_columns=pos_columns,
+            warn_if_insufficient=(spiff != 'auto'))
+
     # If this is a pims Frame object, it has a frame number.
     # Tag it on; this is helpful for parallelization.
     if hasattr(raw_image, 'frame_no') and raw_image.frame_no is not None:
@@ -460,7 +476,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
 
 def batch(frames, diameter, output=None, meta=None, processes='auto',
-          after_locate=None, **kwargs):
+          after_locate=None, spiff=False, **kwargs):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
 
     Preprocess the image by performing a band pass and a threshold.
@@ -497,6 +513,18 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
         - ``features``: a DataFrame containing the detected features.
 
         Furthermore it must return a DataFrame like ``features``.
+    spiff : boolean or 'auto'
+        Apply the SPIFF sub-pixel bias correction
+        (``trackpy.spiff.apply_spiff``). False by default.
+        If True, the correction is applied and a warning is emitted if
+        there are too few features for a reliable correction. If
+        ``'auto'``, the correction is applied silently when there are
+        enough features, and skipped otherwise.
+
+        When ``output`` is None, the correction is computed once for all
+        features in all frames (recommended).
+        When ``output`` is specified, the correction is computed for each
+        frame, which may be less accurate.
     **kwargs :
         Keyword arguments that are passed to the wrapped `trackpy.locate`.
         Refer to its docstring for further details.
@@ -523,6 +551,12 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
                        "provided internally by `frames`")
     # Add required keyword argument
     kwargs["diameter"] = diameter
+    # SPIFF is most accurate when applied to features pooled from all
+    # frames at once. When output is None we can pool, so override any
+    # per-frame spiff request and apply the correction below. When
+    # output is specified, pooling isn't possible, so fall back to
+    # applying the correction frame-by-frame inside locate().
+    kwargs["spiff"] = spiff if output is not None else False
 
     if meta:
         # Gather meta information and save as YAML in current directory.
@@ -582,7 +616,11 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
 
     if output is None:
         if len(all_features) > 0:
-            return pandas_concat(all_features).reset_index(drop=True)
+            result = pandas_concat(all_features).reset_index(drop=True)
+            if spiff:
+                result = apply_spiff(
+                    result, warn_if_insufficient=(spiff != 'auto'))
+            return result
         else:  # return empty DataFrame
             warnings.warn("No maxima found in any frame.")
             return pd.DataFrame(columns=list(features.columns) + ['frame'])
@@ -630,8 +668,8 @@ def characterize(coords, image, radius, scale_factor=1.):
                                mass[feat])[::-1]  # change order yx -> xy
         # I only know how to measure eccentricity in 2D.
         if ndim == 2:
-            ecc[feat] = np.sqrt(np.sum(neighborhood*cosmask(radius))**2 +
-                                np.sum(neighborhood*sinmask(radius))**2)
+            ecc[feat] = np.sqrt(np.sum(neighborhood * cosmask(radius)) ** 2 +
+                                np.sum(neighborhood * sinmask(radius)) ** 2)
             ecc[feat] /= (mass[feat] - neighborhood[radius] + 1e-6)
 
     result = dict(mass=mass, signal=signal, ecc=ecc)
