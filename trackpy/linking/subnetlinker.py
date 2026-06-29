@@ -5,11 +5,43 @@ can be linked in more than one way.
 """
 
 from collections import deque
+import operator
 
 import numpy as np
+from scipy import optimize
 
 from .utils import SubnetOversizeException
 from ..try_numba import try_numba_jit
+
+
+def subnet_linker_lsa(source_set, dest_set, search_range, max_size=None):
+    uuid = operator.attrgetter("uuid")
+    src = sorted(source_set, key=uuid)
+    dst = sorted(dest_set, key=uuid)
+    dst_uuid2idx = {d.uuid: i for i, d in enumerate(dst)}
+    # "Too-far" pairs are actually assigned a distance of search_range; see test_penalty.
+    inf = search_range ** 2
+    d2s = np.full((len(src), len(dst)), inf)
+    for i, s in enumerate(src):
+        for d, dist in s.forward_cands:
+            d2s[i, dst_uuid2idx[d.uuid]] = dist ** 2
+    src_idxs, dst_idxs = optimize.linear_sum_assignment(d2s)
+    keep = d2s[src_idxs, dst_idxs] < inf  # Other pairs were actually too far.
+    src_idxs = src_idxs[keep].tolist()
+    dst_idxs = dst_idxs[keep].tolist()
+    lost_src = sorted({*range(len(src))} - {*src_idxs})
+    lost_dst = sorted({*range(len(dst))} - {*dst_idxs})
+    sn_spl = [
+        *[src[i] for i in src_idxs],
+        *[src[i] for i in lost_src],
+        *[None] * len(lost_dst),
+    ]
+    sn_dpl = [
+        *[dst[i] for i in dst_idxs],
+        *[None] * len(lost_src),
+        *[dst[i] for i in lost_dst],
+    ]
+    return sn_spl, sn_dpl
 
 
 def recursive_linker_obj(s_sn, dest_size, search_range, max_size=30, diag=False):

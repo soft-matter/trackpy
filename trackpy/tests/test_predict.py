@@ -102,10 +102,10 @@ class BaselinePredictTests:
     def test_subnet_fail(self):
         with self.assertRaises(trackpy.SubnetOversizeException):
             Nside = Nside_oversize
-            ll = self.get_linked_lengths_from_iterfunc((mkframe(0, Nside),
-                                     mkframe(25, Nside),
-                                     mkframe(75, Nside)),
-                                    self.get_unwrapped_linker(), 100)
+            ll = self.get_linked_lengths_from_iterfunc(
+                (mkframe(0, Nside), mkframe(25, Nside), mkframe(75, Nside)),
+                functools.partial(self.get_unwrapped_linker(), link_strategy='recursive'),
+                100)
 
 
 class BaselinePredictIterTests(LinkIterWithPrediction, BaselinePredictTests, StrictTestCase):
