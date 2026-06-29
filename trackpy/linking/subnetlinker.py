@@ -27,7 +27,7 @@ class SubnetLinker:
         self.search_range = search_range
         self.max_size = max_size
         self.s_lst = [s for s in s_sn]
-        self.s_lst.sort(key=lambda x: len(x.forward_cands))
+        self.s_lst.sort(key=lambda p: (len(p.forward_cands), p.uuid))
         self.MAX = len(self.s_lst)
 
         self.max_links = min(self.MAX, dest_size)
@@ -85,7 +85,7 @@ class SubnetLinker:
 
 def nonrecursive_link(source_list, dest_size, search_range, max_size=30, diag=False):
     source_list = list(source_list)
-    source_list.sort(key=lambda x: len(x.forward_cands))
+    source_list.sort(key=lambda p: (len(p.forward_cands), p.uuid))
     MAX = len(source_list)
 
     if MAX > max_size:
@@ -183,7 +183,7 @@ def numba_link(s_sn, dest_size, search_range, max_size=30, diag=False):
     # Then the hard part runs quickly because it is just operating on arrays.
     # We can compile it with numba for outstanding performance.
     max_candidates = 9  # Max forward candidates we expect for any particle
-    src_net = list(s_sn)
+    src_net = sorted(s_sn, key=lambda p: (len(p.forward_cands), p.uuid))
     nj = len(src_net) # j will index the source particles
     if nj > max_size:
         raise SubnetOversizeException('search_range (aka maxdisp) too large for reasonable performance '
@@ -427,15 +427,12 @@ def subnet_linker_numba(source_set, dest_set, search_range,
                         hybrid=True, **kwargs):
     """Link a subnet using a numba-accelerated algorithm.
 
-    Since this is meant to be the highest-performance option, it
-    has some special behaviors:
-
-    - Each source particle's forward_cands must be sorted by distance.
-    - If the 'hybrid' option is true, subnets with only 1 source or
-      destination particle, or with at most 4 source particles and
-      4 destination particles, are solved using the recursive
-      pure-Python algorithm, which has much less overhead since
-      it does not convert to a numpy representation.
+    Since this is meant to be the highest-performance option, if the 
+    'hybrid' option is true, subnets with only 1 source or
+    destination particle, or with at most 4 source particles and
+    4 destination particles, are solved using the recursive
+    pure-Python algorithm, which has much less overhead since
+    it does not convert to a numpy representation.
     """
     lss = len(source_set)
     lds = len(dest_set)
