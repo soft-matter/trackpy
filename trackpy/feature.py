@@ -271,12 +271,18 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc, signal, raw_mass])
+    DataFrame([x, y, mass, size, ecc, signal, raw_mass, ep])
         where "x, y" are appropriate to the dimensionality of the image,
-        mass means total integrated brightness of the blob,
+        mass means total integrated brightness of the blob in the preprocessed
+        image used for feature-finding (by default bandpass-filtered, so
+        usually much smaller than raw_mass),
         size means the radius of gyration of its Gaussian-like profile,
         ecc is its eccentricity (0 is circular),
-        and raw_mass is the total integrated brightness in raw_image.
+        signal is the value of the brightest pixel in the feature,
+        raw_mass is the total integrated brightness in raw_image, and
+        ep is the estimated uncertainty (static error) in position.
+        All columns except x, y (and z) and mass require characterize=True
+        (the default).
 
     See Also
     --------
@@ -499,10 +505,18 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc, signal])
-        where mass means total integrated brightness of the blob,
+    DataFrame([x, y, mass, size, ecc, signal, raw_mass, ep])
+        where "x, y" are appropriate to the dimensionality of the image,
+        mass means total integrated brightness of the blob in the preprocessed
+        image used for feature-finding (by default bandpass-filtered, so
+        usually much smaller than raw_mass),
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (0 is circular).
+        ecc is its eccentricity (0 is circular),
+        signal is the value of the brightest pixel in the feature,
+        raw_mass is the total integrated brightness in raw_image, and
+        ep is the estimated uncertainty (static error) in position.
+        All columns except x, y (and z) and mass require characterize=True
+        (the default).
 
     See Also
     --------

@@ -62,10 +62,13 @@ def refine_com(raw_image, image, radius, coords, max_iterations=10,
     -------
     DataFrame([x, y, mass, size, ecc, signal, raw_mass])
         where "x, y" are appropriate to the dimensionality of the image,
-        mass means total integrated brightness of the blob,
+        mass means total integrated brightness of the blob in ``image`` (the
+        preprocessed image, not raw_image),
         size means the radius of gyration of its Gaussian-like profile,
         ecc is its eccentricity (0 is circular),
+        signal is the value of the brightest pixel in the feature,
         and raw_mass is the total integrated brightness in raw_image.
+        All columns except x, y (and z) and mass require characterize=True.
     """
     if isinstance(coords, pd.DataFrame):
         if pos_columns is None:
