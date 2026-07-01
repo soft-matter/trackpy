@@ -372,7 +372,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     else:
         image = raw_image
 
-    # For optimal performance, performance, coerce the image dtype to integer.
+    # For optimal performance, coerce the image dtype to integer.
     if is_float_image:  # For float images, assume bitdepth of 8.
         dtype = np.uint8
     else:   # For integer images, take original dtype
