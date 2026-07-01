@@ -1,8 +1,12 @@
 # Poly-disperse support for `locate()` / `batch()`
 
 Implementation plan for allowing `trackpy.locate` (and `trackpy.batch`) to detect
-particles spanning a **range** of sizes, by supplying `mindiameter` + `maxdiameter`
-instead of a single `diameter`.
+particles spanning a **range** of sizes, by passing a `Polydisperse` config object
+as the `diameter` argument instead of a single number/tuple.
+
+> **Shorthand:** throughout this doc, `mindiameter` / `maxdiameter` refer to the
+> `Polydisperse.min_diameter` / `max_diameter` field *values* (the ends of the size
+> range), not to standalone function parameters. See §5 for the actual API.
 
 ---
 
@@ -15,12 +19,14 @@ of sizes, up to ~10× range (e.g. `mindiameter=5`, `maxdiameter=51`).
 
 Design premise:
 
-- **`diameter` is untouched.** If the user supplies `diameter`, behaviour is
-  byte-for-byte identical to today. Zero regression risk for existing users.
-- A **new optional pair `mindiameter` + `maxdiameter`** activates "poly mode".
-  - Both required together.
-  - Mutually exclusive with `diameter` (error if `diameter` also given).
-  - Each must be an odd integer; `maxdiameter >= mindiameter`.
+- **A number/tuple `diameter` is untouched.** Behaviour is byte-for-byte identical
+  to today. Zero regression risk for existing users.
+- Passing a **`Polydisperse` object** as `diameter` activates "poly mode" (see §5).
+  - Bundles `min_diameter`, `max_diameter`, `rg_to_diameter`, `max_radius_iterations`.
+  - Mutual exclusion with monodisperse is **type-encoded** — one `diameter` slot, so
+    the invalid combination is inexpressible (no cross-parameter check needed).
+  - `min_diameter`/`max_diameter` odd integers, `max >= min`; validated in
+    `Polydisperse.__init__`.
   - **Isotropic only** initially (scalar, not per-axis tuple) — see §7.
 - Derived quantities in poly mode: `r_min = mindiameter // 2`,
   `r_max = maxdiameter // 2`.
@@ -123,9 +129,28 @@ window to estimate size) makes *a* bootstrap unavoidable. But it must be **cheap
 
 | Approach | Accuracy | Cost | Code risk |
 |---|---|---|---|
-| Two full refine passes | optimal | ~2× refine | low |
-| **Cheap bootstrap + 1 bucketed refine** (chosen) | optimal | ~1× refine + O(N) | low |
+| Two full refine passes | optimal final; slightly better *first-guess* bucket | ~2× refine | low |
+| **Cheap bootstrap + 1 bucketed refine** (chosen) | identical final; first-guess bucket may differ only for smallest borderline particles | ~1× refine + O(N) | low |
 | Rewritten per-feature-radius kernel | optimal (same!) | ≥1× refine, no numba hoist | high |
+
+**Why the cheap bootstrap is not less accurate.** Both variants end with the *same*
+full refine at the assigned radius (Pass 2), which re-converges to the same
+center-of-brightness regardless of starting point — so final position/mass/size/ecc
+are identical *given the same bucket*. The only channel for divergence is the size
+estimate that picks the bucket: the bootstrap measures Rg from a 1-iteration
+(~1 px off-center) window, inflating Rg by ≈`δ²` (parallel-axis effect). Through the
+assignment (bucket width = 2 in diameter) this shifts diameter by ~0.14 for a big
+particle (never changes the bucket) and up to ~0.45 for the smallest particles (can
+occasionally cross a bucket edge). That residual is *shared contamination* — both
+variants estimate at `r_max`, so a small particle's Rg is dominated by neighbor/
+background contamination that full convergence does **not** fix. A full Pass-1 at
+`r_max` can even *mis-center* a small particle next to a big bright one (large window
+pulls COM toward the neighbor), making its Pass-2 start worse than the raw detected
+pixel. The correct cure for the borderline-bucket sensitivity is
+`max_radius_iterations > 1` (re-estimate at the assigned, uncontaminated radius,
+re-bucket, re-refine) — a fixed-point iteration to which **both variants converge
+identically**. So the extra full pass buys only a marginally better first guess that
+the iteration would fix anyway.
 
 ---
 
@@ -202,10 +227,30 @@ Replace the single `refine_com` call (poly mode only) with:
 2. **Assign per-feature diameter (tunable):**
    `assigned_diameter = round_to_odd(rg_to_diameter * size)`, clamped to
    `[mindiameter, maxdiameter]`.
-   - `rg_to_diameter` is a **new kwarg**, default from the uniform-disk relation
-     `Rg = R / sqrt(2)` ⇒ `diameter = 2R = 2*sqrt(2)*Rg ≈ 2.83`.
-   - Power users retune for Gaussian-ish vs. disk-ish profiles.
-3. **Bucket** features by `assigned_diameter` (distinct odd diameters in range).
+   - `rg_to_diameter` is a **`Polydisperse` field**, default derived from a **Gaussian**
+     profile: for an isotropic Gaussian `Rg = σ·√n` (n = ndim), and a window
+     half-width `R = k·σ` gives `rg_to_diameter = 2R/Rg = 2k/√n`. Default **k = 2.5**
+     (captures ~95.6% of the mass in 2D, ~89.9% in 3D):
+     - **2D:** `5/√2 ≈ 3.536`
+     - **3D:** `5/√3 ≈ 2.887`
+   - Because the default is dimension-aware, the kwarg defaults to `None` and is
+     resolved to `5/√2` or `5/√3` from the image's `ndim` inside `locate`.
+   - Power users retune via `k`: `2k/√n` (e.g. `k=2` tighter for crowded fields,
+     `k=3` for maximal mass fidelity), or pass `rg_to_diameter` directly.
+   - Caveat: the derivation assumes an untruncated ideal Gaussian; the bootstrap
+     measures `Rg` in the `r_max` window, so far-field noise (surviving the bandpass
+     `threshold`) can slightly inflate `Rg` for very small particles — mitigated by
+     the `threshold` clip and `max_radius_iterations > 1`.
+3. **Bucket** features by `assigned_diameter`:
+   - **2D (and any case with ≤ 10 distinct odd diameters in range):** one bucket per
+     distinct odd diameter — lossless (mask radii are integers anyway).
+   - **3D with a wide range (> 10 distinct odd diameters):** cap at **10 buckets**.
+     Choose 10 bucket diameters spaced **geometrically** (log) across
+     `[mindiameter, maxdiameter]`, rounded to the nearest odd and deduplicated, then
+     snap each feature to the nearest bucket diameter. Geometric spacing keeps the
+     *relative* window error roughly uniform across a 10× range (a 2 px error matters
+     far more at d=5 than d=51), and bounds the persistent mask cache to ≤ 10 radii.
+     The give-up is a small window-size quantization on 3D features only.
 4. **Refine (real pass):** for each bucket, call `refine_com_arr` **once** on that
    subset at the bucket's radius, starting from bootstrap positions. Concatenate
    results, **preserving the original coordinate order/index**.
@@ -251,8 +296,8 @@ runs one bucket at a time; `diameter` column is negligible). The real delta is t
 `@memo` mask cache holding **K distinct radii** instead of 1 (never evicted):
 
 - 2D: sub-MB for `maxdiameter=51`, a few MB at `d=101` — trivial.
-- 3D: grows as `d³`; large ranges reach tens of MB → the concrete argument for
-  **coarser bucket granularity in 3D**.
+- 3D: grows as `d³`; large ranges would reach tens of MB — bounded by the **10-bucket
+  cap in 3D** (step 3), so the persistent cache holds at most 10 radii's masks.
 
 **`batch()` amortization:** the cache is process-global and persistent, so masks are
 built once and reused across all frames — poly does not rebuild masks per frame.
@@ -263,10 +308,15 @@ built once and reused across all frames — poly does not rebuild masks per fram
 - **Breaks:** margin is applied inside `grey_dilation`, before sizes are known —
   can't be per-feature.
 - **Fix:** conservative global margin from the largest scale:
-  `max(r_max, (mindiameter+1)//2 - 1, maxdiameter//2)`. Excludes a slightly wider
-  border (loses a few small particles near edges) rather than characterizing a big
-  particle with clipped data.
+  `max(r_max, (mindiameter+1)//2 - 1, maxdiameter//2)`. In the `preprocess=True`
+  case (the only case in scope) this is pinned at `r_max` by the bandpass
+  edge-artifact term (`smoothing_size//2 = maxdiameter//2`) regardless — the
+  preprocessed border ring is unreliable for features of all sizes, so a per-feature
+  margin would buy nothing. Excludes a slightly wider border (loses a few small
+  particles near edges) rather than characterizing on clipped/corrupted data.
 - **Effort:** trivial. **Risk:** low.
+- **Out of scope:** `preprocess=False` (where the artifact term vanishes and a
+  per-feature post-refine edge check would recover small near-edge particles).
 
 ### Stage E — Deduplication (`where_close`) — second real change
 
@@ -311,26 +361,61 @@ built once and reused across all frames — poly does not rebuild masks per fram
 
 ## 5. Public API changes
 
-### `locate` signature (new kwargs, all optional / backward-compatible)
+**No new parameters.** Poly mode is selected by the *type* of the existing
+`diameter` argument: a number/tuple (monodisperse, unchanged) **or** a
+`Polydisperse` config object. This encodes the mutual exclusion in the type system
+(the invalid combination is inexpressible), keeps poly-only options off the
+`locate`/`batch` signatures, and makes `batch` work with **zero** signature changes
+(it already forwards `diameter` first-positional).
 
 ```python
-def locate(raw_image, diameter=None, minmass=None, maxsize=None, separation=None,
-           noise_size=1, smoothing_size=None, threshold=None, invert=False,
-           percentile=64, topn=None, preprocess=True, max_iterations=10,
-           filter_before=None, filter_after=None,
-           characterize=True, engine='auto',
-           # --- new ---
-           mindiameter=None, maxdiameter=None,
-           rg_to_diameter=2 * 2 ** 0.5,      # ~2.83, uniform-disk Rg->diameter
-           max_radius_iterations=1):
+tp.locate(img, 11)                                   # monodisperse, unchanged
+tp.locate(img, tp.Polydisperse(5, 51))               # poly, all defaults
+tp.locate(img, tp.Polydisperse(5, 51, rg_to_diameter=3.2))
+tp.batch(frames, tp.Polydisperse(5, 51))             # free — no batch changes
 ```
 
-Note: `diameter` becomes `diameter=None` so it can be omitted in poly mode.
-Validation must enforce exactly one of {`diameter`} / {`mindiameter` &
-`maxdiameter`} is provided.
+### The `Polydisperse` config object
 
-`batch` (`feature.py:464`) forwards `**kwargs`; add the same params to its
-signature/docstring and pass through.
+New public class (exported from `trackpy`), a small dataclass-like container that
+**validates in `__init__`** so errors surface at construction, not deep inside
+`locate`:
+
+```python
+class Polydisperse:
+    def __init__(self, min_diameter, max_diameter,
+                 rg_to_diameter=None, max_radius_iterations=1):
+        # __init__ validation (fail fast):
+        #   - min_diameter, max_diameter are odd integers (or tuples of odd ints)
+        #   - max_diameter >= min_diameter (elementwise)
+        #   - isotropic only for now: scalar, or tuple with equal entries →
+        #     else raise (mirrors the anisotropic-maxsize restriction,
+        #     feature.py:331-333)
+        #   - rg_to_diameter is None (→ resolved from ndim in locate) or > 0
+        #   - max_radius_iterations >= 1
+        ...
+```
+
+- Positional `min_diameter`, `max_diameter` (named to avoid shadowing the `min`/
+  `max` builtins). `Polydisperse(5, 51)` reads cleanly.
+- `rg_to_diameter` stays `None` on the object and is resolved to the dimension-aware
+  Gaussian default `2k/√n` (k=2.5 → 2D `5/√2 ≈ 3.54`, 3D `5/√3 ≈ 2.89`) inside
+  `locate`, once `ndim` is known (the object can't know `ndim` at construction).
+- `max_radius_iterations` default 1 (off).
+
+### Dispatch in `locate` / `batch`
+
+`diameter` becomes polymorphic (number | tuple | `Polydisperse`). After the shared
+Phase-0 setup:
+
+```python
+if isinstance(diameter, Polydisperse):
+    return _locate_polydisperse(raw_image, diameter, ...)  # Stage A–G helper
+# else: existing monodisperse path, byte-for-byte unchanged
+```
+
+`batch` needs no signature change — a `Polydisperse` flows through its existing
+`diameter` argument into `locate`. Only its docstring gains a mention.
 
 ### Output DataFrame
 
@@ -339,14 +424,15 @@ Existing columns unchanged: `x, y[, z], mass, size, ecc, signal, raw_mass, ep`.
 Document `size` (Rg) vs. `diameter` (assigned window) distinction in both
 `locate` and `batch` Returns docstrings.
 
-### Validation rules (Phase 0)
+### Validation (in `Polydisperse.__init__`, Phase 0)
 
-- `diameter` and (`mindiameter`/`maxdiameter`) are mutually exclusive.
-- `mindiameter` and `maxdiameter` must be supplied together.
-- Both odd integers; `maxdiameter >= mindiameter`.
-- Poly mode requires isotropic (scalar) diameters → raise a clear error for
-  tuples, mirroring the existing anisotropic-`maxsize` restriction
-  (`feature.py:331-333`).
+- `min_diameter`, `max_diameter` odd integers (or tuples of odd ints);
+  `max_diameter >= min_diameter`.
+- Isotropic only → raise a clear error for anisotropic (unequal-tuple) diameters,
+  mirroring the existing anisotropic-`maxsize` restriction (`feature.py:331-333`).
+- `rg_to_diameter` is `None` or positive; `max_radius_iterations >= 1`.
+- Mutual exclusion with monodisperse `diameter` is automatic — there is only one
+  `diameter` slot, so no cross-parameter check is needed.
 
 ---
 
@@ -354,7 +440,7 @@ Document `size` (Rg) vs. `diameter` (assigned window) distinction in both
 
 | Phase | Work | Files |
 |---|---|---|
-| 0 | Param plumbing + validation (mutual exclusion, odd, min≤max, isotropy guard); derive `r_min`/`r_max`; branch poly vs mono | `feature.py`, `utils.py` |
+| 0 | `Polydisperse` class (export from `trackpy`) with `__init__` validation (odd, min≤max, isotropy guard, positive `rg_to_diameter`, `max_radius_iterations>=1`); `isinstance` dispatch in `locate`/`batch`; derive `r_min`/`r_max` | `feature.py` (or new module), `trackpy/__init__.py` |
 | 1 | Stage A + D: `smoothing_size = maxdiameter`, conservative margin | `feature.py` |
 | 2 | Stage B: peak-find at `mindiameter` separation + connected-component collapse of the maxima mask (opt-in in `grey_dilation`) | `feature.py`, `find.py` |
 | 3 | Stage C: cheap bootstrap → tunable radius assignment → bucketed refine (optional iterate) → emit `diameter` column | `feature.py` (reuses `refine_com_arr`, `estimate_mass/size`) |
@@ -398,13 +484,21 @@ detection (Stage E dedup), (f) monodisperse `diameter` path is unchanged
 
 ## 8. Decisions locked in
 
-1. **API:** keep `diameter`; add `mindiameter`/`maxdiameter` (mutually exclusive).
+1. **API:** no new parameters — overload `diameter` to accept a number/tuple
+   (monodisperse, unchanged) or a `Polydisperse(min_diameter, max_diameter,
+   rg_to_diameter=None, max_radius_iterations=1)` object. Mutual exclusion is
+   type-encoded; `batch` needs no signature change; validation lives in
+   `Polydisperse.__init__`.
 2. **Refinement:** cheap non-iterative bootstrap + single **bucketed** refine pass
    (bucketing is lossless vs. per-feature radius; reuses `refine_com_arr`).
 2b. **Peak dedup split:** flat-top explosion killed immediately by
    connected-component collapse at detection (Stage B); only non-touching residual
    duplicates deferred to size-aware dedup (Stage E).
-3. **`rg_to_diameter`:** tunable kwarg, default `2*sqrt(2) ≈ 2.83` (uniform-disk).
+2c. **Bucketing:** one bucket per odd diameter in 2D (lossless); **cap at 10
+   geometrically-spaced buckets in 3D** to bound the mask cache.
+3. **`rg_to_diameter`:** tunable kwarg, dimension-aware Gaussian default
+   `2k/√n` with `k=2.5` (2D `5/√2 ≈ 3.54`, 3D `5/√3 ≈ 2.89`); defaults to `None`,
+   resolved from `ndim`.
 4. **Output:** add `diameter` column (assigned per-feature diameter).
 5. **Optional convergence:** `max_radius_iterations`, default 1 (off).
 6. **Scope:** `locate` + `batch`, isotropic only.
