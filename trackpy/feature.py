@@ -217,11 +217,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     ----------
     raw_image : array (any dimensions)
         Image used for final characterization. Ideally, pixel values of
-        this image are not rescaled, but it can also be identical to
-        ``image``.
-    image : array (same size as raw_image)
-        Processed image used for centroid-finding and most particle
-        measurements.
+        this image are not rescaled.
     diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
