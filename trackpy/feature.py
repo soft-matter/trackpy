@@ -217,8 +217,8 @@ def _resolve_polydisperse(poly, ndim):
 
     Broadcasts/validates the min and max diameters to the image dimensionality,
     derives the min/max refinement radii, and resolves the (possibly
-    dimension-dependent) ``rg_to_diameter``. Shared by the polydisperse stages
-    dispatched from :func:`locate`.
+    dimension-dependent) ``rg_to_diameter`` used by the polydisperse path of
+    :func:`locate`.
     """
     min_diameter = validate_tuple(poly.min_diameter, ndim)
     max_diameter = validate_tuple(poly.max_diameter, ndim)
@@ -358,24 +358,36 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     shape = raw_image.shape
     ndim = len(shape)
 
-    # Polydisperse mode: a Polydisperse config object stands in for `diameter`.
-    # Resolve its size-range parameters here; the detection, refinement, dedup,
-    # uncertainty and bias-correction stages reuse locate's shared pipeline
-    # below (via `if poly` branches and stage helpers, added in later phases).
+    # Resolve the size parameters. In polydisperse mode a Polydisperse config
+    # object stands in for `diameter`; its detection, refinement, deduplication,
+    # uncertainty and bias-correction steps reuse locate's shared pipeline below
+    # via `if poly` branches.
     poly = diameter if isinstance(diameter, Polydisperse) else None
     if poly is not None:
         resolved = _resolve_polydisperse(poly, ndim)
-        raise NotImplementedError(
-            "Polydisperse feature finding is not yet implemented beyond Phase 0 "
-            "(validation + parameter resolution): {}.".format(resolved))
+        min_diameter, max_diameter = resolved.min_diameter, resolved.max_diameter
+        r_min, r_max = resolved.r_min, resolved.r_max
+        # We only allow isotropic diameters in the polydisperse scenario.
+        isotropic = True
+        # The boxcar background kernel must exceed the *largest* particle, so
+        # smoothing defaults to the maximum diameter.
+        default_smoothing_size = max_diameter
+        # Detect at the *finest* scale so closely-spaced small particles stay
+        # resolvable.
+        default_separation = tuple(d + 1 for d in min_diameter)
+        # Conservative edge margin from the largest refinement radius.
+        margin_radius = r_max
+    else:
+        diameter = validate_tuple(diameter, ndim)
+        diameter = tuple([int(x) for x in diameter])
+        if not np.all([x & 1 for x in diameter]):
+            raise ValueError("Feature diameter must be an odd integer. Round up.")
+        radius = tuple([x // 2 for x in diameter])
+        isotropic = np.all(radius[1:] == radius[:-1])
+        default_smoothing_size = diameter
+        default_separation = tuple([x + 1 for x in diameter])
+        margin_radius = radius
 
-    diameter = validate_tuple(diameter, ndim)
-    diameter = tuple([int(x) for x in diameter])
-    if not np.all([x & 1 for x in diameter]):
-        raise ValueError("Feature diameter must be an odd integer. Round up.")
-    radius = tuple([x // 2 for x in diameter])
-
-    isotropic = np.all(radius[1:] == radius[:-1])
     if (not isotropic) and (maxsize is not None):
         raise ValueError("Filtering by size is not available for anisotropic "
                          "features.")
@@ -383,12 +395,12 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     is_float_image = not np.issubdtype(raw_image.dtype, np.integer)
 
     if separation is None:
-        separation = tuple([x + 1 for x in diameter])
+        separation = default_separation
     else:
         separation = validate_tuple(separation, ndim)
 
     if smoothing_size is None:
-        smoothing_size = diameter
+        smoothing_size = default_smoothing_size
     else:
         smoothing_size = validate_tuple(smoothing_size, ndim)
 
@@ -437,7 +449,15 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     #       refinement ("separation")
     #   - Invalid output of the bandpass step ("smoothing_size")
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
-                    zip(radius, separation, smoothing_size)])
+                    zip(margin_radius, separation, smoothing_size)])
+
+    # Polydisperse detection and the subsequent refinement, deduplication and
+    # uncertainty steps are not yet implemented; the shared preprocessing and
+    # margin above already apply to both modes.
+    if poly is not None:
+        raise NotImplementedError(
+            "Polydisperse feature finding is not yet fully implemented.")
+
     # Find features with minimum separation distance of `separation`. This
     # excludes detection of small features close to large, bright features
     # using the `maxsize` argument.
