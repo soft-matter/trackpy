@@ -357,6 +357,53 @@ built once and reused across all frames — poly does not rebuild masks per fram
   Size-normalized minmass is **out of scope**.
 - **Effort:** low. **Risk:** low (documented sharp edge).
 
+### Stage H — SPIFF pixel-locking correction (`spiff.py`)
+
+- **Today:** `apply_spiff` (`spiff.py`) removes sub-pixel (pixel-locking) bias by
+  histogram-equalization: for each position column it pools the fractional parts of
+  **every row**, folds them around the pixel center (`spiff.py:82`), builds **one**
+  empirical distribution `spiff_sorted` (`spiff.py:85`), and remaps all positions
+  through that single CDF (`spiff.py:88-90`) so the pooled sub-pixel histogram
+  becomes uniform. Wired in via `locate(..., spiff=...)` per-frame
+  (`feature.py:466`) and `batch(..., spiff=...)`, which **pools across all frames**
+  then corrects once (`feature.py:559, 620-622`). `MIN_FEATURES = 50`.
+- **Breaks:** the single pooled `spiff_sorted` encodes "all features share one bias
+  signature." In poly mode the pooled histogram is a **mixture** of per-size-class
+  bias curves (small particles are undersampled and pixel-lock hard; large ones
+  barely lock). The correction is *empirical* — it flattens whatever histogram it is
+  given — so flattening the mixture flattens *neither* component: it over-corrects
+  large particles and under-corrects small ones. (Stage C's `rg_to_diameter` scaling
+  removes the *mask-coverage* axis of variation but not the intrinsic *undersampling*
+  axis, which is the dominant, size-dependent one — so the mixture problem stands.)
+- **Fix — size-class-aware `apply_spiff`:**
+  1. Add a **`groupby` parameter**; build a separate `spiff_sorted` per group (the
+     existing per-column logic runs unchanged within each group, reassembled on the
+     original index).
+  2. **Default `groupby='auto'`: use the `diameter` column if present, else pool**
+     (today's behaviour). Since `diameter` is the poly-only output column, this makes
+     both paths correct with **zero new wiring** — the pooled `batch` correction
+     (`feature.py:620`) auto-stratifies whenever the input is polydisperse, and a
+     direct `apply_spiff(batch_result)` call also does the right thing. Monodisperse
+     output has no `diameter` column → pools exactly as now.
+  3. **Adaptive merging (essential).** A naive per-`diameter` group would leave most
+     classes below `MIN_FEATURES=50` and silently uncorrected. Because `diameter` is
+     *ordinal*, merge adjacent classes until each bin clears the threshold (fall back
+     to fully pooled only if the whole set is borderline). This decouples the
+     correction binning (wants fat bins for a stable CDF) from the refine buckets
+     (want fine bins for accuracy).
+- **Caveats:**
+  - Needs even more features than pooled SPIFF (≈ `n_bins × 50`) → really a
+    batch-over-a-movie operation; single-frame `locate(spiff=...)` mostly no-ops as
+    today. Existing `warn_if_insufficient` / `MIN_FEATURES` logic carries over
+    per-bin.
+  - **Never biased when the bias is actually uniform** — grouping only costs some
+    per-bin statistical noise (guarded by the merge + threshold), converging to the
+    pooled result when size doesn't matter and beating it when it does. Safe default.
+  - `size` (Rg) is the finer bias driver for sub-bucket stratification, but
+    `diameter` is discrete, already emitted, and ordinal → the natural default key.
+- **Effort:** low (local change in `spiff.py`; no `locate`/`batch` plumbing change).
+  **Risk:** low.
+
 ---
 
 ## 5. Public API changes
@@ -446,16 +493,19 @@ Document `size` (Rg) vs. `diameter` (assigned window) distinction in both
 | 3 | Stage C: cheap bootstrap → tunable radius assignment → bucketed refine (optional iterate) → emit `diameter` column | `feature.py` (reuses `refine_com_arr`, `estimate_mass/size`) |
 | 4 | Stage E: `where_close_variable` size-aware dedup | `find.py`, `feature.py` |
 | 5 | Stage F + G: per-bucket `ep`, size-band filter | `feature.py` |
-| 6 | Tests (synthetic polydisperse via `trackpy.artificial`) + docstrings (`locate`, `batch`) | `trackpy/tests/test_feature.py`, `feature.py` |
+| 6 | Stage H: size-class-aware `apply_spiff` (`groupby='auto'` → `diameter`, adaptive-merge to `MIN_FEATURES`); no `locate`/`batch` plumbing change | `spiff.py` |
+| 7 | Tests (synthetic polydisperse via `trackpy.artificial`, incl. per-class SPIFF) + docstrings (`locate`, `batch`, `apply_spiff`) | `trackpy/tests/test_feature.py`, `trackpy/tests/test_spiff.py`, `feature.py`, `spiff.py` |
 
 Phases 1–2 and 4 are largely independent; Phase 3 is the spine everything attaches
-to. Do 0 → 1 → 2 → 3 first for an end-to-end working path, then 4/5, then 6.
+to. Do 0 → 1 → 2 → 3 first for an end-to-end working path, then 4/5, then 6 (SPIFF),
+then 7 (tests/docs). Phase 6 depends only on Phase 3 emitting the `diameter` column.
 
 ---
 
 ## 7. Scope, limitations & open items
 
-**In scope:** `locate`, `batch`; isotropic 2D/3D.
+**In scope:** `locate`, `batch`; isotropic 2D/3D; size-class-aware SPIFF
+(`apply_spiff`, Stage H).
 
 **Out of scope (documented, not implemented):**
 - `find_link` / linking-based finder (parallel code path, ~doubles surface).
@@ -466,19 +516,36 @@ to. Do 0 → 1 → 2 → 3 first for an end-to-end working path, then 4/5, then 
 - Global `percentile` brightness gate can let bright large particles suppress faint
   small ones (Stage B).
 - Single `minmass` floor is imperfect across a size range (Stage G).
+- Size-class-aware SPIFF needs ≈ `n_bins × MIN_FEATURES` features to correct all
+  classes; sparse size classes are merged or fall back to pooled correction, and a
+  single frame mostly no-ops (Stage H).
 - Bootstrap size estimate can be contaminated for a small particle adjacent to a
   large bright one; mitigated by `max_radius_iterations > 1` (Stage C).
 - Two equally-bright particles whose maxima regions touch with no intensity valley
   between them (e.g. adjacent saturated particles) collapse to a single detection in
   Stage B's CC step. Not a regression (monodisperse `where_close` merges them too)
   and fundamentally unresolvable by Crocker–Grier without an intensity valley.
+- **`topn` ranks by integrated `mass`** (`feature.py:442-449`), which grows with
+  particle size, so in poly mode "N brightest" ≈ "N largest" — small particles are
+  systematically discarded. No `diameter` reference, but a quiet size assumption
+  (same category as SPIFF). Documented only; a size-stratified `topn` (top-N per
+  `diameter` class) is a possible future opt-in, not implemented.
+- **Bandpass `threshold` clip** (`preprocessing.py:139`, default `1` / `1/255`) is a
+  single global intensity floor; it removes a size-dependent fraction of each
+  particle's tail and bites faint/small particles hardest (same family as
+  `percentile`/`minmass`). No code change.
+- **Stage E occlusion:** the size-aware dedup rule "drop the dimmer if within the
+  *larger* feature's separation" can drop a real small particle that legitimately
+  sits inside a large particle's exclusion zone. Inherent ambiguity.
 
 **Testing notes:** build synthetic polydisperse fields with `trackpy.artificial`
 (draw features at several radii in one frame); assert (a) counts, (b) positions
 within tolerance, (c) `diameter`/`size` correlate with ground truth, (d) closely
 spaced small particles are both found, (e) a large particle yields exactly one
 detection (Stage E dedup), (f) monodisperse `diameter` path is unchanged
-(regression).
+(regression), (g) size-class-aware SPIFF flattens each class's sub-pixel histogram
+where a single pooled correction does not, and pooled behaviour is unchanged for
+monodisperse output (no `diameter` column).
 
 ---
 
@@ -499,6 +566,10 @@ detection (Stage E dedup), (f) monodisperse `diameter` path is unchanged
 3. **`rg_to_diameter`:** tunable kwarg, dimension-aware Gaussian default
    `2k/√n` with `k=2.5` (2D `5/√2 ≈ 3.54`, 3D `5/√3 ≈ 2.89`); defaults to `None`,
    resolved from `ndim`.
-4. **Output:** add `diameter` column (assigned per-feature diameter).
+4. **Output:** add `diameter` column (assigned per-feature diameter). Doubles as the
+   grouping key for size-class-aware SPIFF.
 5. **Optional convergence:** `max_radius_iterations`, default 1 (off).
 6. **Scope:** `locate` + `batch`, isotropic only.
+7. **SPIFF (Stage H):** make `apply_spiff` size-class-aware via `groupby='auto'`
+   (uses the `diameter` column when present, else pools), with adaptive-merge of
+   adjacent classes to meet `MIN_FEATURES`. No `locate`/`batch` plumbing change.
