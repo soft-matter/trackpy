@@ -261,9 +261,9 @@ def _fit_circle(coords):
     T[2, :2] = center
     R = np.dot(np.dot(T, A), T.T)
 
-    # solve the eigenproblem
+    # Solve the eigenproblem. Eigenvalue dtype may be complex.
     evals, evecs = np.linalg.eig(R[:2, :2] / -R[2, 2])
-    radius = (np.sqrt(1 / np.abs(evals)) * np.sign(evals))
+    radius = np.sqrt(1 / np.abs(evals)) * np.sign(np.real(evals))
 
     return radius[0], center
 

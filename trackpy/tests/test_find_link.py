@@ -16,6 +16,7 @@ from trackpy.tests.test_linking import SubnetNeededTests, _skip_if_no_sklearn
 class FindLinkTests(SubnetNeededTests):
     def setUp(self):
         super().setUp()
+        self.coordinates_exact = False  # b/c we roundtrip to images
         self.linker_opts['separation'] = 10
         self.linker_opts['diameter'] = 15
         self.linker_opts['preprocess'] = False
