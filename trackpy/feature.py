@@ -473,6 +473,11 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     condition = refined_coords['mass'] > minmass
     if maxsize is not None:
         condition &= refined_coords['size'] < maxsize
+    if poly is not None and 'size' in refined_coords:
+        # Drop features whose measured size implies a diameter outside the
+        # requested [min, max] band (merged or spurious detections).
+        implied = resolved.rg_to_diameter * refined_coords['size']
+        condition &= (implied >= min_diameter[0]) & (implied <= max_diameter[0])
     if not condition.all():  # apply the filter
         # making a copy to avoid SettingWithCopyWarning
         refined_coords = refined_coords.loc[condition].copy()
@@ -494,19 +499,17 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         else:
             refined_coords = refined_coords.iloc[np.argsort(mass)[-topn:]]
 
-    if poly is not None:
-        # Per-size uncertainty, size-band filtering and size-aware SPIFF are not
-        # yet implemented.
-        raise NotImplementedError(
-            "Polydisperse feature finding is not yet fully implemented.")
-
     # Estimate the uncertainty in position using signal (measured in refine)
-    # and noise (measured here below).
+    # and noise (measured here below). In polydisperse mode this is computed per
+    # size bucket, since it depends on each feature's refinement radius.
     if characterize:
-        black_level, noise = measure_noise(image, raw_image, radius)
-        Npx = N_binary_mask(radius, ndim)
-        mass = refined_coords['raw_mass'].values - Npx * black_level
-        ep = _static_error(mass, noise, radius, noise_size)
+        if poly is not None:
+            ep = poly.static_error(refined_coords, image, raw_image, noise_size)
+        else:
+            black_level, noise = measure_noise(image, raw_image, radius)
+            Npx = N_binary_mask(radius, ndim)
+            mass = refined_coords['raw_mass'].values - Npx * black_level
+            ep = _static_error(mass, noise, radius, noise_size)
 
         if ep.ndim == 1:
             refined_coords['ep'] = ep
@@ -516,6 +519,11 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     # Optionally apply the SPIFF sub-pixel bias correction.
     if spiff:
+        if poly is not None:
+            # A size-class-aware correction is not yet implemented; a single
+            # pooled correction would mix distinct per-size bias signatures.
+            raise NotImplementedError(
+                "SPIFF is not yet supported for polydisperse features.")
         refined_coords = apply_spiff(
             refined_coords, pos_columns=pos_columns,
             warn_if_insufficient=(spiff != 'auto'))

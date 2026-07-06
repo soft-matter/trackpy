@@ -10,6 +10,8 @@ from collections import namedtuple
 import numpy as np
 
 from .refine import refine_com
+from .masks import N_binary_mask
+from .uncertainty import measure_noise, _static_error
 from .utils import validate_tuple, pandas_concat, default_pos_columns
 
 # Sigma multiple for the refinement-window half-width (R = k * sigma) used to
@@ -197,6 +199,31 @@ class Polydisperse:
                                            reassigned, max_iterations, engine,
                                            characterize, pos_columns)
         return refined
+
+    def static_error(self, features, image, raw_image, noise_size):
+        """Per-bucket static (position) error for polydisperse features.
+
+        The background level and noise are measured once at the largest window
+        (they depend only weakly on radius); each feature's mass is then
+        background-corrected and its error computed with its own refinement
+        radius. Returns an array aligned with ``features`` -- 1-D when isotropic,
+        else one column per dimension.
+        """
+        ndim = image.ndim
+        black_level, noise = measure_noise(image, raw_image, self.resolve(ndim).r_max)
+        raw_mass = features['raw_mass'].values
+        diameters = features['diameter'].values
+        order = np.arange(len(features))
+        ep_parts, idx_parts = [], []
+        for d in np.unique(diameters):
+            in_bucket = diameters == d
+            radius = (int(d) // 2,) * ndim
+            npx = N_binary_mask(radius, ndim)
+            mass = raw_mass[in_bucket] - npx * black_level
+            ep_parts.append(_static_error(mass, noise, radius, noise_size))
+            idx_parts.append(order[in_bucket])
+        ep = np.concatenate(ep_parts, axis=0)
+        return ep[np.argsort(np.concatenate(idx_parts))]
 
     def __repr__(self):
         return ("Polydisperse(min_diameter={!r}, max_diameter={!r}, "
