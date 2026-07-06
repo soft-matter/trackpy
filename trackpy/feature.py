@@ -1,6 +1,5 @@
 import warnings
 import logging
-from collections import namedtuple
 from functools import partial
 
 import numpy as np
@@ -204,33 +203,6 @@ def refine(*args, **kwargs):
     return refine_com(*args, **kwargs)
 
 
-# Size-range parameters for polydisperse mode, resolved against a given image
-# dimensionality. See `_resolve_polydisperse`.
-ResolvedPolydisperse = namedtuple(
-    'ResolvedPolydisperse',
-    ['min_diameter', 'max_diameter', 'r_min', 'r_max', 'rg_to_diameter',
-     'max_radius_iterations'])
-
-
-def _resolve_polydisperse(poly, ndim):
-    """Resolve a :class:`~trackpy.polydisperse.Polydisperse` against `ndim`.
-
-    Broadcasts/validates the min and max diameters to the image dimensionality,
-    derives the min/max refinement radii, and resolves the (possibly
-    dimension-dependent) ``rg_to_diameter`` used by the polydisperse path of
-    :func:`locate`.
-    """
-    min_diameter = validate_tuple(poly.min_diameter, ndim)
-    max_diameter = validate_tuple(poly.max_diameter, ndim)
-    return ResolvedPolydisperse(
-        min_diameter=min_diameter,
-        max_diameter=max_diameter,
-        r_min=tuple(d // 2 for d in min_diameter),
-        r_max=tuple(d // 2 for d in max_diameter),
-        rg_to_diameter=poly.resolve_rg_to_diameter(ndim),
-        max_radius_iterations=poly.max_radius_iterations)
-
-
 def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
@@ -364,9 +336,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # via `if poly` branches.
     poly = diameter if isinstance(diameter, Polydisperse) else None
     if poly is not None:
-        resolved = _resolve_polydisperse(poly, ndim)
+        resolved = poly.resolve(ndim)
         min_diameter, max_diameter = resolved.min_diameter, resolved.max_diameter
-        r_min, r_max = resolved.r_min, resolved.r_max
+        r_max = resolved.r_max
         # We only allow isotropic diameters in the polydisperse scenario.
         isotropic = True
         # The boxcar background kernel must exceed the *largest* particle, so
@@ -460,13 +432,18 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     coords = grey_dilation(image, separation, percentile, margin,
                            precise=False, collapse_flat=poly is not None)
 
+    # Refine their locations and characterize mass, size, etc. In polydisperse
+    # mode each feature is refined with a window sized to its own estimated
+    # diameter (reported in an extra `diameter` column).
     if poly is not None:
-        # Refinement, deduplication and uncertainty for varying feature sizes
-        # are not yet implemented.
+        refined_coords = poly.refine(
+            raw_image, image, coords, max_iterations=max_iterations,
+            engine=engine, characterize=characterize, pos_columns=pos_columns)
+        # Deduplication across differing sizes and per-size uncertainty are not
+        # yet implemented.
         raise NotImplementedError(
             "Polydisperse feature finding is not yet fully implemented.")
 
-    # Refine their locations and characterize mass, size, etc.
     refined_coords = refine_com(raw_image, image, radius, coords,
                                 max_iterations=max_iterations,
                                 engine=engine, characterize=characterize)
