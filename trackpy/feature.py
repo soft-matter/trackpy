@@ -517,13 +517,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
             ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
             refined_coords = pandas_concat([refined_coords, ep], axis=1)
 
-    # Optionally apply the SPIFF sub-pixel bias correction.
+    # Optionally apply the SPIFF sub-pixel bias correction. In polydisperse mode
+    # apply_spiff auto-groups by the `diameter` column, correcting each size
+    # class separately.
     if spiff:
-        if poly is not None:
-            # A size-class-aware correction is not yet implemented; a single
-            # pooled correction would mix distinct per-size bias signatures.
-            raise NotImplementedError(
-                "SPIFF is not yet supported for polydisperse features.")
         refined_coords = apply_spiff(
             refined_coords, pos_columns=pos_columns,
             warn_if_insufficient=(spiff != 'auto'))
