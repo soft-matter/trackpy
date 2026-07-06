@@ -1,5 +1,6 @@
 import warnings
 import logging
+from collections import namedtuple
 from functools import partial
 
 import numpy as np
@@ -16,6 +17,7 @@ from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
 from .spiff import apply_spiff
+from .polydisperse import Polydisperse
 import trackpy  # to get trackpy.__version__
 
 logger = logging.getLogger(__name__)
@@ -202,6 +204,33 @@ def refine(*args, **kwargs):
     return refine_com(*args, **kwargs)
 
 
+# Size-range parameters for polydisperse mode, resolved against a given image
+# dimensionality. See `_resolve_polydisperse`.
+ResolvedPolydisperse = namedtuple(
+    'ResolvedPolydisperse',
+    ['min_diameter', 'max_diameter', 'r_min', 'r_max', 'rg_to_diameter',
+     'max_radius_iterations'])
+
+
+def _resolve_polydisperse(poly, ndim):
+    """Resolve a :class:`~trackpy.polydisperse.Polydisperse` against `ndim`.
+
+    Broadcasts/validates the min and max diameters to the image dimensionality,
+    derives the min/max refinement radii, and resolves the (possibly
+    dimension-dependent) ``rg_to_diameter``. Shared by the polydisperse stages
+    dispatched from :func:`locate`.
+    """
+    min_diameter = validate_tuple(poly.min_diameter, ndim)
+    max_diameter = validate_tuple(poly.max_diameter, ndim)
+    return ResolvedPolydisperse(
+        min_diameter=min_diameter,
+        max_diameter=max_diameter,
+        r_min=tuple(d // 2 for d in min_diameter),
+        r_max=tuple(d // 2 for d in max_diameter),
+        rg_to_diameter=poly.resolve_rg_to_diameter(ndim),
+        max_radius_iterations=poly.max_radius_iterations)
+
+
 def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
@@ -328,6 +357,17 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     raw_image = np.squeeze(raw_image)
     shape = raw_image.shape
     ndim = len(shape)
+
+    # Polydisperse mode: a Polydisperse config object stands in for `diameter`.
+    # Resolve its size-range parameters here; the detection, refinement, dedup,
+    # uncertainty and bias-correction stages reuse locate's shared pipeline
+    # below (via `if poly` branches and stage helpers, added in later phases).
+    poly = diameter if isinstance(diameter, Polydisperse) else None
+    if poly is not None:
+        resolved = _resolve_polydisperse(poly, ndim)
+        raise NotImplementedError(
+            "Polydisperse feature finding is not yet implemented beyond Phase 0 "
+            "(validation + parameter resolution): {}.".format(resolved))
 
     diameter = validate_tuple(diameter, ndim)
     diameter = tuple([int(x) for x in diameter])
