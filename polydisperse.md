@@ -452,15 +452,27 @@ class Polydisperse:
 
 ### Dispatch in `locate` / `batch`
 
-`diameter` becomes polymorphic (number | tuple | `Polydisperse`). After the shared
-Phase-0 setup:
+`diameter` becomes polymorphic (number | tuple | `Polydisperse`). **`locate` stays a
+single function** — it is *not* forked into a parallel `_locate_polydisperse` clone,
+which would duplicate the shared ~70% (preprocessing, scale correction, `minmass`/
+`maxsize` filter, `topn`, `ep`, `spiff`, frame tagging). Instead, the mode is resolved
+up front and the *divergent stages* are the only branches:
 
 ```python
-if isinstance(diameter, Polydisperse):
-    return _locate_polydisperse(raw_image, diameter, ...)  # Stage A–G helper
-# else: existing monodisperse path, byte-for-byte unchanged
+poly = diameter if isinstance(diameter, Polydisperse) else None
+if poly is not None:
+    resolved = _resolve_polydisperse(poly, ndim)   # r_min/r_max/rg_to_diameter/...
+# ...shared preprocessing...
+# detection:  grey_dilation(..., cc=poly is not None)
+# refine:     refined = _refine_polydisperse(...) if poly else refine_com(...)
+# dedup:      where_close_variable(...) if poly else where_close(...)
+# ep:         _static_error_per_bucket(...) if poly else <inline>
+# ...shared scale correction / filter / topn / spiff / frame tag...
 ```
 
+The heavy poly logic lives in stage helpers (e.g. `_refine_polydisperse`) that
+**return into** `locate`'s shared tail rather than re-implementing it — keeping the
+monodisperse path byte-for-byte unchanged and the shared pipeline single-copy.
 `batch` needs no signature change — a `Polydisperse` flows through its existing
 `diameter` argument into `locate`. Only its docstring gains a mention.
 
