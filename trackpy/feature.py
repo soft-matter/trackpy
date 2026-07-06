@@ -451,17 +451,20 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
                     zip(margin_radius, separation, smoothing_size)])
 
-    # Polydisperse detection and the subsequent refinement, deduplication and
-    # uncertainty steps are not yet implemented; the shared preprocessing and
-    # margin above already apply to both modes.
-    if poly is not None:
-        raise NotImplementedError(
-            "Polydisperse feature finding is not yet fully implemented.")
-
     # Find features with minimum separation distance of `separation`. This
     # excludes detection of small features close to large, bright features
-    # using the `maxsize` argument.
-    coords = grey_dilation(image, separation, percentile, margin, precise=False)
+    # using the `maxsize` argument. In polydisperse mode the separation is the
+    # finest (min-diameter) scale and flat-topped maxima are collapsed so each
+    # feature yields a single coordinate; duplicate removal across differing
+    # sizes is deferred to after refinement.
+    coords = grey_dilation(image, separation, percentile, margin,
+                           precise=False, collapse_flat=poly is not None)
+
+    if poly is not None:
+        # Refinement, deduplication and uncertainty for varying feature sizes
+        # are not yet implemented.
+        raise NotImplementedError(
+            "Polydisperse feature finding is not yet fully implemented.")
 
     # Refine their locations and characterize mass, size, etc.
     refined_coords = refine_com(raw_image, image, radius, coords,

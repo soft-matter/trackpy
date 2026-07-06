@@ -69,7 +69,8 @@ def percentile_threshold(image, percentile):
     return np.percentile(not_black, percentile)
 
 
-def grey_dilation(image, separation, percentile=64, margin=None, precise=True):
+def grey_dilation(image, separation, percentile=64, margin=None, precise=True,
+                  collapse_flat=False):
     """Find local maxima whose brightness is above a given percentile.
 
     Parameters
@@ -89,6 +90,13 @@ def grey_dilation(image, separation, percentile=64, margin=None, precise=True):
         discarding features that are too close. Degrades performance.
         Because of the square kernel used, too many features are returned when
         precise=False. Default True.
+    collapse_flat : boolean, optional
+        When True, collapse each connected region of equal-valued maxima to a
+        single representative (its centroid). A flat or plateaued peak -- common
+        on large or saturated features, especially after integer coercion --
+        otherwise reports every pixel of the plateau as a separate maximum. Two
+        distinct features never merge, as they are separated by a lower-valued
+        gap. Default False.
 
     See Also
     --------
@@ -119,12 +127,26 @@ def grey_dilation(image, separation, percentile=64, margin=None, precise=True):
         warnings.warn("Image contains no local maxima.", UserWarning)
         return np.empty((0, ndim))
 
-    pos = np.vstack(np.where(maxima)).T
+    if collapse_flat:
+        # Reduce each connected blob of maxima (e.g. a feature's flat top) to
+        # one representative at the blob centroid, using full connectivity so a
+        # plateau is never split into diagonally-adjacent fragments.
+        structure = ndimage.generate_binary_structure(ndim, ndim)
+        labels, count = ndimage.label(maxima, structure=structure)
+        index = np.arange(1, count + 1)
+        pos = np.round(
+            np.atleast_2d(ndimage.center_of_mass(maxima, labels, index))
+        ).astype(int)
+        intensity = np.asarray(ndimage.maximum(image, labels, index))
+    else:
+        pos = np.vstack(np.where(maxima)).T
+        intensity = image[maxima]
 
     # Do not accept peaks near the edges.
     shape = np.array(image.shape)
     near_edge = np.any((pos < margin) | (pos > (shape - margin - 1)), 1)
     pos = pos[~near_edge]
+    intensity = intensity[~near_edge]
 
     if len(pos) == 0:
         warnings.warn("All local maxima were in the margins.", UserWarning)
@@ -132,7 +154,7 @@ def grey_dilation(image, separation, percentile=64, margin=None, precise=True):
 
     # Remove local maxima that are too close to each other
     if precise:
-        pos = drop_close(pos, separation, image[maxima][~near_edge])
+        pos = drop_close(pos, separation, intensity)
 
     return pos
 
