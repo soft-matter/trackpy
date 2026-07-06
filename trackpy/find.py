@@ -60,6 +60,55 @@ def drop_close(pos, separation, intensity=None):
     return np.delete(pos, to_drop, axis=0)
 
 
+def where_close_variable(pos, separations, intensity):
+    """Indices of features closer than a per-feature separation.
+
+    Like :func:`where_close`, but each feature carries its own (isotropic)
+    minimum separation. A pair is a duplicate when its distance is below the
+    *larger* of the two features' separations -- i.e. one feature falls inside
+    the other's exclusion zone -- and the lower-intensity feature is returned.
+    Intended for polydisperse features, where separation scales with size.
+
+    Parameters
+    ----------
+    pos : ndarray (N, ndim)
+        Feature positions.
+    separations : ndarray (N,)
+        Per-feature minimum separation.
+    intensity : ndarray (N,)
+        Per-feature intensity; the dimmer of each too-close pair is dropped.
+    """
+    pos = np.asarray(pos, dtype=float)
+    if len(pos) == 0:
+        return []
+    separations = np.asarray(separations, dtype=float)
+    max_sep = separations.max()
+    if max_sep <= 0:
+        return []
+    # Any duplicate pair is within the largest separation; filter that superset
+    # down to pairs closer than the larger feature's own separation.
+    pairs = cKDTree(pos).query_pairs(max_sep)
+    if len(pairs) == 0:
+        return []
+    index_0 = np.fromiter((p[0] for p in pairs), dtype=int)
+    index_1 = np.fromiter((p[1] for p in pairs), dtype=int)
+    dist = np.sqrt(np.sum((pos[index_0] - pos[index_1]) ** 2, axis=1))
+    close = dist < np.maximum(separations[index_0], separations[index_1])
+    index_0, index_1 = index_0[close], index_1[close]
+    if len(index_0) == 0:
+        return []
+    intensity = np.asarray(intensity)
+    to_drop = np.where(intensity[index_0] > intensity[index_1],
+                       index_1, index_0)
+    # Break intensity ties deterministically (drop the most bottom-right).
+    ties = intensity[index_0] == intensity[index_1]
+    if np.any(ties):
+        i0, i1 = index_0[ties], index_1[ties]
+        to_drop[ties] = np.where(np.sum(pos[i0], 1) > np.sum(pos[i1], 1),
+                                 i0, i1)
+    return np.unique(to_drop)
+
+
 def percentile_threshold(image, percentile):
     """Find grayscale threshold based on distribution in image."""
 

@@ -10,7 +10,7 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
 from .utils import (record_meta, validate_tuple, is_isotropic,
                     default_pos_columns, default_size_columns,
                     pandas_concat, get_pool)
-from .find import grey_dilation, where_close
+from .find import grey_dilation, where_close, where_close_variable
 from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
@@ -439,19 +439,25 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         refined_coords = poly.refine(
             raw_image, image, coords, max_iterations=max_iterations,
             engine=engine, characterize=characterize, pos_columns=pos_columns)
-        # Deduplication across differing sizes and per-size uncertainty are not
-        # yet implemented.
-        raise NotImplementedError(
-            "Polydisperse feature finding is not yet fully implemented.")
-
-    refined_coords = refine_com(raw_image, image, radius, coords,
-                                max_iterations=max_iterations,
-                                engine=engine, characterize=characterize)
+    else:
+        refined_coords = refine_com(raw_image, image, radius, coords,
+                                    max_iterations=max_iterations,
+                                    engine=engine, characterize=characterize)
     if len(refined_coords) == 0:
         return refined_coords
 
-    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    if np.all(np.greater(separation, 0)):
+    # Flat peaks return multiple nearby maxima. Eliminate duplicates. In
+    # polydisperse mode each feature uses its own separation (its assigned
+    # diameter + 1), so a small feature inside a larger one's exclusion zone is
+    # removed while genuinely-separate small features are kept.
+    if poly is not None:
+        to_drop = where_close_variable(
+            refined_coords[pos_columns].values,
+            refined_coords['diameter'].values + 1,
+            refined_coords['mass'].values)
+        refined_coords.drop(to_drop, axis=0, inplace=True)
+        refined_coords.reset_index(drop=True, inplace=True)
+    elif np.all(np.greater(separation, 0)):
         to_drop = where_close(refined_coords[pos_columns], separation,
                               refined_coords['mass'])
         refined_coords.drop(to_drop, axis=0, inplace=True)
@@ -487,6 +493,12 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
             refined_coords = refined_coords.iloc[[np.argmax(mass)]]
         else:
             refined_coords = refined_coords.iloc[np.argsort(mass)[-topn:]]
+
+    if poly is not None:
+        # Per-size uncertainty, size-band filtering and size-aware SPIFF are not
+        # yet implemented.
+        raise NotImplementedError(
+            "Polydisperse feature finding is not yet fully implemented.")
 
     # Estimate the uncertainty in position using signal (measured in refine)
     # and noise (measured here below).
