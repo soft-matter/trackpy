@@ -327,14 +327,22 @@ built once and reused across all frames — poly does not rebuild masks per fram
 - **Scope after Stage B's CC-collapse:** the flat-top explosion is already gone;
   this stage only handles the residual mode (2) — a *handful* of non-touching
   duplicate bumps on broad tops — so N here is small.
-- **Fix:** add `where_close_variable(pos, separations, intensity)` to `find.py`,
-  where `separations` is an `(N, ndim)` array derived from each feature's measured
-  size (mapped via the same `rg_to_diameter`, clamped to `[min, max]`). Query the
-  KD-tree at the global `r_max` radius, then keep only pairs whose distance is below
-  the **larger** feature's separation; drop the dimmer. `locate` calls this instead
-  of `where_close` in poly mode (replacing lines 406–409).
-- **Effort:** medium. **Risk:** medium (correctness of the pair-filter rule — needs
-  a unit test).
+- **Fix:** add `where_close_variable(pos, separations, intensity)` to `find.py`: a
+  KD-tree pairs features, and the dimmer of a pair is dropped when their distance is
+  below the **larger** feature's `separation`. `locate` calls it for poly instead of
+  `where_close`.
+- **Critical: `separations` must be per-feature RADIUS (`diameter // 2`), not
+  `diameter + 1`.** A feature is a duplicate of another only when it sits inside the
+  other's *body* (a secondary maximum on the same particle). Keying on the full
+  `diameter + 1` separation was catastrophic at wide size ranges: a large particle's
+  separation (~40–52 px at x10) deleted every genuinely-separate small neighbour
+  within it (measured: x10/medium recall collapsed to ~0.17; the radius rule
+  restores it to ~0.31, with the remainder lost to refine mislocalisation — see the
+  decoupled-windows future work). Radius keying never merges non-overlapping
+  particles (their distance ≥ sum of radii ≥ the larger radius) and still catches
+  same-particle duplicates.
+- **Effort:** medium. **Risk:** medium (verified: `test_small_near_large_not_
+  deduplicated`).
 
 ### Stage F — Uncertainty `ep` (characterize path only)
 
@@ -348,14 +356,21 @@ built once and reused across all frames — poly does not rebuild masks per fram
 
 ### Stage G — `minmass` / `maxsize` filters
 
-- **`maxsize`:** in poly mode, `[mindiameter, maxdiameter]` implies a natural size
-  band — drop features whose measured size maps outside the band (merged/garbage
-  detections). Keep `maxsize` honored if also supplied.
-- **`minmass`:** keep as a **global floor**, but **document** that a single
-  threshold under-serves polydispersity (small particles carry less mass than big
-  ones; one floor either passes big-particle fragments or culls faint small ones).
+- **`maxsize`:** honored as-is (same as monodisperse).
+- **`minmass`:** kept as a **global floor**; a single threshold under-serves
+  polydispersity (small particles carry less mass than big ones), so document it.
   Size-normalized minmass is **out of scope**.
-- **Effort:** low. **Risk:** low (documented sharp edge).
+- **Size-band filter — considered and REMOVED.** An earlier version dropped
+  features whose measured size implied a diameter outside `[min, max]`. It was
+  removed because (a) it dropped *legitimate* edge-sized particles whose measured
+  size scattered just past the band, costing recall at narrow ranges (a regression
+  vs. baseline — see the accuracy study), and (b) it was unreliable at its intended
+  job: an oversized/merged blob is refined in the clamped `max` window, which
+  truncates its measured size back toward `max`, so it can't be told apart from a
+  legitimate max-sized particle. **Current behaviour:** out-of-range particles are
+  simply clamped to the nearest bucket (an oversized feature is reported at
+  `max_diameter`, not dropped); users wanting explicit size rejection use `maxsize`.
+- **Effort:** low.
 
 ### Stage H — SPIFF pixel-locking correction (`spiff.py`)
 
@@ -504,7 +519,7 @@ Document `size` (Rg) vs. `diameter` (assigned window) distinction in both
 | 2 | Stage B: peak-find at `mindiameter` separation + connected-component collapse of the maxima mask (opt-in in `grey_dilation`) | `feature.py`, `find.py` |
 | 3 | Stage C: cheap bootstrap → tunable radius assignment → bucketed refine (optional iterate) → emit `diameter` column | `feature.py` (reuses `refine_com_arr`, `estimate_mass/size`) |
 | 4 | Stage E: `where_close_variable` size-aware dedup | `find.py`, `feature.py` |
-| 5 | Stage F + G: per-bucket `ep`, size-band filter | `feature.py` |
+| 5 | Stage F + G: per-bucket `ep`; `minmass`/`maxsize` filters (no size-band filter — removed, see §7/§8) | `feature.py` |
 | 6 | Stage H: size-class-aware `apply_spiff` (`groupby='auto'` → `diameter`, adaptive-merge to `MIN_FEATURES`); no `locate`/`batch` plumbing change | `spiff.py` |
 | 7 | Tests (synthetic polydisperse via `trackpy.artificial`, incl. per-class SPIFF) + docstrings (`locate`, `batch`, `apply_spiff`) | `trackpy/tests/test_feature.py`, `trackpy/tests/test_spiff.py`, `feature.py`, `spiff.py` |
 
@@ -546,9 +561,52 @@ then 7 (tests/docs). Phase 6 depends only on Phase 3 emitting the `diameter` col
   single global intensity floor; it removes a size-dependent fraction of each
   particle's tail and bites faint/small particles hardest (same family as
   `percentile`/`minmass`). No code change.
-- **Stage E occlusion:** the size-aware dedup rule "drop the dimmer if within the
-  *larger* feature's separation" can drop a real small particle that legitimately
-  sits inside a large particle's exclusion zone. Inherent ambiguity.
+- **Stage E occlusion (residual).** With radius-keyed dedup (Stage E), a small
+  particle is dropped only if its centre lies *inside* a large particle's body — an
+  unresolvable overlap. That residual is inherent; the catastrophic version (below)
+  is fixed.
+- **Dense mixed-size fields — the collapse was a dedup bug, now largely fixed.**
+  At a wide range and medium/high density the `diameter=max` baseline loses most
+  particles (its separation of ~`max+1` merges them). Poly *used* to collapse too
+  (recall < 0.2), and this was **twice misdiagnosed**: (1) as boxcar over-subtraction
+  — a white top-hat background was tried and did *not* recover it (and is
+  noise-fragile), then reverted; (2) as the global `percentile` gate — a
+  noise-referenced threshold was tried and *also* did not recover it, then reverted.
+  Stage-by-stage tracing found the real cause: small particles were **detected
+  fine, then deleted by `where_close_variable`**, which keyed on the large
+  particle's `diameter + 1` separation. Fixing the dedup to key on **radius**
+  (Stage E) lifts x10/medium recall from ~0.17 to ~0.31 and makes **poly ≥ baseline
+  in every grid cell**. The remaining shortfall at x10 medium/high is **refine
+  mislocalisation** — small particles' centres are pulled toward large neighbours by
+  the size-matched window and miss the 1.5 px scoring tolerance — addressed by the
+  *decoupled refinement windows* future item, not by detection or dedup.
+- **Isolated-particle position accuracy.** For well-separated particles on a clean
+  background a large window is optimal (least pixel-locking); poly's size-matched
+  windows lock slightly more, so its sub-pixel position is marginally worse than the
+  `diameter=max` baseline there (worst at high noise). SPIFF narrows the gap; the
+  full fix is *decoupled refinement windows* (see Future work).
+
+### Future work
+
+- **Decoupled refinement windows.** Refine *position* in the largest window that
+  does not collide with a neighbour (≈ `max_diameter` when isolated → baseline-level
+  low pixel-locking; shrunk only when a neighbour is close → no contamination),
+  while measuring *size / mass / ecc* in the current size-matched window. This makes
+  poly ≥ baseline on **position** everywhere (it already is on **recall**), removing
+  the isolated-particle gap above. Needs a per-feature nearest-neighbour distance
+  and either a two-pass refine or a refine that uses one radius for the centroid and
+  another for the moments. Estimated cost: refine rises toward the `diameter=max`
+  baseline in sparse fields (surrenders poly's current ~40% refine speedup),
+  ≈ unchanged in dense fields; plus a cheap extra characterization pass.
+- **Local / size-aware brightness threshold** — a *minor* improvement, no longer the
+  fix for the dense collapse (that was the dedup bug, now fixed). The global
+  `percentile` gate can still slightly clip faint particles: a noise-referenced
+  threshold was prototyped and gave only marginal grid gains (a few cells to full
+  recall, no regressions) before being reverted for cleanliness. Revisit only if the
+  faint-clipping matters. (A white top-hat background was also tried and rejected —
+  noise-fragile, and it addressed neither the collapse nor the clipping.)
+- **Size-stratified `topn`** (top-N per `diameter` class) so "N brightest" stops
+  meaning "N largest".
 
 **Testing notes:** build synthetic polydisperse fields with `trackpy.artificial`
 (draw features at several radii in one frame); assert (a) counts, (b) positions
@@ -575,9 +633,13 @@ monodisperse output (no `diameter` column).
    duplicates deferred to size-aware dedup (Stage E).
 2c. **Bucketing:** one bucket per odd diameter in 2D (lossless); **cap at 10
    geometrically-spaced buckets in 3D** to bound the mask cache.
-3. **`rg_to_diameter`:** tunable kwarg, dimension-aware Gaussian default
+3. **`rg_to_diameter`:** tunable field, dimension-aware Gaussian default
    `2k/√n` with `k=2.5` (2D `5/√2 ≈ 3.54`, 3D `5/√3 ≈ 2.89`); defaults to `None`,
-   resolved from `ndim`.
+   resolved from `ndim`. **Kept at k=2.5** after the accuracy study: raising `k`
+   enlarges the assigned diameter, which inflates the dedup separation
+   (`diameter+1`) and re-merges close particles — *lowering recall*, poly's main
+   advantage. The isolated-particle position cost of the small window is instead
+   left to SPIFF (and, in future, decoupled windows).
 4. **Output:** add `diameter` column (assigned per-feature diameter). Doubles as the
    grouping key for size-class-aware SPIFF.
 5. **Optional convergence:** `max_radius_iterations`, default 1 (off).
@@ -585,3 +647,38 @@ monodisperse output (no `diameter` column).
 7. **SPIFF (Stage H):** make `apply_spiff` size-class-aware via `groupby='auto'`
    (uses the `diameter` column when present, else pools), with adaptive-merge of
    adjacent classes to meet `MIN_FEATURES`. No `locate`/`batch` plumbing change.
+   Kept after ablation: a modest position-accuracy gain over pooled at narrow
+   ranges / high noise, and it degenerates exactly to pooled when per-class features
+   are too few (wide ranges).
+8. **No automatic size-band filter** (see Stage G): it regressed recall at narrow
+   ranges and was unreliable; out-of-range features are clamped to the nearest
+   bucket, and `maxsize` remains for explicit rejection.
+
+---
+
+## 9. Implementation status
+
+Implemented and tested (`trackpy/polydisperse.py`, `feature.py`, `find.py`,
+`spiff.py`; tests in `trackpy/tests/test_polydisperse.py`):
+
+- `Polydisperse` config class with `resolve`, `refine`, `static_error` **methods**
+  (not free functions); `feature.py` imports only the class and calls
+  `poly.resolve(ndim)` / `poly.refine(...)` / `poly.static_error(...)`. The single
+  `locate` pipeline branches with `if poly` at the divergent stages; monodisperse is
+  byte-for-byte unchanged.
+- Stages A (max smoothing), B (min-scale separation + `grey_dilation(collapse_flat)`
+  connected-component collapse), C (bootstrap → bucketed refine → `diameter`
+  column), D (conservative margin), E (`where_close_variable`), F (per-bucket `ep`),
+  H (size-class-aware `apply_spiff`).
+- Stage G reduced to `minmass`/`maxsize` only (band filter removed, see above).
+
+**Accuracy study (summary).** Across density × noise × size-range grids, with SPIFF
+on both methods: poly is **≥ the `diameter=max` baseline on recall everywhere it is
+achievable** — decisively so once the range/density makes the baseline's large
+separation merge particles (e.g. x5/medium density: recall 1.00 vs 0.55). Position
+accuracy is comparable once SPIFF runs. After fixing the Stage E dedup to key on
+radius (a small particle is not deleted by a large neighbour's separation), **poly ≥
+baseline on recall in every grid cell**. The one remaining residual — reduced recall
+at very wide range + high density — is **refine mislocalisation** (small centres
+pulled toward large neighbours), addressed by the *decoupled refinement windows*
+future item (§7).

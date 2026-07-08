@@ -224,12 +224,17 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     image : array (same size as raw_image)
         Processed image used for centroid-finding and most particle
         measurements.
-    diameter : odd integer or tuple of odd integers
+    diameter : odd integer, tuple of odd integers, or Polydisperse
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
+        For samples with a range of particle sizes, pass a
+        :class:`~trackpy.polydisperse.Polydisperse` object (e.g.
+        ``Polydisperse(min_diameter, max_diameter)``) instead of a single
+        diameter; each feature is then refined with a window sized to its own
+        estimated diameter, reported in an extra ``diameter`` output column.
     minmass : float
         The minimum integrated brightness. This is a crucial parameter for
         eliminating spurious features.
@@ -292,10 +297,14 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         size means the radius of gyration of its Gaussian-like profile,
         ecc is its eccentricity (0 is circular),
         and raw_mass is the total integrated brightness in raw_image.
+        In polydisperse mode (a ``Polydisperse`` ``diameter``) an additional
+        ``diameter`` column reports the refinement diameter assigned to each
+        feature from its size.
 
     See Also
     --------
     batch : performs location on many images in batch
+    Polydisperse : configure detection of features spanning a range of sizes
     minmass_v03_change : to convert minmass from v0.2.4 to v0.3.0
     minmass_v04_change : to convert minmass from v0.3.x to v0.4.x
 
@@ -447,13 +456,15 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         return refined_coords
 
     # Flat peaks return multiple nearby maxima. Eliminate duplicates. In
-    # polydisperse mode each feature uses its own separation (its assigned
-    # diameter + 1), so a small feature inside a larger one's exclusion zone is
-    # removed while genuinely-separate small features are kept.
+    # polydisperse mode a feature is a duplicate of another only when it sits
+    # within the other's body (its radius, diameter // 2), i.e. a secondary
+    # maximum on the same particle. Using the full separation instead would let
+    # a large particle's exclusion zone delete genuinely-separate small
+    # neighbours (they lie outside its body but inside diameter + 1).
     if poly is not None:
         to_drop = where_close_variable(
             refined_coords[pos_columns].values,
-            refined_coords['diameter'].values + 1,
+            np.maximum(refined_coords['diameter'].values // 2 + 1, 1),
             refined_coords['mass'].values)
         refined_coords.drop(to_drop, axis=0, inplace=True)
         refined_coords.reset_index(drop=True, inplace=True)
@@ -473,11 +484,6 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     condition = refined_coords['mass'] > minmass
     if maxsize is not None:
         condition &= refined_coords['size'] < maxsize
-    if poly is not None and 'size' in refined_coords:
-        # Drop features whose measured size implies a diameter outside the
-        # requested [min, max] band (merged or spurious detections).
-        implied = resolved.rg_to_diameter * refined_coords['size']
-        condition &= (implied >= min_diameter[0]) & (implied <= max_diameter[0])
     if not condition.all():  # apply the filter
         # making a copy to avoid SettingWithCopyWarning
         refined_coords = refined_coords.loc[condition].copy()
@@ -545,12 +551,15 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
     ----------
     frames : list (or iterable) of images
         The frames to process.
-    diameter : odd integer or tuple of odd integers
+    diameter : odd integer, tuple of odd integers, or Polydisperse
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
+        Pass a :class:`~trackpy.polydisperse.Polydisperse` object to detect
+        features spanning a range of sizes (see :func:`locate`); the output
+        then gains a ``diameter`` column.
     output : {None, trackpy.PandasHDFStore, SomeCustomClass}
         If None, return all results as one big DataFrame. Otherwise, pass
         results from each frame, one at a time, to the put() method
@@ -591,11 +600,14 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
     DataFrame([x, y, mass, size, ecc, signal])
         where mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (0 is circular).
+        and ecc is its eccentricity (0 is circular). In polydisperse mode
+        (a ``Polydisperse`` ``diameter``) an additional ``diameter`` column
+        reports each feature's assigned refinement diameter.
 
     See Also
     --------
     locate : performs location on a single image
+    Polydisperse : configure detection of features spanning a range of sizes
 
     Notes
     -----
