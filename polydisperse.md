@@ -22,7 +22,7 @@ Design premise:
 - **A number/tuple `diameter` is untouched.** Behaviour is byte-for-byte identical
   to today. Zero regression risk for existing users.
 - Passing a **`Polydisperse` object** as `diameter` activates "poly mode" (see §5).
-  - Bundles `min_diameter`, `max_diameter`, `rg_to_diameter`, `max_radius_iterations`.
+  - Bundles `min_diameter`, `max_diameter`, `edge_frac`.
   - Mutual exclusion with monodisperse is **type-encoded** — one `diameter` slot, so
     the invalid combination is inexpressible (no cross-parameter check needed).
   - `min_diameter`/`max_diameter` odd integers, `max >= min`; validated in
@@ -84,8 +84,8 @@ Supporting code:
   memo-cached by a single `(radius, ndim)` (`trackpy/masks.py:8`); numba/python
   inner loops (`center_of_mass.py:146+`) reuse one fixed-shape mask.
 - `trackpy/feature.py:175-188` `estimate_mass` / `estimate_size` — **single-shot**
-  (no COM iteration) mass and radius-of-gyration over an `r_max` window. These are
-  the cheap bootstrap primitives we reuse in Stage C.
+  (no COM iteration) mass and radius-of-gyration over a window. (Considered for the
+  Stage C size estimate but superseded by the curve-of-growth approach.)
 - `trackpy/masks.py`: `binary_mask` (8), `N_binary_mask` (22), `r_squared_mask`
   (27) — all `@memo`-cached per `(radius, ndim)`. Building masks for a new radius
   is cheap and cached; no change needed here.
@@ -119,38 +119,13 @@ design, so the reasoning is recorded here:
 - Within a bucket, `refine_com_arr` stays fully vectorized/numba. Across buckets we
   pay ~24 fixed Python call-overheads — negligible vs. per-feature work.
 
-**Passes.** The chicken-and-egg (need a size estimate to pick a window; need a
-window to estimate size) makes *a* bootstrap unavoidable. But it must be **cheap**:
-
-- Bootstrap = single-shot `estimate_mass` + `estimate_size` at `r_max`
-  (no COM iteration), **not** a full iterative refine pass.
-- Then **one** real bucketed refine pass at each feature's assigned radius.
-- Total ≈ monodisperse refine cost + O(N) bootstrap, instead of 2× full refine.
-
-| Approach | Accuracy | Cost | Code risk |
-|---|---|---|---|
-| Two full refine passes | optimal final; slightly better *first-guess* bucket | ~2× refine | low |
-| **Cheap bootstrap + 1 bucketed refine** (chosen) | identical final; first-guess bucket may differ only for smallest borderline particles | ~1× refine + O(N) | low |
-| Rewritten per-feature-radius kernel | optimal (same!) | ≥1× refine, no numba hoist | high |
-
-**Why the cheap bootstrap is not less accurate.** Both variants end with the *same*
-full refine at the assigned radius (Pass 2), which re-converges to the same
-center-of-brightness regardless of starting point — so final position/mass/size/ecc
-are identical *given the same bucket*. The only channel for divergence is the size
-estimate that picks the bucket: the bootstrap measures Rg from a 1-iteration
-(~1 px off-center) window, inflating Rg by ≈`δ²` (parallel-axis effect). Through the
-assignment (bucket width = 2 in diameter) this shifts diameter by ~0.14 for a big
-particle (never changes the bucket) and up to ~0.45 for the smallest particles (can
-occasionally cross a bucket edge). That residual is *shared contamination* — both
-variants estimate at `r_max`, so a small particle's Rg is dominated by neighbor/
-background contamination that full convergence does **not** fix. A full Pass-1 at
-`r_max` can even *mis-center* a small particle next to a big bright one (large window
-pulls COM toward the neighbor), making its Pass-2 start worse than the raw detected
-pixel. The correct cure for the borderline-bucket sensitivity is
-`max_radius_iterations > 1` (re-estimate at the assigned, uncontaminated radius,
-re-bucket, re-refine) — a fixed-point iteration to which **both variants converge
-identically**. So the extra full pass buys only a marginally better first guess that
-the iteration would fix anyway.
+**Sizing (historical note).** The chicken-and-egg (need a size estimate to pick a
+window; need a window to estimate size) originally used a cheap **moment bootstrap**
+— a single-shot `Rg` in the `r_max` window, mapped to a diameter via `rg_to_diameter`.
+That was **superseded**: in dense fields the `r_max` moment window engulfs neighbours,
+so small particles measured a huge `Rg` and got the max window (see §7 "Resolved").
+Stage C now sizes each feature by a **curve of growth** that reads its own extent
+(no `Rg → diameter` mapping). The bucketing rationale above is unchanged.
 
 ---
 
@@ -217,54 +192,43 @@ Stages A, B, D, E, F, G are single-pass and simple; Stage C is the spine.
   (`find.py:107`). A few big bright particles raise the threshold and can suppress
   faint small ones. Inherent to a one-pass detector; not solved here.
 
-### Stage C — Refinement + characterization (`refine_com` / `radius`) — the spine
+### Stage C — Refinement + characterization — the spine
 
 Replace the single `refine_com` call (poly mode only) with:
 
-1. **Bootstrap (cheap, no iteration):** for each detected peak, compute mass then
-   Rg over an `r_max` window using `estimate_mass` / `estimate_size`
-   (`feature.py:175-188`), or `refine_com_arr(..., max_iterations=1)`. O(N).
-2. **Assign per-feature diameter (tunable):**
-   `assigned_diameter = round_to_odd(rg_to_diameter * size)`, clamped to
-   `[mindiameter, maxdiameter]`.
-   - `rg_to_diameter` is a **`Polydisperse` field**, default derived from a **Gaussian**
-     profile: for an isotropic Gaussian `Rg = σ·√n` (n = ndim), and a window
-     half-width `R = k·σ` gives `rg_to_diameter = 2R/Rg = 2k/√n`. Default **k = 2.5**
-     (captures ~95.6% of the mass in 2D, ~89.9% in 3D):
-     - **2D:** `5/√2 ≈ 3.536`
-     - **3D:** `5/√3 ≈ 2.887`
-   - Because the default is dimension-aware, the kwarg defaults to `None` and is
-     resolved to `5/√2` or `5/√3` from the image's `ndim` inside `locate`.
-   - Power users retune via `k`: `2k/√n` (e.g. `k=2` tighter for crowded fields,
-     `k=3` for maximal mass fidelity), or pass `rg_to_diameter` directly.
-   - Caveat: the derivation assumes an untruncated ideal Gaussian; the bootstrap
-     measures `Rg` in the `r_max` window, so far-field noise (surviving the bandpass
-     `threshold`) can slightly inflate `Rg` for very small particles — mitigated by
-     the `threshold` clip and `max_radius_iterations > 1`.
-3. **Bucket** features by `assigned_diameter`:
+1. **Size each detected peak by a curve of growth.** Accumulate the annular (ring)
+   mass outward from the peak; the feature's edge is the first radius past the peak
+   ring where the ring mass falls below `edge_frac` of the peak-so-far. This reads
+   each particle's *own* extent from its radial intensity profile.
+   - `assigned_diameter = clamp(2·edge + 1, [min, max])`; always odd.
+   - **`edge_frac`** is a `Polydisperse` field (default **0.1**); larger → tighter
+     windows. It replaces the earlier `rg_to_diameter` mapping (retired), because
+     the growth curve measures the extent directly — no `Rg → diameter` heuristic.
+   - **Robust by construction:** because it stops at the first decay of the
+     feature's *own* profile, it is not inflated by (a) neighbours farther out
+     (the ring only climbs again *past* the boundary) nor (b) duplicate peaks on
+     the same particle (both give the same extent). A fixed `r_max` *moment* is
+     inflated by both — that was the dense-field failure this fixes.
+   - Implementation note: bin patch pixels by integer radius via `np.bincount`;
+     **drop pixels beyond `r_max`** (patch corners) rather than folding them into
+     the last bin, and scan outward with a running max — otherwise the corners
+     pile neighbour signal into `ring[r_max]` and defeat the edge detection.
+2. **Bucket** features by `assigned_diameter`:
    - **2D (and any case with ≤ 10 distinct odd diameters in range):** one bucket per
      distinct odd diameter — lossless (mask radii are integers anyway).
-   - **3D with a wide range (> 10 distinct odd diameters):** cap at **10 buckets**.
-     Choose 10 bucket diameters spaced **geometrically** (log) across
-     `[mindiameter, maxdiameter]`, rounded to the nearest odd and deduplicated, then
-     snap each feature to the nearest bucket diameter. Geometric spacing keeps the
-     *relative* window error roughly uniform across a 10× range (a 2 px error matters
-     far more at d=5 than d=51), and bounds the persistent mask cache to ≤ 10 radii.
-     The give-up is a small window-size quantization on 3D features only.
-4. **Refine (real pass):** for each bucket, call `refine_com_arr` **once** on that
-   subset at the bucket's radius, starting from bootstrap positions. Concatenate
-   results, **preserving the original coordinate order/index**.
-5. **Optional convergence:** `max_radius_iterations` kwarg (**default 1** = off).
-   When >1, re-estimate size from the refined result, re-bucket, re-refine until
-   stable. Only matters in dense mixed fields (a small particle next to a big
-   bright one can bootstrap into a too-large bucket).
-6. **Emit `diameter` column** = per-feature `assigned_diameter`, alongside the
-   existing `size` (Rg).
+   - **3D with a wide range (> 10 distinct odd diameters):** cap at **10 buckets**,
+     spaced **geometrically** across `[min, max]`, rounded to odd, snapping each
+     feature to the nearest. Bounds the persistent mask cache to ≤ 10 radii; the
+     give-up is a small window quantization on 3D features only.
+3. **Refine (real pass):** for each bucket, call `refine_com` **once** on that
+   subset at the bucket's radius, starting from the detected coordinates.
+   Concatenate, **preserving the original coordinate order**.
+4. **Emit `diameter` column** = per-feature `assigned_diameter`, alongside `size`.
 
-- **No change to `refine_com*` or `masks.py`.** All new logic is orchestration in
-  a `feature.py` helper (e.g. `_refine_polydisperse`).
-- **Effort:** medium (bulk of the work). **Risk:** medium — the `rg_to_diameter`
-  default and bootstrap contamination are the sensitivities; both mitigated above.
+- **No change to `refine_com*` or `masks.py`.** New logic is `Polydisperse.refine`
+  plus `_growth_diameters` / `_bucketed_refine` in `polydisperse.py`.
+- **Effort:** medium (bulk of the work). **Risk:** low, now that the sizing is
+  content-based (validated: recall & precision 1.00 across the grid — see §9).
 
 #### Stage C — performance vs. monodisperse
 
@@ -272,16 +236,16 @@ Cost model. `N` = feature count, `I` = `max_iterations` (default 10), `m(r)` = m
 pixels (≈ `π r²` 2D / `(4/3)π r³` 3D), `m̄` = population-average mask size.
 
 - **Monodisperse:** `T_mono(r) = N·I·c·m(r)`.
-- **Poly:** `T_poly ≈ N·c·[ m(r_max) + I·m̄ ]` — a single-shot bootstrap at `r_max`
-  (I=1) plus one real refine with each feature at its own (mostly smaller) radius.
-  (×1 unless `max_radius_iterations > 1`.)
+- **Poly:** `T_poly ≈ N·c·[ m(r_max) + I·m̄ ]` — an O(N·m(r_max)) curve-of-growth
+  sizing pass (one `bincount` over an `r_max` patch per feature) plus one real
+  refine with each feature at its own (mostly smaller) radius.
 
 Comparisons:
 
 - **vs. ideal single-radius pass at average radius:**
   `T_poly/T_mono(r̄) = 1 + m(r_max)/(I·m̄) ≈ 1.2` (I=10, `m(r_max)≈2·m̄`) → **~20%
-  overhead**, all from the bootstrap. Not 2×: bootstrap is single-iteration and the
-  refine uses per-feature masks.
+  overhead**, from the sizing pass. Not 2×: sizing is a single pass and the refine
+  uses per-feature masks.
 - **vs. naive workaround `diameter=maxdiameter`** (`T_mono(r_max)`):
   `T_poly/T_mono(r_max) = 1/I + m̄/m(r_max) ≈ 0.6` → poly is **~40% faster** *and*
   correct, because small particles no longer pay for a big mask.
@@ -337,10 +301,10 @@ built once and reused across all frames — poly does not rebuild masks per fram
   `diameter + 1` separation was catastrophic at wide size ranges: a large particle's
   separation (~40–52 px at x10) deleted every genuinely-separate small neighbour
   within it (measured: x10/medium recall collapsed to ~0.17; the radius rule
-  restores it to ~0.31, with the remainder lost to refine mislocalisation — see the
-  decoupled-windows future work). Radius keying never merges non-overlapping
-  particles (their distance ≥ sum of radii ≥ the larger radius) and still catches
-  same-particle duplicates.
+  restores it to ~0.31, with the remainder lost to bootstrap size mis-assignment —
+  see the neighbour-limited-windows future work). Radius keying never merges
+  non-overlapping particles (their distance ≥ sum of radii ≥ the larger radius) and
+  still catches same-particle duplicates.
 - **Effort:** medium. **Risk:** medium (verified: `test_small_near_large_not_
   deduplicated`).
 
@@ -387,9 +351,10 @@ built once and reused across all frames — poly does not rebuild masks per fram
   bias curves (small particles are undersampled and pixel-lock hard; large ones
   barely lock). The correction is *empirical* — it flattens whatever histogram it is
   given — so flattening the mixture flattens *neither* component: it over-corrects
-  large particles and under-corrects small ones. (Stage C's `rg_to_diameter` scaling
-  removes the *mask-coverage* axis of variation but not the intrinsic *undersampling*
-  axis, which is the dominant, size-dependent one — so the mixture problem stands.)
+  large particles and under-corrects small ones. (Stage C's per-feature windows make
+  the mask coverage roughly size-independent, but the intrinsic *undersampling* of
+  small particles remains — the dominant, size-dependent effect — so the mixture
+  problem stands.)
 - **Fix — size-class-aware `apply_spiff`:**
   1. Add a **`groupby` parameter**; build a separate `spiff_sorted` per group (the
      existing per-column logic runs unchanged within each group, reassembled on the
@@ -433,63 +398,53 @@ built once and reused across all frames — poly does not rebuild masks per fram
 ```python
 tp.locate(img, 11)                                   # monodisperse, unchanged
 tp.locate(img, tp.Polydisperse(5, 51))               # poly, all defaults
-tp.locate(img, tp.Polydisperse(5, 51, rg_to_diameter=3.2))
+tp.locate(img, tp.Polydisperse(5, 51, edge_frac=0.2))
 tp.batch(frames, tp.Polydisperse(5, 51))             # free — no batch changes
 ```
 
 ### The `Polydisperse` config object
 
-New public class (exported from `trackpy`), a small dataclass-like container that
-**validates in `__init__`** so errors surface at construction, not deep inside
-`locate`:
+Public class (exported from `trackpy`) that **validates in `__init__`** so errors
+surface at construction. It also carries the poly-specific behaviour as **methods**
+(`resolve`, `refine`, `static_error`), so `feature.py` imports only the class:
 
 ```python
 class Polydisperse:
-    def __init__(self, min_diameter, max_diameter,
-                 rg_to_diameter=None, max_radius_iterations=1):
-        # __init__ validation (fail fast):
-        #   - min_diameter, max_diameter are odd integers (or tuples of odd ints)
-        #   - max_diameter >= min_diameter (elementwise)
-        #   - isotropic only for now: scalar, or tuple with equal entries →
-        #     else raise (mirrors the anisotropic-maxsize restriction,
-        #     feature.py:331-333)
-        #   - rg_to_diameter is None (→ resolved from ndim in locate) or > 0
-        #   - max_radius_iterations >= 1
+    def __init__(self, min_diameter, max_diameter, edge_frac=0.1):
+        # validation (fail fast): odd positive min/max diameters (scalar or
+        # equal-entry tuple -> isotropic only); max >= min; 0 < edge_frac < 1.
         ...
 ```
 
 - Positional `min_diameter`, `max_diameter` (named to avoid shadowing the `min`/
   `max` builtins). `Polydisperse(5, 51)` reads cleanly.
-- `rg_to_diameter` stays `None` on the object and is resolved to the dimension-aware
-  Gaussian default `2k/√n` (k=2.5 → 2D `5/√2 ≈ 3.54`, 3D `5/√3 ≈ 2.89`) inside
-  `locate`, once `ndim` is known (the object can't know `ndim` at construction).
-- `max_radius_iterations` default 1 (off).
+- `edge_frac` (default 0.1) is the single sizing knob (see Stage C).
 
 ### Dispatch in `locate` / `batch`
 
 `diameter` becomes polymorphic (number | tuple | `Polydisperse`). **`locate` stays a
-single function** — it is *not* forked into a parallel `_locate_polydisperse` clone,
-which would duplicate the shared ~70% (preprocessing, scale correction, `minmass`/
-`maxsize` filter, `topn`, `ep`, `spiff`, frame tagging). Instead, the mode is resolved
-up front and the *divergent stages* are the only branches:
+single function** — it is *not* forked into a parallel clone (which would duplicate
+the shared ~70%: preprocessing, scale correction, `minmass`/`maxsize` filter,
+`topn`, `ep`, `spiff`, frame tagging). The mode is resolved up front and the
+*divergent stages* are the only branches:
 
 ```python
 poly = diameter if isinstance(diameter, Polydisperse) else None
 if poly is not None:
-    resolved = _resolve_polydisperse(poly, ndim)   # r_min/r_max/rg_to_diameter/...
+    resolved = poly.resolve(ndim)                  # min/max diameter, r_max
 # ...shared preprocessing...
-# detection:  grey_dilation(..., cc=poly is not None)
-# refine:     refined = _refine_polydisperse(...) if poly else refine_com(...)
+# detection:  grey_dilation(..., collapse_flat=poly is not None)
+# refine:     refined = poly.refine(...) if poly else refine_com(...)
 # dedup:      where_close_variable(...) if poly else where_close(...)
-# ep:         _static_error_per_bucket(...) if poly else <inline>
+# ep:         poly.static_error(...) if poly else <inline>
 # ...shared scale correction / filter / topn / spiff / frame tag...
 ```
 
-The heavy poly logic lives in stage helpers (e.g. `_refine_polydisperse`) that
-**return into** `locate`'s shared tail rather than re-implementing it — keeping the
-monodisperse path byte-for-byte unchanged and the shared pipeline single-copy.
-`batch` needs no signature change — a `Polydisperse` flows through its existing
-`diameter` argument into `locate`. Only its docstring gains a mention.
+The poly logic lives in `Polydisperse` methods that **return into** `locate`'s
+shared tail rather than re-implementing it — keeping the monodisperse path
+byte-for-byte unchanged and the shared pipeline single-copy. `batch` needs no
+signature change — a `Polydisperse` flows through its existing `diameter` argument
+into `locate`.
 
 ### Output DataFrame
 
@@ -498,13 +453,13 @@ Existing columns unchanged: `x, y[, z], mass, size, ecc, signal, raw_mass, ep`.
 Document `size` (Rg) vs. `diameter` (assigned window) distinction in both
 `locate` and `batch` Returns docstrings.
 
-### Validation (in `Polydisperse.__init__`, Phase 0)
+### Validation (in `Polydisperse.__init__`)
 
-- `min_diameter`, `max_diameter` odd integers (or tuples of odd ints);
+- `min_diameter`, `max_diameter` odd integers (or equal-entry tuples of odd ints);
   `max_diameter >= min_diameter`.
 - Isotropic only → raise a clear error for anisotropic (unequal-tuple) diameters,
   mirroring the existing anisotropic-`maxsize` restriction (`feature.py:331-333`).
-- `rg_to_diameter` is `None` or positive; `max_radius_iterations >= 1`.
+- `0 < edge_frac < 1`.
 - Mutual exclusion with monodisperse `diameter` is automatic — there is only one
   `diameter` slot, so no cross-parameter check is needed.
 
@@ -514,10 +469,10 @@ Document `size` (Rg) vs. `diameter` (assigned window) distinction in both
 
 | Phase | Work | Files |
 |---|---|---|
-| 0 | `Polydisperse` class (export from `trackpy`) with `__init__` validation (odd, min≤max, isotropy guard, positive `rg_to_diameter`, `max_radius_iterations>=1`); `isinstance` dispatch in `locate`/`batch`; derive `r_min`/`r_max` | `feature.py` (or new module), `trackpy/__init__.py` |
+| 0 | `Polydisperse` class (export from `trackpy`) with `__init__` validation (odd, min≤max, isotropy guard, `0 < edge_frac < 1`); `isinstance` dispatch in `locate`/`batch`; `resolve(ndim)` → min/max diameter, r_max | `polydisperse.py`, `feature.py`, `trackpy/__init__.py` |
 | 1 | Stage A + D: `smoothing_size = maxdiameter`, conservative margin | `feature.py` |
 | 2 | Stage B: peak-find at `mindiameter` separation + connected-component collapse of the maxima mask (opt-in in `grey_dilation`) | `feature.py`, `find.py` |
-| 3 | Stage C: cheap bootstrap → tunable radius assignment → bucketed refine (optional iterate) → emit `diameter` column | `feature.py` (reuses `refine_com_arr`, `estimate_mass/size`) |
+| 3 | Stage C: curve-of-growth sizing → bucketed refine → emit `diameter` column | `polydisperse.py` (reuses `refine_com`) |
 | 4 | Stage E: `where_close_variable` size-aware dedup | `find.py`, `feature.py` |
 | 5 | Stage F + G: per-bucket `ep`; `minmass`/`maxsize` filters (no size-band filter — removed, see §7/§8) | `feature.py` |
 | 6 | Stage H: size-class-aware `apply_spiff` (`groupby='auto'` → `diameter`, adaptive-merge to `MIN_FEATURES`); no `locate`/`batch` plumbing change | `spiff.py` |
@@ -546,8 +501,6 @@ then 7 (tests/docs). Phase 6 depends only on Phase 3 emitting the `diameter` col
 - Size-class-aware SPIFF needs ≈ `n_bins × MIN_FEATURES` features to correct all
   classes; sparse size classes are merged or fall back to pooled correction, and a
   single frame mostly no-ops (Stage H).
-- Bootstrap size estimate can be contaminated for a small particle adjacent to a
-  large bright one; mitigated by `max_radius_iterations > 1` (Stage C).
 - Two equally-bright particles whose maxima regions touch with no intensity valley
   between them (e.g. adjacent saturated particles) collapse to a single detection in
   Stage B's CC step. Not a regression (monodisperse `where_close` merges them too)
@@ -565,46 +518,37 @@ then 7 (tests/docs). Phase 6 depends only on Phase 3 emitting the `diameter` col
   particle is dropped only if its centre lies *inside* a large particle's body — an
   unresolvable overlap. That residual is inherent; the catastrophic version (below)
   is fixed.
-- **Dense mixed-size fields — the collapse was a dedup bug, now largely fixed.**
-  At a wide range and medium/high density the `diameter=max` baseline loses most
-  particles (its separation of ~`max+1` merges them). Poly *used* to collapse too
-  (recall < 0.2), and this was **twice misdiagnosed**: (1) as boxcar over-subtraction
-  — a white top-hat background was tried and did *not* recover it (and is
-  noise-fragile), then reverted; (2) as the global `percentile` gate — a
-  noise-referenced threshold was tried and *also* did not recover it, then reverted.
-  Stage-by-stage tracing found the real cause: small particles were **detected
-  fine, then deleted by `where_close_variable`**, which keyed on the large
-  particle's `diameter + 1` separation. Fixing the dedup to key on **radius**
-  (Stage E) lifts x10/medium recall from ~0.17 to ~0.31 and makes **poly ≥ baseline
-  in every grid cell**. The remaining shortfall at x10 medium/high is **refine
-  mislocalisation** — small particles' centres are pulled toward large neighbours by
-  the size-matched window and miss the 1.5 px scoring tolerance — addressed by the
-  *decoupled refinement windows* future item, not by detection or dedup.
-- **Isolated-particle position accuracy.** For well-separated particles on a clean
-  background a large window is optimal (least pixel-locking); poly's size-matched
-  windows lock slightly more, so its sub-pixel position is marginally worse than the
-  `diameter=max` baseline there (worst at high noise). SPIFF narrows the gap; the
-  full fix is *decoupled refinement windows* (see Future work).
+- **Isolated-particle position accuracy (minor).** For well-separated particles on
+  a clean background a large window is optimal (least pixel-locking); poly's
+  size-matched windows lock slightly more, so its sub-pixel position is marginally
+  worse than the `diameter=max` baseline there (worst at high noise). SPIFF narrows
+  the gap. Recall is unaffected (perfect); this is a small position-precision gap
+  only.
+
+**Resolved (kept for history):** the dense mixed-size *collapse* (poly recall < 0.2
+at wide range + high density) is **fixed**. It was misdiagnosed three times before
+tracing pinned it down: (1) boxcar over-subtraction — a white top-hat background did
+not recover it and is noise-fragile (reverted); (2) the global `percentile` gate — a
+noise-referenced threshold did not recover it (reverted); (3) the Stage E dedup
+keying on `diameter+1` — fixed to key on radius, which helped but left recall ~0.31.
+The true root was **bootstrap size mis-assignment**: an `r_max` *moment* window
+engulfs neighbours in a crowd, so small particles measured a huge Rg and were
+assigned the max diameter. Replacing the moment bootstrap with the **curve-of-growth**
+sizing (Stage C) — which reads each feature's own extent — restored **recall and
+precision to 1.00 across the whole grid**.
 
 ### Future work
 
-- **Decoupled refinement windows.** Refine *position* in the largest window that
-  does not collide with a neighbour (≈ `max_diameter` when isolated → baseline-level
-  low pixel-locking; shrunk only when a neighbour is close → no contamination),
-  while measuring *size / mass / ecc* in the current size-matched window. This makes
-  poly ≥ baseline on **position** everywhere (it already is on **recall**), removing
-  the isolated-particle gap above. Needs a per-feature nearest-neighbour distance
-  and either a two-pass refine or a refine that uses one radius for the centroid and
-  another for the moments. Estimated cost: refine rises toward the `diameter=max`
-  baseline in sparse fields (surrenders poly's current ~40% refine speedup),
-  ≈ unchanged in dense fields; plus a cheap extra characterization pass.
-- **Local / size-aware brightness threshold** — a *minor* improvement, no longer the
-  fix for the dense collapse (that was the dedup bug, now fixed). The global
-  `percentile` gate can still slightly clip faint particles: a noise-referenced
-  threshold was prototyped and gave only marginal grid gains (a few cells to full
-  recall, no regressions) before being reverted for cleanliness. Revisit only if the
-  faint-clipping matters. (A white top-hat background was also tried and rejected —
-  noise-fragile, and it addressed neither the collapse nor the clipping.)
+- **Neighbour-limited windows for isolated-particle position.** The one remaining
+  gap above is the isolated-particle pixel-locking difference. Refining the
+  *centroid* in a larger (neighbour-limited) window would tie the baseline there
+  while keeping the size-matched window for characterization. Minor; SPIFF already
+  narrows it, and recall is perfect — revisit only if sub-pixel precision on
+  isolated particles matters.
+- **Size-aware brightness threshold** — a *minor* improvement (the global
+  `percentile` gate can slightly clip faint particles). A noise-referenced threshold
+  was prototyped and gave only marginal grid gains before being reverted. (A white
+  top-hat background was also tried and rejected — noise-fragile.)
 - **Size-stratified `topn`** (top-N per `diameter` class) so "N brightest" stops
   meaning "N largest".
 
@@ -623,34 +567,30 @@ monodisperse output (no `diameter` column).
 
 1. **API:** no new parameters — overload `diameter` to accept a number/tuple
    (monodisperse, unchanged) or a `Polydisperse(min_diameter, max_diameter,
-   rg_to_diameter=None, max_radius_iterations=1)` object. Mutual exclusion is
-   type-encoded; `batch` needs no signature change; validation lives in
-   `Polydisperse.__init__`.
-2. **Refinement:** cheap non-iterative bootstrap + single **bucketed** refine pass
-   (bucketing is lossless vs. per-feature radius; reuses `refine_com_arr`).
+   edge_frac=0.1)` object. Mutual exclusion is type-encoded; `batch` needs no
+   signature change; validation lives in `Polydisperse.__init__`.
+2. **Sizing:** per-feature **curve of growth** — each feature's diameter is where
+   its annular (ring) mass first decays below `edge_frac` of its peak. Reads the
+   feature's own extent, robust to neighbours and to duplicate peaks; **retired the
+   `Rg → diameter` (`rg_to_diameter`) mapping and the moment bootstrap** it needed.
 2b. **Peak dedup split:** flat-top explosion killed immediately by
    connected-component collapse at detection (Stage B); only non-touching residual
-   duplicates deferred to size-aware dedup (Stage E).
+   duplicates deferred to size-aware dedup (Stage E, keyed on **radius**).
 2c. **Bucketing:** one bucket per odd diameter in 2D (lossless); **cap at 10
    geometrically-spaced buckets in 3D** to bound the mask cache.
-3. **`rg_to_diameter`:** tunable field, dimension-aware Gaussian default
-   `2k/√n` with `k=2.5` (2D `5/√2 ≈ 3.54`, 3D `5/√3 ≈ 2.89`); defaults to `None`,
-   resolved from `ndim`. **Kept at k=2.5** after the accuracy study: raising `k`
-   enlarges the assigned diameter, which inflates the dedup separation
-   (`diameter+1`) and re-merges close particles — *lowering recall*, poly's main
-   advantage. The isolated-particle position cost of the small window is instead
-   left to SPIFF (and, in future, decoupled windows).
+3. **`edge_frac`:** the single sizing knob (default **0.1**); larger → tighter
+   windows. Replaces `rg_to_diameter` — the growth curve measures extent directly,
+   so no `Rg`-scaling constant is needed.
 4. **Output:** add `diameter` column (assigned per-feature diameter). Doubles as the
    grouping key for size-class-aware SPIFF.
-5. **Optional convergence:** `max_radius_iterations`, default 1 (off).
-6. **Scope:** `locate` + `batch`, isotropic only.
-7. **SPIFF (Stage H):** make `apply_spiff` size-class-aware via `groupby='auto'`
+5. **Scope:** `locate` + `batch`, isotropic only.
+6. **SPIFF (Stage H):** make `apply_spiff` size-class-aware via `groupby='auto'`
    (uses the `diameter` column when present, else pools), with adaptive-merge of
    adjacent classes to meet `MIN_FEATURES`. No `locate`/`batch` plumbing change.
    Kept after ablation: a modest position-accuracy gain over pooled at narrow
    ranges / high noise, and it degenerates exactly to pooled when per-class features
    are too few (wide ranges).
-8. **No automatic size-band filter** (see Stage G): it regressed recall at narrow
+7. **No automatic size-band filter** (see Stage G): it regressed recall at narrow
    ranges and was unreliable; out-of-range features are clamped to the nearest
    bucket, and `maxsize` remains for explicit rejection.
 
@@ -667,18 +607,16 @@ Implemented and tested (`trackpy/polydisperse.py`, `feature.py`, `find.py`,
   `locate` pipeline branches with `if poly` at the divergent stages; monodisperse is
   byte-for-byte unchanged.
 - Stages A (max smoothing), B (min-scale separation + `grey_dilation(collapse_flat)`
-  connected-component collapse), C (bootstrap → bucketed refine → `diameter`
-  column), D (conservative margin), E (`where_close_variable`), F (per-bucket `ep`),
-  H (size-class-aware `apply_spiff`).
+  connected-component collapse), C (**curve-of-growth sizing** → bucketed refine →
+  `diameter` column), D (conservative margin), E (`where_close_variable`, radius-
+  keyed), F (per-bucket `ep`), H (size-class-aware `apply_spiff`).
 - Stage G reduced to `minmass`/`maxsize` only (band filter removed, see above).
 
-**Accuracy study (summary).** Across density × noise × size-range grids, with SPIFF
-on both methods: poly is **≥ the `diameter=max` baseline on recall everywhere it is
-achievable** — decisively so once the range/density makes the baseline's large
-separation merge particles (e.g. x5/medium density: recall 1.00 vs 0.55). Position
-accuracy is comparable once SPIFF runs. After fixing the Stage E dedup to key on
-radius (a small particle is not deleted by a large neighbour's separation), **poly ≥
-baseline on recall in every grid cell**. The one remaining residual — reduced recall
-at very wide range + high density — is **refine mislocalisation** (small centres
-pulled toward large neighbours), addressed by the *decoupled refinement windows*
-future item (§7).
+**Accuracy study (summary).** Across density × noise × size-range grids (SPIFF on
+both methods), with the curve-of-growth sizing and radius-keyed dedup: **poly recall
+≥ the `diameter=max` baseline in every grid cell**, and in the crowded / wide-range
+cells where the baseline merges particles, poly reaches **recall and precision 1.00
+with exactly the ground-truth count** (e.g. x10/high: baseline recall ~0.05 → poly
+1.00; x5/medium: 0.55 → 1.00). The earlier dense-field collapse is resolved (§7).
+The only residual is a minor isolated-particle *position*-precision gap (pixel
+locking of small windows), which SPIFF narrows and which does not affect recall.

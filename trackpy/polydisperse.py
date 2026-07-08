@@ -14,21 +14,6 @@ from .masks import N_binary_mask
 from .uncertainty import measure_noise, _static_error
 from .utils import validate_tuple, pandas_concat, default_pos_columns
 
-# Sigma multiple for the refinement-window half-width (R = k * sigma) used to
-# derive the default ``rg_to_diameter`` for a Gaussian intensity profile.
-# k = 2.5 captures ~95.6% of a 2D Gaussian's mass (~89.9% in 3D).
-DEFAULT_RG_K = 2.5
-
-
-def gaussian_rg_to_diameter(ndim, k=DEFAULT_RG_K):
-    """Default factor converting radius of gyration to refinement diameter.
-
-    For an isotropic Gaussian the radius of gyration is ``Rg = sigma *
-    sqrt(ndim)``; choosing a window half-width ``R = k * sigma`` gives
-    ``diameter / Rg = 2 * k / sqrt(ndim)``.
-    """
-    return float(2.0 * k / np.sqrt(ndim))
-
 
 def _check_odd_int(value, name):
     if isinstance(value, bool) or not isinstance(value, numbers.Integral):
@@ -74,17 +59,11 @@ class Polydisperse:
         Smallest feature diameter to detect. When in doubt, round up.
     max_diameter : odd int or tuple of equal odd ints
         Largest feature diameter to detect. Must be ``>= min_diameter``.
-    rg_to_diameter : float, optional
-        Factor converting a feature's radius of gyration (the ``size`` output)
-        to the diameter of the refinement window used to characterize it. If
-        None (default), a Gaussian-profile default ``2 * k / sqrt(ndim)`` with
-        ``k = 2.5`` is resolved from the image dimensionality inside ``locate``
-        (2D: ~3.54, 3D: ~2.89).
-    max_radius_iterations : int, optional
-        Number of times to (re-)estimate each feature's size and assign its
-        refinement radius. Default 1 (single assignment, no iteration). Values
-        > 1 help in dense mixed fields where a small particle adjacent to a
-        large bright one can initially be assigned too large a radius.
+    edge_frac : float, optional
+        Curve-of-growth boundary threshold in (0, 1), default 0.1. Each feature's
+        refinement diameter is placed where its annular (ring) mass first falls
+        below ``edge_frac`` of the peak ring -- i.e. where its radial intensity
+        profile has decayed. Larger values give tighter windows.
 
     Notes
     -----
@@ -92,8 +71,7 @@ class Polydisperse:
     entries, because a single scalar size per feature is required for bucketing.
     """
 
-    def __init__(self, min_diameter, max_diameter, rg_to_diameter=None,
-                 max_radius_iterations=1):
+    def __init__(self, min_diameter, max_diameter, edge_frac=0.1):
         self.min_diameter = _validate_diameter(min_diameter, 'min_diameter')
         self.max_diameter = _validate_diameter(max_diameter, 'max_diameter')
 
@@ -107,60 +85,34 @@ class Polydisperse:
                 "max_diameter ({}) must be >= min_diameter ({}).".format(
                     _scalar(self.max_diameter), _scalar(self.min_diameter)))
 
-        if rg_to_diameter is not None:
-            if (isinstance(rg_to_diameter, bool)
-                    or not isinstance(rg_to_diameter, numbers.Real)
-                    or rg_to_diameter <= 0):
-                raise ValueError("rg_to_diameter must be a positive number or "
-                                 "None, got {!r}.".format(rg_to_diameter))
-            rg_to_diameter = float(rg_to_diameter)
-        self.rg_to_diameter = rg_to_diameter
-
-        if (isinstance(max_radius_iterations, bool)
-                or not isinstance(max_radius_iterations, numbers.Integral)
-                or max_radius_iterations < 1):
-            raise ValueError("max_radius_iterations must be an integer >= 1, "
-                             "got {!r}.".format(max_radius_iterations))
-        self.max_radius_iterations = int(max_radius_iterations)
-
-    def resolve_rg_to_diameter(self, ndim):
-        """Explicit ``rg_to_diameter``, or the Gaussian default for ``ndim``."""
-        if self.rg_to_diameter is not None:
-            return self.rg_to_diameter
-        return gaussian_rg_to_diameter(ndim)
+        if (isinstance(edge_frac, bool)
+                or not isinstance(edge_frac, numbers.Real)
+                or not 0 < edge_frac < 1):
+            raise ValueError("edge_frac must be a number in (0, 1), got "
+                             "{!r}.".format(edge_frac))
+        self.edge_frac = float(edge_frac)
 
     def resolve(self, ndim):
-        """Resolve the size parameters against an image dimensionality.
-
-        Broadcasts/validates the min and max diameters to `ndim`, derives the
-        min/max refinement radii, and resolves the (possibly dimension-
-        dependent) ``rg_to_diameter``.
-        """
+        """Broadcast/validate the diameters to `ndim`; derive the max radius."""
         min_diameter = validate_tuple(self.min_diameter, ndim)
         max_diameter = validate_tuple(self.max_diameter, ndim)
         return ResolvedPolydisperse(
             min_diameter=min_diameter,
             max_diameter=max_diameter,
-            r_min=tuple(d // 2 for d in min_diameter),
-            r_max=tuple(d // 2 for d in max_diameter),
-            rg_to_diameter=self.resolve_rg_to_diameter(ndim),
-            max_radius_iterations=self.max_radius_iterations)
+            r_max=tuple(d // 2 for d in max_diameter))
 
     def refine(self, raw_image, image, coords, max_iterations=10,
                engine='auto', characterize=True, pos_columns=None):
         """Refine and characterize features spanning a range of sizes.
 
-        A single-iteration pass at the largest window bootstraps a size estimate
-        for each detected coordinate; each feature is then assigned an odd
-        refinement diameter from its radius of gyration (via ``rg_to_diameter``)
-        and refined in buckets that share a diameter. Returns the refined
-        features with an assigned ``diameter`` column, in the original
-        coordinate order.
+        Each detected coordinate is assigned an odd refinement diameter from a
+        curve-of-growth measurement of its own extent (robust to neighbours and
+        to duplicate peaks on the same particle), then refined in buckets that
+        share a diameter. Returns the refined features with an assigned
+        ``diameter`` column, in the original coordinate order.
         """
         ndim = image.ndim
         resolved = self.resolve(ndim)
-        min_d, max_d = resolved.min_diameter[0], resolved.max_diameter[0]
-        rg_to_diameter = resolved.rg_to_diameter
         if pos_columns is None:
             pos_columns = default_pos_columns(ndim)
 
@@ -172,33 +124,12 @@ class Polydisperse:
             empty['diameter'] = np.empty(0, dtype=int)
             return empty
 
-        # Bootstrap: one iteration at the largest window gives a size (radius of
-        # gyration) estimate and a starting position for every feature.
-        boot = refine_com(raw_image, image, resolved.r_max, coords,
-                          max_iterations=1, engine=engine, characterize=True,
-                          pos_columns=pos_columns)
-        positions = boot[pos_columns].values
-        assigned = _assign_diameters(boot['size'].values, rg_to_diameter,
-                                     min_d, max_d, ndim)
-        refined = _bucketed_refine(raw_image, image, positions, assigned,
-                                   max_iterations, engine, characterize,
-                                   pos_columns)
-
-        # Optionally re-estimate size at the assigned window and re-refine until
-        # the diameter assignment stabilizes. Needs the size column
-        # (characterize).
-        if characterize:
-            for _ in range(resolved.max_radius_iterations - 1):
-                reassigned = _assign_diameters(refined['size'].values,
-                                               rg_to_diameter, min_d, max_d,
-                                               ndim)
-                if np.array_equal(reassigned, refined['diameter'].values):
-                    break
-                refined = _bucketed_refine(raw_image, image,
-                                           refined[pos_columns].values,
-                                           reassigned, max_iterations, engine,
-                                           characterize, pos_columns)
-        return refined
+        coords = np.round(np.asarray(coords)).astype(int)
+        assigned = _growth_diameters(image, coords, resolved, ndim,
+                                     edge_frac=self.edge_frac)
+        return _bucketed_refine(raw_image, image, coords, assigned,
+                                max_iterations, engine, characterize,
+                                pos_columns)
 
     def static_error(self, features, image, raw_image, noise_size):
         """Per-bucket static (position) error for polydisperse features.
@@ -227,17 +158,14 @@ class Polydisperse:
 
     def __repr__(self):
         return ("Polydisperse(min_diameter={!r}, max_diameter={!r}, "
-                "rg_to_diameter={!r}, max_radius_iterations={!r})".format(
-                    self.min_diameter, self.max_diameter, self.rg_to_diameter,
-                    self.max_radius_iterations))
+                "edge_frac={!r})".format(
+                    self.min_diameter, self.max_diameter, self.edge_frac))
 
 
-# Size-range parameters resolved against a given image dimensionality.
-# See `_resolve_polydisperse`.
+# Size-range parameters resolved against a given image dimensionality
+# (see Polydisperse.resolve).
 ResolvedPolydisperse = namedtuple(
-    'ResolvedPolydisperse',
-    ['min_diameter', 'max_diameter', 'r_min', 'r_max', 'rg_to_diameter',
-     'max_radius_iterations'])
+    'ResolvedPolydisperse', ['min_diameter', 'max_diameter', 'r_max'])
 
 
 def _geometric_odd_buckets(min_diameter, max_diameter, n):
@@ -247,27 +175,54 @@ def _geometric_odd_buckets(min_diameter, max_diameter, n):
     return np.unique(np.clip(odd, min_diameter, max_diameter))
 
 
-def _assign_diameters(sizes, rg_to_diameter, min_diameter, max_diameter, ndim,
+def _growth_diameters(image, coords, resolved, ndim, edge_frac=0.1,
                       max_buckets=10):
-    """Map radius-of-gyration estimates to odd refinement diameters.
+    """Assign each feature an odd refinement diameter by a curve of growth.
 
-    Each size is scaled by ``rg_to_diameter``, rounded to the nearest odd
-    integer and clamped to ``[min_diameter, max_diameter]``. In 3D and higher,
-    if more than ``max_buckets`` distinct diameters result they are snapped to
-    that many geometrically-spaced values, bounding the number of refinement
-    masks (and their memory) that must be built.
+    Accumulate the annular (ring) mass outward from each coordinate; the
+    feature's edge is the first radius past the peak ring where the ring mass
+    falls below ``edge_frac`` of that peak. This reads each particle's own
+    extent from the image, so -- unlike a moment in a fixed large window -- it is
+    not inflated by neighbours farther out, nor by duplicate peaks on the same
+    particle (both give the same, correct extent). Diameters are clamped to
+    ``[min, max]``; in 3D+ they are snapped to at most ``max_buckets``
+    geometrically-spaced values to bound the refinement-mask memory.
     """
-    diameters = rg_to_diameter * np.asarray(sizes, dtype=float)
-    # Non-finite sizes (e.g. from zero mass) fall back to the smallest diameter.
-    diameters = np.where(np.isfinite(diameters), diameters, min_diameter)
-    assigned = 2 * np.rint((diameters - 1) / 2.0).astype(int) + 1
-    assigned = np.clip(assigned, min_diameter, max_diameter)
+    min_d = resolved.min_diameter[0]
+    max_d = resolved.max_diameter[0]
+    r_max = resolved.r_max[0]
+    # Integer radial index of every pixel in the (2*r_max+1)^ndim patch. Pixels
+    # beyond r_max (the patch corners) are dropped, not folded into the last bin
+    # -- otherwise they pile neighbour signal into ring[r_max].
+    axes = [np.arange(-r_max, r_max + 1)] * ndim
+    rint = np.rint(np.sqrt(sum(g.astype(float) ** 2
+                               for g in np.meshgrid(*axes, indexing='ij')))
+                   ).astype(int).ravel()
+    inside = rint <= r_max
+    rbin = rint[inside]
+
+    assigned = np.empty(len(coords), dtype=int)
+    for i, c in enumerate(coords):
+        window = tuple(slice(int(ci) - r_max, int(ci) + r_max + 1) for ci in c)
+        vals = image[window].astype(float).ravel()[inside]
+        ring = np.bincount(rbin, weights=vals, minlength=r_max + 1)
+        # Scan outward from the centre; the edge is the first radius where the
+        # ring mass drops below `edge_frac` of the peak seen so far (the feature
+        # boundary), before any farther neighbour makes it climb again.
+        running_max = 0.0
+        edge = r_max
+        for r in range(r_max + 1):
+            if ring[r] > running_max:
+                running_max = ring[r]
+            elif ring[r] < edge_frac * running_max:
+                edge = r
+                break
+        assigned[i] = min(max(2 * edge + 1, min_d), max_d)
 
     if ndim >= 3:
         distinct = np.unique(assigned)
         if len(distinct) > max_buckets:
-            centers = _geometric_odd_buckets(min_diameter, max_diameter,
-                                             max_buckets)
+            centers = _geometric_odd_buckets(min_d, max_d, max_buckets)
             assigned = centers[np.argmin(
                 np.abs(assigned[:, None] - centers[None, :]), axis=1)]
     return assigned.astype(int)

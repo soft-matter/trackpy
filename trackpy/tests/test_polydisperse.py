@@ -69,34 +69,25 @@ class TestPolydisperseConfig(StrictTestCase):
         p = Polydisperse(5, 21)
         self.assertEqual(p.min_diameter, 5)
         self.assertEqual(p.max_diameter, 21)
-        self.assertIsNone(p.rg_to_diameter)
-        self.assertEqual(p.max_radius_iterations, 1)
+        self.assertEqual(p.edge_frac, 0.1)
         # Isotropic tuples are accepted.
         Polydisperse((7, 7), (11, 11))
-
-    def test_rg_to_diameter_default_is_dimension_aware(self):
-        p = Polydisperse(5, 21)
-        assert_allclose(p.resolve_rg_to_diameter(2), 5 / np.sqrt(2))
-        assert_allclose(p.resolve_rg_to_diameter(3), 5 / np.sqrt(3))
-        # An explicit value overrides the default.
-        self.assertEqual(
-            Polydisperse(5, 21, rg_to_diameter=3.2).resolve_rg_to_diameter(2), 3.2)
+        # edge_frac is overridable.
+        self.assertEqual(Polydisperse(5, 21, edge_frac=0.2).edge_frac, 0.2)
 
     def test_resolve(self):
         r = Polydisperse(5, 21).resolve(2)
         self.assertEqual(r.min_diameter, (5, 5))
         self.assertEqual(r.max_diameter, (21, 21))
-        self.assertEqual(r.r_min, (2, 2))
         self.assertEqual(r.r_max, (10, 10))
 
     def test_invalid_construction(self):
         for args in [(4, 21), (5, 20), (21, 5), ((5, 7), (11, 11)), (5.0, 21)]:
             with self.assertRaises(ValueError):
                 Polydisperse(*args)
-        with self.assertRaises(ValueError):
-            Polydisperse(5, 21, rg_to_diameter=0)
-        with self.assertRaises(ValueError):
-            Polydisperse(5, 21, max_radius_iterations=0)
+        for bad_edge in [0, 1, -0.1, 1.5]:
+            with self.assertRaises(ValueError):
+                Polydisperse(5, 21, edge_frac=bad_edge)
 
 
 class TestPolydisperseLocate(StrictTestCase):
