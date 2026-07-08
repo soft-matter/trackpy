@@ -261,6 +261,7 @@ class TestPolydisperseRecallVsBaseline(StrictTestCase):
     NOISE = {'low': 1, 'med': 5, 'high': 12}
     TOL = 1.5                                     # match distance, px
     SLACK = 0.05                                  # absorbs ~single-particle noise
+    MIN_RECALL = 0.95                             # poly floor in every scenario
 
     def _recall(self, features, positions):
         if len(features) == 0:
@@ -286,6 +287,11 @@ class TestPolydisperseRecallVsBaseline(StrictTestCase):
                         r_poly, r_base - self.SLACK,
                         msg="%s/%s/%s (N=%d): poly recall %.2f < baseline %.2f"
                             % (rname, dname, nname, len(pos), r_poly, r_base))
+                    self.assertGreaterEqual(
+                        r_poly, self.MIN_RECALL,
+                        msg="%s/%s/%s (N=%d): poly recall %.2f < floor %.2f"
+                            % (rname, dname, nname, len(pos), r_poly,
+                               self.MIN_RECALL))
 
 
 if __name__ == '__main__':
