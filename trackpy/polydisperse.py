@@ -159,7 +159,7 @@ class Polydisperse:
     def __repr__(self):
         return ("Polydisperse(min_diameter={!r}, max_diameter={!r}, "
                 "edge_frac={!r})".format(
-                    self.min_diameter, self.max_diameter, self.edge_frac))
+            self.min_diameter, self.max_diameter, self.edge_frac))
 
 
 # Size-range parameters resolved against a given image dimensionality

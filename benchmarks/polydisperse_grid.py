@@ -17,92 +17,105 @@ from trackpy import Polydisperse
 from trackpy.artificial import draw_feature
 from trackpy.utils import default_pos_columns
 
-MIN_D = 5
+MIN_DIAMETER = 5
 SHAPE = (500, 500)
-RANGES = {'x3': 15, 'x5': 25, 'x10': 51}     # max_diameter (min_diameter = 5)
-DENS_GAP = {'low': 24, 'med': 10, 'high': 3}   # edge gap in px (smaller = denser)
-NOISE = {'low': 1, 'med': 5, 'high': 12}       # background noise std
-COLS = default_pos_columns(2)
+MAX_DIAMETER_BY_RANGE = {'x2.5': 13, 'x5': 25, 'x10': 51}  # size-range label -> max diameter
+GAP_BY_DENSITY = {'low': 24, 'med': 10, 'high': 3}  # density label -> edge gap (px); smaller = denser
+STD_BY_NOISE = {'low': 1, 'med': 5, 'high': 12}  # noise label -> background std
+POS_COLUMNS = default_pos_columns(2)
 MINMASS = 80
-TOL = 1.5                                      # match distance, px
+MATCH_TOLERANCE = 1.5  # max px between a detection and its true position
 
 
-def draw(shape, positions, sizes, noise, seed):
-    """Render Gaussian features of given (position, radius-of-gyration)."""
+def render(shape, centers, sizes, noise_std, seed):
+    """Render Gaussian features of given (center, radius-of-gyration)."""
     image = np.zeros(shape, dtype=np.uint8)
-    for position, size in zip(positions, sizes):
-        draw_feature(image, position, size, max_value=200)
-    if noise:
+    for center, size in zip(centers, sizes):
+        draw_feature(image, center, size, max_value=200)
+    if noise_std:
         rng = np.random.default_rng(seed)
-        image = np.clip(image.astype(float) + rng.normal(0, noise, shape),
+        image = np.clip(image.astype(float) + rng.normal(0, noise_std, shape),
                         0, 255).astype(np.uint8)
     return image
 
 
-def pack(max_diameter, gap, seed, target=300, tries=15000):
-    """Random non-overlapping features spanning [~5, max_diameter] diameters."""
+def pack(max_diameter, gap, seed, target=300, max_attempts=15000):
+    """Random non-overlapping features spanning [~5, max_diameter] diameters.
+
+    Rejects a candidate whose centre is closer than the sum of the two features'
+    visible radii plus ``gap`` to any accepted feature, so a smaller ``gap``
+    packs more densely. Returns (centers, sizes) where size = radius of gyration.
+    """
     rng = np.random.default_rng(seed)
-    rg_hi = max_diameter / 3.5
-    pos, rad, sizes = np.empty((0, 2)), np.empty(0), []
-    lo, hi = 28, SHAPE[0] - 28
-    for _ in range(tries):
+    max_rg = max_diameter / 3.5
+    centers = np.empty((0, 2))
+    radii = np.empty(0)
+    sizes = []
+    low, high = 28, SHAPE[0] - 28
+    for _ in range(max_attempts):
         if len(sizes) >= target:
             break
-        rg = rng.uniform(1.4, rg_hi)
-        r = 2.0 * rg                            # visible feature radius
-        c = rng.uniform(lo, hi, 2)
-        if len(pos) == 0 or np.all(np.hypot(*(pos - c).T) >= rad + r + gap):
-            pos = np.vstack([pos, c])
-            rad = np.append(rad, r)
-            sizes.append(rg)
-    return pos, np.array(sizes)
+        radius_of_gyration = rng.uniform(1.4, max_rg)
+        visible_radius = 2.0 * radius_of_gyration
+        candidate = rng.uniform(low, high, 2)
+        distances = np.hypot(*(centers - candidate).T)  # to every accepted feature
+        if len(centers) == 0 or np.all(distances >= radii + visible_radius + gap):
+            centers = np.vstack([centers, candidate])
+            radii = np.append(radii, visible_radius)
+            sizes.append(radius_of_gyration)
+    return centers, np.array(sizes)
 
 
-def stats(features, positions):
-    """Recall (fraction of truth matched within TOL) and matched position RMS."""
+def recall_and_error(features, true_centers):
+    """Recall (fraction of true features matched within tolerance) and the
+    RMS position error over the matched features."""
     if len(features) == 0:
         return 0.0, float('nan')
-    d, _ = cKDTree(features[COLS].values).query(positions)
-    hit = d < TOL
-    rms = np.sqrt(np.mean(d[hit] ** 2)) if hit.any() else float('nan')
-    return float(np.mean(hit)), rms
+    distance_to_detection, _ = cKDTree(features[POS_COLUMNS].values).query(true_centers)
+    matched = distance_to_detection < MATCH_TOLERANCE
+    recall = float(np.mean(matched))
+    error = (np.sqrt(np.mean(distance_to_detection[matched] ** 2))
+             if matched.any() else float('nan'))
+    return recall, error
 
 
 def main():
     # Warm up the numba JIT so it doesn't skew the first timed cell.
-    warm_pos, warm_sizes = pack(25, 10, 0, target=20)
-    warm = draw(SHAPE, warm_pos, warm_sizes, 1, 0)
-    tp.locate(warm, 25, minmass=MINMASS, spiff='auto')
-    tp.locate(warm, Polydisperse(MIN_D, 25), minmass=MINMASS, spiff='auto')
+    warmup_centers, warmup_sizes = pack(25, 10, 0, target=20)
+    warmup_image = render(SHAPE, warmup_centers, warmup_sizes, 1, 0)
+    tp.locate(warmup_image, 25, minmass=MINMASS, spiff='auto')
+    tp.locate(warmup_image, Polydisperse(MIN_DIAMETER, 25), minmass=MINMASS, spiff='auto')
 
-    base_time = poly_time = 0.0
+    baseline_seconds = poly_seconds = 0.0
     print("%-5s %-5s %-5s %4s | %-13s %-13s"
           % ("range", "dens", "noise", "N", "baseline", "poly"))
     print("-" * 62)
-    for ri, (range_name, max_d) in enumerate(RANGES.items()):
-        for di, dens in enumerate(DENS_GAP):
-            for ni, noise in enumerate(NOISE):
-                seed = 100 * ri + 10 * di + ni
-                pos, sizes = pack(max_d, DENS_GAP[dens], seed)
-                image = draw(SHAPE, pos, sizes, NOISE[noise], seed)
+    for range_i, (range_label, max_diameter) in enumerate(MAX_DIAMETER_BY_RANGE.items()):
+        for density_i, (density_label, gap) in enumerate(GAP_BY_DENSITY.items()):
+            for noise_i, (noise_label, noise_std) in enumerate(STD_BY_NOISE.items()):
+                seed = 100 * range_i + 10 * density_i + noise_i
+                true_centers, sizes = pack(max_diameter, gap, seed)
+                image = render(SHAPE, true_centers, sizes, noise_std, seed)
 
-                t0 = time.perf_counter()
-                base = tp.locate(image, max_d, minmass=MINMASS, spiff='auto')
-                t1 = time.perf_counter()
-                poly = tp.locate(image, Polydisperse(MIN_D, max_d),
+                start = time.perf_counter()
+                baseline = tp.locate(image, max_diameter, minmass=MINMASS,
+                                     spiff='auto')
+                after_baseline = time.perf_counter()
+                poly = tp.locate(image, Polydisperse(MIN_DIAMETER, max_diameter),
                                  minmass=MINMASS, spiff='auto')
-                t2 = time.perf_counter()
-                base_time += t1 - t0
-                poly_time += t2 - t1
+                after_poly = time.perf_counter()
+                baseline_seconds += after_baseline - start
+                poly_seconds += after_poly - after_baseline
 
-                rb, eb = stats(base, pos)
-                rp, ep = stats(poly, pos)
+                baseline_recall, baseline_error = recall_and_error(baseline, true_centers)
+                poly_recall, poly_error = recall_and_error(poly, true_centers)
                 print("%-5s %-5s %-5s %4d | r%.2f e%.3f  r%.2f e%.3f"
-                      % (range_name, dens, noise, len(pos), rb, eb, rp, ep))
+                      % (range_label, density_label, noise_label, len(true_centers),
+                         baseline_recall, baseline_error, poly_recall, poly_error))
 
     print("-" * 62)
     print("Total grid time:  baseline=%.2fs  poly=%.2fs  (poly/baseline=%.2fx)"
-          % (base_time, poly_time, poly_time / base_time))
+          % (baseline_seconds, poly_seconds, poly_seconds / baseline_seconds))
 
 
 if __name__ == '__main__':

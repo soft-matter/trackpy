@@ -37,31 +37,34 @@ def saturated_blob(shape, center, sigma, amp=600):
     return np.clip(amp * np.exp(-r2 / (2.0 * sigma ** 2)), 0, 255).astype(np.uint8)
 
 
-def pack_polydisperse(shape, max_diameter, gap, seed, target=120, tries=12000):
+def pack_polydisperse(shape, max_diameter, gap, seed, target=120,
+                      max_attempts=12000):
     """Randomly place non-overlapping features spanning a diameter range.
 
-    Sizes are drawn so diameters span roughly [5, max_diameter]; positions are
-    rejected if closer than the sum of the two features' (visible) radii plus
-    ``gap`` (so smaller ``gap`` => denser packing). Returns (positions, sizes).
+    Sizes are drawn so diameters span roughly [5, max_diameter]; a candidate is
+    rejected if its centre is closer than the sum of the two features' (visible)
+    radii plus ``gap`` to any accepted feature (so a smaller ``gap`` packs more
+    densely). Returns (centers, sizes) where size = radius of gyration.
     """
     rng = np.random.default_rng(seed)
-    rg_hi = max_diameter / 3.5
-    pad = max_diameter // 2 + 3
-    lo, hi = pad, shape[0] - pad
-    pos = np.empty((0, len(shape)))
-    rad = np.empty(0)
+    max_rg = max_diameter / 3.5
+    margin = max_diameter // 2 + 3
+    low, high = margin, shape[0] - margin
+    centers = np.empty((0, len(shape)))
+    radii = np.empty(0)
     sizes = []
-    for _ in range(tries):
+    for _ in range(max_attempts):
         if len(sizes) >= target:
             break
-        rg = rng.uniform(1.4, rg_hi)
-        r = 2.0 * rg
-        c = rng.uniform(lo, hi, len(shape))
-        if len(pos) == 0 or np.all(np.hypot(*(pos - c).T) >= rad + r + gap):
-            pos = np.vstack([pos, c])
-            rad = np.append(rad, r)
-            sizes.append(rg)
-    return pos, np.array(sizes)
+        radius_of_gyration = rng.uniform(1.4, max_rg)
+        visible_radius = 2.0 * radius_of_gyration
+        candidate = rng.uniform(low, high, len(shape))
+        distances = np.hypot(*(centers - candidate).T)  # to every accepted feature
+        if len(centers) == 0 or np.all(distances >= radii + visible_radius + gap):
+            centers = np.vstack([centers, candidate])
+            radii = np.append(radii, visible_radius)
+            sizes.append(radius_of_gyration)
+    return centers, np.array(sizes)
 
 
 class TestPolydisperseConfig(StrictTestCase):
@@ -255,43 +258,50 @@ class TestPolydisperseRecallVsBaseline(StrictTestCase):
     baseline, across a grid of size range x density x noise."""
 
     SHAPE = (256, 256)
-    MIN_D = 5
-    RANGES = {'x3': 15, 'x5': 25, 'x10': 51}      # max_diameter
-    GAPS = {'low': 20, 'med': 9, 'high': 3}       # edge gap (smaller => denser)
-    NOISE = {'low': 1, 'med': 5, 'high': 12}
-    TOL = 1.5                                     # match distance, px
-    SLACK = 0.05                                  # absorbs ~single-particle noise
-    MIN_RECALL = 0.95                             # poly floor in every scenario
+    MIN_DIAMETER = 5
+    MAX_DIAMETER_BY_RANGE = {'x3': 15, 'x5': 25, 'x10': 51}  # range label -> max diameter
+    GAP_BY_DENSITY = {'low': 20, 'med': 9, 'high': 3}  # density label -> edge gap (smaller = denser)
+    STD_BY_NOISE = {'low': 1, 'med': 5, 'high': 12}  # noise label -> background std
+    MATCH_TOLERANCE = 1.5  # px between a detection and its true position
+    RECALL_SLACK = 0.05  # absorbs ~single-particle noise
+    MIN_RECALL = 0.95  # poly floor in every scenario
 
-    def _recall(self, features, positions):
+    def _recall(self, features, true_centers):
         if len(features) == 0:
             return 0.0
         cols = default_pos_columns(2)
-        d, _ = cKDTree(features[cols].values).query(positions)
-        return float(np.mean(d < self.TOL))
+        distance_to_detection, _ = cKDTree(features[cols].values).query(true_centers)
+        return float(np.mean(distance_to_detection < self.MATCH_TOLERANCE))
 
     def test_recall_at_least_baseline_over_grid(self):
-        for ri, (rname, max_d) in enumerate(self.RANGES.items()):
-            for di, (dname, gap) in enumerate(self.GAPS.items()):
-                for ni, (nname, noise) in enumerate(self.NOISE.items()):
-                    seed = 100 * ri + 10 * di + ni
-                    pos, sizes = pack_polydisperse(self.SHAPE, max_d, gap, seed)
-                    image = draw_polydisperse(self.SHAPE, list(zip(pos, sizes)),
-                                              noise=noise, seed=seed)
-                    base = tp.locate(image, max_d, minmass=80)
-                    poly = tp.locate(image, Polydisperse(self.MIN_D, max_d),
-                                     minmass=80)
-                    r_base = self._recall(base, pos)
-                    r_poly = self._recall(poly, pos)
+        for range_i, (range_label, max_diameter) in enumerate(
+                self.MAX_DIAMETER_BY_RANGE.items()):
+            for density_i, (density_label, gap) in enumerate(
+                    self.GAP_BY_DENSITY.items()):
+                for noise_i, (noise_label, noise_std) in enumerate(
+                        self.STD_BY_NOISE.items()):
+                    seed = 100 * range_i + 10 * density_i + noise_i
+                    true_centers, sizes = pack_polydisperse(
+                        self.SHAPE, max_diameter, gap, seed)
+                    image = draw_polydisperse(
+                        self.SHAPE, list(zip(true_centers, sizes)),
+                        noise=noise_std, seed=seed)
+                    baseline = tp.locate(image, max_diameter, minmass=80)
+                    poly = tp.locate(
+                        image, Polydisperse(self.MIN_DIAMETER, max_diameter),
+                        minmass=80)
+                    baseline_recall = self._recall(baseline, true_centers)
+                    poly_recall = self._recall(poly, true_centers)
+                    scenario = "%s/%s/%s (N=%d)" % (
+                        range_label, density_label, noise_label, len(true_centers))
                     self.assertGreaterEqual(
-                        r_poly, r_base - self.SLACK,
-                        msg="%s/%s/%s (N=%d): poly recall %.2f < baseline %.2f"
-                            % (rname, dname, nname, len(pos), r_poly, r_base))
+                        poly_recall, baseline_recall - self.RECALL_SLACK,
+                        msg="%s: poly recall %.2f < baseline %.2f"
+                            % (scenario, poly_recall, baseline_recall))
                     self.assertGreaterEqual(
-                        r_poly, self.MIN_RECALL,
-                        msg="%s/%s/%s (N=%d): poly recall %.2f < floor %.2f"
-                            % (rname, dname, nname, len(pos), r_poly,
-                               self.MIN_RECALL))
+                        poly_recall, self.MIN_RECALL,
+                        msg="%s: poly recall %.2f < floor %.2f"
+                            % (scenario, poly_recall, self.MIN_RECALL))
 
 
 if __name__ == '__main__':
