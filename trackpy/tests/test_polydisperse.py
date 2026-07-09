@@ -256,7 +256,7 @@ class TestPolydisperseRecallVsBaseline(StrictTestCase):
 
     SHAPE = (256, 256)
     MIN_D = 5
-    RANGES = {'x2.5': 13, 'x5': 25, 'x10': 51}    # max_diameter
+    RANGES = {'x3': 15, 'x5': 25, 'x10': 51}      # max_diameter
     GAPS = {'low': 20, 'med': 9, 'high': 3}       # edge gap (smaller => denser)
     NOISE = {'low': 1, 'med': 5, 'high': 12}
     TOL = 1.5                                     # match distance, px
