@@ -78,11 +78,11 @@ class TestPolydisperseConfig(StrictTestCase):
         # edge_frac is overridable.
         self.assertEqual(Polydisperse(5, 21, edge_frac=0.2).edge_frac, 0.2)
 
-    def test_resolve(self):
-        r = Polydisperse(5, 21).resolve(2)
-        self.assertEqual(r.min_diameter, (5, 5))
-        self.assertEqual(r.max_diameter, (21, 21))
-        self.assertEqual(r.r_max, (10, 10))
+    def test_for_ndim(self):
+        sizes = Polydisperse(5, 21).for_ndim(2)
+        self.assertEqual(sizes.min_diameter, (5, 5))
+        self.assertEqual(sizes.max_diameter, (21, 21))
+        self.assertEqual(sizes.r_max, (10, 10))
 
     def test_invalid_construction(self):
         for args in [(4, 21), (5, 20), (21, 5), ((5, 7), (11, 11)), (5.0, 21)]:

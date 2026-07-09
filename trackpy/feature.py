@@ -345,9 +345,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     # via `if poly` branches.
     poly = diameter if isinstance(diameter, Polydisperse) else None
     if poly is not None:
-        resolved = poly.resolve(ndim)
-        min_diameter, max_diameter = resolved.min_diameter, resolved.max_diameter
-        r_max = resolved.r_max
+        sizes = poly.for_ndim(ndim)
+        min_diameter, max_diameter = sizes.min_diameter, sizes.max_diameter
+        r_max = sizes.r_max
         # We only allow isotropic diameters in the polydisperse scenario.
         isotropic = True
         # The boxcar background kernel must exceed the *largest* particle, so

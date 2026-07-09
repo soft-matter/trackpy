@@ -92,11 +92,11 @@ class Polydisperse:
                              "{!r}.".format(edge_frac))
         self.edge_frac = float(edge_frac)
 
-    def resolve(self, ndim):
+    def for_ndim(self, ndim):
         """Broadcast/validate the diameters to `ndim`; derive the max radius."""
         min_diameter = validate_tuple(self.min_diameter, ndim)
         max_diameter = validate_tuple(self.max_diameter, ndim)
-        return ResolvedPolydisperse(
+        return SizeParams(
             min_diameter=min_diameter,
             max_diameter=max_diameter,
             r_max=tuple(d // 2 for d in max_diameter))
@@ -112,12 +112,12 @@ class Polydisperse:
         ``diameter`` column, in the original coordinate order.
         """
         ndim = image.ndim
-        resolved = self.resolve(ndim)
+        sizes = self.for_ndim(ndim)
         if pos_columns is None:
             pos_columns = default_pos_columns(ndim)
 
         if len(coords) == 0:
-            empty = refine_com(raw_image, image, resolved.r_max, coords,
+            empty = refine_com(raw_image, image, sizes.r_max, coords,
                                max_iterations=1, engine=engine,
                                characterize=characterize,
                                pos_columns=pos_columns)
@@ -125,7 +125,7 @@ class Polydisperse:
             return empty
 
         coords = np.round(np.asarray(coords)).astype(int)
-        assigned = _growth_diameters(image, coords, resolved, ndim,
+        assigned = _growth_diameters(image, coords, sizes, ndim,
                                      edge_frac=self.edge_frac)
         return _bucketed_refine(raw_image, image, coords, assigned,
                                 max_iterations, engine, characterize,
@@ -141,7 +141,7 @@ class Polydisperse:
         else one column per dimension.
         """
         ndim = image.ndim
-        black_level, noise = measure_noise(image, raw_image, self.resolve(ndim).r_max)
+        black_level, noise = measure_noise(image, raw_image, self.for_ndim(ndim).r_max)
         raw_mass = features['raw_mass'].values
         diameters = features['diameter'].values
         order = np.arange(len(features))
@@ -162,10 +162,10 @@ class Polydisperse:
             self.min_diameter, self.max_diameter, self.edge_frac))
 
 
-# Size-range parameters resolved against a given image dimensionality
-# (see Polydisperse.resolve).
-ResolvedPolydisperse = namedtuple(
-    'ResolvedPolydisperse', ['min_diameter', 'max_diameter', 'r_max'])
+# Size parameters broadcast to a given image dimensionality
+# (see Polydisperse.for_ndim).
+SizeParams = namedtuple(
+    'SizeParams', ['min_diameter', 'max_diameter', 'r_max'])
 
 
 def _geometric_odd_buckets(min_diameter, max_diameter, n):
@@ -175,7 +175,7 @@ def _geometric_odd_buckets(min_diameter, max_diameter, n):
     return np.unique(np.clip(odd, min_diameter, max_diameter))
 
 
-def _growth_diameters(image, coords, resolved, ndim, edge_frac=0.1,
+def _growth_diameters(image, coords, sizes, ndim, edge_frac=0.1,
                       max_buckets=10):
     """Assign each feature an odd refinement diameter by a curve of growth.
 
@@ -188,9 +188,9 @@ def _growth_diameters(image, coords, resolved, ndim, edge_frac=0.1,
     ``[min, max]``; in 3D+ they are snapped to at most ``max_buckets``
     geometrically-spaced values to bound the refinement-mask memory.
     """
-    min_d = resolved.min_diameter[0]
-    max_d = resolved.max_diameter[0]
-    r_max = resolved.r_max[0]
+    min_d = sizes.min_diameter[0]
+    max_d = sizes.max_diameter[0]
+    r_max = sizes.r_max[0]
     # Integer radial index of every pixel in the (2*r_max+1)^ndim patch. Pixels
     # beyond r_max (the patch corners) are dropped, not folded into the last bin
     # -- otherwise they pile neighbour signal into ring[r_max].
