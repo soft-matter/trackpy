@@ -19,7 +19,7 @@ from trackpy.utils import default_pos_columns
 
 MIN_DIAMETER = 5
 SHAPE = (500, 500)
-MAX_DIAMETER_BY_RANGE = {'x2.5': 13, 'x5': 25, 'x10': 51}  # size-range label -> max diameter
+MAX_DIAMETER_BY_RANGE = {'x3': 15, 'x5': 25, 'x10': 51}  # size-range label -> max diameter
 GAP_BY_DENSITY = {'low': 24, 'med': 10, 'high': 3}  # density label -> edge gap (px); smaller = denser
 STD_BY_NOISE = {'low': 1, 'med': 5, 'high': 12}  # noise label -> background std
 POS_COLUMNS = default_pos_columns(2)
