@@ -188,9 +188,17 @@ def grey_dilation(image, separation, percentile=64, margin=None, precise=True,
         structure = ndimage.generate_binary_structure(ndim, ndim)
         labels, count = ndimage.label(maxima, structure=structure)
         index = np.arange(1, count + 1)
-        pos = np.round(
-            np.atleast_2d(ndimage.center_of_mass(maxima, labels, index))
-        ).astype(int)
+        # Unweighted centroid per blob, straight from the labelled maxima pixels.
+        # This is identical to ndimage.center_of_mass on the boolean mask but far
+        # cheaper, as that runs a Python-level loop over every label.
+        blob_coords = np.argwhere(maxima)
+        blob_label = labels[maxima]                   # label (1..count) per pixel
+        blob_size = np.bincount(blob_label, minlength=count + 1)[1:]
+        centroid = np.column_stack([
+            np.bincount(blob_label, weights=blob_coords[:, d].astype(float),
+                        minlength=count + 1)[1:]
+            for d in range(ndim)]) / blob_size[:, None]
+        pos = np.round(centroid).astype(int)
         intensity = np.asarray(ndimage.maximum(image, labels, index))
     else:
         pos = np.vstack(np.where(maxima)).T
