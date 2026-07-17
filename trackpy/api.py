@@ -16,6 +16,7 @@ from .linking import (link, link_df, link_iter, link_df_iter,
 from .filtering import filter_stubs, filter_clusters, filter
 from .feature import locate, batch, local_maxima, \
            estimate_mass, estimate_size, minmass_v03_change, minmass_v04_change
+from .polydisperse import Polydisperse
 from .preprocessing import bandpass, invert_image
 from .framewise_data import FramewiseData, PandasHDFStore, PandasHDFStoreBig, \
            PandasHDFStoreSingleNode
