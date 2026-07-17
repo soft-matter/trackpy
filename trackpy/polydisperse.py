@@ -226,7 +226,8 @@ class Polydisperse:
     def __repr__(self):
         return ("Polydisperse(min_diameter={!r}, max_diameter={!r}, "
                 "aspect={!r}, edge_frac={!r})".format(
-            self.min_diameter, self.max_diameter, self.aspect, self.edge_frac))
+            self.min_diameter, self.max_diameter, self.aspect,
+            self.edge_frac))
 
 
 # Size parameters broadcast to a given image dimensionality
@@ -237,7 +238,6 @@ class Polydisperse:
 SizeParams = namedtuple(
     'SizeParams', ['min_diameter', 'max_diameter', 'r_max', 'aspect',
                    'ref_min', 'ref_max'])
-
 
 # Minimum peak-above-local-floor, in units of the robust noise scale, for a
 # curve-of-growth detection to be treated as a real feature rather than a noise
@@ -301,9 +301,9 @@ def _growth_diameters(image, coords, sizes, ndim, edge_frac=0.1,
     """
     min_d = sizes.ref_min
     max_d = sizes.ref_max
-    r_max = sizes.ref_max // 2      # reference radius (scale of the aspect==1 axes)
+    r_max = sizes.ref_max // 2  # reference radius (scale of the aspect==1 axes)
     aspect = sizes.aspect
-    r_axis = sizes.r_max            # per-axis patch half-widths (elongated ellipse)
+    r_axis = sizes.r_max  # per-axis patch half-widths (elongated ellipse)
     # Integer radial index (in reference-axis units) of every pixel in the
     # per-axis patch. Dividing each axis by its aspect ratio normalises the
     # ellipse to a circle. Pixels beyond r_max (the patch corners) are dropped,
@@ -316,7 +316,7 @@ def _growth_diameters(image, coords, sizes, ndim, edge_frac=0.1,
                    ).astype(int).ravel()
     inside = rint <= r_max
     rbin = rint[inside]
-    ring_px = np.bincount(rbin, minlength=r_max + 1)   # pixel count per ring
+    ring_px = np.bincount(rbin, minlength=r_max + 1)  # pixel count per ring
     has_px = ring_px > 0
     # Robust background noise scale: the 84th percentile of the whole image.
     # After band-pass the background is clipped to a spike at zero, so this is ~0

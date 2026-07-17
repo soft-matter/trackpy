@@ -150,8 +150,6 @@ class TestPolydisperseConfig(StrictTestCase):
         p = Polydisperse(5, 21, aspect=(1, 2))
         self.assertEqual(p.aspect, (1, 2))
         sizes = p.for_ndim(2)
-        # aspect is normalised so aspect[0] == 1; per-axis diameters scale with it
-        # (axis 0 stays the reference scale, axis 1 is stretched ~2x, kept odd).
         self.assertEqual(sizes.aspect, (1.0, 2.0))
         self.assertEqual(sizes.min_diameter, (5, 9))
         self.assertEqual(sizes.max_diameter, (21, 41))
@@ -471,21 +469,22 @@ class TestPolydisperseAnisotropicRecall(StrictTestCase):
     recall.
     """
 
-    SHAPE = (30, 160, 160)       # z, y, x -- thin in z; sized so ~30+ features
-                                 # pack (a stable base for the recall floor) while
-                                 # the whole test still runs in well under 1 s.
+    SHAPE = (30, 160, 160)  # z, y, x -- thin in z; sized so ~30+ features
+    # pack (a stable base for the recall floor) while
+    # the whole test still runs in well under 1 s.
     ASPECT = (1 / 3, 1, 1)
     MIN_DIAMETER = 5
-    MAX_DIAMETER = 51            # x10 range on x/y
-    GAP = 9                      # medium density
-    NOISE = 12                   # high noise
-    MINMASS = 50                 # above the noise floor, below any real feature
+    MAX_DIAMETER = 51  # x10 range on x/y
+    GAP = 9  # medium density
+    NOISE = 12  # high noise
+    MINMASS = 50  # above the noise floor, below any real feature
     SEED = 7
     TARGET = 50
     MATCH_TOLERANCE = 1.5
-    MIN_RECALL = 0.95            # poly locates ~all features (observed 1.0 here,
-                                 # >=0.975 across seeds); floor leaves margin for a
-                                 # ~single-feature perturbation without going flaky.
+    MIN_RECALL = 0.95  # poly locates ~all features (observed 1.0 here,
+
+    # >=0.975 across seeds); floor leaves margin for a
+    # ~single-feature perturbation without going flaky.
 
     def test_recall_beats_baseline(self):
         true_centers, sizes = pack_polydisperse_aniso(
