@@ -299,7 +299,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         and raw_mass is the total integrated brightness in raw_image.
         In polydisperse mode (a ``Polydisperse`` ``diameter``) an additional
         ``diameter`` column reports the refinement diameter assigned to each
-        feature from its size.
+        feature from its size. With a fixed-shape ``aspect`` this is the
+        reference-axis (axis-0) diameter; the per-axis window is
+        ``diameter * aspect``, and ``size``/``ep`` are reported per axis.
 
     See Also
     --------
@@ -348,8 +350,9 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         sizes = poly.for_ndim(ndim)
         min_diameter, max_diameter = sizes.min_diameter, sizes.max_diameter
         r_max = sizes.r_max
-        # We only allow isotropic diameters in the polydisperse scenario.
-        isotropic = True
+        # Anisotropy is expressed through a fixed-shape aspect ratio; features
+        # are isotropic only when every axis shares the same aspect weight.
+        isotropic = len(set(sizes.aspect)) == 1
         # The boxcar background kernel must exceed the *largest* particle, so
         # smoothing defaults to the maximum diameter.
         default_smoothing_size = max_diameter
@@ -465,7 +468,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         to_drop = where_close_variable(
             refined_coords[pos_columns].values,
             np.maximum(refined_coords['diameter'].values // 2 + 1, 1),
-            refined_coords['mass'].values)
+            refined_coords['mass'].values,
+            aspect=sizes.aspect)
         refined_coords.drop(to_drop, axis=0, inplace=True)
         refined_coords.reset_index(drop=True, inplace=True)
     elif np.all(np.greater(separation, 0)):
@@ -520,7 +524,10 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         if ep.ndim == 1:
             refined_coords['ep'] = ep
         else:
-            ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
+            # Align on refined_coords' index (which is gappy after the mass/size
+            # filter) so the axis=1 concat does not inject NaN phantom rows.
+            ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns],
+                              index=refined_coords.index)
             refined_coords = pandas_concat([refined_coords, ep], axis=1)
 
     # Optionally apply the SPIFF sub-pixel bias correction. In polydisperse mode

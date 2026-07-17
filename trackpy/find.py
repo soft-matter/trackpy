@@ -12,6 +12,11 @@ from .preprocessing import convert_to_int
 
 logger = logging.getLogger(__name__)
 
+# Exponent applied to pixel intensity when computing the collapse_flat centroid
+# (poly mode only). >1 sharpens the weighting toward the bright peak, pulling the
+# representative off dim shoulder maxima that skew a plain centroid.
+_CENTROID_POWER = 2.0
+
 
 def where_close(pos, separation, intensity=None):
     """ Returns indices of features that are closer than separation from other
@@ -60,27 +65,36 @@ def drop_close(pos, separation, intensity=None):
     return np.delete(pos, to_drop, axis=0)
 
 
-def where_close_variable(pos, separations, intensity):
+def where_close_variable(pos, separations, intensity, aspect=None):
     """Indices of features closer than a per-feature separation.
 
-    Like :func:`where_close`, but each feature carries its own (isotropic)
-    minimum separation. A pair is a duplicate when its distance is below the
-    *larger* of the two features' separations -- i.e. one feature falls inside
-    the other's exclusion zone -- and the lower-intensity feature is returned.
-    Intended for polydisperse features, where separation scales with size.
+    Like :func:`where_close`, but each feature carries its own minimum
+    separation. A pair is a duplicate when its distance is below the *larger* of
+    the two features' separations -- i.e. one feature falls inside the other's
+    exclusion zone -- and the lower-intensity feature is returned. Intended for
+    polydisperse features, where separation scales with size.
 
     Parameters
     ----------
     pos : ndarray (N, ndim)
         Feature positions.
     separations : ndarray (N,)
-        Per-feature minimum separation.
+        Per-feature minimum separation, in reference-axis units.
     intensity : ndarray (N,)
         Per-feature intensity; the dimmer of each too-close pair is dropped.
+    aspect : sequence of numbers, optional
+        Per-axis shape multiplier for anisotropic (fixed-shape) features. When
+        given, positions are divided by ``aspect`` before distances are computed,
+        which maps each feature's elliptical exclusion zone onto a sphere of the
+        (reference-unit) ``separations`` radius -- so the isotropic pairing logic
+        applies unchanged. Defaults to isotropic.
     """
     pos = np.asarray(pos, dtype=float)
     if len(pos) == 0:
         return []
+
+    if aspect is not None:
+        pos = pos / np.asarray(aspect, dtype=float)
 
     separations = np.asarray(separations, dtype=float)
     max_sep = separations.max()
@@ -188,16 +202,25 @@ def grey_dilation(image, separation, percentile=64, margin=None, precise=True,
         structure = ndimage.generate_binary_structure(ndim, ndim)
         labels, count = ndimage.label(maxima, structure=structure)
         index = np.arange(1, count + 1)
-        # Unweighted centroid per blob, straight from the labelled maxima pixels.
-        # This is identical to ndimage.center_of_mass on the boolean mask but far
-        # cheaper, as that runs a Python-level loop over every label.
+        # Intensity-weighted centroid per blob, computed with bincount (far cheaper
+        # than ndimage.center_of_mass, which loops over labels in Python). The
+        # maxima pixels within a blob are not one flat plateau -- each is the max of
+        # its own kernel, so their values differ -- and a maximum abutting a
+        # brighter neighbour is clipped on that side, skewing an unweighted centroid
+        # off the true peak (and thus the size measurement and refinement that start
+        # from it). Weighting by image value pulls the representative back onto the
+        # bright centre; for a genuinely flat top all weights are equal, so it
+        # reduces to the plain centroid.
         blob_coords = np.argwhere(maxima)
         blob_label = labels[maxima]                   # label (1..count) per pixel
-        blob_size = np.bincount(blob_label, minlength=count + 1)[1:]
+        blob_weight = image[maxima].astype(float) ** _CENTROID_POWER
+        weight_sum = np.bincount(blob_label, weights=blob_weight,
+                                 minlength=count + 1)[1:]
         centroid = np.column_stack([
-            np.bincount(blob_label, weights=blob_coords[:, d].astype(float),
+            np.bincount(blob_label,
+                        weights=blob_coords[:, d].astype(float) * blob_weight,
                         minlength=count + 1)[1:]
-            for d in range(ndim)]) / blob_size[:, None]
+            for d in range(ndim)]) / weight_sum[:, None]
         pos = np.round(centroid).astype(int)
         intensity = np.asarray(ndimage.maximum(image, labels, index))
     else:

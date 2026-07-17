@@ -1,9 +1,11 @@
 """Benchmark: polydisperse ``locate`` vs. the naive ``diameter=max`` baseline.
 
 Runs a grid of synthetic images over size range x density x noise and reports,
-per cell, the recall and position error of each method, plus the total
-wall-clock time for the whole grid. SPIFF (``spiff='auto'``) is applied to both
-methods where a frame has enough features, and silently skipped otherwise.
+per cell, each method's recall (``r``), RMS position error over matched features
+(``e``) and precision (``p``, the fraction of detections that are true -- the
+rest are false positives), plus grid totals and wall-clock time. SPIFF
+(``spiff='auto'``) is applied to both methods where a frame has enough features,
+and silently skipped otherwise.
 
 Run:  python benchmarks/polydisperse_grid.py
 """
@@ -23,7 +25,7 @@ MAX_DIAMETER_BY_RANGE = {'x3': 15, 'x5': 25, 'x10': 51}  # size-range label -> m
 GAP_BY_DENSITY = {'low': 24, 'med': 10, 'high': 3}  # density label -> edge gap (px); smaller = denser
 STD_BY_NOISE = {'low': 1, 'med': 5, 'high': 12}  # noise label -> background std
 POS_COLUMNS = default_pos_columns(2)
-MINMASS = 80
+MINMASS = 500
 MATCH_TOLERANCE = 1.5  # max px between a detection and its true position
 
 
@@ -67,29 +69,32 @@ def pack(max_diameter, gap, seed, target=300, max_attempts=15000):
 
 
 def recall_and_error(features, true_centers):
-    """Recall (fraction of true features matched within tolerance) and the
-    RMS position error over the matched features."""
+    """Recall (fraction of true features matched within tolerance), the RMS
+    position error over the matched features, and the number matched."""
     if len(features) == 0:
-        return 0.0, float('nan')
+        return 0.0, float('nan'), 0
     distance_to_detection, _ = cKDTree(features[POS_COLUMNS].values).query(true_centers)
     matched = distance_to_detection < MATCH_TOLERANCE
+    n_matched = int(matched.sum())
     recall = float(np.mean(matched))
     error = (np.sqrt(np.mean(distance_to_detection[matched] ** 2))
              if matched.any() else float('nan'))
-    return recall, error
+    return recall, error, n_matched
 
 
 def main():
     # Warm up the numba JIT so it doesn't skew the first timed cell.
     warmup_centers, warmup_sizes = pack(25, 10, 0, target=20)
     warmup_image = render(SHAPE, warmup_centers, warmup_sizes, 1, 0)
-    tp.locate(warmup_image, 25, minmass=MINMASS, spiff='auto')
-    tp.locate(warmup_image, Polydisperse(MIN_DIAMETER, 25), minmass=MINMASS, spiff='auto')
+    tp.locate(warmup_image, 25, minmass=MINMASS, spiff='auto', characterize=False)
+    tp.locate(warmup_image, Polydisperse(MIN_DIAMETER, 25), minmass=MINMASS,
+              spiff='auto', characterize=False)
 
     baseline_seconds = poly_seconds = 0.0
-    print("%-5s %-5s %-5s %4s | %-13s %-13s"
+    baseline_correct = poly_correct = total_true = 0
+    print("%-5s %-5s %-5s %4s | %-20s %-20s"
           % ("range", "dens", "noise", "N", "baseline", "poly"))
-    print("-" * 62)
+    print("-" * 76)
     for range_i, (range_label, max_diameter) in enumerate(MAX_DIAMETER_BY_RANGE.items()):
         for density_i, (density_label, gap) in enumerate(GAP_BY_DENSITY.items()):
             for noise_i, (noise_label, noise_std) in enumerate(STD_BY_NOISE.items()):
@@ -99,21 +104,36 @@ def main():
 
                 start = time.perf_counter()
                 baseline = tp.locate(image, max_diameter, minmass=MINMASS,
-                                     spiff='auto')
+                                     spiff='auto', characterize=False)
                 after_baseline = time.perf_counter()
                 poly = tp.locate(image, Polydisperse(MIN_DIAMETER, max_diameter),
-                                 minmass=MINMASS, spiff='auto')
+                                 minmass=MINMASS, spiff='auto',
+                                 characterize=False)
                 after_poly = time.perf_counter()
                 baseline_seconds += after_baseline - start
                 poly_seconds += after_poly - after_baseline
 
-                baseline_recall, baseline_error = recall_and_error(baseline, true_centers)
-                poly_recall, poly_error = recall_and_error(poly, true_centers)
-                print("%-5s %-5s %-5s %4d | r%.2f e%.3f  r%.2f e%.3f"
+                baseline_recall, baseline_error, baseline_n = recall_and_error(
+                    baseline, true_centers)
+                poly_recall, poly_error, poly_n = recall_and_error(
+                    poly, true_centers)
+                baseline_correct += baseline_n
+                poly_correct += poly_n
+                total_true += len(true_centers)
+                # Precision: fraction of a method's detections that are true
+                # (matched a distinct feature); the rest are false positives.
+                baseline_prec = baseline_n / len(baseline) if len(baseline) else float('nan')
+                poly_prec = poly_n / len(poly) if len(poly) else float('nan')
+                print("%-5s %-5s %-5s %4d | r%.2f e%.3f p%.2f  r%.2f e%.3f p%.2f"
                       % (range_label, density_label, noise_label, len(true_centers),
-                         baseline_recall, baseline_error, poly_recall, poly_error))
+                         baseline_recall, baseline_error, baseline_prec,
+                         poly_recall, poly_error, poly_prec))
 
-    print("-" * 62)
+    print("-" * 76)
+    print("Total correct (within %.1fpx) of %d true:  baseline=%d  poly=%d  "
+          "(poly/baseline=%.2fx)"
+          % (MATCH_TOLERANCE, total_true, baseline_correct, poly_correct,
+             poly_correct / baseline_correct))
     print("Total grid time:  baseline=%.2fs  poly=%.2fs  (poly/baseline=%.2fx)"
           % (baseline_seconds, poly_seconds, poly_seconds / baseline_seconds))
 
