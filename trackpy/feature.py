@@ -216,8 +216,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     Parameters
     ----------
     raw_image : array (any dimensions)
-        Image used for final characterization. Ideally, pixel values of
-        this image are not rescaled.
+        Image that will be preprocessed, then analyzed. The original raw image 
+        is also used for some feature characteristics. 
     diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
@@ -273,15 +273,13 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     -------
     DataFrame([x, y, mass, size, ecc, signal, raw_mass, ep])
         where "x, y" are appropriate to the dimensionality of the image,
-        mass means total integrated brightness of the blob in the preprocessed
-        image used for feature-finding (by default bandpass-filtered, so
-        usually much smaller than raw_mass),
+        mass means total integrated brightness of the blob after preprocessing,
         size means the radius of gyration of its Gaussian-like profile,
         ecc is its eccentricity (0 is circular),
         signal is the value of the brightest pixel in the feature,
         raw_mass is the total integrated brightness in raw_image, and
         ep is the estimated uncertainty (static error) in position.
-        All columns except x, y (and z) and mass require characterize=True
+        All columns except coordinates and mass require characterize=True 
         (the default).
 
     See Also
@@ -505,7 +503,7 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc, signal, raw_mass, ep])
+    DataFrame([x, y, mass, size, ecc, signal, raw_mass, ep, frame])
         where "x, y" are appropriate to the dimensionality of the image,
         mass means total integrated brightness of the blob in the preprocessed
         image used for feature-finding (by default bandpass-filtered, so
@@ -513,9 +511,10 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
         size means the radius of gyration of its Gaussian-like profile,
         ecc is its eccentricity (0 is circular),
         signal is the value of the brightest pixel in the feature,
-        raw_mass is the total integrated brightness in raw_image, and
-        ep is the estimated uncertainty (static error) in position.
-        All columns except x, y (and z) and mass require characterize=True
+        raw_mass is the total integrated brightness in raw_image,
+        ep is the estimated uncertainty (static error) in position, and
+        frame is the frame number.
+        All columns except coordinates and mass require characterize=True
         (the default).
 
     See Also
