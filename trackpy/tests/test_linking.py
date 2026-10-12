@@ -304,12 +304,13 @@ class CommonTrackingTests(StrictTestCase):
     def test_oversize_fail(self):
         with self.assertRaises(SubnetOversizeException):
             df = contracting_grid()
-            self.link(df, search_range=2)
+            self.link(df, search_range=2, link_strategy='recursive')
 
     def test_adaptive_fail(self):
         """Check recursion limit"""
         with self.assertRaises(SubnetOversizeException):
-            self.link(contracting_grid(), search_range=2, adaptive_stop=1.84)
+            self.link(contracting_grid(), search_range=2, adaptive_stop=1.84,
+                      link_strategy='recursive')
 
     def link(self, f, search_range, *args, **kwargs):
         kwargs = dict(self.linker_opts, **kwargs)
@@ -764,6 +765,11 @@ class TestHybridLink(SubnetNeededTests):
 class TestNonrecursiveLink(SubnetNeededTests):
     def setUp(self):
         self.linker_opts = dict(link_strategy='nonrecursive')
+
+
+class TestLSALink(SubnetNeededTests):
+    def setUp(self):
+        self.linker_opts = dict(link_strategy='lsa')
 
 
 class TestBTreeLink(SubnetNeededTests):

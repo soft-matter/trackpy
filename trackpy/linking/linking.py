@@ -11,8 +11,13 @@ from .utils import (Point, TrackUnstored, points_from_arr,
                     coords_from_df, coords_from_df_iter,
                     SubnetOversizeException)
 from .subnet import HashBTree, HashKDTree, Subnets, split_subnet
-from .subnetlinker import (subnet_linker_recursive, subnet_linker_drop,
-                           subnet_linker_numba, subnet_linker_nonrecursive)
+from .subnetlinker import (
+    subnet_linker_lsa,
+    subnet_linker_recursive,
+    subnet_linker_drop,
+    subnet_linker_numba,
+    subnet_linker_nonrecursive,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +55,7 @@ def link_iter(coords_iter, search_range, **kwargs):
         Reduce search_range by multiplying it by this factor.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Default 'KDTree'.
-    link_strategy : {'recursive', 'nonrecursive', 'hybrid', 'numba', 'drop', 'auto'}
+    link_strategy : {'lsa', 'recursive', 'nonrecursive', 'hybrid', 'numba', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses hybrid (numba+recursive) if available
         'drop' causes particles in subnetworks to go unlinked
@@ -143,7 +148,7 @@ def link(f, search_range, pos_columns=None, t_column='frame', **kwargs):
         Reduce search_range by multiplying it by this factor.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Default 'KDTree'.
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
+    link_strategy : {'lsa', 'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses hybrid (numba+recursive) if available
         'drop' causes particles in subnetworks to go unlinked
@@ -241,7 +246,7 @@ def link_df_iter(f_iter, search_range, pos_columns=None,
         Reduce search_range by multiplying it by this factor.
     neighbor_strategy : {'KDTree', 'BTree'}
         algorithm used to identify nearby features. Default 'KDTree'.
-    link_strategy : {'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
+    link_strategy : {'lsa', 'recursive', 'nonrecursive', 'numba', 'hybrid', 'drop', 'auto'}
         algorithm used to resolve subnetworks of nearby particles
         'auto' uses hybrid (numba+recursive) if available
         'drop' causes particles in subnetworks to go unlinked
@@ -391,9 +396,11 @@ class Linker:
             if NUMBA_AVAILABLE:
                 link_strategy = 'hybrid'
             else:
-                link_strategy = 'recursive'
+                link_strategy = 'lsa'
 
-        if link_strategy == 'recursive':
+        if link_strategy == 'lsa':
+            subnet_linker = subnet_linker_lsa
+        elif link_strategy == 'recursive':
             subnet_linker = subnet_linker_recursive
         elif link_strategy == 'hybrid':
             subnet_linker = subnet_linker_numba
