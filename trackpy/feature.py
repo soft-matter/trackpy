@@ -10,12 +10,13 @@ from .preprocessing import (bandpass, convert_to_int, invert_image,
 from .utils import (record_meta, validate_tuple, is_isotropic,
                     default_pos_columns, default_size_columns,
                     pandas_concat, get_pool)
-from .find import grey_dilation, where_close
+from .find import grey_dilation, where_close, where_close_variable
 from .refine import refine_com, refine_com_arr
 from .masks import (binary_mask, N_binary_mask, r_squared_mask,
                     x_squared_masks, cosmask, sinmask)
 from .uncertainty import _static_error, measure_noise
 from .spiff import apply_spiff
+from .polydisperse import Polydisperse
 import trackpy  # to get trackpy.__version__
 
 logger = logging.getLogger(__name__)
@@ -223,12 +224,17 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     image : array (same size as raw_image)
         Processed image used for centroid-finding and most particle
         measurements.
-    diameter : odd integer or tuple of odd integers
+    diameter : odd integer, tuple of odd integers, or Polydisperse
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
+        For samples with a range of particle sizes, pass a
+        :class:`~trackpy.polydisperse.Polydisperse` object (e.g.
+        ``Polydisperse(min_diameter, max_diameter)``) instead of a single
+        diameter; each feature is then refined with a window sized to its own
+        estimated diameter, reported in an extra ``diameter`` output column.
     minmass : float
         The minimum integrated brightness. This is a crucial parameter for
         eliminating spurious features.
@@ -291,10 +297,16 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
         size means the radius of gyration of its Gaussian-like profile,
         ecc is its eccentricity (0 is circular),
         and raw_mass is the total integrated brightness in raw_image.
+        In polydisperse mode (a ``Polydisperse`` ``diameter``) an additional
+        ``diameter`` column reports the refinement diameter assigned to each
+        feature from its size. With a fixed-shape ``aspect`` this is the
+        reference-axis (axis-0) diameter; the per-axis window is
+        ``diameter * aspect``, and ``size``/``ep`` are reported per axis.
 
     See Also
     --------
     batch : performs location on many images in batch
+    Polydisperse : configure detection of features spanning a range of sizes
     minmass_v03_change : to convert minmass from v0.2.4 to v0.3.0
     minmass_v04_change : to convert minmass from v0.3.x to v0.4.x
 
@@ -329,13 +341,37 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     shape = raw_image.shape
     ndim = len(shape)
 
-    diameter = validate_tuple(diameter, ndim)
-    diameter = tuple([int(x) for x in diameter])
-    if not np.all([x & 1 for x in diameter]):
-        raise ValueError("Feature diameter must be an odd integer. Round up.")
-    radius = tuple([x // 2 for x in diameter])
+    # Resolve the size parameters. In polydisperse mode a Polydisperse config
+    # object stands in for `diameter`; its detection, refinement, deduplication,
+    # uncertainty and bias-correction steps reuse locate's shared pipeline below
+    # via `if poly` branches.
+    poly = diameter if isinstance(diameter, Polydisperse) else None
+    if poly is not None:
+        sizes = poly.for_ndim(ndim)
+        min_diameter, max_diameter = sizes.min_diameter, sizes.max_diameter
+        r_max = sizes.r_max
+        # Anisotropy is expressed through a fixed-shape aspect ratio; features
+        # are isotropic only when every axis shares the same aspect weight.
+        isotropic = len(set(sizes.aspect)) == 1
+        # The boxcar background kernel must exceed the *largest* particle, so
+        # smoothing defaults to the maximum diameter.
+        default_smoothing_size = max_diameter
+        # Detect at the *finest* scale so closely-spaced small particles stay
+        # resolvable.
+        default_separation = tuple(d + 1 for d in min_diameter)
+        # Conservative edge margin from the largest refinement radius.
+        margin_radius = r_max
+    else:
+        diameter = validate_tuple(diameter, ndim)
+        diameter = tuple([int(x) for x in diameter])
+        if not np.all([x & 1 for x in diameter]):
+            raise ValueError("Feature diameter must be an odd integer. Round up.")
+        radius = tuple([x // 2 for x in diameter])
+        isotropic = np.all(radius[1:] == radius[:-1])
+        default_smoothing_size = diameter
+        default_separation = tuple([x + 1 for x in diameter])
+        margin_radius = radius
 
-    isotropic = np.all(radius[1:] == radius[:-1])
     if (not isotropic) and (maxsize is not None):
         raise ValueError("Filtering by size is not available for anisotropic "
                          "features.")
@@ -343,12 +379,12 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     is_float_image = not np.issubdtype(raw_image.dtype, np.integer)
 
     if separation is None:
-        separation = tuple([x + 1 for x in diameter])
+        separation = default_separation
     else:
         separation = validate_tuple(separation, ndim)
 
     if smoothing_size is None:
-        smoothing_size = diameter
+        smoothing_size = default_smoothing_size
     else:
         smoothing_size = validate_tuple(smoothing_size, ndim)
 
@@ -397,21 +433,46 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     #       refinement ("separation")
     #   - Invalid output of the bandpass step ("smoothing_size")
     margin = tuple([max(rad, sep // 2 - 1, sm // 2) for (rad, sep, sm) in
-                    zip(radius, separation, smoothing_size)])
+                    zip(margin_radius, separation, smoothing_size)])
+
     # Find features with minimum separation distance of `separation`. This
     # excludes detection of small features close to large, bright features
-    # using the `maxsize` argument.
-    coords = grey_dilation(image, separation, percentile, margin, precise=False)
+    # using the `maxsize` argument. In polydisperse mode the separation is the
+    # finest (min-diameter) scale and flat-topped maxima are collapsed so each
+    # feature yields a single coordinate; duplicate removal across differing
+    # sizes is deferred to after refinement.
+    coords = grey_dilation(image, separation, percentile, margin,
+                           precise=False, collapse_flat=poly is not None)
 
-    # Refine their locations and characterize mass, size, etc.
-    refined_coords = refine_com(raw_image, image, radius, coords,
-                                max_iterations=max_iterations,
-                                engine=engine, characterize=characterize)
+    # Refine their locations and characterize mass, size, etc. In polydisperse
+    # mode each feature is refined with a window sized to its own estimated
+    # diameter (reported in an extra `diameter` column).
+    if poly is not None:
+        refined_coords = poly.refine(
+            raw_image, image, coords, max_iterations=max_iterations,
+            engine=engine, characterize=characterize, pos_columns=pos_columns)
+    else:
+        refined_coords = refine_com(raw_image, image, radius, coords,
+                                    max_iterations=max_iterations,
+                                    engine=engine, characterize=characterize)
     if len(refined_coords) == 0:
         return refined_coords
 
-    # Flat peaks return multiple nearby maxima. Eliminate duplicates.
-    if np.all(np.greater(separation, 0)):
+    # Flat peaks return multiple nearby maxima. Eliminate duplicates. In
+    # polydisperse mode a feature is a duplicate of another only when it sits
+    # within the other's body (its radius, diameter // 2), i.e. a secondary
+    # maximum on the same particle. Using the full separation instead would let
+    # a large particle's exclusion zone delete genuinely-separate small
+    # neighbours (they lie outside its body but inside diameter + 1).
+    if poly is not None:
+        to_drop = where_close_variable(
+            refined_coords[pos_columns].values,
+            np.maximum(refined_coords['diameter'].values // 2 + 1, 1),
+            refined_coords['mass'].values,
+            aspect=sizes.aspect)
+        refined_coords.drop(to_drop, axis=0, inplace=True)
+        refined_coords.reset_index(drop=True, inplace=True)
+    elif np.all(np.greater(separation, 0)):
         to_drop = where_close(refined_coords[pos_columns], separation,
                               refined_coords['mass'])
         refined_coords.drop(to_drop, axis=0, inplace=True)
@@ -449,20 +510,29 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
             refined_coords = refined_coords.iloc[np.argsort(mass)[-topn:]]
 
     # Estimate the uncertainty in position using signal (measured in refine)
-    # and noise (measured here below).
+    # and noise (measured here below). In polydisperse mode this is computed per
+    # size bucket, since it depends on each feature's refinement radius.
     if characterize:
-        black_level, noise = measure_noise(image, raw_image, radius)
-        Npx = N_binary_mask(radius, ndim)
-        mass = refined_coords['raw_mass'].values - Npx * black_level
-        ep = _static_error(mass, noise, radius, noise_size)
+        if poly is not None:
+            ep = poly.static_error(refined_coords, image, raw_image, noise_size)
+        else:
+            black_level, noise = measure_noise(image, raw_image, radius)
+            Npx = N_binary_mask(radius, ndim)
+            mass = refined_coords['raw_mass'].values - Npx * black_level
+            ep = _static_error(mass, noise, radius, noise_size)
 
         if ep.ndim == 1:
             refined_coords['ep'] = ep
         else:
-            ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns])
+            # Align on refined_coords' index (which is gappy after the mass/size
+            # filter) so the axis=1 concat does not inject NaN phantom rows.
+            ep = pd.DataFrame(ep, columns=['ep_' + cc for cc in pos_columns],
+                              index=refined_coords.index)
             refined_coords = pandas_concat([refined_coords, ep], axis=1)
 
-    # Optionally apply the SPIFF sub-pixel bias correction.
+    # Optionally apply the SPIFF sub-pixel bias correction. In polydisperse mode
+    # apply_spiff auto-groups by the `diameter` column, correcting each size
+    # class separately.
     if spiff:
         refined_coords = apply_spiff(
             refined_coords, pos_columns=pos_columns,
@@ -488,12 +558,15 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
     ----------
     frames : list (or iterable) of images
         The frames to process.
-    diameter : odd integer or tuple of odd integers
+    diameter : odd integer, tuple of odd integers, or Polydisperse
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
         equal resolution (e.g. confocal microscopy). The tuple order is the
         same as the image shape, conventionally (z, y, x) or (y, x). The
         number(s) must be odd integers. When in doubt, round up.
+        Pass a :class:`~trackpy.polydisperse.Polydisperse` object to detect
+        features spanning a range of sizes (see :func:`locate`); the output
+        then gains a ``diameter`` column.
     output : {None, trackpy.PandasHDFStore, SomeCustomClass}
         If None, return all results as one big DataFrame. Otherwise, pass
         results from each frame, one at a time, to the put() method
@@ -534,11 +607,14 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
     DataFrame([x, y, mass, size, ecc, signal])
         where mass means total integrated brightness of the blob,
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (0 is circular).
+        and ecc is its eccentricity (0 is circular). In polydisperse mode
+        (a ``Polydisperse`` ``diameter``) an additional ``diameter`` column
+        reports each feature's assigned refinement diameter.
 
     See Also
     --------
     locate : performs location on a single image
+    Polydisperse : configure detection of features spanning a range of sizes
 
     Notes
     -----
