@@ -217,12 +217,8 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     Parameters
     ----------
     raw_image : array (any dimensions)
-        Image used for final characterization. Ideally, pixel values of
-        this image are not rescaled, but it can also be identical to
-        ``image``.
-    image : array (same size as raw_image)
-        Processed image used for centroid-finding and most particle
-        measurements.
+        Image that will be preprocessed, then analyzed. The original raw image 
+        is also used for some feature characteristics. 
     diameter : odd integer or tuple of odd integers
         This may be a single number or a tuple giving the feature's
         extent in each dimension, useful when the dimensions do not have
@@ -285,12 +281,16 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc, signal, raw_mass])
+    DataFrame([x, y, mass, size, ecc, signal, raw_mass, ep])
         where "x, y" are appropriate to the dimensionality of the image,
-        mass means total integrated brightness of the blob,
+        mass means total integrated brightness of the blob after preprocessing,
         size means the radius of gyration of its Gaussian-like profile,
         ecc is its eccentricity (0 is circular),
-        and raw_mass is the total integrated brightness in raw_image.
+        signal is the value of the brightest pixel in the feature,
+        raw_mass is the total integrated brightness in raw_image, and
+        ep is the estimated uncertainty (static error) in position.
+        All columns except coordinates and mass require characterize=True 
+        (the default).
 
     See Also
     --------
@@ -380,7 +380,7 @@ def locate(raw_image, diameter, minmass=None, maxsize=None, separation=None,
     else:
         image = raw_image
 
-    # For optimal performance, performance, coerce the image dtype to integer.
+    # For optimal performance, coerce the image dtype to integer.
     if is_float_image:  # For float images, assume bitdepth of 8.
         dtype = np.uint8
     else:  # For integer images, take original dtype
@@ -531,10 +531,19 @@ def batch(frames, diameter, output=None, meta=None, processes='auto',
 
     Returns
     -------
-    DataFrame([x, y, mass, size, ecc, signal])
-        where mass means total integrated brightness of the blob,
+    DataFrame([x, y, mass, size, ecc, signal, raw_mass, ep, frame])
+        where "x, y" are appropriate to the dimensionality of the image,
+        mass means total integrated brightness of the blob in the preprocessed
+        image used for feature-finding (by default bandpass-filtered, so
+        usually much smaller than raw_mass),
         size means the radius of gyration of its Gaussian-like profile,
-        and ecc is its eccentricity (0 is circular).
+        ecc is its eccentricity (0 is circular),
+        signal is the value of the brightest pixel in the feature,
+        raw_mass is the total integrated brightness in raw_image,
+        ep is the estimated uncertainty (static error) in position, and
+        frame is the frame number.
+        All columns except coordinates and mass require characterize=True
+        (the default).
 
     See Also
     --------
