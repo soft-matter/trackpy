@@ -81,7 +81,9 @@ def sinmask(radius):
 @memo
 def cosmask(radius):
     "Sin of theta_mask"
-    return np.cos(2*theta_mask(radius))
+    result = np.cos(2 * theta_mask(radius))
+    result[validate_tuple(radius, 2)] = 0
+    return result
 
 
 @memo
