@@ -1,0 +1,17 @@
+[project]
+name = "trackpy"
+requires-python = ">= 3.9"
+readme = "README.md"
+license = "BSD-3-Clause"
+dependencies = ["numpy >= 1.19", "scipy >= 1.5", "pandas >= 1.1",
+    "tables >= 3.6", "scikit-learn >= 0.24", "llvmlite >= 0.36",
+    "looseversion>=1.0.1", "pyyaml", "matplotlib"]
+dynamic = ["version", "authors", "description", "classifiers", "urls"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+fast = ["numba >= 0.53"]
+
+[build-system]
+requires = ["setuptools", "versioneer[toml]"]
+build-backend = "setuptools.build_meta"
