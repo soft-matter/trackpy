@@ -59,7 +59,8 @@ Special Capabilities
     in a routine that combines linking and feature-finding.
   * Feature-finding and trajectory-linking works on **images with any number of dimensions**,
     making possible some creative applications.
-  * **Uncertainty is estimated** following a method `described in this paper <http://dx.doi.org/10.1529/biophysj.104.042457>`__ by Savin and Doyle.
+  * **Uncertainty is estimated** following a method `described in this paper <http://dx.doi.org/10.1529/biophysj.104.042457>`__ 
+    by Savin and Doyle.
   * **High-performance** numba acceleration is used only if
     if available. Since these can be tricky to install on some machines,
     the code will automatically fall back on slower pure Python implementations
@@ -114,38 +115,31 @@ Peter J Lu                   https://github.com/peterlu/PLuTARC_centerfind2D    
 Thomas A Caswell             https://github.com/tacaswell/tracking               C++
 ============================ =================================================== =========================
 
-Core Contributors
-^^^^^^^^^^^^^^^^^
-
-  * **Casper van der Wel** anisotropic 3D feature-finding, plotting and analyses, framework
-    for least-squares refinement, combined linking and feature finding
-  * **Daniel Allan** feature-finding, uncertainty estimation,
-    motion characterization and discrimination, plotting tools, tests
-  * **Nathan Keim** alternative trajectory-linking implementations, major
-    speed-ups, prediction, adaptive search
-  * **Thomas Caswell** multiple implementations of sophisticated trajectory-linking, tests
-
-
 Support
 ^^^^^^^
 
-This package was developed in part by Daniel Allan, as part of his
-PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
-University in Baltimore, MD, USA. The work was supported by the National Science Foundation
-under grant number CBET-1033985.  Dan can be reached at dallan@pha.jhu.edu.
-
-This package was developed in part by Thomas A Caswell as part of his
-PhD thesis work in Sidney R Nagel's and Margaret L Gardel's groups at
-the University of Chicago, Chicago IL, USA.  This work was supported in
-part by NSF Grant DMR-1105145 and NSF-MRSEC DMR-0820054.  Tom can be
-reached at tcaswell@gmail.com.
-
-This package was developed in part by Nathan C. Keim at Cal Poly,
-San Luis Obispo, California, USA and supported by NSF Grant DMR-1708870.
-Portions were also developed at the University of Pennsylvania,
-Philadelphia, USA, supported by NSF-MRSEC DMR-1120901.
-
-This package was developed in part by Casper van der Wel, as part of his
-PhD thesis work in Daniela Kraft’s group at the Huygens-Kamerlingh-Onnes laboratory,
-Institute of Physics, Leiden University, The Netherlands. This work was
-supported by the Netherlands Organisation for Scientific Research (NWO/OCW). 
+* Daniel Allan's work on this project was part of his PhD thesis work on
+  microrheology in Robert L. Leheny's group at Johns Hopkins University in
+  Baltimore, MD, USA. The work was supported by the National Science Foundation
+  under grant number CBET-1033985.
+* Thomas A Caswell's work on this project was part of his PhD thesis work in
+  Sidney R Nagel's and Margaret L Gardel's groups at the University of Chicago,
+  Chicago IL, USA. This work was supported in part by NSF Grant DMR-1105145 and
+  NSF-MRSEC DMR-0820054.
+* Sean Freeman's contributions were supported by INCUS, a NASA Earth Venture
+  Mission, funded by NASA's Science Mission Directorate and managed through the
+  Earth System Science Pathfinder Program Office under contract number
+  80LARC22DA011.
+* Viva R. Horowitz's contributions were supported by Hamilton College.
+* Nathan C. Keim's work on this project was supported in part by NSF-MRSEC
+  DMR-1120901 (University of Pennsylvania, Philadelphia PA, USA), NSF Grant
+  DMR-1708870 (Cal Poly, San Luis Obispo CA, USA), and NSF Grant DMR-2346012
+  (The Pennsylvania State University, University Park PA, USA).
+* Antony Lee's work on the package took place, in part, during his post-doc in
+  Laurent Cognet's group at the Université de Bordeaux. This work was supported
+  by a post-doctoral fellowship from the Fondation ARC pour la Recherche sur le
+  Cancer.
+* Casper van der Wel's work on this project was part of his PhD thesis work in
+  Daniela Kraft's group at the Huygens-Kamerlingh-Onnes laboratory, Institute of
+  Physics, Leiden University, The Netherlands. This work was supported by the
+  Netherlands Organisation for Scientific Research (NWO/OCW).
