@@ -36,6 +36,18 @@ def compare(shape, count, radius, noise_level, **kwargs):
     return actual, expected
 
 
+class TestCosmask(StrictTestCase):
+    def test_center_is_zero(self):
+        radius = (2, 3)
+        expected = np.cos(2 * tp.masks.theta_mask(radius))
+        expected[radius] = 0
+
+        actual = tp.masks.cosmask(radius)
+
+        assert_allclose(actual, expected)
+        assert actual[radius] == 0
+
+
 class OldMinmass(StrictTestCase):
     def check_skip(self):
         pass
@@ -643,6 +655,17 @@ class CommonFeatureIdentificationTests:
                            engine=self.engine)['ecc']
         expected = ECC
         assert_allclose(actual, expected, atol=0.1)
+
+    def test_single_pixel_eccentricity(self):
+        self.check_skip()
+        image = np.zeros((7, 7), dtype='uint8')
+        image[3, 3] = 1
+
+        result = refine_com_arr(image, image, 2, np.array([[3, 3]]),
+                                engine=self.engine)
+
+        assert np.isfinite(result[0, 4])
+        assert_allclose(result[0, 4], 0)
 
     def test_ep(self):
         # Test whether the estimated static error equals the rms deviation from
