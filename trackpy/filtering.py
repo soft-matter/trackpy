@@ -47,8 +47,9 @@ def filter_clusters(tracks, quantile=0.8, threshold=None):
     try:
         tracks['frame']
         tracks['particle']
+        tracks['size']
     except KeyError:
-        raise ValueError("Tracks must contain columns 'frame' and 'particle'.")
+        raise ValueError("Tracks must contain columns 'frame', 'particle' and 'size'.")
     if threshold is None:
         threshold = tracks['size'].quantile(quantile)
 
