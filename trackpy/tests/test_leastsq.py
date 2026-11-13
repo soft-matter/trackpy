@@ -13,6 +13,8 @@ from trackpy.refine.least_squares import (dimer, trimer, tetramer, dimer_global,
 from trackpy.tests.common import assert_coordinates_close, StrictTestCase
 import warnings
 
+from abc import ABC
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     try:
@@ -36,7 +38,7 @@ SIZE_3D = 4.
 SIZE_2D_ANISOTROPIC = (5., 3.)
 SIZE_3D_ANISOTROPIC = (3., 5., 5.)
 
-class RefineTsts:
+class AbstractShapeTestFit(ABC):
     skip = False
     dtype = np.uint8
     signal = SIGNAL
@@ -672,9 +674,13 @@ class RefineTsts:
 
         self.assertLess(devs['pos'], self.precision_perfect)
 
+class Abstract2DShapeTestFit(AbstractShapeTestFit, ABC):
+    ndim = 2
+
+class Abstract3DShapeTestFit(AbstractShapeTestFit, ABC):
+    ndim = 3
+
     def test_tetramer_constrained(self):
-        if self.ndim != 3:
-            raise SkipTest('Tetramers are only tested in 3D')
         hard_radius = 1.
         constraints = tetramer(2*np.array(self.size)*hard_radius, self.ndim)
 
@@ -686,38 +692,32 @@ class RefineTsts:
 
         self.assertLess(devs['pos'], self.precision_perfect)
 
-
-class TestFit_gauss2D(RefineTsts, StrictTestCase):
+class TestFit_gauss2D(Abstract2DShapeTestFit, StrictTestCase):
     size = SIZE_2D
-    ndim = 2
     feat_func = 'gauss'
     fit_func = 'gauss'
 
 
-# class TestFit_gauss2D_a(RefineTsts, StrictTestCase):
+# class TestFit_gauss2D_a(Abstract2DShapeTestFit, StrictTestCase):
 #      size = SIZE_2D_ANISOTROPIC
-#      ndim = 2
 #      feat_func = 'gauss'
 #      fit_func = 'gauss'
 
 
-class TestFit_gauss3D(RefineTsts, StrictTestCase):
+class TestFit_gauss3D(Abstract3DShapeTestFit, StrictTestCase):
      size = SIZE_3D
-     ndim = 3
      feat_func = 'gauss'
      fit_func = 'gauss'
 
 
-class TestFit_gauss3D_a(RefineTsts, StrictTestCase):
+class TestFit_gauss3D_a(Abstract3DShapeTestFit, StrictTestCase):
      size = SIZE_3D_ANISOTROPIC
-     ndim = 3
      feat_func = 'gauss'
      fit_func = 'gauss'
 
 
-class TestFit_disc2D(RefineTsts, StrictTestCase):
+class TestFit_disc2D(Abstract2DShapeTestFit, StrictTestCase):
     size = SIZE_2D
-    ndim = 2
     feat_func = 'disc'
     feat_kwargs = dict(disc_size=DISC_SIZE)
     param_val = feat_kwargs.copy()
@@ -751,9 +751,8 @@ class TestFit_disc2D(RefineTsts, StrictTestCase):
 #     fit_func = 'disc'
 
 
-class TestFit_ring2D(RefineTsts, StrictTestCase):
+class TestFit_ring2D(Abstract2DShapeTestFit, StrictTestCase):
     size = SIZE_2D
-    ndim = 2
     feat_func = 'ring'
     feat_kwargs = dict(thickness=RING_THICKNESS)
     param_val = feat_kwargs.copy()
@@ -764,9 +763,8 @@ class TestFit_ring2D(RefineTsts, StrictTestCase):
     size_dev = 0.05  #  5% of feature size
 
 
-# class TestFit_ring2D_a(RefineTsts, StrictTestCase):
+# class TestFit_ring2D_a(Abstract2DShapeTestFit, StrictTestCase):
 #     size = SIZE_2D_ANISOTROPIC
-#     ndim = 2
 #     feat_func = 'ring'
 #     feat_kwargs = dict(thickness=RING_THICKNESS)
 #     param_val = feat_kwargs.copy()
@@ -777,9 +775,8 @@ class TestFit_ring2D(RefineTsts, StrictTestCase):
 #     size_dev = 0.05  #  5% of feature size
 #
 #
-# class TestFit_ring3D(RefineTsts, StrictTestCase):
+# class TestFit_ring3D(Abstract3DShapeTestFit, StrictTestCase):
 #     size = SIZE_3D
-#     ndim = 3
 #     feat_func = 'ring'
 #     feat_kwargs = dict(thickness=RING_THICKNESS)
 #     param_val = feat_kwargs.copy()
@@ -790,9 +787,8 @@ class TestFit_ring2D(RefineTsts, StrictTestCase):
 #     size_dev = 0.05  #  5% of feature size
 #
 #
-# class TestFit_ring3D_a(RefineTsts, StrictTestCase):
+# class TestFit_ring3D_a(Abstract3DShapeTestFit, StrictTestCase):
 #     size = SIZE_3D_ANISOTROPIC
-#     ndim = 3
 #     feat_func = 'ring'
 #     feat_kwargs = dict(thickness=RING_THICKNESS)
 #     param_val = feat_kwargs.copy()
