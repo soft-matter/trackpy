@@ -10,11 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.9", "3.11", "3.13"]
-        # Exclude macOS with Python 3.9 due to compatibility issues with conda
-        exclude:
-          - os: macos-latest
-            python: "3.9"
+        python: ["3.11", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
