@@ -1319,9 +1319,16 @@ def dimer(dist, ndim=2):
 
 def _trimer_fun(x, dist, ndim):
     x = x[..., 2:2+ndim]  # get positions only
-    return np.concatenate((1 - np.sum(((x[:, 0] - x[:, 1])/dist)**2, axis=1),
-                           1 - np.sum(((x[:, 1] - x[:, 2])/dist)**2, axis=1),
-                           1 - np.sum(((x[:, 0] - x[:, 2])/dist)**2, axis=1)))
+    first, second, third = x[:, 0], x[:, 1], x[:, 2]
+    edges = np.array((first - second, second - third, first - third))
+    try:
+        squared = edges / dist
+    except (ValueError, TypeError):
+        edges[0] / dist
+        raise
+    squared **= 2
+    sum_func = np.add.reduce if type(squared) is np.ndarray else np.sum
+    return (1 - sum_func(squared, axis=2)).reshape(-1)
 
 
 def trimer(dist, ndim=2):
