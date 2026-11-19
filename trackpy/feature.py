@@ -4,6 +4,7 @@ from functools import partial
 from typing import Iterable
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from .preprocessing import (bandpass, convert_to_int, invert_image,
@@ -202,7 +203,7 @@ def refine(*args, **kwargs):
     return refine_com(*args, **kwargs)
 
 
-def locate(raw_image: np.typing.NDArray[np.float64],
+def locate(raw_image: npt.NDArray[np.float64],
            diameter, minmass=None, maxsize=None, separation=None,
            noise_size=1, smoothing_size=None, threshold=None, invert=False,
            percentile=64, topn=None, preprocess=True, max_iterations=10,
@@ -476,7 +477,7 @@ def locate(raw_image: np.typing.NDArray[np.float64],
     return refined_coords
 
 
-def batch(frames: Iterable[np.typing.NDArray[np.float64]],
+def batch(frames: Iterable[npt.NDArray[np.float64]],
           diameter, output=None, meta=None, processes='auto',
           after_locate=None, spiff=False, **kwargs):
     """Locate Gaussian-like blobs of some approximate size in a set of images.
