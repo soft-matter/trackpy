@@ -708,6 +708,15 @@ class SimpleLinkingTestsDfIter(CommonTrackingTests):
         res = pandas_concat(res_iter)
         return pandas_sort(res, ['particle', 'frame']).reset_index(drop=True)
 
+    def test_single_dataframe_requires_link(self):
+        detections = DataFrame({'x': [0, 1], 'y': [0, 0], 'frame': [0, 1]})
+        for pos_columns in (None, ['y', 'x']):
+            with self.subTest(pos_columns=pos_columns):
+                with self.assertRaisesRegex(
+                        TypeError, r'one DataFrame per frame.*trackpy\.link'):
+                    pd.concat(link_df_iter(detections, 5, pos_columns=pos_columns),
+                              ignore_index=True)
+
     def test_output_dtypes(self):
         N = 5
         f = DataFrame({'x': np.arange(N), 'y': np.ones(N),
