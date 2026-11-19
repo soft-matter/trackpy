@@ -3,6 +3,7 @@ import logging
 import itertools, functools
 
 import numpy as np
+import pandas as pd
 
 from ..utils import (guess_pos_columns, default_pos_columns,
                      validate_tuple, is_isotropic, pandas_sort)
@@ -212,16 +213,16 @@ def link_df_iter(f_iter, search_range, pos_columns=None,
         neighbor_strategy=None, link_strategy=None, dist_func=None,
         to_eucl=None)
 
-    Link an iterable of DataFrames into trajectories.
+    Link an iterable of per-frame DataFrames into trajectories.
 
     Parameters
     ----------
     f_iter : iterable of DataFrames
-        Each DataFrame must include any number of column(s) for position and a
-        column of frame numbers. By default, 'x' and 'y' are expected for
-        position, and 'frame' is expected for frame number. For optimal
-        performance, explicitly specify the column names using `pos_columns`
-        and `t_column` kwargs.
+        Supply one DataFrame per frame, in frame order. Each must include
+        position columns and a frame number column. The default columns are
+        'x' and 'y' for position and 'frame' for the frame number. For optimal
+        performance, specify the column names using `pos_columns` and
+        `t_column`.
     search_range : float or tuple
         the maximum distance features can move between frames,
         optionally per dimension
@@ -267,8 +268,25 @@ def link_df_iter(f_iter, search_range, pos_columns=None,
 
     See also
     --------
-    link
+    link : Link detections in a single DataFrame containing multiple frames.
+
+    Examples
+    --------
+    To link a table named ``detections`` frame by frame, pass a generator
+    of its frame groups.
+
+    .. code-block:: python
+
+        import pandas as pd
+        from trackpy import link_df_iter
+
+        frames = (group for _, group in detections.groupby('frame', sort=True))
+        linked = pd.concat(link_df_iter(frames, search_range=5), ignore_index=True)
     """
+    if isinstance(f_iter, pd.DataFrame):
+        raise TypeError("link_df_iter expects one DataFrame per frame. "
+                        "Use trackpy.link() to link a single DataFrame.")
+
     if pos_columns is None:
         # Get info about the first frame without processing it
         f_iter, f_iter_dummy = itertools.tee(f_iter)
