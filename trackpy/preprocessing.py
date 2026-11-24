@@ -147,7 +147,7 @@ def invert_image(raw_image, max_value=None):
 
     Parameters
     ----------
-    image : ndarray
+    raw_image : ndarray
     max_value : number
         The maximum value of the image. Optional. If not given, this will is
         (for integers) the highest possible value and (for floats) 1.

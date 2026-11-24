@@ -174,7 +174,7 @@ def timedelta_to_frame(timedeltas, fps):
 
     Parameters
     ----------
-    timedelta : DataFrame or Series of timedelta64 datatype
+    timedeltas : DataFrame or Series of timedelta64 datatype
     fps : frames per second (integer)
 
     Result
